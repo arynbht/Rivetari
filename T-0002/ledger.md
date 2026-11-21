@@ -27,6 +27,8 @@
 - 2026-11-14 03:09 prove: proof failed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-14 03:14 build: build done · commit 9f03eb454b11 · 0 file(s) this round · 793371 tokens · $0.60 · A person needs to decide this: the proof fails on a timeout in `packages/cli/src/commands/fix.test.ts`, a test this task doesn't touch, and the fix (a longer timeout in that file) means editing an exi (factory runtime (for arynbht@gmail.com))
 - 2026-11-14 03:16 prove: proof failed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-21 17:59 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0002 kept: it couldn't be removed; remove it by hand · branch fix/t-0002 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-21 17:59 close: ledger sealed · abandoned (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -90,3 +92,7 @@
 - 2026-11-14 02:52 tier 1 fail: quality.tests.pass — `npm test` exited 1 (expected 0) [90m251| [39m [34mexpect[39m([35mawait[39m [34mread[39m([32m".factory"[39m[33m,[39m [32m"profile.yml"[39m))[33m.[39m[34mtoContain[39m([32m"type: lib[39m… [90m252| [39m [34mexpect[39m([35mawait[39m [34mread[39m([32m".factory"[39m[33m,[3…
 - 2026-11-14 02:52 tier 1 fail: quality.coverage.floor — coverage is configured, but the test run wrote no coverage/coverage-summary.json
 - 2026-11-14 02:52 protected: packages/cli/src/commands/init.test.ts — modifies a test that existed at base (allowed at build)
+
+## Outcome
+
+- 2026-11-21 17:59 abandoned: Branch predates #159 (judge ran base's allowed test) and #160 (5s test timeouts under the full suite); redone as T-0003 with the same card. · 183h27m · 3540k tokens · $3.25
