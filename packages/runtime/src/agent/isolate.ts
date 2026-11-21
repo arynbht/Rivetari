@@ -1,4 +1,4 @@
-// The isolate beat (§3.3): a worktree per task, cut from the remote's default
+// The isolate beat: a worktree per task, cut from the remote's default
 // branch, with its own branch, port and database name, and with git hooks
 // switched off inside it. The record (env.json) lives in the task directory of
 // the primary checkout, outside the agent's working directory, and its hash is
@@ -12,7 +12,7 @@ import { simpleGit } from "simple-git";
 import { loadTask, type Task, TaskError, TASKS_DIR } from "../task/tasks.js";
 
 export const WORKTREES_DIR = ".worktrees";
-/** Ports handed to task worktrees start here (§6.2's example: 5174). */
+/** Ports handed to task worktrees start here (example: 5174). */
 export const FIRST_PORT = 5174;
 
 export interface Isolation {

@@ -1,4 +1,4 @@
-// Stop-and-ask (§7.2): what the agent's change did that a person has to agree
+// Stop-and-ask: what the agent's change did that a person has to agree
 // to before the task moves on. Found from the committed diff, not the agent's
 // account of it, so an agent can't talk its way past one.
 import { readFile } from "node:fs/promises";

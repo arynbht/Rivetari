@@ -1,4 +1,4 @@
-// The route beat for a task (§3.2): propose an assembly from the confirmed
+// The route beat for a task: propose an assembly from the confirmed
 // card, then a human approves it — the second and last approval before the
 // agent starts. Approval seals the assembly's hash in the ledger, so a later
 // edit to assembly.yml is caught like an edit to the card.
@@ -37,7 +37,7 @@ export type RouteContext = Omit<RouteInput, "card">;
 /**
  * What the router reads from the repo: manifests, the skills a sync left
  * loadable, the profile's flags, the tracked files, and the judge's checks.
- * Refuses when the skills are stale (§3.0: the pipeline doesn't start then).
+ * Refuses when the skills are stale (the pipeline doesn't start then).
  */
 export async function routingContext(
   repoPath: string,

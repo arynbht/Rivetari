@@ -6,9 +6,19 @@ Outcomes, not configuration: lint, typecheck, and tests actually pass; coverage 
 
 
 
-5 control(s).
+6 control(s).
 
 
+
+### `quality.boundaries.clean` — Module boundaries hold
+
+- **phase**: build · **severity**: high · **effort**: small
+- **detect**: `command` · **fix**: —
+
+A repo that writes its package graph down as dependency-cruiser rules should have every change checked against them. Running the repo's own `boundaries` script, rather than trusting the config file to exist, is what stops a change from quietly importing across a layer it was meant to stay out of.
+
+References:
+  - [dependency-cruiser — rules reference](https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md)
 
 ### `quality.coverage.floor` — Coverage at or above the floor
 

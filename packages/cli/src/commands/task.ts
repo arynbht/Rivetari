@@ -102,7 +102,7 @@ async function pull(
 }
 
 /**
- * Run one beat of task `id` against the tasks branch (§8): pull the record,
+ * Run one beat of task `id` against the tasks branch: pull the record,
  * take or renew this machine's lease (refused, before anything runs, while
  * someone else holds it), run, and push what the beat wrote, even when it
  * failed part-way, so the record never only lives here. A long beat renews

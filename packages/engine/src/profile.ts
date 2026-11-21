@@ -125,6 +125,8 @@ export async function updateProfile(
     current?.["severity-floor"],
   );
   setIfChanged(["autonomy"], validated.autonomy, current?.autonomy);
+  if (validated.quality !== undefined)
+    setIfChanged(["quality"], validated.quality, current?.quality);
 
   const applyToggles = (
     key: "flags" | "lanes",

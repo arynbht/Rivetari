@@ -69,9 +69,16 @@ export async function runProfileSet(
     }
     const group = key.startsWith("flags.") ? "flags" : "lanes";
     draft[group] = { ...(profile[group] ?? {}), [key.slice(6)]: flag };
+  } else if (key === "quality.no-new-comments") {
+    const on = toBool(value);
+    if (on === null) {
+      console.error(`${key} must be "true" or "false" (got "${value}").`);
+      return 1;
+    }
+    draft["quality"] = { ...(profile.quality ?? {}), "no-new-comments": on };
   } else {
     console.error(
-      `Unknown profile key "${key}". Try: name, type, phase, severity-floor, autonomy, stack, flags.<flag>, lanes.<lane>.`,
+      `Unknown profile key "${key}". Try: name, type, phase, severity-floor, autonomy, stack, flags.<flag>, lanes.<lane>, quality.no-new-comments.`,
     );
     return 1;
   }

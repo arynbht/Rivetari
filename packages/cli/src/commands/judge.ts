@@ -81,7 +81,7 @@ export async function runJudge(
   }
 
   // Tier 2 only when tier 1 leaves the decision to the code: a change that
-  // touched protected paths goes to a person first (§8.2).
+  // touched protected paths goes to a person first.
   if (result.verdict === "needs-human") {
     if (flags.json) {
       process.stdout.write(

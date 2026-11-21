@@ -7,7 +7,7 @@ import { resolveRepoSlug } from "../context.js";
 export type TokenSource = "explicit" | "env" | "app" | "gh";
 
 /**
- * The token the factory acts on a repo with (spec v2.1 §14): an explicit one,
+ * The token the factory acts on a repo with: an explicit one,
  * else `GITHUB_TOKEN`/`GH_TOKEN` (CI passes the App's installation token
  * there), else the factory's GitHub App when it's registered here and
  * installed on the repo's origin, else the `gh` login. With the App, reviews,

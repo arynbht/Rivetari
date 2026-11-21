@@ -592,6 +592,10 @@ export function buildProgram(): Command {
     .option("--json", "output JSON instead of text")
     .option("--window <days>", "trailing window in days (default 90)")
     .option("--token <token>", "GitHub token (else GITHUB_TOKEN or gh auth)")
+    .option(
+      "--findings",
+      "only the judge's findings: tier 1 rules, findings per PR, recurring patterns and candidate rules (no GitHub needed)",
+    )
     .action(async (path: string, flags: MetricsFlags) => {
       process.exitCode = await runMetrics(path, flags);
     });

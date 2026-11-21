@@ -17,3 +17,5 @@ project:
   license: MIT
   owner: "@arynbht"
   security-contact: https://github.com/arynbht/software-factory/security/advisories/new
+quality:
+  no-new-comments: true

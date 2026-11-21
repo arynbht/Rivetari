@@ -1,4 +1,4 @@
-// Judge tier 2: a scoped AI review of a change (FACTORY_V2.md §8.3).
+// Judge tier 2: a scoped AI review of a change.
 //
 // Exactly three kinds of finding may block — a defect, a contract breach
 // (AGENTS.md / CONSTRAINTS.md), or an unmet acceptance criterion. Anything
@@ -9,6 +9,8 @@
 // The model sees only what this module packs into the prompt: the diff (minus
 // sensitive paths and anything secret-shaped) and the contract files from the
 // base commit. The CLI transport runs locked down (no tools, empty cwd).
+import { createHash } from "node:crypto";
+
 import {
   type AiClient,
   appendUsage,
@@ -29,7 +31,7 @@ export const BLOCKING_KINDS = ["defect", "contract", "acceptance"] as const;
 export const FINDING_KINDS = [...BLOCKING_KINDS, "suggestion"] as const;
 export type FindingKind = (typeof FINDING_KINDS)[number];
 
-/** Default judge model, deliberately not the drafting default (§14: independence). */
+/** Default judge model, deliberately not the drafting default (independence). */
 export const JUDGE_DEFAULT_MODEL = "claude-opus-5-5";
 /** Max characters of diff packed into the prompt (~35k tokens). */
 const DIFF_BUDGET = 400_000;
@@ -76,7 +78,24 @@ const FindingSchema = z.object({
 export type Finding = z.infer<typeof FindingSchema> & {
   /** Set when the false-positive gate turned a blocking finding into a suggestion. */
   downgraded?: string | undefined;
+  pattern?: string | undefined;
 };
+
+export function findingPattern(kind: string, message: string): string {
+  const normal = message
+    .toLowerCase()
+    .replace(/`[^`]*`/g, " x ")
+    .replace(/"[^"]*"|'[^']*'/g, " x ")
+    .replace(/[\w./-]+\.[a-z]{1,5}(?::\d+)?/g, " file ")
+    .replace(/\d+/g, " n ")
+    .replace(/[^a-z ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return createHash("sha256")
+    .update(`${kind}\0${normal}`)
+    .digest("hex")
+    .slice(0, 12);
+}
 
 const ReviewSchema = z.object({
   findings: z.array(FindingSchema).default([]),
@@ -455,7 +474,11 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
   const blocking: Finding[] = [];
   const suggestions: Finding[] = [];
   let checked = 0;
-  for (const finding of [...review.findings, ...unmet]) {
+  for (const found of [...review.findings, ...unmet]) {
+    const finding = {
+      ...found,
+      pattern: findingPattern(found.kind, found.title),
+    };
     if (finding.kind === "suggestion") {
       suggestions.push(finding);
       continue;

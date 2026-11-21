@@ -77,7 +77,7 @@ export interface Task {
   confirmed: boolean;
   /** assembly.yml as written (unvalidated), once the task has been routed. */
   assemblyText?: string | undefined;
-  /** The human approved the assembly (§3.2); its hash is sealed in the ledger. */
+  /** The human approved the assembly; its hash is sealed in the ledger. */
   approved: boolean;
   /** The beat of the latest entry. */
   beat: Beat;
@@ -269,7 +269,7 @@ function lastAnswered(task: Task): string[] {
   return answered;
 }
 
-/** Stop-and-ask questions raised since the last answer (§7.2). */
+/** Stop-and-ask questions raised since the last answer. */
 export function openStops(task: Task): string[] {
   const stops = task.entries.filter((e) => e.section === "stop");
   const last = stops.map((e) => ANSWERED.test(e.text)).lastIndexOf(true);

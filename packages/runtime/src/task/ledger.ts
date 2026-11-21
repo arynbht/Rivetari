@@ -29,7 +29,7 @@ export const BEATS = [
 ] as const;
 export type Beat = (typeof BEATS)[number];
 
-/** Where an entry is shown in ledger.md (§6.2). */
+/** Where an entry is shown in ledger.md. */
 export const SECTIONS = [
   "timeline",
   "plan",
@@ -54,7 +54,7 @@ export interface LedgerEntry {
 
 const GENESIS = "genesis";
 
-/** The last entry a task's ledger takes (§3.8): nothing appends after it. */
+/** The last entry a task's ledger takes: nothing appends after it. */
 export const SEAL_TEXT = "ledger sealed";
 export const isSeal = (e: Pick<LedgerEntry, "beat" | "text">) =>
   e.beat === "close" && e.text.startsWith(SEAL_TEXT);
@@ -62,7 +62,7 @@ export const isSeal = (e: Pick<LedgerEntry, "beat" | "text">) =>
 /**
  * The ledger key. `FACTORY_LEDGER_KEY` (64 hex characters) is a team's shared
  * key, so a task recorded on one machine verifies on another; the GitHub App
- * holds it later (§8). The sector agent's environment is allowlisted, so it
+ * holds it later. The sector agent's environment is allowlisted, so it
  * never sees it. Without it, a per-machine key is created on first use,
  * outside every repo.
  */
@@ -232,7 +232,7 @@ const HEADINGS: Record<Exclude<Section, "timeline">, string> = {
   outcome: "Outcome",
 };
 
-/** ledger.md, in the §6.2 layout: the timeline, then each section that has entries. */
+/** ledger.md, in the spec's layout: the timeline, then each section that has entries. */
 export function render(title: string, entries: readonly LedgerEntry[]): string {
   const time = (e: LedgerEntry) => e.at.slice(0, 16).replace("T", " ");
   const lines = [

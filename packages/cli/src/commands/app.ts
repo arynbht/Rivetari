@@ -15,7 +15,7 @@ import {
   saveApp,
 } from "@arynbht/factory-engine";
 
-// `factory app`: the factory's GitHub App (ADR-0007, spec v2.1 §14).
+// `factory app`: the factory's GitHub App (ADR-0007).
 // `register` creates it from a manifest in one click: a page served here posts
 // the manifest to GitHub, GitHub sends the person back here with a one-time
 // code, and the code is traded for the App's credentials, which stay in the

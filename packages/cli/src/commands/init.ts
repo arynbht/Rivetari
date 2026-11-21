@@ -152,7 +152,7 @@ async function writeReplacing(
 }
 
 /**
- * Write a generated file without clobbering (§10): a missing file is written,
+ * Write a generated file without clobbering: a missing file is written,
  * an identical one left alone, and a different one gets the factory's version
  * beside it as `name.factory.ext`. With --force it's replaced, and the old
  * one kept as a backup. Returns a note when it did anything but write `rel`.
@@ -179,7 +179,7 @@ async function writeBeside(
 }
 
 /**
- * Put the factory's hooks into `.claude/settings.json` (§12). A sibling file
+ * Put the factory's hooks into `.claude/settings.json`. A sibling file
  * would be safe but dead, since Claude Code never reads it, so an existing
  * file is merged: its other settings kept, the old one backed up. Only a file
  * that won't parse gets the sibling, and `factory doctor` stays red until the
@@ -417,7 +417,7 @@ async function draftInteractive(root: string): Promise<ProfileDraft | null> {
 }
 
 /**
- * `factory init`: the profile, the factory workflow, and the §10 files (the
+ * `factory init`: the profile, the factory workflow, and the contract files (the
  * AGENTS.md contract, the /factory skill and its hooks, the PR template), then
  * the first audit.
  */
@@ -458,7 +458,7 @@ export async function runInit(
     }
   }
 
-  // §5.4: --force never deletes. The profile it replaces is backed up first.
+  // --force never deletes. The profile it replaces is backed up first.
   const beside: string[] = [];
   const profileRel = ".factory/profile.yml";
   const oldProfile = profileExists
@@ -505,7 +505,7 @@ export async function runInit(
     "*.bak.*",
   ]);
 
-  // §10: the contract, the /factory skill, the hooks, the PR template.
+  // The contract, the /factory skill, the hooks, the PR template.
   const facts = await repoFacts(root, draft);
   // The skill ships with the CLI; a broken install shouldn't stop init.
   const skill = await readFile(

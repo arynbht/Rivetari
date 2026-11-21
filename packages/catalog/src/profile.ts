@@ -73,7 +73,7 @@ export const ProfileSchema = z.strictObject({
       judge_model: z.string().min(1).optional(),
     })
     .optional(),
-  /** How the proof runner serves the app for UI proof (FACTORY_V2 §9). */
+  /** How the proof runner serves the app for UI proof. */
   proof: z
     .strictObject({
       /** The command that serves the app; it gets PORT in its environment. */
@@ -91,6 +91,7 @@ export const ProfileSchema = z.strictObject({
        * the first measured run (`.factory/quality.json`), which only ratchets up.
        */
       coverage: z.number().min(0).max(100).optional(),
+      "no-new-comments": z.boolean().optional(),
     })
     .optional(),
 });

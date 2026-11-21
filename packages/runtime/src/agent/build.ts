@@ -1,4 +1,4 @@
-// The build beat (§3.4, §7.2): plan first (read-only, written to the ledger
+// The build beat: plan first (read-only, written to the ledger
 // before any edit), then one writer in the task's worktree, then the runtime
 // commits and checks the diff for stop-and-ask triggers. A trigger pauses the
 // task until a person answers; an allowed trigger isn't asked about again.

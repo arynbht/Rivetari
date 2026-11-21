@@ -1,4 +1,4 @@
-// The ship beat (§3.7): push the task's branch and open a draft PR whose body
+// The ship beat: push the task's branch and open a draft PR whose body
 // is generated from the card, the ledger, the proof and the judge's record —
 // summary, acceptance criteria with the judge's verdict on each, proof, files
 // changed, skills, model and iterations. The factory never merges.
@@ -306,7 +306,7 @@ export function renderPrBody(input: PrBodyInput): string {
 export const TASK_REVIEW_MARKER = "<!-- factory-task-review";
 
 /**
- * The judge's verdict as one PR review (§10): the tier 2 review when it ran,
+ * The judge's verdict as one PR review: the tier 2 review when it ran,
  * after a line on tier 1 and any protected change a person allowed.
  */
 export function renderTaskReview(task: Task, judge: JudgeRecord): string {

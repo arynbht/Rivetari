@@ -34,7 +34,7 @@ export const BUILD_TOOLS = [
   "Bash(git show:*)",
 ] as const;
 
-/** The factory never honours the target repo's .claude config (FACTORY_V2 §12). */
+/** The factory never honours the target repo's .claude config. */
 export const ISOLATED_AGENT_ARGS = [
   "--safe-mode",
   "--strict-mcp-config",
@@ -54,7 +54,7 @@ export function agentEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
 
 /**
  * Carved out of BUILD_TOOLS (deny wins over allow): inline code and ad-hoc
- * package execution (FACTORY_V2 §7.2), pushing (the pipeline pushes, after
+ * package execution, pushing (the pipeline pushes, after
  * verify), and the factory's own state, which the agent never edits.
  */
 export const DENIED_BUILD_TOOLS = [

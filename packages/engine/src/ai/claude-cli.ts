@@ -13,7 +13,7 @@ import {
   type AiTransport,
   type CompleteResult,
   type TransportRequest,
-} from "./client.js";
+} from "./types.js";
 
 /** Runs `claude` with args, feeding `input` on stdin; resolves stdout. */
 export type ClaudeRunner = (
