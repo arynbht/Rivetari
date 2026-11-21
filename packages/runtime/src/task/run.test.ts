@@ -203,12 +203,70 @@ describe("runTask", { timeout: 180_000 }, () => {
           return JSON.stringify({ steps: ["fix total"] });
         builds++;
         // A test that never passes: every proof fails.
-        await fix(call.cwd, "a.equal(1, 2)");
+        await fix(call.cwd, `a.equal(${builds}, 0)`);
         return "tried";
       },
     });
     expect(builds).toBe(MAX_BUILDS_PER_RUN);
     expect(outcome.next).toMatch(/^stopped after 4 build rounds/);
+  });
+
+  it("a round that changes nothing after a failed proof ends the run with the agent's question", async () => {
+    const { repo, id } = await approvedTask();
+    let builds = 0;
+    const question =
+      "The proof fails on a stray package.json outside the worktree. Can someone move it, then run again?";
+    const outcome = await runTask(repo, id, {
+      ...by,
+      base: "main",
+      agent: async (call) => {
+        if (call.mode === "plan")
+          return JSON.stringify({ steps: ["fix total"] });
+        builds++;
+        if (builds === 1) await fix(call.cwd, "a.equal(1, 2)");
+        return builds === 1 ? "fixed" : question;
+      },
+    });
+    expect(builds).toBe(2);
+    expect(outcome.ran).toEqual(["isolate", "build", "prove", "build"]);
+    expect(outcome.next).toMatch(/^stop-and-ask/);
+    expect(outcome.task.entries.map((e) => e.text)).toContain(
+      `asked: no_change: ${question}`,
+    );
+    expect(
+      outcome.task.entries.filter(
+        (e) => e.beat === "prove" && e.section === "timeline",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("an agent that ends with FACTORY_STOP stops the run before anything is committed or proved", async () => {
+    const { repo, id } = await approvedTask();
+    const calls: AgentCall[] = [];
+    let worktree = "";
+    const outcome = await runTask(repo, id, {
+      ...by,
+      base: "main",
+      agent: async (call) => {
+        calls.push(call);
+        if (call.mode === "plan")
+          return JSON.stringify({ steps: ["fix total"] });
+        worktree = call.cwd;
+        await fix(call.cwd);
+        return "I fixed total, but the card doesn't say what an empty list should return.\nFACTORY_STOP: Should total([]) return 0 or throw?";
+      },
+    });
+    expect(outcome.ran).toEqual(["isolate", "build"]);
+    expect(outcome.next).toMatch(/^stop-and-ask/);
+    expect(outcome.task.entries.map((e) => e.text)).toContain(
+      "asked: agent_question: Should total([]) return 0 or throw?",
+    );
+    const wt = simpleGit(worktree);
+    expect((await wt.revparse(["HEAD"])).trim()).toBe(
+      (await wt.revparse(["main"])).trim(),
+    );
+    expect(calls[1]?.system).toContain("FACTORY_STOP: <your question>");
+    expect(calls[1]?.prompt).toContain("FACTORY_STOP: <your question>");
   });
 
   it("won't start before a person has approved the route", async () => {

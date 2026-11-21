@@ -259,6 +259,20 @@ describe("the task store", { timeout: 30_000 }, () => {
     expect(git(a, "branch", "--list", TASKS_BRANCH)).toBe("");
   });
 
+  it("gives an id back when the push that would reserve it fails", async () => {
+    const { origin, a } = await twoMachines();
+    git(a, "config", "remote.origin.pushurl", join(origin, "gone"));
+    await expect(
+      reserveTaskId(a, { holder: "ann on a", now: NOW }),
+    ).rejects.toThrow(/couldn't push/);
+    await expect(read(a, "T-0001", "lease.json")).rejects.toThrow();
+    expect(git(a, "branch", "--list", TASKS_BRANCH)).toBe("");
+    git(a, "config", "--unset", "remote.origin.pushurl");
+    expect(await reserveTaskId(a, { holder: "ann on a", now: NOW })).toBe(
+      "T-0001",
+    );
+  });
+
   it("gives two machines different ids, and refuses to reuse one", async () => {
     const { a, b } = await twoMachines();
     const first = await reserveTaskId(a, { holder: "ann on a", now: NOW });

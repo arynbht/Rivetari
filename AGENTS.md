@@ -18,6 +18,7 @@ In Claude Code: `/factory <what you want>` or `/factory #<issue>`.
 Anywhere else, use the `factory task` commands the skill uses. Don't change
 files in this checkout on the default branch: each task gets its own worktree and
 branch, and the change reaches the default branch only through a reviewed PR.
+Runtime fixes under packages/runtime, packages/cli and packages/engine may ship as plain PRs until spec step 8a is merged.
 
 ## The beats
 

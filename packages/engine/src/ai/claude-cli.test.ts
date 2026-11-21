@@ -23,6 +23,19 @@ describe("parseClaudeJson", () => {
     expect(result.model).toBe("claude-sonnet-4-6");
   });
 
+  it("keeps the cost the CLI reports", () => {
+    const out = JSON.stringify({
+      type: "result",
+      result: "ok",
+      usage: { input_tokens: 1, output_tokens: 1 },
+      total_cost_usd: 0.42,
+    });
+    expect(parseClaudeJson(out, "m").costUsd).toBe(0.42);
+    expect(
+      parseClaudeJson(JSON.stringify({ result: "ok" }), "m").costUsd,
+    ).toBeUndefined();
+  });
+
   it("throws on an error result", () => {
     const out = JSON.stringify({ is_error: true, result: "rate limited" });
     expect(() => parseClaudeJson(out, "m")).toThrow(/rate limited/);

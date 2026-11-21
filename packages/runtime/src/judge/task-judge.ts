@@ -18,6 +18,7 @@ import { parse } from "yaml";
 import { loadIsolation } from "../agent/isolate.js";
 import { AssemblySchema } from "../router/route.js";
 import {
+  allowedDecisions,
   allowedStops,
   JUDGE_VERDICT,
   judgeVerdicts,
@@ -215,6 +216,7 @@ export async function judgeTask(
       ai: options.ai ?? createAiClient({ timeoutMs: 900_000 }),
       model: options.model ?? profile?.ai?.judge_model ?? JUDGE_DEFAULT_MODEL,
       card: task.card,
+      decisions: allowedDecisions(task),
       base: tier1.mergeBase,
       head,
       round,

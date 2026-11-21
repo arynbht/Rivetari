@@ -14,7 +14,8 @@ export type StopTrigger =
   | "protected_path"
   | "sensitive_path"
   | "budget_exhausted"
-  | "no_change";
+  | "no_change"
+  | "agent_question";
 
 export interface Stop {
   trigger: StopTrigger;

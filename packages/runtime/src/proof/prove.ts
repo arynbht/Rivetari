@@ -22,7 +22,12 @@ import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
 import { isTestFile } from "../judge/protected.js";
-import { parseAddedLines, parseNameStatus } from "../judge/tier1.js";
+import {
+  outcomeOf,
+  parseAddedLines,
+  parseNameStatus,
+  type Side,
+} from "../judge/tier1.js";
 import { loadIsolation, type Isolation } from "../agent/isolate.js";
 import { AssemblySchema, type ProofType } from "../router/route.js";
 import {
@@ -47,7 +52,12 @@ export interface ProofRecord {
   lines: string[];
   shots?: (Shot & { side: "before" | "after"; url?: string })[];
   violations?: AxeViolation[];
-  tests?: { exitCode: number; added: string[]; output: string };
+  tests?: {
+    exitCode: number;
+    added: string[];
+    output: string;
+    outcome?: "pass" | "fail" | "pre-existing" | "flaky" | undefined;
+  };
 }
 
 export type Publish = (
@@ -105,7 +115,32 @@ export function newTestNames(
   return out;
 }
 
+const runTests = (pm: string, cwd: string) =>
+  runTool(pm, ["run", "test"], cwd, {
+    env: allowlistedEnv(),
+    timeoutMs: 600_000,
+  });
+
+async function baseSide(repoPath: string, base: string): Promise<Side> {
+  const dir = await baseCheckout(repoPath, base);
+  try {
+    const install = await installDeps(dir);
+    if (install.ran && !install.passed) return "n/a";
+    const res = await runTests(await packageManager(dir), dir).catch(
+      () => null,
+    );
+    if (!res) return "n/a";
+    return res.exitCode === 0 ? "green" : "red";
+  } finally {
+    await simpleGit(repoPath)
+      .raw(["worktree", "remove", "--force", dir])
+      .catch(() => "");
+    await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
 async function testRun(
+  repoPath: string,
   isolation: Isolation,
   kind: ProofType,
   publish: Publish,
@@ -133,13 +168,21 @@ async function testRun(
   const pm = await packageManager(dir);
   let res: Awaited<ReturnType<typeof runTool>>;
   try {
-    res = await runTool(pm, ["run", "test"], dir, {
-      env: allowlistedEnv(),
-      timeoutMs: 600_000,
-    });
+    res = await runTests(pm, dir);
   } catch (err) {
     lines.push(`tests couldn't run: ${tail((err as Error).message)}`);
     return { task: isolation.task, kind, passed: false, lines };
+  }
+  let outcome: "pass" | "fail" | "pre-existing" | "flaky" =
+    res.exitCode === 0 ? "pass" : "fail";
+  if (outcome === "fail") {
+    const retry = await runTests(pm, dir).catch(() => null);
+    if (retry?.exitCode === 0) outcome = "flaky";
+    else if (
+      outcomeOf(await baseSide(repoPath, isolation.base), "red") ===
+      "pre-existing"
+    )
+      outcome = "pre-existing";
   }
   const git = simpleGit(dir);
   const added = newTestNames(
@@ -150,9 +193,17 @@ async function testRun(
       await git.raw(["diff", "-U0", "--no-color", isolation.base, "HEAD"]),
     ),
   );
-  const passed = res.exitCode === 0;
+  const passed = outcome !== "fail";
+  const verdict = {
+    pass: "tests passed",
+    fail: "tests failed",
+    flaky:
+      "tests failed, then passed on one retry: flaky, not blamed on this change",
+    "pre-existing":
+      "tests failed on the change and on the base: pre-existing, not blamed on this change",
+  }[outcome];
   lines.push(
-    `tests ${passed ? "passed" : "failed"} (${pm} run test, exit ${res.exitCode}) · new tests: ${added.join("; ") || "none"}`,
+    `${verdict} (${pm} run test, exit ${res.exitCode}) · new tests: ${added.join("; ") || "none"}`,
     `output: ${tail(`${res.stdout}\n${res.stderr}`)}`,
   );
 
@@ -185,6 +236,7 @@ async function testRun(
       exitCode: res.exitCode,
       added,
       output: `${res.stdout}\n${res.stderr}`.slice(-4000),
+      outcome,
     },
   };
 }
@@ -347,7 +399,7 @@ export async function proveTask(
   const record =
     assembly.proof === "ui-screenshots"
       ? await uiProof(repoPath, task, isolation, publish)
-      : await testRun(isolation, assembly.proof, publish, proofDir);
+      : await testRun(repoPath, isolation, assembly.proof, publish, proofDir);
 
   await mkdir(proofDir, { recursive: true });
   await writeFile(

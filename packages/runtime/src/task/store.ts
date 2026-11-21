@@ -512,10 +512,18 @@ export async function commitTask(
       const lostRace = /rejected|fetch first|non-fast-forward|stale info/i.test(
         push.stderr,
       );
-      if (!lostRace || attempt >= PUSH_ATTEMPTS)
+      if (!lostRace || attempt >= PUSH_ATTEMPTS) {
+        if (options.create) {
+          await git(
+            repo,
+            tip ? ["update-ref", LOCAL, tip] : ["update-ref", "-d", LOCAL],
+          );
+          await rm(dir, { recursive: true, force: true });
+        }
         throw new StoreError(
           `couldn't push ${TASKS_BRANCH} to origin: ${push.stderr.trim()}`,
         );
+      }
       // Somebody else wrote a task: drop our commit; the next round fetches
       // their tip and redoes it on top.
       await gitOk(

@@ -309,6 +309,86 @@ describe("build", () => {
     expect(calls[1]?.prompt).toContain("You can't ask during the round.");
   });
 
+  it("an answered FACTORY_STOP question goes back to the agent, with the answer", async () => {
+    const id = await approvedTask();
+    await isolateTask(repo, id, { ...by, base: "main" });
+    const first = await buildTask(repo, id, {
+      ...by,
+      agent: async (call) =>
+        call.mode === "plan"
+          ? JSON.stringify({ steps: ["Sum the lines"] })
+          : "Before I start:\nFACTORY_STOP: May total() ignore blank lines?",
+    });
+    expect(first.stops).toEqual([
+      {
+        trigger: "agent_question",
+        detail: "May total() ignore blank lines?",
+      },
+    ]);
+    const answered = await answerStops(repo, id, {
+      allow: true,
+      note: "yes, skip them",
+      by: "dev@example.com",
+    });
+    expect(nextStep(answered)).toMatch(/^build:/);
+    const next = scripted(async (cwd) => {
+      await writeFile(join(cwd, "src/total.ts"), "export const total = 1;\n");
+    });
+    const outcome = await buildTask(repo, id, { ...by, agent: next.agent });
+    expect(outcome.stops).toEqual([]);
+    expect(next.calls[0]?.prompt).toContain(
+      "Since your last round: a person answered your question (allowed): yes, skip them",
+    );
+  });
+
+  it("resumes the agent's session after the first round, and starts fresh when it can't", async () => {
+    const id = await approvedTask();
+    await isolateTask(repo, id, { ...by, base: "main" });
+    const calls: AgentCall[] = [];
+    let round = 0;
+    let resumeWorks = true;
+    const agent = async (call: AgentCall) => {
+      calls.push(call);
+      if (call.mode === "plan")
+        return JSON.stringify({ steps: ["Sum the lines"] });
+      if (call.resume && !resumeWorks) throw new Error("no conversation found");
+      round++;
+      await writeFile(
+        join(call.cwd, "src/total.ts"),
+        `export const total = ${round};\n`,
+      );
+      return { text: "Summed the lines.", sessionId: `session-${round}` };
+    };
+    await buildTask(repo, id, { ...by, agent });
+    const task = await loadTask(repo, id);
+    await task.ledger.append({
+      beat: "prove",
+      section: "timeline",
+      text: "proof failed · test-run",
+      by: "factory runtime (for dev@example.com)",
+    });
+    calls.length = 0;
+    await buildTask(repo, id, { ...by, agent });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.resume).toBe("session-1");
+    expect(calls[0]?.prompt).toMatch(
+      /^Since your last round: the proof failed/,
+    );
+
+    const again = await loadTask(repo, id);
+    await again.ledger.append({
+      beat: "prove",
+      section: "timeline",
+      text: "proof failed · test-run",
+      by: "factory runtime (for dev@example.com)",
+    });
+    calls.length = 0;
+    resumeWorks = false;
+    await buildTask(repo, id, { ...by, agent });
+    expect(calls.map((c) => c.resume)).toEqual(["session-2", undefined]);
+    expect(calls[1]?.prompt).toContain("# Operating rules");
+  });
+
   it("replans, never runs, a plan whose budget stop was denied", async () => {
     const id = await approvedTask();
     await isolateTask(repo, id, { ...by, base: "main" });

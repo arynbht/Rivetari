@@ -2,7 +2,11 @@
 // before any edit), then one writer in the task's worktree, then the runtime
 // commits and checks the diff for stop-and-ask triggers. A trigger pauses the
 // task until a person answers; an allowed trigger isn't asked about again.
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 
 import {
   agentEnv,
@@ -26,9 +30,10 @@ import {
   openStops,
   type Task,
   TaskError,
+  TASKS_DIR,
 } from "../task/tasks.js";
 import { type Isolation, loadIsolation } from "./isolate.js";
-import { assemblePrompt } from "./prompt.js";
+import { assemblePrompt, STOP_MARKER } from "./prompt.js";
 import { findStops, type Stop } from "./stops.js";
 
 export interface AgentCall {
@@ -38,6 +43,7 @@ export interface AgentCall {
   cwd: string;
   model?: string | undefined;
   env: NodeJS.ProcessEnv;
+  resume?: string | undefined;
 }
 
 /** An agent call's final text, with what it cost when the runner knows. */
@@ -45,6 +51,7 @@ export interface AgentReply {
   text: string;
   tokens?: number | undefined;
   costUsd?: number | undefined;
+  sessionId?: string | undefined;
 }
 
 /** Runs one agent call and resolves its final text (or a reply with usage). */
@@ -64,7 +71,10 @@ export const claudeAgent: AgentRunner = async (call) => {
     "--output-format",
     "json",
     ...(call.model ? ["--model", call.model] : []),
-    ...ISOLATED_AGENT_ARGS,
+    ...ISOLATED_AGENT_ARGS.filter(
+      (a) => call.mode === "plan" || a !== "--no-session-persistence",
+    ),
+    ...(call.resume ? ["--resume", call.resume] : []),
     "--append-system-prompt",
     call.system,
     ...(call.mode === "build"
@@ -104,6 +114,7 @@ export const claudeAgent: AgentRunner = async (call) => {
   const data = JSON.parse(stdout) as {
     total_cost_usd?: number;
     usage?: Record<string, number | undefined>;
+    session_id?: string;
   };
   const u = data.usage ?? {};
   const tokens = [
@@ -117,8 +128,76 @@ export const claudeAgent: AgentRunner = async (call) => {
     tokens: tokens || undefined,
     costUsd:
       typeof data.total_cost_usd === "number" ? data.total_cost_usd : undefined,
+    sessionId:
+      typeof data.session_id === "string" ? data.session_id : undefined,
   };
 };
+
+export function agentQuestion(text: string): string | undefined {
+  const last = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .at(-1);
+  if (!last?.startsWith(STOP_MARKER)) return undefined;
+  return last.slice(STOP_MARKER.length).trim() || undefined;
+}
+
+const oneLine = (text: string, max: number) => {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+};
+
+async function worktreeTree(worktree: string): Promise<string> {
+  const scratch = await mkdtemp(join(tmpdir(), "factory-tree-"));
+  const env = { ...process.env, GIT_INDEX_FILE: join(scratch, "index") };
+  const git = (args: string[]) =>
+    promisify(execFile)("git", args, { cwd: worktree, env, windowsHide: true });
+  try {
+    await git(["read-tree", "HEAD"]);
+    await git(["add", "-A"]);
+    return (await git(["write-tree"])).stdout.trim();
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
+interface Session {
+  session: string;
+  worktree: string;
+}
+
+const sessionPath = (repoPath: string, id: string) =>
+  join(repoPath, TASKS_DIR, id, "session.json");
+
+async function readSession(
+  repoPath: string,
+  id: string,
+  worktree: string,
+): Promise<string | undefined> {
+  try {
+    const s = JSON.parse(
+      await readFile(sessionPath(repoPath, id), "utf8"),
+    ) as Partial<Session>;
+    return s.worktree === worktree && typeof s.session === "string"
+      ? s.session
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function writeSession(
+  repoPath: string,
+  id: string,
+  session: Session,
+): Promise<void> {
+  await writeFile(
+    sessionPath(repoPath, id),
+    `${JSON.stringify(session, null, 2)}\n`,
+    "utf8",
+  );
+}
 
 const PLAN_SYSTEM =
   'Plan the task below before anyone edits a file. Read what you need; change nothing. Reply with ONLY a JSON object: {"steps": ["one concrete step", ...]}. Keep within the budget in the operating rules.';
@@ -293,32 +372,77 @@ export async function buildTask(
     }
   }
 
+  const answeredQuestion =
+    answer?.stops.some((s) => s.startsWith("agent_question:")) ?? false;
+  const since =
+    answer && answeredQuestion
+      ? `a person answered your question (${answer.allowed ? "allowed" : "denied"})${answer.note ? `: ${answer.note}` : ""}`
+      : answer && !answer.allowed && !replan
+        ? `denied — ${answer.note || "undo what you asked about"}`
+        : sentBack(task);
   const building = await assemblePrompt({
     repoPath,
     card: task.card,
     assembly,
     isolation,
     plan: steps,
-    answer:
-      answer && !answer.allowed && !replan
-        ? `denied — ${answer.note || "undo what you asked about"}`
-        : sentBack(task),
+    answer: since,
   });
-  const reply = asReply(
-    await agent({
-      mode: "build",
-      system: building.system,
-      prompt: building.prompt,
-      cwd: isolation.worktree,
-      model: options.model,
-      env,
-    }),
-  );
-
-  // The runtime commits, with hooks off (the worktree's hooksPath is empty).
   const wt = simpleGit(isolation.worktree);
-  await wt.add(["-A"]);
-  const staged = (await wt.raw(["diff", "--cached", "--name-only"])).trim();
+  const before = (await wt.revparse(["HEAD"])).trim();
+  const untouched = await worktreeTree(isolation.worktree);
+  const call = {
+    mode: "build" as const,
+    system: building.system,
+    cwd: isolation.worktree,
+    model: options.model,
+    env,
+  };
+  const resume =
+    since && !replan
+      ? await readSession(repoPath, id, isolation.worktree)
+      : undefined;
+  let reply: AgentReply | undefined;
+  if (resume) {
+    reply = await agent({
+      ...call,
+      prompt: `Since your last round: ${since}`,
+      resume,
+    }).then(asReply, () => undefined);
+  }
+  reply ??= asReply(await agent({ ...call, prompt: building.prompt }));
+  if (reply.sessionId)
+    await writeSession(repoPath, id, {
+      session: reply.sessionId,
+      worktree: isolation.worktree,
+    });
+
+  const question = agentQuestion(reply.text);
+  if (question) {
+    const stop: Stop = {
+      trigger: "agent_question",
+      detail: oneLine(question, 500),
+    };
+    await log("stop", `asked: ${stop.trigger}: ${stop.detail}`);
+    await log(
+      "timeline",
+      `build paused: 1 thing(s) to ask about · commit ${before.slice(0, 12)}${usageNote(reply)}`,
+    );
+    return {
+      task: await loadTask(repoPath, id),
+      stops: [stop],
+      commit: before,
+    };
+  }
+
+  const changed = untouched !== (await worktreeTree(isolation.worktree));
+  // The runtime commits, with hooks off (the worktree's hooksPath is empty).
+  const staged = changed
+    ? await wt
+        .add(["-A"])
+        .then(() => wt.raw(["diff", "--cached", "--name-only"]))
+        .then((s) => s.trim())
+    : "";
   if (staged)
     await wt.commit(
       `${task.card.type}(${id.toLowerCase()}): ${task.card.title}`,
@@ -334,21 +458,14 @@ export async function buildTask(
     head,
     assembly,
   );
-  // The agent did nothing and the branch still changes nothing: it couldn't
-  // or wouldn't start. (Undoing a denied change is doing something.) Proving
-  // the base would only fail or pass for nothing, so a person reads why and
-  // answers (deny with a note to say what to do).
-  if (
-    !staged &&
-    !(await wt.raw(["diff", "--name-only", isolation.base, head])).trim()
-  )
-    found.push({
+  const stops = found.filter((s) => !allowed.has(`${s.trigger}: ${s.detail}`));
+  if (head === before)
+    stops.push({
       trigger: "no_change",
       detail:
-        reply.text.trim().split("\n")[0]?.slice(0, 300) ||
+        oneLine(reply.text, 500) ||
         "the agent changed nothing and said nothing",
     });
-  const stops = found.filter((s) => !allowed.has(`${s.trigger}: ${s.detail}`));
   for (const s of stops) await log("stop", `asked: ${s.trigger}: ${s.detail}`);
   await log(
     "timeline",

@@ -52,9 +52,13 @@ export interface TaskNewFlags {
   path?: string;
 }
 
+let unpushed = false;
+
 async function guarded(action: () => Promise<number>): Promise<number> {
+  unpushed = false;
   try {
-    return await action();
+    const code = await action();
+    return unpushed ? 1 : code;
   } catch (err) {
     if (
       err instanceof CardError ||
@@ -141,11 +145,19 @@ async function onTask<T>(
   }
   clearInterval(heartbeat);
   await writes;
-  await commitTask(repo, id, {
-    holder,
-    message: `${id}: ${beat} done`,
-    ...finish(result),
-  });
+  try {
+    await commitTask(repo, id, {
+      holder,
+      message: `${id}: ${beat} done`,
+      ...finish(result),
+    });
+  } catch (err) {
+    if (!(err instanceof StoreError)) throw err;
+    unpushed = true;
+    process.stderr.write(
+      `factory task: ${beat} is done, but pushing its record failed: ${err.message}\nfactory task: the record is kept on this machine; the next \`factory task\` beat on ${id} pushes it once origin is reachable\n`,
+    );
+  }
   return result;
 }
 

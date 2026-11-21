@@ -108,6 +108,32 @@ describe("factory task, shared through the factory/tasks branch", () => {
     expect(out.join("")).toMatch(/held by bob@team on .* until/);
   }, 60_000);
 
+  it("says a beat is done when only the push of its record failed, and exits 1", async () => {
+    const { ann } = await team();
+    expect(await draft(ann), err.join(" | ")).toBe(0);
+    const origin = git(ann, "remote", "get-url", "origin");
+    await writeFile(
+      join(origin, "hooks", "pre-receive"),
+      '#!/bin/sh\nwhile read old new ref; do\n  if git log -1 --format=%s "$new" | grep -q "confirm done$"; then echo refused >&2; exit 1; fi\ndone\nexit 0\n',
+      { mode: 0o755 },
+    );
+    const stderr: string[] = [];
+    vi.spyOn(process.stderr, "write").mockImplementation((s) => {
+      stderr.push(String(s));
+      return true;
+    });
+    expect(await runTaskConfirm("T-0001", { yes: true, path: ann })).toBe(1);
+    expect(stderr.join("")).toContain(
+      "factory task: confirm is done, but pushing its record failed:",
+    );
+    expect(stderr.join("")).toContain(
+      "the record is kept on this machine; the next `factory task` beat on T-0001 pushes it once origin is reachable",
+    );
+    expect(git(origin, "log", "-1", "--format=%s", "factory/tasks")).toBe(
+      "T-0001: confirm",
+    );
+  }, 120_000);
+
   it("refuses a card with no verify before reserving an id", async () => {
     const { ann } = await team();
     expect(
