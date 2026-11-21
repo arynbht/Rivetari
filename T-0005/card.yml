@@ -1,0 +1,47 @@
+id: T-0005
+title: Let a run defer its stop-and-ask questions to review
+type: feature
+source: prompt
+description: "Every stop-and-ask pauses `factory task run`, so a person has to
+  stay with each task until it ships. With --defer the run keeps going: each
+  trigger is recorded as deferred (not approved), and the person answers them
+  all when they review the draft PR. The card and the route are still confirmed
+  up front, and merging stays with a person."
+acceptance:
+  - id: A1
+    text: factory task run <id> --defer on a change that triggers a stop-and-ask (a
+      new dependency, a schema change, a protected or sensitive path) records
+      each trigger in the ledger as deferred, not answered, and carries on
+      through prove, judge and ship without exiting 2
+    verify: unit
+  - id: A2
+    text: "a deferred run still stops on what it can't get past: an exhausted
+      budget, a round with no change, or a judge that still fails after its
+      rounds, with the reason as the run's last line"
+    verify: unit
+  - id: A3
+    text: the draft PR from a deferred run lists every deferred decision under
+      'Needs your decision' at the top of its body
+    verify: unit
+  - id: A4
+    text: after ship, factory task answer <id> --allow|--deny works on a deferred
+      decision; a deny sends the task back to build, and the PR body's list
+      shows only the decisions still unanswered
+    verify: unit
+  - id: A5
+    text: the PR's factory check fails while any deferred decision is unanswered,
+      and names them
+    verify: unit
+  - id: A6
+    text: without --defer, a run behaves as it does today
+    verify: unit
+  - id: A7
+    text: the AGENTS.md template and the /factory skill describe deferred runs
+    verify: review
+out_of_scope: []
+touches: []
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-21
