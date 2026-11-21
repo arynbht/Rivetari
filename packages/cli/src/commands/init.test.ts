@@ -250,11 +250,111 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     expect(await read(".factory", "evidence.yml")).toBe("- note: kept\n");
     expect(await read(".factory", "profile.yml")).toContain("type: library");
     expect(await read(".factory", "profile.yml.bak")).toBe(profile);
-    expect(await read(".github", "workflows", "factory.yml")).toContain(
+    // factory.yml is never replaced: the new template goes beside it.
+    expect(await read(".github", "workflows", "factory.yml")).toBe(workflow);
+    expect(await read(".github", "workflows", "factory.factory.yml")).toContain(
       "gate: build",
     );
-    expect(await read(".github", "workflows", "factory.yml.bak")).toBe(
-      workflow,
+    await expect(
+      access(join(dir, ".github", "workflows", "factory.yml.bak")),
+    ).rejects.toThrow();
+  });
+
+  it("keeps a factory.yml a person changed, with or without --force, and writes the template beside it", async () => {
+    const custom = `name: factory
+on: [pull_request]
+jobs:
+  factory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./packages/action
+        with:
+          gate: build
+`;
+    // The template a fresh init writes, to compare the sibling against.
+    const fresh = await tmp();
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    await runInit(
+      fresh,
+      { type: "cli", phase: "scaffold", yes: true },
+      { token: null },
+    );
+    const template = await readFile(
+      join(fresh, ".github", "workflows", "factory.yml"),
+      "utf8",
+    );
+
+    for (const force of [true, false]) {
+      const dir = await tmp();
+      await mkdir(join(dir, ".github", "workflows"), { recursive: true });
+      await writeFile(join(dir, ".github", "workflows", "factory.yml"), custom);
+      if (force) {
+        // --force is the only way past an existing profile.
+        await runInit(dir, { type: "cli", yes: true }, { token: null });
+        await rm(join(dir, ".github", "workflows", "factory.factory.yml"));
+      }
+      expect(
+        await runInit(
+          dir,
+          { type: "cli", phase: "scaffold", yes: true, force },
+          { token: null },
+        ),
+      ).toBe(0);
+      expect(
+        await readFile(
+          join(dir, ".github", "workflows", "factory.yml"),
+          "utf8",
+        ),
+      ).toBe(custom);
+      expect(
+        await readFile(
+          join(dir, ".github", "workflows", "factory.factory.yml"),
+          "utf8",
+        ),
+      ).toBe(template);
+      await expect(
+        access(join(dir, ".github", "workflows", "factory.yml.bak")),
+      ).rejects.toThrow();
+    }
+  });
+
+  it("writes factory.yml from the template when the repo has none, with or without --force", async () => {
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    for (const force of [false, true]) {
+      const dir = await tmp();
+      expect(
+        await runInit(
+          dir,
+          { type: "cli", phase: "build", yes: true, force },
+          { token: null },
+        ),
+      ).toBe(0);
+      const workflow = await readFile(
+        join(dir, ".github", "workflows", "factory.yml"),
+        "utf8",
+      );
+      expect(workflow).toContain("name: factory");
+      expect(workflow).toContain("gate: build");
+      await expect(
+        access(join(dir, ".github", "workflows", "factory.factory.yml")),
+      ).rejects.toThrow();
+    }
+  });
+
+  it("names the factory.yml sibling in its output and says to merge it by hand", async () => {
+    const dir = await tmp();
+    const out = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    await mkdir(join(dir, ".github", "workflows"), { recursive: true });
+    await writeFile(
+      join(dir, ".github", "workflows", "factory.yml"),
+      "name: ours\non: [push]\n",
+    );
+    await runInit(dir, { type: "cli", yes: true }, { token: null });
+    expect(out.mock.calls.join("")).toContain(
+      ".github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand",
     );
   });
 

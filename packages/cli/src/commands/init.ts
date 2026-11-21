@@ -132,9 +132,10 @@ async function keepBackup(
 }
 
 /**
- * Write a file the factory owns (`factory.yml`): a missing one is written, and
- * with --force a different one is replaced, the old one kept as a backup.
- * Returns a note when it replaced one.
+ * Write a generated file for --force: a missing one is written, and a
+ * different one is replaced, the old one kept as a backup. Never used for
+ * `factory.yml`, which holds a repo's check names and gate. Returns a note
+ * when it replaced one.
  */
 async function writeReplacing(
   root: string,
@@ -155,7 +156,8 @@ async function writeReplacing(
  * Write a generated file without clobbering (§10): a missing file is written,
  * an identical one left alone, and a different one gets the factory's version
  * beside it as `name.factory.ext`. With --force it's replaced, and the old
- * one kept as a backup. Returns a note when it did anything but write `rel`.
+ * one kept as a backup; init never passes --force for `factory.yml`. Returns
+ * a note when it did anything but write `rel`.
  */
 async function writeBeside(
   root: string,
@@ -458,7 +460,8 @@ export async function runInit(
     }
   }
 
-  // §5.4: --force never deletes. The profile it replaces is backed up first.
+  // §5.4: --force never deletes. The profile it replaces is backed up first,
+  // and factory.yml is never replaced.
   const beside: string[] = [];
   const profileRel = ".factory/profile.yml";
   const oldProfile = profileExists
@@ -488,13 +491,19 @@ export async function runInit(
         if (err.code !== "EEXIST") throw err;
       },
     );
-  const workflow = await writeReplacing(
+  // A person's factory.yml holds their required check names, action ref and
+  // gate, and --force is the only way past an existing profile, so it's never
+  // replaced (§12): a different one gets the template beside it.
+  const workflow = await writeBeside(
     root,
     ".github/workflows/factory.yml",
     buildWorkflow(draft.phase ?? "build"),
-    flags.force,
+    false,
   );
-  if (workflow) beside.push(workflow);
+  if (workflow)
+    beside.push(
+      `${workflow}. GitHub runs it and the audit counts it as CI, so delete it once merged`,
+    );
 
   // Backups init leaves under .factory/ are for the person to look at, not commit.
   await ignoreInFactory(root, [
