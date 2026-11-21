@@ -1,0 +1,113 @@
+{
+  "task": "T-0004",
+  "round": 1,
+  "verdict": "failed",
+  "head": "3ca961966ee8a2fcbab0095f6cdde227e705437e",
+  "base": "56dbe51268aa4628087e0ca5e95277b5d5bdd311",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "64.63% lines ≥ floor 53% (.factory/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      }
+    ],
+    "protected": [
+      {
+        "reason": "existing-test",
+        "path": "packages/cli/src/commands/init.test.ts",
+        "detail": "modifies a test that existed at base"
+      }
+    ],
+    "notes": []
+  },
+  "review": {
+    "verdict": "request-changes",
+    "body": "<!-- factory-judge-review round=1 -->\n### Factory judge · round 1 · 1 blocking\n\n#### Blocking\n\n**contract: Existing integration test's assertions changed without a recorded person's approval** `packages/cli/src/commands/init.test.ts:253`\nAGENTS.md lists \"tests that already exist (add new tests instead)\" as a protected path: \"A task never edits these. The judge marks any change to them as needing a person.\" Its Stop and ask section also says to pause before \"deleting or changing an existing test\". CONSTRAINTS.md adds: \"existing tests aren't changed to make a change pass.\" The diff rewrites the assertions of an existing runInit integration test. It drops the factory.yml.bak expectation and changes factory.yml from a template match to byte equality. The diff shows no approval for this. The task card reverses that test's behaviour, so the edit is probably justified, but the rule leaves that call to a person.\n- **Repro:** In packages/cli/src/commands/init.test.ts, inside the existing 'runInit (integration)' test that ends around lines 248-262, the diff removes `expect(await read(\".github\", \"workflows\", \"factory.yml\")).toContain(\"gate: build\")` and `expect(await read(\".github\", \"workflows\", \"factory.yml.bak\")).toBe(workflow)`. It replaces them with `factory.yml` toBe(workflow), a `factory.factory.yml` toContain check, and an assertion that `factory.yml.bak` is absent. Nothing in the diff records a person's approval for this edit.\n- **Fix:** Have a person approve the change to the existing test and record it in the task ledger. Otherwise, leave the old test untouched apart from the minimum the person signs off on, and put the new behaviour only in the added tests.\n\n#### Acceptance\n- A1: met — The new test runs init with force=true on a custom factory.yml. It asserts factory.yml is byte-equal to the custom file, factory.factory.yml equals the template, and no .bak is written.\n- A2: met — The new test loops force over false and true on an empty repo. It asserts factory.yml is written from the template and no sibling exists.\n- A3: met — The new test asserts stdout contains '.github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand'.\n\n<details><summary>2 suggestion(s), non-blocking</summary>\n\n- The sibling factory.factory.yml is itself a live workflow `packages/cli/src/commands/init.ts:505` — Change the note to something like 'GitHub runs factory.factory.yml too, so don't commit it; delete it once you've merged it by hand'.\n- Section references disagree `packages/cli/src/commands/init.ts:161` — Use one section number in both places.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 2 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [
+      {
+        "kind": "contract",
+        "file": "packages/cli/src/commands/init.test.ts",
+        "line": 253,
+        "acceptance_id": null,
+        "title": "Existing integration test's assertions changed without a recorded person's approval",
+        "detail": "AGENTS.md lists \"tests that already exist (add new tests instead)\" as a protected path: \"A task never edits these. The judge marks any change to them as needing a person.\" Its Stop and ask section also says to pause before \"deleting or changing an existing test\". CONSTRAINTS.md adds: \"existing tests aren't changed to make a change pass.\" The diff rewrites the assertions of an existing runInit integration test. It drops the factory.yml.bak expectation and changes factory.yml from a template match to byte equality. The diff shows no approval for this. The task card reverses that test's behaviour, so the edit is probably justified, but the rule leaves that call to a person.",
+        "repro": "In packages/cli/src/commands/init.test.ts, inside the existing 'runInit (integration)' test that ends around lines 248-262, the diff removes `expect(await read(\".github\", \"workflows\", \"factory.yml\")).toContain(\"gate: build\")` and `expect(await read(\".github\", \"workflows\", \"factory.yml.bak\")).toBe(workflow)`. It replaces them with `factory.yml` toBe(workflow), a `factory.factory.yml` toContain check, and an assertion that `factory.yml.bak` is absent. Nothing in the diff records a person's approval for this edit.",
+        "fix": "Have a person approve the change to the existing test and record it in the task ledger. Otherwise, leave the old test untouched apart from the minimum the person signs off on, and put the new behaviour only in the added tests."
+      }
+    ],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.ts",
+        "line": 505,
+        "acceptance_id": null,
+        "title": "The sibling factory.factory.yml is itself a live workflow",
+        "detail": "Every .yml under .github/workflows runs on GitHub. If the person commits factory.factory.yml, a second workflow runs on PRs with the template's @v1 action ref and gate, and a job may report the same 'factory' check name. The note warns about this, but by then the file sits where it is easy to commit by accident. Consider adding .github/workflows/factory.factory.yml to the ignore list, or stating in the note that it should not be committed. Also, 'it' in 'GitHub runs it' is ambiguous after a sentence that names both files.",
+        "repro": "Run init on a repo with a customised factory.yml, commit everything with `git add -A`, and open a PR. Two factory workflows run.",
+        "fix": "Change the note to something like 'GitHub runs factory.factory.yml too, so don't commit it; delete it once you've merged it by hand'."
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.ts",
+        "line": 161,
+        "acceptance_id": null,
+        "title": "Section references disagree",
+        "detail": "The writeBeside doc cites §10 for not clobbering, while the new comment at the call site and the task card cite §12 for the same rule.",
+        "repro": "n/a",
+        "fix": "Use one section number in both places."
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The new test runs init with force=true on a custom factory.yml. It asserts factory.yml is byte-equal to the custom file, factory.factory.yml equals the template, and no .bak is written."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The new test loops force over false and true on an empty repo. It asserts factory.yml is written from the template and no sibling exists."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The new test asserts stdout contains '.github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand'."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 4025,
+      "costUsd": 0
+    }
+  }
+}

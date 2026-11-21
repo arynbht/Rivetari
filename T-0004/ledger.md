@@ -20,6 +20,13 @@
 - 2026-11-21 19:01 prove: proof failed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-21 19:04 build: build done · commit 3ca961966ee8 · 0 file(s) this round · 520561 tokens · $0.25 · Nothing to fix in the change itself: a stray `C:\Users\arynb\AppData\Local\Temp\package.json` (from an unrelated Shopify app) is breaking 20 runtime tests, and someone needs to move or delete it, then (factory runtime (for arynbht@gmail.com))
 - 2026-11-21 19:05 prove: proof failed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-21 19:11 build: build done · commit 3ca961966ee8 · 0 file(s) this round · 626487 tokens · $0.56 · I made no code changes this round. The failed proof doesn't come from this change, and the code it points at is outside what this task may touch. (factory runtime (for arynbht@gmail.com))
+- 2026-11-21 19:12 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-21 19:17 judge: judge failed · round 1 · head 3ca961966ee8 · 1 blocking · record sha256 231dd01a2bc3f75cdc1f9f4fb28a49f0971554cfb54bd66f8851fbc68643a50c (factory judge (for arynbht@gmail.com))
+- 2026-11-21 19:17 build: build done · commit 3ca961966ee8 · 0 file(s) this round · 95254 tokens · $0.31 · A person needs to decide this before I can go further: may the existing test "--force backs up what it replaces, and never resets waivers or evidence" (`packages/cli/src/commands/init.test.ts`, around (factory runtime (for arynbht@gmail.com))
+- 2026-11-21 19:19 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-21 19:23 judge: judge passed · round 2 · head 3ca961966ee8 · record sha256 d6ea23618da1fa2c3ff480ab20770bc2c88752572be30830f9266296915f41d8 (factory judge (for arynbht@gmail.com))
+- 2026-11-21 19:23 ship: draft PR opened: #161 https://github.com/arynbht/software-factory/pull/161 · fix/t-0004 at 3ca961966ee8 → main (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -60,3 +67,26 @@
 - 2026-11-21 19:05 tests failed (pnpm run test, exit 1) · new tests: packages/cli/src/commands/init.test.ts: keeps a factory.yml a person changed, with or without --force, and writes the template beside it; packages/cli/src/commands/init.test.ts: writes factory.yml from the template when the repo has none, with or without --force; packages/cli/src/commands/init.test.ts: names the factory.yml sibling in its output and says to merge it by hand
 - 2026-11-21 19:05 output: …3m=[39m [35mawait[39m [34mstartServer[39m({ [90m220| [39m command[33m:[39m start[33m,[39m [90m [2m❯[22m uiProof packages/runtime/src/proof/prove.ts:[2m248:5[22m[39m [90m [2m❯[22m Module.proveTask packages/runtime/src/proof/prove.ts:[2m349:9[22m[39m [90m [2m❯[22m packages/runtime/src/proof/proof.test.ts:[2m433:24[22m[39m [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/20]⎯[22m[39m
 - 2026-11-21 19:05 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0004/test-run.txt?raw=true
+- 2026-11-21 19:12 tests passed (pnpm run test, exit 0) · new tests: packages/cli/src/commands/init.test.ts: keeps a factory.yml a person changed, with or without --force, and writes the template beside it; packages/cli/src/commands/init.test.ts: writes factory.yml from the template when the repo has none, with or without --force; packages/cli/src/commands/init.test.ts: names the factory.yml sibling in its output and says to merge it by hand
+- 2026-11-21 19:12 output: …: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+- 2026-11-21 19:12 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0004/test-run.txt?raw=true
+- 2026-11-21 19:19 tests passed (pnpm run test, exit 0) · new tests: packages/cli/src/commands/init.test.ts: keeps a factory.yml a person changed, with or without --force, and writes the template beside it; packages/cli/src/commands/init.test.ts: writes factory.yml from the template when the repo has none, with or without --force; packages/cli/src/commands/init.test.ts: names the factory.yml sibling in its output and says to merge it by hand
+- 2026-11-21 19:19 output: …: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+- 2026-11-21 19:19 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0004/test-run.txt?raw=true
+
+## Judge
+
+- 2026-11-21 19:16 tier 1 round 1: pass · 4/4 pass
+- 2026-11-21 19:16 protected: packages/cli/src/commands/init.test.ts — modifies a test that existed at base (allowed at build)
+- 2026-11-21 19:17 review round 1: request-changes; 1 blocking, 2 suggestion(s) (claude-opus-5-5) · 4025 tokens · $0.00
+- 2026-11-21 19:17 blocking contract packages/cli/src/commands/init.test.ts:253 — Existing integration test's assertions changed without a recorded person's approval · repro: In packages/cli/src/commands/init.test.ts, inside the existing 'runInit (integration)' test that ends around lines 248-262, the diff removes `expect(await read(".github", "workflows", "factory.yml")).toContain("gate: build")` and `expect(await read(".github", "workflows", "factory.yml.bak")).toBe(wo… · fix: Have a person approve the change to the existing test and record it in the task ledger. Otherwise, leave the old test untouched apart from the minimum the person signs off on, and put the new behaviou…
+- 2026-11-21 19:17 acceptance A1: met — The new test runs init with force=true on a custom factory.yml. It asserts factory.yml is byte-equal to the custom file, factory.factory.yml equals the template, and no .bak is written.
+- 2026-11-21 19:17 acceptance A2: met — The new test loops force over false and true on an empty repo. It asserts factory.yml is written from the template and no sibling exists.
+- 2026-11-21 19:17 acceptance A3: met — The new test asserts stdout contains '.github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand'.
+- 2026-11-21 19:23 tier 1 round 2: pass · 4/4 pass
+- 2026-11-21 19:23 protected: packages/cli/src/commands/init.test.ts — modifies a test that existed at base (allowed at build)
+- 2026-11-21 19:23 review round 2: approve; 0 blocking, 2 suggestion(s) (claude-opus-5-5) · 2399 tokens · $0.00
+- 2026-11-21 19:23 acceptance A1: met — init.ts now calls writeBeside(..., false). The new test checks with --force that factory.yml is unchanged, factory.factory.yml equals the template, and no .bak exists. The updated existing test assert…
+- 2026-11-21 19:23 acceptance A2: met — The new test runs init with force false and true on an empty repo and asserts factory.yml is written from the template, with no sibling.
+- 2026-11-21 19:23 acceptance A3: met — The new test asserts the output contains '.github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand'.
+- 2026-11-21 19:23 judge review posted: https://github.com/arynbht/software-factory/pull/161#pullrequestreview-6007664139

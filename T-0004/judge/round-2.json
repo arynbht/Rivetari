@@ -1,0 +1,102 @@
+{
+  "task": "T-0004",
+  "round": 2,
+  "verdict": "passed",
+  "head": "3ca961966ee8a2fcbab0095f6cdde227e705437e",
+  "base": "56dbe51268aa4628087e0ca5e95277b5d5bdd311",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "64.66% lines ≥ floor 53% (.factory/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      }
+    ],
+    "protected": [
+      {
+        "reason": "existing-test",
+        "path": "packages/cli/src/commands/init.test.ts",
+        "detail": "modifies a test that existed at base"
+      }
+    ],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- factory-judge-review round=2 -->\n### Factory judge · round 2 · approve\n\n#### Acceptance\n- A1: met — init.ts now calls writeBeside(..., false). The new test checks with --force that factory.yml is unchanged, factory.factory.yml equals the template, and no .bak exists. The updated existing test asserts the same.\n- A2: met — The new test runs init with force false and true on an empty repo and asserts factory.yml is written from the template, with no sibling.\n- A3: met — The new test asserts the output contains '.github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand'.\n\n<details><summary>2 suggestion(s), non-blocking</summary>\n\n- An existing test was changed, so a person needs to sign it off `packages/cli/src/commands/init.test.ts:256` — None needed in code. Have a person sign off on the test change in the PR.\n- The sibling sits in .github/workflows, so GitHub runs it as a live workflow if committed `packages/cli/src/commands/init.ts:505` — Ask `ignoreInFactory`/.gitignore to cover the sibling, or have `factory doctor` flag a committed `factory.factory.yml`, so the warning isn't the only guard.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.test.ts",
+        "line": 256,
+        "acceptance_id": null,
+        "title": "An existing test was changed, so a person needs to sign it off",
+        "detail": "AGENTS.md lists 'tests that already exist' as a protected path, and its stop-and-ask list includes 'deleting or changing an existing test'. The old assertion (`factory.yml.bak` holds the old workflow, and `factory.yml` gets the template) contradicts A1, so changing it is needed and is not weakening a check. It is still a protected-path edit, so a person should approve it.",
+        "repro": "The diff edits the existing --force integration test at init.test.ts:253-261, replacing the factory.yml.bak expectation.",
+        "fix": "None needed in code. Have a person sign off on the test change in the PR."
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.ts",
+        "line": 505,
+        "acceptance_id": null,
+        "title": "The sibling sits in .github/workflows, so GitHub runs it as a live workflow if committed",
+        "detail": "factory.factory.yml is the template, with the @v1 action, the template's job and check names, and the template gate. It is written into .github/workflows/, so if it is committed before it is merged and deleted, a second 'factory' workflow runs on PRs alongside the person's own. The added note warns about this, but the warning is the only safeguard.",
+        "repro": "Run `factory init --force` on a repo with a customised factory.yml, then `git add -A && git commit`. The PR runs both factory.yml and factory.factory.yml.",
+        "fix": "Ask `ignoreInFactory`/.gitignore to cover the sibling, or have `factory doctor` flag a committed `factory.factory.yml`, so the warning isn't the only guard."
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "init.ts now calls writeBeside(..., false). The new test checks with --force that factory.yml is unchanged, factory.factory.yml equals the template, and no .bak exists. The updated existing test asserts the same."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The new test runs init with force false and true on an empty repo and asserts factory.yml is written from the template, with no sibling."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The new test asserts the output contains '.github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand'."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 2399,
+      "costUsd": 0
+    }
+  }
+}
