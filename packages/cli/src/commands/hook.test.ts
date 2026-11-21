@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { newTask } from "@arynbht/factory-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { doctorChecks } from "./doctor.js";
@@ -326,6 +327,24 @@ describe("factory hook session-start", () => {
       "Beats: sync → intake → route → isolate → build → prove → judge → ship → close",
     );
     expect(text).toContain("AGENTS.md is missing");
+  });
+
+  it("lists the tasks waiting on a person under Needs you", async () => {
+    const { repo } = await factoryRepo();
+    const waiting = await newTask(
+      repo,
+      {
+        title: "Fix the login redirect",
+        type: "fix",
+        description: "After login the app lands on a blank page.",
+        acceptance: [{ id: "A1", text: "lands on /home", verify: "e2e" }],
+      },
+      { by: "dev@example.com" },
+    );
+    const text = await sessionStartText(repo);
+    expect(text).toContain(
+      `Needs you:\n- ${waiting.card.id} Fix the login redirect: intake: review the card and confirm it`,
+    );
   });
 });
 

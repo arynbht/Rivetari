@@ -187,6 +187,35 @@ describe("judge tier 2", { timeout: 30_000 }, () => {
     expect((await run(priced)).usage.costUsd).toBeCloseTo(4, 5);
   });
 
+  it("tells the reviewer what autonomy flagged instead of asking, apart from what a person allowed", async () => {
+    const r = await repoWithChange(BASE, CHANGE);
+    const { ai, calls } = scripted({ findings: [] }, () => ({}));
+    await runTier2({
+      repoPath: r.dir,
+      base: r.base,
+      head: r.head,
+      ai,
+      model: "judge",
+      decisions: [
+        {
+          asked: "schema_change: touches migrations/001.sql",
+          by: "factory runtime (for dev@example.com)",
+          at: "2026-11-21T18:00:00.000Z",
+          note: "",
+          flagged: true,
+        },
+      ],
+    });
+    const prompt = calls[0]?.prompt ?? "";
+    expect(prompt).toContain(
+      "## Decisions flagged for the person reviewing the PR",
+    );
+    expect(prompt).toContain(
+      "- schema_change: touches migrations/001.sql — flagged at 2026-11-21T18:00:00.000Z",
+    );
+    expect(prompt).not.toContain("## Decisions a person already made");
+  });
+
   it("says nothing about decisions when nobody was asked", async () => {
     const r = await repoWithChange(BASE, CHANGE);
     const { ai, calls } = scripted({ findings: [] }, () => ({}));

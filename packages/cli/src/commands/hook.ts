@@ -631,6 +631,16 @@ export async function sessionStartText(root: string): Promise<string> {
   const open = await listTasks(root)
     .then((tasks) => tasks.filter((t) => nextStep(t) !== "done"))
     .catch(() => []);
+  const waiting = open.filter((t) =>
+    /^(stop-and-ask|intake|route: review|route: a person|close)/.test(
+      nextStep(t),
+    ),
+  );
+  if (waiting.length > 0) {
+    lines.push("Needs you:");
+    for (const t of waiting)
+      lines.push(`- ${t.card.id} ${t.card.title}: ${nextStep(t)}`);
+  }
   if (open.length > 0) {
     lines.push("Open tasks:");
     for (const t of open)

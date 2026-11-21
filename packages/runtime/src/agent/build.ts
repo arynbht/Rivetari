@@ -32,9 +32,10 @@ import {
   TaskError,
   TASKS_DIR,
 } from "../task/tasks.js";
+import { autonomyFor, isSoftStop } from "../task/autonomy.js";
 import { type Isolation, loadIsolation } from "./isolate.js";
 import { assemblePrompt, STOP_MARKER } from "./prompt.js";
-import { findStops, type Stop } from "./stops.js";
+import { findStops, type Stop, withLicenses } from "./stops.js";
 
 export interface AgentCall {
   mode: "plan" | "build";
@@ -290,6 +291,7 @@ export interface BuildOutcome {
   task: Task;
   /** Stops raised this round; empty when the build finished. */
   stops: Stop[];
+  flagged?: Stop[] | undefined;
   commit?: string | undefined;
 }
 
@@ -458,22 +460,49 @@ export async function buildTask(
     head,
     assembly,
   );
-  const stops = found.filter((s) => !allowed.has(`${s.trigger}: ${s.detail}`));
+  const level = await autonomyFor(repoPath, task.card);
+  const raised = (
+    level === "supervised"
+      ? found
+      : await Promise.all(found.map((s) => withLicenses(isolation.worktree, s)))
+  ).filter((s) => !allowed.has(`${s.trigger}: ${s.detail}`));
+  const descends = await wt
+    .raw(["merge-base", "--is-ancestor", before, head])
+    .then(
+      () => true,
+      () => false,
+    );
+  if (!descends)
+    raised.push({
+      trigger: "history_rewritten",
+      detail: `the branch no longer contains ${before.slice(0, 12)}: its history was rewritten`,
+    });
   if (head === before)
-    stops.push({
+    raised.push({
       trigger: "no_change",
       detail:
         oneLine(reply.text, 500) ||
         "the agent changed nothing and said nothing",
     });
+  const flagged =
+    level === "supervised" ? [] : raised.filter((s) => isSoftStop(s));
+  const stops = raised.filter((s) => !flagged.includes(s));
+  for (const s of flagged)
+    await log("stop", `flagged: ${s.trigger}: ${s.detail}`);
   for (const s of stops) await log("stop", `asked: ${s.trigger}: ${s.detail}`);
   await log(
     "timeline",
     stops.length > 0
       ? `build paused: ${stops.length} thing(s) to ask about · commit ${head.slice(0, 12)}${usageNote(reply)}`
-      : `build done · commit ${head.slice(0, 12)} · ${staged ? staged.split("\n").length : 0} file(s) this round${usageNote(reply)} · ${reply.text.trim().split("\n")[0]?.slice(0, 200) ?? ""}`,
+      : `build done · commit ${head.slice(0, 12)} · ${staged ? staged.split("\n").length : 0} file(s) this round${flagged.length > 0 ? ` · ${flagged.length} decision(s) flagged for the PR (autonomy ${level})` : ""}${usageNote(reply)} · ${reply.text.trim().split("\n")[0]?.slice(0, 200) ?? ""}`,
   );
-  return { task: await loadTask(repoPath, id), stops, commit: head };
+  const plain = (s: Stop): Stop => ({ trigger: s.trigger, detail: s.detail });
+  return {
+    task: await loadTask(repoPath, id),
+    stops: stops.map(plain),
+    flagged: flagged.map(plain),
+    commit: head,
+  };
 }
 
 /**

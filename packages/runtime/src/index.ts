@@ -189,3 +189,12 @@ export {
   runTask,
   type RunTaskOptions,
 } from "./task/run.js";
+export {
+  type Advance,
+  advanceTask,
+  type Autonomy,
+  autonomyFor,
+  isSoftStop,
+  repoAutonomy,
+  routeConcerns,
+} from "./task/autonomy.js";

@@ -227,13 +227,24 @@ export interface AllowedDecision {
   by: string;
   at: string;
   note: string;
+  flagged?: boolean | undefined;
 }
+
+export const FLAGGED = /^flagged: /;
 
 export function allowedDecisions(task: Task): AllowedDecision[] {
   const decisions: AllowedDecision[] = [];
   let pending: string[] = [];
   for (const e of task.entries.filter((e) => e.section === "stop")) {
     if (ASKED.test(e.text)) pending.push(e.text.replace(ASKED, ""));
+    if (FLAGGED.test(e.text))
+      decisions.push({
+        asked: e.text.replace(FLAGGED, ""),
+        by: e.by,
+        at: e.at,
+        note: "not asked: autonomy let the build go on and flagged it for the person reviewing the PR",
+        flagged: true,
+      });
     const m = ANSWERED.exec(e.text);
     if (m) {
       if (m[1] === "allowed")

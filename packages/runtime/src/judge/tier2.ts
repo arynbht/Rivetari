@@ -142,9 +142,19 @@ export interface Tier2Options {
 function decisionsSection(
   decisions: readonly AllowedDecision[] | undefined,
 ): string[] {
-  if (!decisions?.length) return [];
+  const allowed = decisions?.filter((d) => !d.flagged) ?? [];
+  const flagged = decisions?.filter((d) => d.flagged) ?? [];
   return [
-    `## Decisions a person already made\nA person was asked about each of these and allowed it. Do not block on a change a person allowed: it is not a defect, a contract breach or an unmet criterion because of what was allowed.\n${decisions.map((d) => `- ${d.asked} — allowed by ${d.by} at ${d.at}${d.note ? `: ${d.note}` : ""}`).join("\n")}`,
+    ...(allowed.length > 0
+      ? [
+          `## Decisions a person already made\nA person was asked about each of these and allowed it. Do not block on a change a person allowed: it is not a defect, a contract breach or an unmet criterion because of what was allowed.\n${allowed.map((d) => `- ${d.asked} — allowed by ${d.by} at ${d.at}${d.note ? `: ${d.note}` : ""}`).join("\n")}`,
+        ]
+      : []),
+    ...(flagged.length > 0
+      ? [
+          `## Decisions flagged for the person reviewing the PR\nThe repo's autonomy level let the build go on without asking about these; the PR lists each one for a person to decide at merge. Do not block only because nobody was asked. Judge the change itself as usual.\n${flagged.map((d) => `- ${d.asked} — flagged at ${d.at}`).join("\n")}`,
+        ]
+      : []),
   ];
 }
 

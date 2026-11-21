@@ -12,6 +12,7 @@ flags:
   open-source: true
   distributes-binaries: true
 severity-floor: medium
+autonomy: review-at-pr
 project:
   license: MIT
   owner: "@arynbht"

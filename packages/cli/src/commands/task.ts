@@ -4,8 +4,10 @@ import { resolve } from "node:path";
 import { confirm, isCancel } from "@clack/prompts";
 import { RegistryError } from "@arynbht/factory-registry";
 import {
+  advanceTask,
   answerStops,
   approveRoute,
+  autonomyFor,
   buildTask,
   CardError,
   closeTask,
@@ -26,6 +28,7 @@ import {
   parseCard,
   proveTask,
   pullTasks,
+  repoAutonomy,
   reserveTaskId,
   routeTask,
   runTask,
@@ -216,9 +219,18 @@ export function runTaskNew(
     const id = await reserveTaskId(repo, { holder });
     const task = await newTask(repo, input, { by, id });
     await commitTask(repo, id, { holder, message: `${id}: drafted` });
+    if ((await autonomyFor(repo, task.card)) === "supervised") {
+      process.stdout.write(
+        `drafted ${task.card.id}: ${task.card.title}\n` +
+          `review .factory/tasks/${task.card.id}/card.yml, then \`factory task confirm ${task.card.id}\`\n`,
+      );
+      return 0;
+    }
+    const advance = await onTask(repo, id, "intake", (who) =>
+      advanceTask(repo, id, { by: who }),
+    );
     process.stdout.write(
-      `drafted ${task.card.id}: ${task.card.title}\n` +
-        `review .factory/tasks/${task.card.id}/card.yml, then \`factory task confirm ${task.card.id}\`\n`,
+      `drafted ${task.card.id}: ${task.card.title}\n${advance.did.map((d) => `${d}\n`).join("")}next: ${advance.waiting ?? `\`factory task run ${id}\``}\n`,
     );
     return 0;
   });
@@ -598,5 +610,59 @@ export function runTaskRun(
     );
     process.stdout.write(`next: ${outcome.next}\n`);
     return outcome.ran.at(-1) === "ship" ? 0 : 2;
+  });
+}
+
+const PARKED = /^(stop-and-ask|close|done)/;
+
+export function runTaskRunAll(flags: {
+  model?: string;
+  base?: string;
+  path?: string;
+}): Promise<number> {
+  return guarded(async () => {
+    const repo = resolve(flags.path ?? ".");
+    const level = await repoAutonomy(repo);
+    if (level !== "unattended") {
+      console.error(
+        `factory task: run --all needs \`autonomy: unattended\` in .factory/profile.yml (this repo is ${level})`,
+      );
+      return 1;
+    }
+    await pull(repo);
+    const queue = (await listTasks(repo))
+      .filter((t) => !PARKED.test(nextStep(t)))
+      .map((t) => t.card.id);
+    const shipped: string[] = [];
+    const parked: string[] = [];
+    let failed = false;
+    for (const id of queue) {
+      process.stdout.write(`== ${id}\n`);
+      try {
+        const outcome = await onTask(repo, id, "run", async (by) =>
+          runTask(repo, id, {
+            by,
+            model: flags.model,
+            base: flags.base,
+            otherTasks: await openTaskIds(repo, id),
+            onEntry: (e) =>
+              process.stdout.write(
+                `${e.at.slice(11, 16)} ${e.beat}${e.section === "timeline" ? "" : ` (${e.section})`}: ${e.text}\n`,
+              ),
+            judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
+          }),
+        );
+        if (outcome.ran.at(-1) === "ship") shipped.push(id);
+        else parked.push(`${id}: ${outcome.next}`);
+      } catch (err) {
+        failed = true;
+        parked.push(`${id}: ${(err as Error).message}`);
+      }
+    }
+    process.stdout.write(
+      `shipped: ${shipped.join(", ") || "none"}\n${parked.length > 0 ? `needs you:\n${parked.map((p) => `- ${p}\n`).join("")}` : ""}`,
+    );
+    if (failed) return 1;
+    return parked.length > 0 ? 2 : 0;
   });
 }

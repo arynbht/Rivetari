@@ -54,8 +54,8 @@ export async function runProfileSet(
 
   if (key === "name" || key === "type" || key === "phase") {
     draft[key] = value;
-  } else if (key === "severity-floor") {
-    draft["severity-floor"] = value;
+  } else if (key === "severity-floor" || key === "autonomy") {
+    draft[key] = value;
   } else if (key === "stack") {
     draft["stack"] = value
       .split(",")
@@ -71,7 +71,7 @@ export async function runProfileSet(
     draft[group] = { ...(profile[group] ?? {}), [key.slice(6)]: flag };
   } else {
     console.error(
-      `Unknown profile key "${key}". Try: name, type, phase, severity-floor, stack, flags.<flag>, lanes.<lane>.`,
+      `Unknown profile key "${key}". Try: name, type, phase, severity-floor, autonomy, stack, flags.<flag>, lanes.<lane>.`,
     );
     return 1;
   }
