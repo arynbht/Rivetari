@@ -74,6 +74,7 @@ export function ProfileForm({
           stack: [],
           flags: {},
           "severity-floor": "low",
+          autonomy: "supervised",
         };
         setDraft(profile);
         setStackText((profile.stack ?? []).join(", "));
