@@ -219,17 +219,43 @@ export const ANSWERED = /^answered: (allowed|denied)(?: — (.*))?$/;
  * the judge doesn't ask about a protected change the build already asked about.
  */
 export function allowedStops(task: Task): Set<string> {
-  const allowed = new Set<string>();
+  return new Set(allowedDecisions(task).map((d) => d.asked));
+}
+
+export interface AllowedDecision {
+  asked: string;
+  by: string;
+  at: string;
+  note: string;
+}
+
+export function allowedDecisions(task: Task): AllowedDecision[] {
+  const decisions: AllowedDecision[] = [];
   let pending: string[] = [];
   for (const e of task.entries.filter((e) => e.section === "stop")) {
     if (ASKED.test(e.text)) pending.push(e.text.replace(ASKED, ""));
     const m = ANSWERED.exec(e.text);
     if (m) {
-      if (m[1] === "allowed") for (const p of pending) allowed.add(p);
+      if (m[1] === "allowed")
+        for (const asked of pending)
+          decisions.push({ asked, by: e.by, at: e.at, note: m[2] ?? "" });
       pending = [];
     }
   }
-  return allowed;
+  return decisions;
+}
+
+function lastAnswered(task: Task): string[] {
+  let asked: string[] = [];
+  let answered: string[] = [];
+  for (const e of task.entries.filter((e) => e.section === "stop")) {
+    if (ASKED.test(e.text)) asked.push(e.text.replace(ASKED, ""));
+    else if (ANSWERED.test(e.text)) {
+      answered = asked;
+      asked = [];
+    }
+  }
+  return answered;
 }
 
 /** Stop-and-ask questions raised since the last answer (§7.2). */
@@ -295,7 +321,13 @@ function buildStep(task: Task): string {
     .reverse()
     .find((e) => e.section === "stop")
     ?.text.match(ANSWERED)?.[1];
-  if (stage === "done" || (stage === "paused" && answer === "allowed"))
+  const question = lastAnswered(task).some((s) =>
+    s.startsWith("agent_question:"),
+  );
+  if (
+    stage === "done" ||
+    (stage === "paused" && answer === "allowed" && !question)
+  )
     return "prove";
   return `build: \`factory task build ${id}\``;
 }
@@ -336,10 +368,25 @@ export function nextStep(task: Task): string {
 }
 
 /** `factory task status`: every task, its beat, and whether its record is intact. */
-export async function listTasks(repoPath: string): Promise<Task[]> {
+export async function listTasks(
+  repoPath: string,
+  warn: (message: string) => void = (m) =>
+    process.stderr.write(`factory task: ${m}\n`),
+): Promise<Task[]> {
   const tasks: Task[] = [];
-  for (const id of await taskIds(repoPath))
+  for (const id of await taskIds(repoPath)) {
+    const hasCard = await readFile(cardPath(repoPath, id)).then(
+      () => true,
+      () => false,
+    );
+    if (!hasCard) {
+      warn(
+        `skipped ${TASKS_DIR}/${id}: it has no card.yml (a reservation that never finished); delete the folder`,
+      );
+      continue;
+    }
     tasks.push(await loadTask(repoPath, id));
+  }
   return tasks;
 }
 

@@ -56,6 +56,14 @@ describe("estimateCost", () => {
     ).toBeCloseTo(30, 5);
   });
 
+  it("prices the current models, so the judge's default isn't $0", () => {
+    const million = { inputTokens: 1_000_000, outputTokens: 1_000_000 };
+    expect(estimateCost("claude-opus-5-5", million)).toBeCloseTo(24, 5);
+    expect(estimateCost("claude-sonnet-5-5", million)).toBeCloseTo(12, 5);
+    expect(estimateCost("claude-haiku-5-5", million)).toBeCloseTo(0.6, 5);
+    expect(estimateCost("claude-fable-5-1", million)).toBeCloseTo(60, 5);
+  });
+
   it("returns 0 for an unpriced model", () => {
     expect(
       estimateCost("some-future-model", { inputTokens: 100, outputTokens: 50 }),

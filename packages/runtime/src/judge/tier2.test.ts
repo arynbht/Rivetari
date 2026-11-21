@@ -115,6 +115,91 @@ describe("judge tier 2", { timeout: 30_000 }, () => {
     ]);
   });
 
+  it("shows the review and the gate every decision a person allowed, and says not to block on it", async () => {
+    const r = await repoWithChange(BASE, CHANGE);
+    const { ai, calls } = scripted(
+      {
+        findings: [
+          {
+            kind: "contract",
+            file: "src/pay.js",
+            line: 2,
+            title: "Existing test changed without approval",
+            repro: "read the diff",
+          },
+        ],
+      },
+      () => ({ reproducible: false, repro: "", reason: "a person allowed it" }),
+    );
+    const result = await runTier2({
+      repoPath: r.dir,
+      base: r.base,
+      head: r.head,
+      ai,
+      model: "judge",
+      decisions: [
+        {
+          asked:
+            "protected_path: src/pay.test.js — modifies a test that existed at base",
+          by: "owner@example.com",
+          at: "2026-11-21T18:35:00.000Z",
+          note: "the old assertions encoded the behaviour this card removes",
+        },
+      ],
+    });
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call.prompt).toContain("## Decisions a person already made");
+      expect(call.prompt).toContain(
+        "- protected_path: src/pay.test.js — modifies a test that existed at base — allowed by owner@example.com at 2026-11-21T18:35:00.000Z: the old assertions encoded the behaviour this card removes",
+      );
+      expect(call.prompt).toContain(
+        "Do not block on a change a person allowed",
+      );
+    }
+    expect(result.verdict).toBe("approve");
+  });
+
+  it("counts the cost the transport reports, and prices the default model otherwise", async () => {
+    const r = await repoWithChange(BASE, CHANGE);
+    const reported: AiClient = {
+      async complete(params) {
+        return {
+          text: JSON.stringify({ findings: [] }),
+          usage: { inputTokens: 1_000_000, outputTokens: 0 },
+          model: params.model ?? "m",
+          costUsd: 0.37,
+        };
+      },
+    };
+    const priced: AiClient = {
+      async complete(params) {
+        return {
+          text: JSON.stringify({ findings: [] }),
+          usage: { inputTokens: 1_000_000, outputTokens: 0 },
+          model: params.model ?? "m",
+        };
+      },
+    };
+    const run = (ai: AiClient) =>
+      runTier2({ repoPath: r.dir, base: r.base, head: r.head, ai });
+    expect((await run(reported)).usage.costUsd).toBeCloseTo(0.37, 5);
+    expect((await run(priced)).usage.costUsd).toBeCloseTo(4, 5);
+  });
+
+  it("says nothing about decisions when nobody was asked", async () => {
+    const r = await repoWithChange(BASE, CHANGE);
+    const { ai, calls } = scripted({ findings: [] }, () => ({}));
+    await runTier2({
+      repoPath: r.dir,
+      base: r.base,
+      head: r.head,
+      ai,
+      model: "judge",
+    });
+    expect(calls[0]?.prompt).not.toContain("Decisions a person already made");
+  });
+
   it("a confirmed defect blocks, carrying the gate's reproduction", async () => {
     const r = await repoWithChange(BASE, CHANGE);
     const { ai, calls } = scripted(

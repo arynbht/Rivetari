@@ -358,6 +358,66 @@ describe("judge, ship, close", { timeout: 180_000 }, () => {
     expect(await loadHistory(repo)).toEqual([]);
   });
 
+  it("tells the reviewer what a person allowed at build, so an allowed test change passes in round 1", async () => {
+    const repo = await repoWith({
+      ...BASE,
+      "src/total.test.js":
+        'const t = require("node:test"); const a = require("node:assert"); const { total } = require("./total.js");\nt.test("returns 0", () => a.equal(total([]), 0));\n',
+    });
+    const draft = await newTask(
+      repo,
+      {
+        title: "Fix total so it sums",
+        type: "fix",
+        description: "total() returns 0; it should sum its list.",
+        acceptance: [{ id: "A1", text: "total sums a list", verify: "unit" }],
+      },
+      by,
+    );
+    const id = draft.card.id;
+    await confirmTask(repo, id, by);
+    await routeTask(repo, id, { ...by, context });
+    await approveRoute(repo, id, { ...by, context });
+    await isolateTask(repo, id, { ...by, base: "main" });
+    const built = await buildTask(repo, id, {
+      ...by,
+      agent: async (call) => {
+        if (call.mode === "plan")
+          return JSON.stringify({ steps: ["fix total"] });
+        await writeFile(join(call.cwd, "src/total.js"), FIXED);
+        await writeFile(join(call.cwd, "src/total.test.js"), TEST);
+        return "fixed total and its test";
+      },
+    });
+    expect(built.stops.map((s) => s.trigger)).toEqual(["protected_path"]);
+    await answerStops(repo, id, {
+      allow: true,
+      note: "the old assertion encoded the behaviour this card removes",
+      by: "lead@example.com",
+      now: later,
+    });
+    await proveTask(repo, id, by);
+    const seen: Parameters<typeof reviewLocal>[0][] = [];
+    const { record } = await judgeTask(repo, id, {
+      ...by,
+      tier1: fakeTier1("pass"),
+      review: async (o) => {
+        seen.push(o);
+        return fakeReview([])(o);
+      },
+    });
+    expect(seen[0]?.decisions).toEqual([
+      {
+        asked: `protected_path: ${built.stops[0]?.detail}`,
+        by: "lead@example.com",
+        at: later.toISOString(),
+        note: "the old assertion encoded the behaviour this card removes",
+      },
+    ]);
+    expect(record.round).toBe(1);
+    expect(record.verdict).toBe("passed");
+  });
+
   it("blocking findings go back to the agent twice, then to a person", async () => {
     const repo = await repoWith(BASE);
     const calls: AgentCall[] = [];
@@ -380,14 +440,24 @@ describe("judge, ship, close", { timeout: 180_000 }, () => {
         /^build: .*the judge sent the change back/,
       );
       calls.length = 0;
-      await buildTask(repo, id, { ...by, agent: scriptedAgent(calls) });
+      const scripted = scriptedAgent(calls);
+      await buildTask(repo, id, {
+        ...by,
+        agent: async (call) => {
+          const reply = await scripted(call);
+          await writeFile(
+            join(call.cwd, "src/round.js"),
+            `exports.round = ${n};\n`,
+          );
+          return reply;
+        },
+      });
       // The agent is told exactly what blocked, with the repro.
       expect(calls[0]?.mode).toBe("build");
       expect(calls[0]?.prompt).toContain(
         "the judge sent the change back; fix these and nothing else — blocking defect src/total.js:1 — total of an empty list throws · repro: call total([]) and it throws",
       );
       expect(calls[0]?.prompt).toContain("acceptance A1: unmet");
-      // The agent changed nothing this round, so the proof runs on the same commit.
       await proveTask(repo, id, by);
     }
 

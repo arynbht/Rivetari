@@ -243,6 +243,66 @@ describe("test-run proof", { timeout: 120_000 }, () => {
     await expect(proveTask(repo, id, by)).rejects.toThrow("isn't ready");
   });
 
+  it("a test that fails once and passes on the retry is flaky, not a failed proof", async () => {
+    const repo = await repoWith(BASE);
+    const id = await built(
+      repo,
+      { title: "Fix total so it sums", type: "fix" },
+      (cwd) =>
+        writeFile(
+          join(cwd, "src/flaky.test.js"),
+          'const fs = require("node:fs"); const p = require("node:path").join(__dirname, "..", ".ran");\nrequire("node:test").test("eventually", () => { if (!fs.existsSync(p)) { fs.writeFileSync(p, ""); throw new Error("first run"); } });\n',
+        ),
+    );
+    const { task, record } = await proveTask(repo, id, by);
+    expect(record.passed).toBe(true);
+    expect(record.tests?.outcome).toBe("flaky");
+    expect(record.lines[0]).toMatch(
+      /^tests failed, then passed on one retry: flaky, not blamed on this change/,
+    );
+    expect(nextStep(task)).toBe("judge");
+  });
+
+  it("a test that also fails on the base is pre-existing, not a failed proof", async () => {
+    const repo = await repoWith({
+      ...BASE,
+      "src/broken.test.js":
+        'require("node:test").test("broken at base", () => require("node:assert").equal(1, 2));\n',
+    });
+    const id = await built(
+      repo,
+      { title: "Fix total so it sums", type: "fix" },
+      (cwd) =>
+        writeFile(
+          join(cwd, "src/total.js"),
+          "exports.total = (l) => l.reduce((a, b) => a + b, 0);\n",
+        ),
+    );
+    const { task, record } = await proveTask(repo, id, by);
+    expect(record.passed).toBe(true);
+    expect(record.tests?.outcome).toBe("pre-existing");
+    expect(record.lines[0]).toMatch(
+      /^tests failed on the change and on the base: pre-existing/,
+    );
+    expect(nextStep(task)).toBe("judge");
+  });
+
+  it("a test that fails on the change but passes on the base still fails the proof", async () => {
+    const repo = await repoWith(BASE);
+    const id = await built(
+      repo,
+      { title: "Fix total so it sums", type: "fix" },
+      (cwd) =>
+        writeFile(
+          join(cwd, "src/total.test.js"),
+          'require("node:test").test("sums", () => require("node:assert").equal(1, 2));\n',
+        ),
+    );
+    const { record } = await proveTask(repo, id, by);
+    expect(record.passed).toBe(false);
+    expect(record.tests?.outcome).toBe("fail");
+  });
+
   it("names tests added to a test file that existed at base", () => {
     const names = newTestNames(
       [

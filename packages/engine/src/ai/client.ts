@@ -37,6 +37,7 @@ export interface CompleteResult {
   text: string;
   usage: AiUsage;
   model: string;
+  costUsd?: number | undefined;
 }
 
 export interface TransportRequest {

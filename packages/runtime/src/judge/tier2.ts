@@ -21,6 +21,7 @@ import { type SimpleGit, simpleGit } from "simple-git";
 import { z } from "zod";
 
 import type { Card } from "../task/card.js";
+import type { AllowedDecision } from "../task/tasks.js";
 import { isTestFile } from "./protected.js";
 import { parseNameStatus } from "./tier1.js";
 
@@ -132,9 +133,19 @@ export interface Tier2Options {
   ai: AiClient;
   model?: string | undefined;
   card?: Card | undefined;
+  decisions?: readonly AllowedDecision[] | undefined;
   /** YYYY-MM-DD for the usage log; no log when omitted. */
   usageDate?: string | undefined;
   log?: ((line: string) => void) | undefined;
+}
+
+function decisionsSection(
+  decisions: readonly AllowedDecision[] | undefined,
+): string[] {
+  if (!decisions?.length) return [];
+  return [
+    `## Decisions a person already made\nA person was asked about each of these and allowed it. Do not block on a change a person allowed: it is not a defect, a contract breach or an unmet criterion because of what was allowed.\n${decisions.map((d) => `- ${d.asked} — allowed by ${d.by} at ${d.at}${d.note ? `: ${d.note}` : ""}`).join("\n")}`,
+  ];
 }
 
 async function showAt(git: SimpleGit, rev: string, path: string) {
@@ -282,7 +293,11 @@ A contract finding must break a rule quoted from the contract given below; an ac
 
 Reply with ONLY a JSON object: {"reproducible": true|false, "repro": "exact steps, or empty", "reason": "one line"}`;
 
-function reviewPrompt(packed: PackedChange, card?: Card): string {
+function reviewPrompt(
+  packed: PackedChange,
+  card?: Card,
+  decisions?: readonly AllowedDecision[],
+): string {
   const parts: string[] = [];
   if (card) {
     parts.push(
@@ -299,6 +314,7 @@ function reviewPrompt(packed: PackedChange, card?: Card): string {
     parts.push(`## AGENTS.md (the repo's contract)\n${packed.agents}`);
   if (packed.constraints)
     parts.push(`## CONSTRAINTS.md\n${packed.constraints}`);
+  parts.push(...decisionsSection(decisions));
   if (packed.omitted.length) {
     parts.push(
       `## Not shown to you\n${packed.omitted.map((o) => `- ${o.path}: ${o.why}`).join("\n")}`,
@@ -314,9 +330,11 @@ function gatePrompt(
   fileDiff: string,
   packed: PackedChange,
   card?: Card,
+  decisions?: readonly AllowedDecision[],
 ): string {
   const parts = [
     `## Finding (${finding.kind})\n${JSON.stringify(finding, null, 2)}`,
+    ...decisionsSection(decisions),
   ];
   if (finding.kind === "contract") {
     parts.push(
@@ -372,8 +390,9 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
       model,
       maxTokens: 8000,
     });
+    const cost = res.costUsd ?? estimateCost(res.model, res.usage);
     usage.tokens += res.usage.inputTokens + res.usage.outputTokens;
-    usage.costUsd += estimateCost(res.model, res.usage);
+    usage.costUsd += cost;
     if (options.usageDate) {
       await appendUsage(options.repoPath, {
         date: options.usageDate,
@@ -381,7 +400,7 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
         model: res.model,
         inputTokens: res.usage.inputTokens,
         outputTokens: res.usage.outputTokens,
-        costUsd: estimateCost(res.model, res.usage),
+        costUsd: cost,
       }).catch(() => undefined);
     }
     return res.text;
@@ -392,7 +411,7 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     extractJson(
       await complete(
         RUBRIC,
-        reviewPrompt(packed, options.card),
+        reviewPrompt(packed, options.card, options.decisions),
         "judge-review",
       ),
     ),
@@ -458,7 +477,7 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     // A failed call is an error, not a verdict: it must never turn into an approval.
     const reply = await complete(
       GATE,
-      gatePrompt(finding, fileDiff, packed, options.card),
+      gatePrompt(finding, fileDiff, packed, options.card, options.decisions),
       "judge-fp-gate",
     );
     let gate: z.infer<typeof GateSchema>;

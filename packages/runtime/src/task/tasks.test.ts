@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CardError } from "./card.js";
 import { Ledger } from "./ledger.js";
 import {
+  allowedDecisions,
   allowedStops,
   confirmTask,
   listTasks,
@@ -231,6 +232,64 @@ describe("allowedStops", () => {
     } as unknown as Task;
     expect([...allowedStops(task)]).toEqual([
       "protected_path: test/a.test.js — modifies a test",
+    ]);
+  });
+});
+
+describe("allowedDecisions", () => {
+  it("records who allowed each question and when, with their note", () => {
+    const task = {
+      entries: [
+        {
+          section: "stop",
+          text: "asked: protected_path: test/a.test.js — modifies a test",
+          by: "factory runtime (for ann@team)",
+          at: "2026-11-21T18:20:00.000Z",
+        },
+        {
+          section: "stop",
+          text: "answered: allowed — only adds tests",
+          by: "ann@team",
+          at: "2026-11-21T18:35:00.000Z",
+        },
+        {
+          section: "stop",
+          text: "asked: new_dependency: left-pad",
+          by: "factory runtime (for ann@team)",
+          at: "2026-11-21T18:40:00.000Z",
+        },
+        {
+          section: "stop",
+          text: "answered: denied — no new dependencies",
+          by: "ann@team",
+          at: "2026-11-21T18:41:00.000Z",
+        },
+      ],
+    } as unknown as Task;
+    expect(allowedDecisions(task)).toEqual([
+      {
+        asked: "protected_path: test/a.test.js — modifies a test",
+        by: "ann@team",
+        at: "2026-11-21T18:35:00.000Z",
+        note: "only adds tests",
+      },
+    ]);
+  });
+});
+
+describe("listTasks", () => {
+  it("skips, and warns about, a folder with no card instead of failing", async () => {
+    await newTask(repo, CARD, { by: "dev@example.com" });
+    await mkdir(join(repo, ".factory", "tasks", "T-0002"), { recursive: true });
+    await writeFile(
+      join(repo, ".factory", "tasks", "T-0002", "lease.json"),
+      "{}\n",
+    );
+    const warnings: string[] = [];
+    const tasks = await listTasks(repo, (m) => warnings.push(m));
+    expect(tasks.map((t) => t.card.id)).toEqual(["T-0001"]);
+    expect(warnings).toEqual([
+      "skipped .factory/tasks/T-0002: it has no card.yml (a reservation that never finished); delete the folder",
     ]);
   });
 });

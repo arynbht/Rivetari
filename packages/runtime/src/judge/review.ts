@@ -9,6 +9,7 @@ import {
 import { simpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
+import type { AllowedDecision } from "../task/tasks.js";
 import {
   type Finding,
   renderReview,
@@ -36,6 +37,7 @@ export interface ReviewOptions {
   ai: AiClient;
   model?: string | undefined;
   card?: Card | undefined;
+  decisions?: readonly AllowedDecision[] | undefined;
   usageDate?: string | undefined;
   log?: ((line: string) => void) | undefined;
 }

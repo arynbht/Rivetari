@@ -91,6 +91,8 @@ export function parseClaudeJson(
       outputTokens: Number(usage.output_tokens ?? 0),
     },
     model: typeof data.model === "string" ? data.model : fallbackModel,
+    costUsd:
+      typeof data.total_cost_usd === "number" ? data.total_cost_usd : undefined,
   };
 }
 

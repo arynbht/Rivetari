@@ -346,19 +346,21 @@ function compare(
       h.detectors.find((d) => d.status !== "pass")?.message ??
       h.detectors[0]?.message ??
       "";
-    let outcome: CheckOutcome["outcome"];
-    if (after === "n/a") outcome = "n/a";
-    else if (after === "green") outcome = before === "red" ? "fixed" : "pass";
-    else outcome = before === "red" ? "pre-existing" : "fail";
     return {
       id: h.controlId,
       title: h.title,
       base: before,
       head: after,
-      outcome,
+      outcome: outcomeOf(before, after),
       message,
     };
   });
+}
+
+export function outcomeOf(before: Side, after: Side): CheckOutcome["outcome"] {
+  if (after === "n/a") return "n/a";
+  if (after === "green") return before === "red" ? "fixed" : "pass";
+  return before === "red" ? "pre-existing" : "fail";
 }
 
 /** Put protected paths back to their base state in the clone. */
