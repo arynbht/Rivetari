@@ -1,0 +1,34 @@
+id: T-0007
+title: Say everything the guard hook refuses in its help text
+type: fix
+source: prompt
+description: "factory hook guard --help, and the guard's line in factory hook
+  --help, say it refuses edits to .factory/** and to the primary checkout on the
+  default branch. It also refuses shell commands that write those paths, and
+  destructive git commands in a factory repo: a force push or remote delete, git
+  reset --hard, git clean -f and git branch -D. Someone reading the help after a
+  refused git command can't tell it came from the guard. Change the command's
+  description only; the guard's behaviour stays as it is."
+acceptance:
+  - id: A1
+    text: "factory hook guard --help names edits to .factory/**, edits to the
+      primary checkout on the default branch, and the destructive git commands
+      it refuses: force push, git reset --hard, git clean -f and git branch -D"
+    verify: unit
+  - id: A2
+    text: factory hook --help lists guard with the same description
+    verify: unit
+  - id: A3
+    text: "the guard's refusals don't change: the existing hook tests pass unchanged"
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/cli/src/cli.ts
+  - packages/cli/src/cli.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-22
