@@ -17,6 +17,8 @@
 - 2026-11-22 18:36 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 18:56 judge: judge passed · round 2 · head b9009e44a089 · record sha256 eee52c986e32ca26e0dd56332c8cd34072df50d915d68bfddea5a8fa4156dba8 (factory judge (for arynbht@gmail.com))
 - 2026-11-22 18:56 ship: draft PR opened: #170 https://github.com/arynbht/software-factory/pull/170 · fix/t-0006 at b9009e44a089 → main (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 19:13 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0006 kept: it couldn't be removed; remove it by hand · branch fix/t-0006 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 19:13 close: ledger sealed · merged (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -62,3 +64,7 @@
 - 2026-11-22 18:56 acceptance A2: met — The new test covers a first run without --force and a re-run with --force after removing factory.yml. Both write the template and no sibling.
 - 2026-11-22 18:56 acceptance A3: met — The new test asserts that stdout contains '.github/workflows/factory.factory.yml' and 'merge it by hand'.
 - 2026-11-22 18:56 judge review posted: https://github.com/arynbht/software-factory/pull/170#pullrequestreview-6013856211
+
+## Outcome
+
+- 2026-11-22 19:13 PR #170 merged by arynbht 2026-11-22 19:10 · 13h40m · 1499k tokens · $1.49
