@@ -1,0 +1,115 @@
+{
+  "task": "T-0007",
+  "round": 1,
+  "verdict": "passed",
+  "head": "da6961cc1f0019c869b329a42d47fbf3f54b5fce",
+  "base": "42de90a6933937eecd906f494377582add5996f0",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "69.67% lines ≥ floor 53% (.factory/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- factory-judge-review round=1 -->\n### Factory judge · round 1 · approve\n\n#### Acceptance\n- A1: met — The guard description in packages/cli/src/cli.ts:123 names .factory/**, the primary checkout on the default branch, force push, remote delete, git reset --hard, git clean -f and git branch -D. The new test in cli.test.ts checks each one against helpInformation() after collapsing whitespace.\n- A2: met — The second test checks that the flattened `factory hook --help` contains `guard <guard's own description>`, so the listing and the subcommand help can't drift apart.\n- A3: met — Only the description string changed and runHookGuard is untouched. No existing test is modified; cli.test.ts is a new file. The test run is the proof that the hook tests still pass.\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The guard description in packages/cli/src/cli.ts:123 names .factory/**, the primary checkout on the default branch, force push, remote delete, git reset --hard, git clean -f and git branch -D. The new test in cli.test.ts checks each one against helpInformation() after collapsing whitespace."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The second test checks that the flattened `factory hook --help` contains `guard <guard's own description>`, so the listing and the subcommand help can't drift apart."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "Only the description string changed and runHookGuard is untouched. No existing test is modified; cli.test.ts is a new file. The test run is the proof that the hook tests still pass."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 1190,
+      "costUsd": 0.0763556
+    }
+  }
+}
