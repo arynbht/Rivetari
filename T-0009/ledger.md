@@ -42,6 +42,7 @@
 - 2026-11-22 22:13 asked: protected_path: packages/action/dist/index.js — adds a check suppression: `)}`]}var BG=ue(qr(),1);var RG=ue(qr(),1),mt={factoryState:[".factory/**"],skillRegistry:[".factory/skills.lock",".facto
 - 2026-11-22 22:13 answered: allowed — pre-authorised by the owner: the regenerated bundle again; source adds no suppression
 - 2026-11-22 22:29 asked: agent_question: The proof failed only on the store.test.ts lease test, which isn't part of this change. It timed out under full-suite load on Windows, passes on its own in 7.4s, and passed when I re-ran the full suite (748/748). Should the test-run proof just be re-run on this change as it is, or do you want that test's timing fixed in a separate task first?
+- 2026-11-22 22:33 answered: allowed — owner: re-run the proof on the same commit; the failure is the known store.test.ts lease flake under full-suite load on Windows (bug 4), not this change
 
 ## Proof
 
