@@ -167,6 +167,7 @@ export async function judgeTask(
     allowed: wasAllowed,
     card: task.card,
     noNewComments: repoProfile?.quality?.["no-new-comments"] ?? false,
+    persistent: true,
     log,
   });
   const ran = tier1.checks.filter((c) => c.outcome !== "n/a");

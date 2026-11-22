@@ -29,6 +29,12 @@ import type { Card } from "../task/card.js";
 import { bannedCheck, loadBanned } from "./banned.js";
 import { diffRules, type Hunk } from "./diff-rules.js";
 import {
+  acquireWorkspace,
+  dependencyKey,
+  installedKey,
+  setInstalledKey,
+} from "./workspace.js";
+import {
   type DiffEntry,
   findProtected,
   isProtectedConfig,
@@ -80,6 +86,13 @@ export interface Tier1Options {
   noNewComments?: boolean | undefined;
   /** Install dependencies in the clone before checking (default true). */
   install?: boolean | undefined;
+  /**
+   * Judge in the repo's persistent workspace, installing only when the
+   * dependencies changed (ignored with `workDir`).
+   */
+  persistent?: boolean | undefined;
+  /** Where persistent workspaces live (default: the user's cache). */
+  workspaceRoot?: string | undefined;
   now?: Date | undefined;
   /** Progress lines, e.g. to stderr. */
   log?: ((line: string) => void) | undefined;
@@ -166,19 +179,33 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
   const keep = new Set(allowedFindings.map((f) => f.path));
   const keepScripts = allowedFindings.some((f) => f.reason === "scripts");
 
-  // A unique directory per run (two judges on one task never collide), outside
-  // the repo so it never shows up in `git status` or the repo's own audits.
+  // The repo's persistent workspace when asked for and free; otherwise a
+  // unique directory per run (two judges on one task never collide). Both sit
+  // outside the repo, so they never show up in `git status` or its audits.
   await sweepStaleClones();
+  const workspace =
+    options.persistent && !options.workDir
+      ? await acquireWorkspace(options.repoPath, {
+          root: options.workspaceRoot,
+        })
+      : null;
   const workDir =
-    options.workDir ?? (await mkdtemp(join(tmpdir(), CLONE_PREFIX)));
+    workspace?.dir ??
+    options.workDir ??
+    (await mkdtemp(join(tmpdir(), CLONE_PREFIX)));
   const notes: string[] = [];
   try {
-    log(`cloning into ${workDir}`);
-    await simpleGit().clone(options.repoPath, workDir, [
-      "--quiet",
-      "--shared",
-      "--no-checkout",
-    ]);
+    if (!workspace) {
+      log(`cloning into ${workDir}`);
+      await simpleGit().clone(options.repoPath, workDir, [
+        "--quiet",
+        "--shared",
+        "--no-checkout",
+      ]);
+    } else
+      log(
+        `${workspace.created ? "cloning into" : "reusing"} the judge workspace ${workDir}`,
+      );
     // simple-git guards core.hooksPath against hook injection; here it points
     // at an empty directory we just made, which is the opposite of injection.
     const clone = simpleGit(workDir, {
@@ -189,12 +216,20 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     await mkdir(noHooks, { recursive: true });
     await clone.addConfig("core.hooksPath", noHooks);
 
-    // Baseline.
-    await clone.raw(["checkout", "--quiet", "--detach", mergeBase]);
+    // Baseline. A reused workspace keeps only its installed dependencies:
+    // everything else a past round left, ignored or not, goes.
+    await clone.raw(["checkout", "--quiet", "--force", "--detach", mergeBase]);
+    if (workspace) await clone.raw(["clean", "-fdxq", "-e", "node_modules"]);
     const install = options.install ?? true;
-    const baseInstall = install
-      ? await installDeps(workDir, log, options.env)
-      : null;
+    const key = workspace && install ? await dependencyKey(workDir) : null;
+    const reuse = key !== null && (await installedKey(workDir)) === key;
+    if (reuse)
+      log("dependencies unchanged since the last install: reusing them");
+    if (workspace && !reuse) await setInstalledKey(workDir, null);
+    const baseInstall =
+      install && !reuse ? await installDeps(workDir, log, options.env) : null;
+    if (key !== null && !reuse && baseInstall?.ok !== false)
+      await setInstalledKey(workDir, key);
     log("running checks at base");
     const baseResults = await runChecks(workDir, options);
 
@@ -212,8 +247,15 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     if (scriptsChanged && !keepScripts)
       await restoreScripts(workDir, baseScripts);
     const depsChanged = diff.some(
-      (e) => e.path === "package.json" || LOCKFILES.includes(e.path),
+      (e) =>
+        e.path === "package.json" ||
+        e.path.endsWith("/package.json") ||
+        LOCKFILES.includes(e.path),
     );
+    // The change's own dependencies replace the base's in the workspace, so
+    // the next round can't take them for the base's.
+    if (workspace && install && depsChanged)
+      await setInstalledKey(workDir, null);
     const headInstall =
       install && depsChanged
         ? await installDeps(workDir, log, options.env)
@@ -283,7 +325,8 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       workDir,
     };
   } finally {
-    if (!options.keep && !options.workDir) {
+    if (workspace) await workspace.release();
+    else if (!options.keep && !options.workDir) {
       await rm(workDir, { recursive: true, force: true }).catch(
         () => undefined,
       );
