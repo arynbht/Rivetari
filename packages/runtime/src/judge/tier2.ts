@@ -55,6 +55,8 @@ const GENERATED = picomatch(
   { dot: true },
 );
 
+export const isGeneratedPath = (path: string): boolean => GENERATED(path);
+
 /** Review order when the budget is tight: source, then tests, then docs and config. */
 function priority(path: string): number {
   if (isTestFile(path)) return 1;

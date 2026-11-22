@@ -341,26 +341,34 @@ describe("build", () => {
     );
   });
 
-  it("resumes the agent's session after the first round, and starts fresh when it can't", async () => {
+  it("gives a retry round its change so far and the failure, not the repo slice again", async () => {
     const id = await approvedTask();
     await isolateTask(repo, id, { ...by, base: "main" });
     const calls: AgentCall[] = [];
     let round = 0;
-    let resumeWorks = true;
     const agent = async (call: AgentCall) => {
       calls.push(call);
       if (call.mode === "plan")
         return JSON.stringify({ steps: ["Sum the lines"] });
-      if (call.resume && !resumeWorks) throw new Error("no conversation found");
       round++;
       await writeFile(
         join(call.cwd, "src/total.ts"),
         `export const total = ${round};\n`,
       );
-      return { text: "Summed the lines.", sessionId: `session-${round}` };
+      return "Summed the lines.";
     };
     await buildTask(repo, id, { ...by, agent });
+    const first = calls.find((c) => c.mode === "build")?.prompt ?? "";
+    expect(first).toContain("# Operating rules");
+    expect(first).not.toContain("# Your change so far");
+
     const task = await loadTask(repo, id);
+    await task.ledger.append({
+      beat: "prove",
+      section: "proof",
+      text: "tests failed (pnpm run test, exit 1) · total([]) throws",
+      by: "factory runtime (for dev@example.com)",
+    });
     await task.ledger.append({
       beat: "prove",
       section: "timeline",
@@ -369,24 +377,20 @@ describe("build", () => {
     });
     calls.length = 0;
     await buildTask(repo, id, { ...by, agent });
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.resume).toBe("session-1");
-    expect(calls[0]?.prompt).toMatch(
-      /^Since your last round: the proof failed/,
+    expect(calls.map((c) => c.mode)).toEqual(["build"]);
+    const retry = calls[0]?.prompt ?? "";
+    expect(retry).toContain(
+      "# Your change so far (git diff from the base, in this worktree)",
     );
-
-    const again = await loadTask(repo, id);
-    await again.ledger.append({
-      beat: "prove",
-      section: "timeline",
-      text: "proof failed · test-run",
-      by: "factory runtime (for dev@example.com)",
-    });
-    calls.length = 0;
-    resumeWorks = false;
-    await buildTask(repo, id, { ...by, agent });
-    expect(calls.map((c) => c.resume)).toEqual(["session-2", undefined]);
-    expect(calls[1]?.prompt).toContain("# Operating rules");
+    expect(retry).toContain("+export const total = 1;");
+    expect(retry).toContain(
+      "Since your last round: the proof failed; fix the change so it passes — tests failed (pnpm run test, exit 1) · total([]) throws",
+    );
+    expect(retry).toContain("# Task card");
+    expect(retry).toContain("# Operating rules");
+    expect(first).toContain("## Repository files");
+    expect(retry).not.toContain("## Repository files");
+    expect(calls[0]?.system).toContain("FACTORY_STOP:");
   });
 
   it("replans, never runs, a plan whose budget stop was denied", async () => {

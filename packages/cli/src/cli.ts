@@ -652,9 +652,20 @@ export function buildProgram(): Command {
     .argument("<key>", "profile key (e.g. type, phase, flags.handles-pii)")
     .argument("<value>", "new value")
     .argument("[path]", "path to the repo", ".")
-    .action(async (key: string, value: string, path: string) => {
-      process.exitCode = await runProfileSet(key, value, path);
-    });
+    .option(
+      "--override <reason>",
+      "autonomy only: raise it above what the trust ladder's numbers support; the reason goes in the autonomy ledger",
+    )
+    .action(
+      async (
+        key: string,
+        value: string,
+        path: string,
+        flags: { override?: string },
+      ) => {
+        process.exitCode = await runProfileSet(key, value, path, flags);
+      },
+    );
 
   program
     .command("waive")
