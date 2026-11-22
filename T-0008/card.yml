@@ -1,0 +1,63 @@
+id: T-0008
+title: Give the runtime's commits the PR's conventional title, and check commit
+  messages in tier 1
+type: feature
+source: prompt
+description: "A one-round task's PR has a single commit, and the runtime writes
+  its subject as type(task id): Card title, uppercase and with the task id as
+  scope. When a squash merge takes the commit message instead of the PR title,
+  that subject lands on the default branch and breaks the repo's commitlint
+  rules (it happened with #173). Three changes: (1) the runtime commits with the
+  same conventional title it gives the PR: the type from the card, a lowercase
+  subject, and a real scope (the one package the card's source paths sit under,
+  such as runtime or cli; no scope when they span several or none), never the
+  task id. (2) Tier 1 runs the repo's own commitlint config, when it has one, on
+  every commit between base and head, so a bad message is caught before ship.
+  (3) A catalog control checks that squash merges use the PR title, with a
+  github-setting fix that sets it, and factory init offers that fix."
+acceptance:
+  - id: A1
+    text: "a build round's commit subject equals prTitle(card) for the same card:
+      conventional type, lowercase subject, scope from the single package the
+      card's source paths are under (generated paths and changesets ignored), no
+      scope when there isn't exactly one, never the task id"
+    verify: unit
+  - id: A2
+    text: "the PR title and the round's commit subject are the same string for a
+      card touching packages/cli/src/cli.ts, packages/action/dist/** and
+      .changeset/*.md, and both read fix(cli): <lowercased title>"
+    verify: unit
+  - id: A3
+    text: "a new tier 1 check runs the repo's commitlint config on every commit in
+      base..head: it fails naming the commit and the broken rule when a message
+      breaks it, passes when all comply, and is n/a when the repo has no
+      commitlint config"
+    verify: unit
+  - id: A4
+    text: a new catalog control detects through the GitHub API whether squash merges
+      use the PR title, and its github-setting fix sets
+      squash_merge_commit_title to PR_TITLE
+    verify: unit
+  - id: A5
+    text: factory init, given a GitHub token and a repo whose squash merges don't
+      use the PR title, offers that fix and applies it on yes or --yes; without
+      a token it names the factory fix command that applies it later
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/agent/build.ts
+  - packages/runtime/src/ship/ship.ts
+  - packages/runtime/src/judge/**
+  - packages/catalog/controls/**
+  - packages/engine/src/generators/github-setting.ts
+  - packages/engine/src/detectors/github-api.ts
+  - packages/cli/src/commands/init.ts
+  - packages/**/*.test.ts
+  - packages/action/dist/**
+  - packages/action/controls/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-22
