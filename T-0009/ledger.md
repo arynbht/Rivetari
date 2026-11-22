@@ -38,6 +38,7 @@
 - 2026-11-22 21:54 asked: protected_path: packages/runtime/src/agent/stops.test.ts — adds a check suppression: it("still stops for an eslint-disable added in a source file", async () => {
 - 2026-11-22 21:55 answered: allowed — pre-authorised by the owner: dist line is the regenerated bundle; the only source match is the A3 test's title naming eslint-disable, not a suppression (bug: the pattern matches suppression names inside strings)
 - 2026-11-22 22:13 asked: protected_path: packages/action/dist/index.js — adds a check suppression: `)}`]}var BG=ue(qr(),1);var RG=ue(qr(),1),mt={factoryState:[".factory/**"],skillRegistry:[".factory/skills.lock",".facto
+- 2026-11-22 22:13 answered: allowed — pre-authorised by the owner: the regenerated bundle again; source adds no suppression
 
 ## Proof
 
