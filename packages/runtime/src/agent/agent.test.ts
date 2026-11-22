@@ -424,6 +424,47 @@ describe("build", () => {
     });
   });
 
+  it("doesn't stop on a rebuilt bundle, but does on a real key shape in source", async () => {
+    const id = await approvedTask();
+    await isolateTask(repo, id, { ...by, base: "main" });
+    const bundle = await buildTask(repo, id, {
+      ...by,
+      agent: scripted(async (cwd) => {
+        await mkdir(join(cwd, "packages/action/dist"), { recursive: true });
+        await writeFile(
+          join(cwd, "packages/action/dist/index.js"),
+          'var e={token:"ghs_bundledvalue1234"};const AK="AKIAIOSFODNN7EXAMPLE";\n',
+        );
+        await writeFile(join(cwd, "src/total.ts"), "export const total = 2;\n");
+      }).agent,
+    });
+    expect(bundle.stops.map((s) => s.trigger)).not.toContain("secret");
+
+    const id2 = await approvedTask();
+    await isolateTask(repo, id2, { ...by, base: "main" });
+    const key = await buildTask(repo, id2, {
+      ...by,
+      agent: scripted(async (cwd) => {
+        await mkdir(join(cwd, "packages/action/dist"), { recursive: true });
+        await writeFile(
+          join(cwd, "packages/action/dist/index.js"),
+          'const AK="AKIAIOSFODNN7EXAMPLE";\n',
+        );
+        await writeFile(
+          join(cwd, "src/config.ts"),
+          'export const key = "AKIAIOSFODNN7EXAMPLE";\n',
+        );
+      }).agent,
+    });
+    expect(key.stops).toContainEqual({
+      trigger: "secret",
+      detail: "src/config.ts adds a line that looks like a secret",
+    });
+    expect(key.stops.map((s) => s.detail)).not.toContain(
+      "packages/action/dist/index.js adds a line that looks like a secret",
+    );
+  });
+
   it("replans, never runs, a plan whose budget stop was denied", async () => {
     const id = await approvedTask();
     await isolateTask(repo, id, { ...by, base: "main" });
