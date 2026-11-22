@@ -14,6 +14,8 @@
 - 2026-11-22 19:57 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 20:02 judge: judge passed · round 1 · head da6961cc1f00 · record sha256 276d7a051ee9bdf775aa8fd227afaed15f1155bb55ec3fd579f657ae8d50b66e (factory judge (for arynbht@gmail.com))
 - 2026-11-22 20:02 ship: draft PR opened: #173 https://github.com/arynbht/software-factory/pull/173 · fix/t-0007 at da6961cc1f00 → main (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 20:24 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0007 kept: it couldn't be removed; remove it by hand · branch fix/t-0007 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 20:24 close: ledger sealed · merged (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -44,3 +46,7 @@
 - 2026-11-22 20:02 acceptance A2: met — The second test checks that the flattened `factory hook --help` contains `guard <guard's own description>`, so the listing and the subcommand help can't drift apart.
 - 2026-11-22 20:02 acceptance A3: met — Only the description string changed and runHookGuard is untouched. No existing test is modified; cli.test.ts is a new file. The test run is the proof that the hook tests still pass.
 - 2026-11-22 20:02 judge review posted: https://github.com/arynbht/software-factory/pull/173#pullrequestreview-6014210196
+
+## Outcome
+
+- 2026-11-22 20:24 PR #173 merged by arynbht 2026-11-22 20:24 · 34m · 776k tokens · $1.18
