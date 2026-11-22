@@ -27,6 +27,8 @@
 - 2026-11-21 19:19 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-21 19:23 judge: judge passed · round 2 · head 3ca961966ee8 · record sha256 d6ea23618da1fa2c3ff480ab20770bc2c88752572be30830f9266296915f41d8 (factory judge (for arynbht@gmail.com))
 - 2026-11-21 19:23 ship: draft PR opened: #161 https://github.com/arynbht/software-factory/pull/161 · fix/t-0004 at 3ca961966ee8 → main (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 05:12 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0004 kept: it couldn't be removed; remove it by hand · branch fix/t-0004 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 05:12 close: ledger sealed · abandoned (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -90,3 +92,7 @@
 - 2026-11-21 19:23 acceptance A2: met — The new test runs init with force false and true on an empty repo and asserts factory.yml is written from the template, with no sibling.
 - 2026-11-21 19:23 acceptance A3: met — The new test asserts the output contains '.github/workflows/factory.yml exists; wrote .github/workflows/factory.factory.yml: merge it by hand'.
 - 2026-11-21 19:23 judge review posted: https://github.com/arynbht/software-factory/pull/161#pullrequestreview-6007664139
+
+## Outcome
+
+- 2026-11-22 05:12 abandoned: PR #161 closed: the change is redone through the fixed pipeline as the first real task, for a before/after against this one (69 min, $4.35, 8 build rounds) (PR #161 is left as it is) · 11h13m · 6233k tokens · $4.35
