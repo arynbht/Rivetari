@@ -36,7 +36,7 @@ export function renderLadder(l: LadderState): string {
     "Trust ladder",
     "",
     `  Autonomy               ${l.configured}${l.effective !== l.configured ? ` (running at ${l.effective}: ${l.fallback})` : ""}${l.entry ? ` · ${l.entry.kind} on ${l.entry.at.slice(0, 10)}` : ""}`,
-    `  Tier 1 rules           ${r.total} (${r.checks} checks, ${r.diff} diff rules, ${r.boundaries} boundary rules, ${r.lint} lint rules, ${r.banned} banned patterns)${n.rulesAtEntry !== null ? `; ${n.rulesAtEntry} at entry` : ""}`,
+    `  Tier 1 rules           ${r.total} (${r.checks} checks, ${r.diff} diff rules, ${r.boundaries} boundary rules, ${r.lint} lint rules, ${r.banned} banned patterns) · ${r.fromFindings} from findings, ${r.defaults} stack defaults, ${r.total - r.fromFindings - r.defaults} built in or by hand${n.rulesAtEntry !== null ? `; ${n.rulesAtEntry} at entry` : ""}`,
     `  Blocking per PR        ${n.last10.blockingPerPr === null ? "n/a" : n.last10.blockingPerPr.toFixed(2)} over ${n.last10.prs} reviewed PR(s)`,
     `  First-pass merge       ${pct(n.firstPass.rate)} of ${n.firstPass.merged} merged PR(s)`,
     `  Since entering         ${n.sinceEntry.blocking} blocking finding(s) over ${n.sinceEntry.prs} PR(s); falls back above 5 over five`,

@@ -214,6 +214,19 @@ export class Ledger {
     }
     return { ok: problems.length === 0, problems };
   }
+
+  async rerenderView(): Promise<boolean> {
+    const check = await this.verify();
+    const viewOnly =
+      !check.ok && check.problems.every((p) => p.startsWith("ledger.md was"));
+    if (!viewOnly) return false;
+    await writeFile(
+      this.mdPath,
+      render(this.title, await this.entries()),
+      "utf8",
+    );
+    return true;
+  }
 }
 
 export class LedgerError extends Error {

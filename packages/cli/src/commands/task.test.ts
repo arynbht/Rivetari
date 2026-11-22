@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  runTaskClose,
   runTaskConfirm,
   runTaskNew,
   runTaskRelease,
@@ -200,6 +201,17 @@ describe("factory task, shared through the factory/tasks branch", () => {
     expect(text).toContain(
       "next: route: a person approves this route (borderline sector(s): ui): review assembly.yml, then `factory task approve T-0001`",
     );
+  }, 60_000);
+
+  it("lists a closed task as closed, even one closed before it was confirmed", async () => {
+    const { ann } = await team();
+    expect(await draft(ann), err.join(" | ")).toBe(0);
+    expect(
+      await runTaskClose("T-0001", { abandon: "superseded", path: ann }),
+    ).toBe(0);
+    out = [];
+    expect(await runTaskStatus({ path: ann })).toBe(0);
+    expect(out.join("")).toMatch(/T-0001\s+closed\s+Fix the login redirect/);
   }, 60_000);
 
   it("refuses a card with no verify before reserving an id", async () => {
