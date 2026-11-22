@@ -14,6 +14,8 @@
 - 2026-11-22 21:05 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 21:10 judge: judge failed · round 1 · head 33ea1ed2e286 · tier 1 failed · record sha256 fccd5403a1043eafbebe3040d55232a52ae0cfc306422db6b36bd6def4bdf3ab (factory judge (for arynbht@gmail.com))
 - 2026-11-22 21:14 build: build paused: 1 thing(s) to ask about · commit 33ea1ed2e286 · 1240365 tokens · $0.89 · 45 turns · retry (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 21:32 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0008 kept: it has uncommitted edits; remove it by hand · branch feature/t-0008 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 21:32 close: ledger sealed · abandoned (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -55,3 +57,7 @@
 - 2026-11-22 21:10 tier 1 fail: diff.markdown-in-card — Markdown the card doesn't name: docs/catalog/README.md; docs/catalog/hygiene.md
 - 2026-11-22 21:10 protected: packages/runtime/src/agent/agent.test.ts — modifies a test that existed at base (allowed at build)
 - 2026-11-22 21:10 protected: packages/action/dist/index.js — adds a check suppression: `).at(-1)??"";return n("fail",`commitlint couldn't run on ${m}: exited ${g.exitCode}${y?`: ${y}`:""}`)}d.push(`${m} brea (allowed at build)
+
+## Outcome
+
+- 2026-11-22 21:32 abandoned: split: too broad · 1h00m · 18879k tokens · $8.26
