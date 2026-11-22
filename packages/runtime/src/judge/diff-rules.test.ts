@@ -112,6 +112,59 @@ describe("diff rules", () => {
     ).toBe("pass");
   });
 
+  it("still fails a deleted comment swapped for an unrelated one", () => {
+    const check = (unified: string) =>
+      byId(
+        diffRules(
+          [{ status: "M", path: "src/total.ts" }],
+          parseAddedLines(unified),
+          { noNewComments: true, hunks: parseHunks(unified) },
+        ),
+      )["diff.no-new-comments"];
+    const head = [
+      "diff --git a/src/total.ts b/src/total.ts",
+      "--- a/src/total.ts",
+      "+++ b/src/total.ts",
+    ];
+
+    // Same hunk, but the removed comment was inside the function and the
+    // added one is at the top level.
+    expect(
+      check(
+        [
+          ...head,
+          "@@ -4,2 +4,3 @@ export function total(xs) {",
+          "-  // An empty list sums to 0.",
+          "-  return xs.reduce((a, b) => a + b, 0);",
+          "+  return xs.reduce((a, b) => a + b, 0);",
+          "+}",
+          "+// Exported for the CLI.",
+          "",
+        ].join("\n"),
+      ),
+    ).toMatchObject({
+      outcome: "fail",
+      message: "new comments: src/total.ts: // Exported for the CLI.",
+    });
+
+    // Same indentation, but one hunk only deletes and another only adds.
+    expect(
+      check(
+        [
+          ...head,
+          "@@ -4 +3,0 @@ export function total(xs) {",
+          "-  // An empty list sums to 0.",
+          "@@ -9,0 +9 @@ export function mean(xs) {",
+          "+  // Rounds down.",
+          "",
+        ].join("\n"),
+      ),
+    ).toMatchObject({
+      outcome: "fail",
+      message: "new comments: src/total.ts: // Rounds down.",
+    });
+  });
+
   it("fails Markdown the card doesn't name, and passes what it does", () => {
     const diff = [
       { status: "A" as const, path: ".changeset/fix.md" },

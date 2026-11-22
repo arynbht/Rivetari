@@ -549,6 +549,24 @@ describe("judge, ship, close", { timeout: 180_000 }, () => {
     );
   });
 
+  it("a send-back tells the agent never to delete what existed at base to clear tier 1", async () => {
+    const repo = await repoWith(BASE);
+    const calls: AgentCall[] = [];
+    const id = await proved(repo, calls);
+    await judgeTask(repo, id, {
+      ...by,
+      tier1: fakeTier1("fail"),
+      review: () => {
+        throw new Error("the review must not run");
+      },
+    });
+    calls.length = 0;
+    await buildTask(repo, id, { ...by, agent: scriptedAgent(calls) });
+    expect(calls[0]?.prompt).toContain(
+      "A tier 1 failure is fixed by changing the code that triggered it, never by deleting something that existed at base.",
+    );
+  });
+
   it("won't ship a branch that moved after the verdict, or a tampered judge record", async () => {
     const repo = await repoWith(BASE);
     const id = await proved(repo);

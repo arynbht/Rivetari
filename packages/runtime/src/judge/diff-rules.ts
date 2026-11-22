@@ -48,20 +48,42 @@ export function isCommentLine(path: string, line: string): boolean {
 const asHunks = (added: ReadonlyMap<string, string[]>) =>
   new Map([...added].map(([path, ls]) => [path, [{ removed: [], added: ls }]]));
 
+/** Runs of consecutive comment lines, each with its first line's indentation. */
+function commentBlocks(path: string, lines: readonly string[]) {
+  const blocks: { indent: string; lines: string[] }[] = [];
+  let open: { indent: string; lines: string[] } | null = null;
+  for (const line of lines) {
+    if (!isCommentLine(path, line)) {
+      open = null;
+      continue;
+    }
+    if (!open) {
+      open = { indent: /^\s*/.exec(line)?.[0] ?? "", lines: [] };
+      blocks.push(open);
+    }
+    open.lines.push(line);
+  }
+  return blocks;
+}
+
 /**
- * Comment lines a change adds to code. Within a hunk, each comment line it
- * removes covers one it adds, so rewording a doc comment isn't a new one.
+ * Comment lines a change adds to code. A comment block a hunk adds is matched
+ * to one it removes at the same indentation, and each removed line covers one
+ * added line, so rewording a doc comment isn't a new one but swapping one
+ * comment for an unrelated one elsewhere is.
  */
 function newComments(hunks: ReadonlyMap<string, readonly Hunk[]>) {
   const found: { path: string; line: string }[] = [];
   for (const [path, list] of hunks) {
     if (!CODE.test(path)) continue;
     for (const hunk of list) {
-      let replaced = hunk.removed.filter((l) => isCommentLine(path, l)).length;
-      for (const line of hunk.added) {
-        if (!isCommentLine(path, line)) continue;
-        if (replaced > 0) replaced--;
-        else found.push({ path, line });
+      const removed = commentBlocks(path, hunk.removed);
+      for (const block of commentBlocks(path, hunk.added)) {
+        const at = removed.findIndex((r) => r.indent === block.indent);
+        const covered = at >= 0 ? (removed[at]?.lines.length ?? 0) : 0;
+        if (at >= 0) removed.splice(at, 1);
+        for (const line of block.lines.slice(covered))
+          found.push({ path, line });
       }
     }
   }
