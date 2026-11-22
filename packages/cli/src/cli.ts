@@ -45,6 +45,13 @@ import {
   runSkillsVendor,
   type SkillsFlags,
 } from "./commands/skills.js";
+import {
+  type BannedAddFlags,
+  runBannedAdd,
+  runBannedAllow,
+  runBannedList,
+  runBannedSeed,
+} from "./commands/banned.js";
 import { type MetricsFlags, runMetrics } from "./commands/metrics.js";
 import { type MultiFlags, runAuditAll } from "./commands/multi.js";
 import { runProfileSet, runProfileShow } from "./commands/profile.js";
@@ -666,6 +673,56 @@ export function buildProgram(): Command {
         process.exitCode = await runProfileSet(key, value, path, flags);
       },
     );
+
+  const banned = program
+    .command("banned")
+    .description(
+      "The repo's banned patterns (.factory/banned.json): the judge fails a change that adds one",
+    );
+  banned
+    .command("list")
+    .option("--path <path>", "path to the repo", ".")
+    .action(async (flags: { path?: string }) => {
+      process.exitCode = await runBannedList(flags);
+    });
+  banned
+    .command("seed")
+    .description("Add the defaults for the profile's stack")
+    .option("--path <path>", "path to the repo", ".")
+    .action(async (flags: { path?: string }) => {
+      process.exitCode = await runBannedSeed(flags);
+    });
+  banned
+    .command("add")
+    .argument("<id>", "a short kebab-case name")
+    .requiredOption("--pattern <regex>", "what an added line must not match")
+    .requiredOption("--why <text>", "what to do instead, shown when it's hit")
+    .option("--files <glob>", "where it applies", "**/*")
+    .option(
+      "--allow <glob...>",
+      "files where it's allowed (the one place that owns it)",
+    )
+    .option(
+      "--source <text>",
+      "where it came from: a finding, a stack default, a person",
+    )
+    .option(
+      "--covered-by <rule>",
+      "a lint rule that already enforces it, so it isn't counted twice",
+    )
+    .option("--path <path>", "path to the repo", ".")
+    .action(async (id: string, flags: BannedAddFlags) => {
+      process.exitCode = await runBannedAdd(id, flags);
+    });
+  banned
+    .command("allow")
+    .description("Allow a banned pattern in the one place that owns it")
+    .argument("<id>", "the banned pattern")
+    .argument("<glob>", "the files where it is allowed")
+    .option("--path <path>", "path to the repo", ".")
+    .action(async (id: string, glob: string, flags: { path?: string }) => {
+      process.exitCode = await runBannedAllow(id, glob, flags);
+    });
 
   program
     .command("waive")

@@ -268,3 +268,34 @@ describe("the trust ladder", () => {
     ]);
   });
 });
+
+describe("the rule count with banned patterns", () => {
+  it("counts each banned pattern once, not ones a lint rule already covers, and not the lint rule that carries them", async () => {
+    const dir = await repo();
+    await writeFile(
+      join(dir, "eslint.config.js"),
+      'export default [{ rules: { "factory/one": "error", "factory/no-banned": ["error", {}] } }];\n',
+    );
+    await writeFile(
+      join(dir, ".factory", "banned.json"),
+      JSON.stringify({
+        version: 1,
+        patterns: [
+          { id: "a", pattern: String.raw`a\(`, why: "w", source: "s" },
+          { id: "b", pattern: String.raw`b\(`, why: "w", source: "s" },
+          {
+            id: "c",
+            pattern: String.raw`c\(`,
+            why: "w",
+            source: "finding",
+            covered_by: "factory/one",
+          },
+        ],
+      }),
+    );
+    const count = await ruleCount(dir);
+    expect(count.lint).toBe(1);
+    expect(count.banned).toBe(2);
+    expect(count.total).toBe(count.checks + count.diff + 1 + 2);
+  });
+});

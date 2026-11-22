@@ -28,6 +28,39 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     return d;
   };
 
+  it("seeds the banned list from the stack, and keeps one that's there", async () => {
+    const dir = await tmp();
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    expect(
+      await runInit(
+        dir,
+        { type: "cli", stack: "typescript,node", yes: true },
+        { token: null },
+      ),
+    ).toBe(0);
+    const seeded = JSON.parse(
+      await readFile(join(dir, ".factory", "banned.json"), "utf8"),
+    ) as { patterns: { id: string }[] };
+    expect(seeded.patterns.map((p) => p.id)).toEqual([
+      "no-eval",
+      "no-new-function",
+      "no-debugger",
+      "no-inner-html",
+    ]);
+    const mine = '{ "version": 1, "patterns": [] }\n';
+    await writeFile(join(dir, ".factory", "banned.json"), mine);
+    expect(
+      await runInit(
+        dir,
+        { type: "cli", stack: "typescript,node", yes: true, force: true },
+        { token: null },
+      ),
+    ).toBe(0);
+    expect(await readFile(join(dir, ".factory", "banned.json"), "utf8")).toBe(
+      mine,
+    );
+  });
+
   it("writes config + workflow and runs the first audit", async () => {
     const dir = await tmp();
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);

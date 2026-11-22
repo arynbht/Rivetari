@@ -11,6 +11,7 @@ import { type SimpleGit, simpleGit } from "simple-git";
 
 import {
   findProtected,
+  isTestFile,
   protectedDetail,
   type ProtectedReason,
 } from "../judge/protected.js";
@@ -237,7 +238,10 @@ export async function findStops(
     });
   }
   for (const [path, lines] of added) {
-    if (lines.length > 0 && looksLikeSecret(lines.join("\n")))
+    if (
+      lines.length > 0 &&
+      looksLikeSecret(lines.join("\n"), { generic: !isTestFile(path) })
+    )
       stops.push({
         trigger: "secret",
         detail: `${path} adds a line that looks like a secret`,

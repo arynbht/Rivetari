@@ -5,6 +5,7 @@ import type { Autonomy } from "@arynbht/factory-catalog";
 import { loadProfile, saveProfile } from "@arynbht/factory-engine";
 import { simpleGit } from "simple-git";
 
+import { loadBanned } from "../judge/banned.js";
 import { findingsMetrics, historyRows } from "../judge/findings.js";
 import type { TaskHistoryRow } from "../ship/close.js";
 import { Ledger } from "./ledger.js";
@@ -39,6 +40,7 @@ export interface RuleCount {
   diff: number;
   boundaries: number;
   lint: number;
+  banned: number;
   total: number;
 }
 
@@ -115,16 +117,21 @@ export async function ruleCount(repoPath: string): Promise<RuleCount> {
     "eslint.config.ts",
   ]);
   const lint = new Set(
-    [...(eslint ?? "").matchAll(/["']factory\/([a-z0-9-]+)["']\s*:/g)].map(
-      (m) => m[1],
-    ),
+    [...(eslint ?? "").matchAll(/["']factory\/([a-z0-9-]+)["']\s*:/g)]
+      .map((m) => m[1])
+      .filter((name) => name !== "no-banned"),
   ).size;
+  const banned =
+    (await loadBanned(repoPath).catch(() => null))?.patterns.filter(
+      (p) => p.covered_by === undefined,
+    ).length ?? 0;
   return {
     checks: tier1Rules.catalog,
     diff: tier1Rules.diff,
     boundaries,
     lint,
-    total: tier1Rules.total + boundaries + lint,
+    banned,
+    total: tier1Rules.total + boundaries + lint + banned,
   };
 }
 

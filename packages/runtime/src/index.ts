@@ -197,6 +197,19 @@ export {
 } from "./judge/findings.js";
 export { DIFF_RULES, diffRules } from "./judge/diff-rules.js";
 export {
+  addBanned,
+  BANNED_PATH,
+  type BannedList,
+  BannedListSchema,
+  type BannedPattern,
+  BannedPatternSchema,
+  bannedHits,
+  defaultsFor,
+  loadBanned,
+  saveBanned,
+  STACK_DEFAULTS,
+} from "./judge/banned.js";
+export {
   AUTONOMY_DIR,
   type AutonomyEntry,
   autonomyEntries,

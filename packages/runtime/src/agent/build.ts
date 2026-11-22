@@ -51,14 +51,15 @@ export interface AgentReply {
   text: string;
   tokens?: number | undefined;
   costUsd?: number | undefined;
+  turns?: number | undefined;
 }
 
 /** Runs one agent call and resolves its final text (or a reply with usage). */
 export type AgentRunner = (call: AgentCall) => Promise<string | AgentReply>;
 
 /** " · 12345 tokens · $0.42" for the ledger, or "" when unknown. */
-export function usageNote(reply: AgentReply): string {
-  return `${reply.tokens ? ` · ${reply.tokens} tokens` : ""}${reply.costUsd ? ` · $${reply.costUsd.toFixed(2)}` : ""}`;
+export function usageNote(reply: AgentReply, retry = false): string {
+  return `${reply.tokens ? ` · ${reply.tokens} tokens` : ""}${reply.costUsd ? ` · $${reply.costUsd.toFixed(2)}` : ""}${reply.turns ? ` · ${reply.turns} turns` : ""}${retry ? " · retry" : ""}`;
 }
 
 const asReply = (r: string | AgentReply): AgentReply =>
@@ -110,6 +111,7 @@ export const claudeAgent: AgentRunner = async (call) => {
   const data = JSON.parse(stdout) as {
     total_cost_usd?: number;
     usage?: Record<string, number | undefined>;
+    num_turns?: number;
   };
   const u = data.usage ?? {};
   const tokens = [
@@ -123,6 +125,7 @@ export const claudeAgent: AgentRunner = async (call) => {
     tokens: tokens || undefined,
     costUsd:
       typeof data.total_cost_usd === "number" ? data.total_cost_usd : undefined,
+    turns: typeof data.num_turns === "number" ? data.num_turns : undefined,
   };
 };
 
@@ -404,7 +407,7 @@ export async function buildTask(
     await log("stop", `asked: ${stop.trigger}: ${stop.detail}`);
     await log(
       "timeline",
-      `build paused: 1 thing(s) to ask about · commit ${before.slice(0, 12)}${usageNote(reply)}`,
+      `build paused: 1 thing(s) to ask about · commit ${before.slice(0, 12)}${usageNote(reply, retry)}`,
     );
     return {
       task: await loadTask(repoPath, id),
@@ -469,8 +472,8 @@ export async function buildTask(
   await log(
     "timeline",
     stops.length > 0
-      ? `build paused: ${stops.length} thing(s) to ask about · commit ${head.slice(0, 12)}${usageNote(reply)}`
-      : `build done · commit ${head.slice(0, 12)} · ${staged ? staged.split("\n").length : 0} file(s) this round${flagged.length > 0 ? ` · ${flagged.length} decision(s) flagged for the PR (autonomy ${level})` : ""}${usageNote(reply)} · ${reply.text.trim().split("\n")[0]?.slice(0, 200) ?? ""}`,
+      ? `build paused: ${stops.length} thing(s) to ask about · commit ${head.slice(0, 12)}${usageNote(reply, retry)}`
+      : `build done · commit ${head.slice(0, 12)} · ${staged ? staged.split("\n").length : 0} file(s) this round${flagged.length > 0 ? ` · ${flagged.length} decision(s) flagged for the PR (autonomy ${level})` : ""}${usageNote(reply, retry)} · ${reply.text.trim().split("\n")[0]?.slice(0, 200) ?? ""}`,
   );
   const plain = (s: Stop): Stop => ({ trigger: s.trigger, detail: s.detail });
   return {
