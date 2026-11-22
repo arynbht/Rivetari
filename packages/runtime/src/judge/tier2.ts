@@ -25,8 +25,7 @@ import { z } from "zod";
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
 import { bannedSection, loadBanned } from "./banned.js";
-import { isTestFile } from "./protected.js";
-import { parseNameStatus } from "./tier1.js";
+import { isTestFile, parseNameStatus } from "./protected.js";
 
 export const BLOCKING_KINDS = ["defect", "contract", "acceptance"] as const;
 export const FINDING_KINDS = [...BLOCKING_KINDS, "suggestion"] as const;
