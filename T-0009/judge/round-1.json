@@ -1,0 +1,97 @@
+{
+  "task": "T-0009",
+  "round": 1,
+  "verdict": "failed",
+  "head": "59582d3682504849674b524741f2439896491870",
+  "base": "ac2b17f69f6cb645512684fdb9fdf2736785cef3",
+  "tier1": {
+    "verdict": "fail",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "red",
+        "head": "red",
+        "outcome": "pre-existing",
+        "message": "`npm test` exited 1 (expected 0)\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/runtime/src/task/store.test.ts\u001b[2m > \u001b[22mthe task store\u001b[2m > \u001b[22mkeeps a second machine off a task until the lease expires or is released\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/runtime/src/task/store.test.ts\u001b[2m > \u001b[22mthe task store\u001b[2m > \u001b[22mkeeps a second machine off a task until the lease expires or is released\n\u001b[31m\u001b[1mError\u001b[22m: EBUSY: resource busy or locked, rmdir 'C:\\Users\\arynb\\AppData\\Local\\Temp\\factory-clone-DMdXul'\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\u001b[22m\u001b[39m"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "red",
+        "head": "red",
+        "outcome": "pre-existing",
+        "message": "coverage is configured, but the test run wrote no coverage/coverage-summary.json"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "red",
+        "outcome": "fail",
+        "message": "new comments: packages/runtime/src/agent/stops.test.ts: // The protected-path stop on suppressions: a rebuilt bundle re-adds lines that; packages/runtime/src/agent/stops.test.ts: // carry the runtime's own suppression pattern, so generated files are skipped; packages/runtime/src/agent/stops.test.ts: // (T-0008 stopped on one with no suppression in its source); source isn't.; packages/runtime/src/agent/stops.test.ts: /** A repo with `base` committed, then `change` committed on top. */; packages/runtime/src/agent/stops.test.ts: // Joined at runtime so this file's own added lines aren't suppressions.; and 16 more"
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [
+      {
+        "reason": "suppression",
+        "path": "packages/action/dist/index.js",
+        "detail": "adds a check suppression: `)}`]}var VG=ue(fn(),1);var t0=ue(fn(),1),mt={factoryState:[\".factory/**\"],skillRegistry:[\".factory/skills.lock\",\".facto"
+      },
+      {
+        "reason": "suppression",
+        "path": "packages/runtime/src/agent/stops.test.ts",
+        "detail": "adds a check suppression: it(\"still stops for an eslint-disable added in a source file\", async () => {"
+      }
+    ],
+    "notes": []
+  }
+}

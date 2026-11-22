@@ -11,6 +11,9 @@
 - 2026-11-22 21:46 isolate: worktree .worktrees/T-0009 · branch fix/t-0009 from origin/main (ac2b17f69f6c) · port 5174 · db software_factory_dev_t0009 · env sha256 03a32bdd0f6da3689658a57c79819c6cf56bad43ec3b70b3b030d00a4289c2a5 (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 21:47 build: build started · skills spine only · budget 8 steps / 60k ctx · 54 repo file(s) in context · 783905 tokens · $0.99 · 10 turns (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 21:54 build: build paused: 2 thing(s) to ask about · commit 59582d368250 · 3140684 tokens · $1.86 · 41 turns (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 22:03 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 22:09 judge: judge failed · round 1 · head 59582d368250 · tier 1 failed · record sha256 f239c6ea0fce9f4d0671f1d49218c8c0554013d3e832b5a89dc24e2ac2801c60 (factory judge (for arynbht@gmail.com))
+- 2026-11-22 22:13 build: build paused: 1 thing(s) to ask about · commit 6073273c900c · 1124303 tokens · $0.90 · 40 turns · retry (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -34,3 +37,17 @@
 - 2026-11-22 21:54 asked: protected_path: packages/action/dist/index.js — adds a check suppression: `)}`]}var VG=ue(fn(),1);var t0=ue(fn(),1),mt={factoryState:[".factory/**"],skillRegistry:[".factory/skills.lock",".facto
 - 2026-11-22 21:54 asked: protected_path: packages/runtime/src/agent/stops.test.ts — adds a check suppression: it("still stops for an eslint-disable added in a source file", async () => {
 - 2026-11-22 21:55 answered: allowed — pre-authorised by the owner: dist line is the regenerated bundle; the only source match is the A3 test's title naming eslint-disable, not a suppression (bug: the pattern matches suppression names inside strings)
+- 2026-11-22 22:13 asked: protected_path: packages/action/dist/index.js — adds a check suppression: `)}`]}var BG=ue(qr(),1);var RG=ue(qr(),1),mt={factoryState:[".factory/**"],skillRegistry:[".factory/skills.lock",".facto
+
+## Proof
+
+- 2026-11-22 22:03 tests failed on the change and on the base: pre-existing, not blamed on this change (pnpm run test, exit 1) · new tests: packages/runtime/src/agent/stops.test.ts: doesn't stop for a suppression-shaped line in the action's bundle; packages/runtime/src/agent/stops.test.ts: doesn't stop for one in a file .gitattributes marks linguist-generated; packages/runtime/src/agent/stops.test.ts: still stops for an eslint-disable added in a source file; packages/runtime/src/judge/generated-suppressions.test.ts: passes diff.no-new-suppressions and isn't protected when the only one is in a generated path; packages/runtime/src/judge/generated-suppressions.test.ts: still fails one added in a source file; packages/runtime/src/judge/generated-suppressions.test.ts: checks a dist file no one said was generated
+- 2026-11-22 22:03 output: …[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m [31m[1m[7m FAIL [27m[22m[39m packages/runtime/src/task/store.test.ts[2m > [22mthe task store[2m > [22mkeeps a second machine off a task until the lease expires or is released [31m[1mError[22m: EBUSY: resource busy or locked, rmdir 'C:\Users\arynb\AppData\Local\Temp\factory-clone-BBjykQ'[39m [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+- 2026-11-22 22:03 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0009/test-run.txt?raw=true
+
+## Judge
+
+- 2026-11-22 22:09 tier 1 round 1: fail · 6/9 pass · 2 pre-existing · 1 fail
+- 2026-11-22 22:09 tier 1 fail: diff.no-new-comments — new comments: packages/runtime/src/agent/stops.test.ts: // The protected-path stop on suppressions: a rebuilt bundle re-adds lines that; packages/runtime/src/agent/stops.test.ts: // carry the runtime's own suppression pattern, so generated files are skipped; packages/runtime/src/agent/stops.test.ts:…
+- 2026-11-22 22:09 protected: packages/action/dist/index.js — adds a check suppression: `)}`]}var VG=ue(fn(),1);var t0=ue(fn(),1),mt={factoryState:[".factory/**"],skillRegistry:[".factory/skills.lock",".facto (allowed at build)
+- 2026-11-22 22:09 protected: packages/runtime/src/agent/stops.test.ts — adds a check suppression: it("still stops for an eslint-disable added in a source file", async () => { (allowed at build)
