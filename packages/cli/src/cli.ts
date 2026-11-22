@@ -120,7 +120,7 @@ export function buildProgram(): Command {
   hook
     .command("guard")
     .description(
-      "PreToolUse: refuse edits to .factory/** and to the primary checkout on the default branch",
+      "PreToolUse: refuse edits to .factory/** and to the primary checkout on the default branch, shell commands that write them, and in a factory repo a force push or remote delete, git reset --hard, git clean -f and git branch -D",
     )
     .action(async () => {
       process.exitCode = await runHookGuard();
