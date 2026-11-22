@@ -104,6 +104,27 @@ const isLintConfig = matcher(PROTECTED.lintConfig);
 const isCiConfig = matcher(PROTECTED.ciConfig);
 export const isTestFile = matcher(PROTECTED.tests);
 
+export function parseNameStatus(output: string): DiffEntry[] {
+  const entries: DiffEntry[] = [];
+  for (const line of output.split("\n")) {
+    if (!line.trim()) continue;
+    const [code = "", a = "", b] = line.split("\t");
+    const kind = code[0];
+    if (kind === "R" || kind === "C") {
+      entries.push(
+        kind === "R"
+          ? { status: "R", path: b ?? a, oldPath: a }
+          : { status: "A", path: b ?? a },
+      );
+    } else if (kind === "A" || kind === "M" || kind === "D") {
+      entries.push({ status: kind, path: a });
+    } else if (kind === "T") {
+      entries.push({ status: "M", path: a });
+    }
+  }
+  return entries;
+}
+
 /**
  * How a protected change is asked about, at build and in the judge: the same
  * text in both, so a person who allowed it at build isn't asked again.
@@ -123,6 +144,7 @@ export function findProtected(
   diff: readonly DiffEntry[],
   addedLines: ReadonlyMap<string, readonly string[]>,
   scriptsChanged: boolean,
+  generated: ReadonlySet<string> = new Set(),
 ): ProtectedFinding[] {
   const findings: ProtectedFinding[] = [];
   for (const entry of diff) {
@@ -183,6 +205,7 @@ export function findProtected(
   }
 
   for (const [path, lines] of addedLines) {
+    if (generated.has(path)) continue;
     const hit = lines.find((line) => SUPPRESSION.test(line));
     if (hit) {
       findings.push({

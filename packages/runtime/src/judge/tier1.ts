@@ -39,9 +39,12 @@ import {
   findProtected,
   isProtectedConfig,
   isTestFile,
+  parseNameStatus,
   type ProtectedFinding,
 } from "./protected.js";
+import { generatedPaths } from "./tier2.js";
 
+export { parseNameStatus } from "./protected.js";
 export { type CheckOutcome, outcomeOf, type Side } from "./outcome.js";
 import { type CheckOutcome, outcomeOf, type Side } from "./outcome.js";
 
@@ -169,7 +172,13 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
   const baseScripts = await scriptsAt(repo, mergeBase);
   const headScripts = await scriptsAt(repo, head);
   const scriptsChanged = !deepEqual(baseScripts, headScripts);
-  const protectedFindings = findProtected(diff, added, scriptsChanged);
+  const generated = await generatedPaths(repo, [...added.keys()]);
+  const protectedFindings = findProtected(
+    diff,
+    added,
+    scriptsChanged,
+    generated,
+  );
   // A person approved these: judge them as the change has them. Put back to
   // base, an approved test change would fail against the code it was changed
   // for, every round.
@@ -280,6 +289,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
             .filter((f) => f.reason === "suppression")
             .map((f) => f.path),
         ),
+        generated,
       }),
     ];
     const ran = catalogChecks.filter((c) => c.outcome !== "n/a");
@@ -524,27 +534,6 @@ async function installDeps(
           : (err as Error).message,
     };
   }
-}
-
-export function parseNameStatus(output: string): DiffEntry[] {
-  const entries: DiffEntry[] = [];
-  for (const line of output.split("\n")) {
-    if (!line.trim()) continue;
-    const [code = "", a = "", b] = line.split("\t");
-    const kind = code[0];
-    if (kind === "R" || kind === "C") {
-      entries.push(
-        kind === "R"
-          ? { status: "R", path: b ?? a, oldPath: a }
-          : { status: "A", path: b ?? a },
-      );
-    } else if (kind === "A" || kind === "M" || kind === "D") {
-      entries.push({ status: kind, path: a });
-    } else if (kind === "T") {
-      entries.push({ status: "M", path: a });
-    }
-  }
-  return entries;
 }
 
 export function parseAddedLines(output: string): Map<string, string[]> {
