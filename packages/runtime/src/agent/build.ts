@@ -3,7 +3,7 @@
 // commits and checks the diff for stop-and-ask triggers. A trigger pauses the
 // task until a person answers; an allowed trigger isn't asked about again.
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -22,6 +22,7 @@ import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 import { z } from "zod";
 
+import { isGeneratedPath } from "../judge/tier2.js";
 import { AssemblySchema } from "../router/route.js";
 import {
   allowedStops,
@@ -30,7 +31,6 @@ import {
   openStops,
   type Task,
   TaskError,
-  TASKS_DIR,
 } from "../task/tasks.js";
 import { autonomyFor, isSoftStop } from "../task/autonomy.js";
 import { type Isolation, loadIsolation } from "./isolate.js";
@@ -44,7 +44,6 @@ export interface AgentCall {
   cwd: string;
   model?: string | undefined;
   env: NodeJS.ProcessEnv;
-  resume?: string | undefined;
 }
 
 /** An agent call's final text, with what it cost when the runner knows. */
@@ -52,7 +51,6 @@ export interface AgentReply {
   text: string;
   tokens?: number | undefined;
   costUsd?: number | undefined;
-  sessionId?: string | undefined;
 }
 
 /** Runs one agent call and resolves its final text (or a reply with usage). */
@@ -72,10 +70,7 @@ export const claudeAgent: AgentRunner = async (call) => {
     "--output-format",
     "json",
     ...(call.model ? ["--model", call.model] : []),
-    ...ISOLATED_AGENT_ARGS.filter(
-      (a) => call.mode === "plan" || a !== "--no-session-persistence",
-    ),
-    ...(call.resume ? ["--resume", call.resume] : []),
+    ...ISOLATED_AGENT_ARGS,
     "--append-system-prompt",
     call.system,
     ...(call.mode === "build"
@@ -115,7 +110,6 @@ export const claudeAgent: AgentRunner = async (call) => {
   const data = JSON.parse(stdout) as {
     total_cost_usd?: number;
     usage?: Record<string, number | undefined>;
-    session_id?: string;
   };
   const u = data.usage ?? {};
   const tokens = [
@@ -129,8 +123,6 @@ export const claudeAgent: AgentRunner = async (call) => {
     tokens: tokens || undefined,
     costUsd:
       typeof data.total_cost_usd === "number" ? data.total_cost_usd : undefined,
-    sessionId:
-      typeof data.session_id === "string" ? data.session_id : undefined,
   };
 };
 
@@ -163,41 +155,35 @@ async function worktreeTree(worktree: string): Promise<string> {
   }
 }
 
-interface Session {
-  session: string;
-  worktree: string;
-}
+const CHANGE_CHARS = 32_000;
 
-const sessionPath = (repoPath: string, id: string) =>
-  join(repoPath, TASKS_DIR, id, "session.json");
-
-async function readSession(
-  repoPath: string,
-  id: string,
-  worktree: string,
-): Promise<string | undefined> {
-  try {
-    const s = JSON.parse(
-      await readFile(sessionPath(repoPath, id), "utf8"),
-    ) as Partial<Session>;
-    return s.worktree === worktree && typeof s.session === "string"
-      ? s.session
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-async function writeSession(
-  repoPath: string,
-  id: string,
-  session: Session,
-): Promise<void> {
-  await writeFile(
-    sessionPath(repoPath, id),
-    `${JSON.stringify(session, null, 2)}\n`,
-    "utf8",
-  );
+async function changeSoFar(isolation: Isolation): Promise<string> {
+  const wt = simpleGit(isolation.worktree);
+  const changed = (await wt.raw(["diff", "--name-only", isolation.base]))
+    .split("\n")
+    .filter(Boolean);
+  const generated = changed.filter(isGeneratedPath);
+  const source = changed.filter((p) => !isGeneratedPath(p));
+  const diff =
+    source.length > 0
+      ? await wt.raw(["diff", "--no-color", isolation.base, "--", ...source])
+      : "";
+  const cut =
+    diff.length > CHANGE_CHARS
+      ? `${diff.slice(0, CHANGE_CHARS)}\n… cut at ${CHANGE_CHARS} characters; read the rest from the worktree`
+      : diff.trimEnd();
+  const untracked = (
+    await wt.raw(["ls-files", "--others", "--exclude-standard"])
+  ).trim();
+  return [
+    cut,
+    generated.length > 0
+      ? `Generated files changed too (not shown): ${generated.join(", ")}`
+      : "",
+    untracked ? `New files not shown above:\n${untracked}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 const PLAN_SYSTEM =
@@ -382,6 +368,12 @@ export async function buildTask(
       : answer && !answer.allowed && !replan
         ? `denied — ${answer.note || "undo what you asked about"}`
         : sentBack(task);
+  const retry =
+    since !== undefined &&
+    !replan &&
+    task.entries.some(
+      (e) => e.section === "timeline" && ROUND_END.test(e.text),
+    );
   const building = await assemblePrompt({
     repoPath,
     card: task.card,
@@ -389,6 +381,7 @@ export async function buildTask(
     isolation,
     plan: steps,
     answer: since,
+    change: retry ? await changeSoFar(isolation) : undefined,
   });
   const wt = simpleGit(isolation.worktree);
   const before = (await wt.revparse(["HEAD"])).trim();
@@ -400,24 +393,7 @@ export async function buildTask(
     model: options.model,
     env,
   };
-  const resume =
-    since && !replan
-      ? await readSession(repoPath, id, isolation.worktree)
-      : undefined;
-  let reply: AgentReply | undefined;
-  if (resume) {
-    reply = await agent({
-      ...call,
-      prompt: `Since your last round: ${since}`,
-      resume,
-    }).then(asReply, () => undefined);
-  }
-  reply ??= asReply(await agent({ ...call, prompt: building.prompt }));
-  if (reply.sessionId)
-    await writeSession(repoPath, id, {
-      session: reply.sessionId,
-      worktree: isolation.worktree,
-    });
+  const reply = asReply(await agent({ ...call, prompt: building.prompt }));
 
   const question = agentQuestion(reply.text);
   if (question) {

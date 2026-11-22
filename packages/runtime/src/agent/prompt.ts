@@ -66,6 +66,7 @@ export async function assemblePrompt(options: {
   plan?: readonly string[] | undefined;
   /** What changed since the last round: a denial, or a failed proof. */
   answer?: string | undefined;
+  change?: string | undefined;
 }): Promise<AssembledPrompt> {
   const { card, assembly, isolation } = options;
   const parts: string[] = [];
@@ -82,25 +83,39 @@ export async function assemblePrompt(options: {
   // 2. The card.
   parts.push(`# Task card ${card.id}\n\`\`\`yaml\n${stringify(card)}\`\`\``);
 
-  // 3. Skills, verified against the lock before a byte of them is used.
-  const lock = await readLock(options.repoPath);
   const skills: string[] = [];
-  for (const name of assembly.skills) {
-    const entry = lock.skills.find((s) => s.name === name);
-    if (!entry) throw new Error(`${name} is in the assembly but not the lock`);
-    const { dir } = await loadSkill(options.repoPath, entry, {});
-    const text = await readFile(join(dir, "SKILL.md"), "utf8");
-    parts.push(`# Skill: ${name}\n${body(text)}`);
-    skills.push(name);
-  }
+  let files: string[] = [];
+  if (options.change !== undefined) {
+    const max = assembly.budget.context_tokens * 4;
+    const change =
+      options.change.length > max
+        ? `${options.change.slice(0, max)}\n… cut at ${max} characters; read the rest from the worktree`
+        : options.change;
+    parts.push(
+      `# Your change so far (git diff from the base, in this worktree)\nThis is a later round of the same task. The repo is in the worktree as you left it; read any file you need.\n\`\`\`diff\n${change || "(no change yet)"}\n\`\`\``,
+    );
+  } else {
+    // 3. Skills, verified against the lock before a byte of them is used.
+    const lock = await readLock(options.repoPath);
+    for (const name of assembly.skills) {
+      const entry = lock.skills.find((s) => s.name === name);
+      if (!entry)
+        throw new Error(`${name} is in the assembly but not the lock`);
+      const { dir } = await loadSkill(options.repoPath, entry, {});
+      const text = await readFile(join(dir, "SKILL.md"), "utf8");
+      parts.push(`# Skill: ${name}\n${body(text)}`);
+      skills.push(name);
+    }
 
-  // 4. The repo slice, from the worktree, secret-guarded and size-capped.
-  const packed = await packContext(buildContext(isolation.worktree), {
-    task: card.title,
-    globs: sliceGlobs(card),
-    maxBytes: assembly.budget.context_tokens * 4,
-  });
-  parts.push(packed.text);
+    // 4. The repo slice, from the worktree, secret-guarded and size-capped.
+    const packed = await packContext(buildContext(isolation.worktree), {
+      task: card.title,
+      globs: sliceGlobs(card),
+      maxBytes: assembly.budget.context_tokens * 4,
+    });
+    parts.push(packed.text);
+    files = packed.includedFiles;
+  }
 
   // 5. Operating rules.
   const stops = assembly.stop_and_ask.map((s) =>
@@ -133,7 +148,7 @@ export async function assemblePrompt(options: {
   return {
     system: SYSTEM,
     prompt: parts.join("\n\n"),
-    files: packed.includedFiles,
+    files,
     skills,
   };
 }
