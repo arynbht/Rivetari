@@ -1,0 +1,40 @@
+id: T-0009
+title: Skip generated files when looking for new check suppressions
+type: fix
+source: prompt
+description: "A rebuilt bundle re-adds every minified line it touches, and the
+  runtime's own suppression pattern is bundled into
+  packages/action/dist/index.js, so any change that regenerates the bundle can
+  add a line that looks like a new eslint-disable or ts-ignore. T-0008's build
+  stopped on exactly that, with no suppression in its source. Both places that
+  look for new suppressions, the build's protected-path stop and tier 1's
+  diff.no-new-suppressions, should skip generated paths the way the secret stop
+  does since #171 (the judge's generatedPaths: dist, lockfiles, source maps and
+  linguist-generated files). Source files are still checked."
+acceptance:
+  - id: A1
+    text: a build round whose only suppression-shaped added line is in
+      packages/action/dist/index.js finishes with no protected_path stop for it
+    verify: unit
+  - id: A2
+    text: tier 1's diff.no-new-suppressions passes a change whose only
+      suppression-shaped line is in a generated path
+    verify: unit
+  - id: A3
+    text: an eslint-disable added in a source file still stops the build round and
+      still fails diff.no-new-suppressions
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/judge/protected.ts
+  - packages/runtime/src/judge/diff-rules.ts
+  - packages/runtime/src/judge/tier1.ts
+  - packages/runtime/src/agent/stops.ts
+  - packages/runtime/src/**/*.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-22
