@@ -11,12 +11,12 @@ import { type SimpleGit, simpleGit } from "simple-git";
 
 import {
   findProtected,
+  generatedPaths,
   isTestFile,
   protectedDetail,
   type ProtectedReason,
 } from "../judge/protected.js";
 import { parseAddedLines, parseNameStatus } from "../judge/tier1.js";
-import { generatedPaths } from "../judge/tier2.js";
 import type { Assembly } from "../router/route.js";
 
 export type StopTrigger =
@@ -231,17 +231,18 @@ export async function findStops(
     const before = await scripts(base, entry.oldPath ?? entry.path);
     if (before !== (await scripts(head, entry.path))) scriptsChanged = true;
   }
-  for (const f of findProtected(diff, added, scriptsChanged)) {
+  // A rebuilt bundle re-adds every minified line it touches, so it matches
+  // whatever the old bundle already did, including the suppression pattern
+  // bundled into it. A secret or suppression in it came from source, which is
+  // checked here too.
+  const generated = await generatedPaths(git, [...added.keys()]);
+  for (const f of findProtected(diff, added, scriptsChanged, generated)) {
     stops.push({
       trigger: "protected_path",
       detail: protectedDetail(f),
       reason: f.reason,
     });
   }
-  // A rebuilt bundle re-adds every minified line it touches, so it matches
-  // whatever the old bundle already did. A secret in it came from source,
-  // which is checked here too.
-  const generated = await generatedPaths(git, [...added.keys()]);
   for (const [path, lines] of added) {
     if (
       lines.length > 0 &&

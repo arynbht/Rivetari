@@ -31,6 +31,7 @@ import { diffRules, type Hunk } from "./diff-rules.js";
 import {
   type DiffEntry,
   findProtected,
+  generatedPaths,
   isProtectedConfig,
   isTestFile,
   type ProtectedFinding,
@@ -156,7 +157,14 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
   const baseScripts = await scriptsAt(repo, mergeBase);
   const headScripts = await scriptsAt(repo, head);
   const scriptsChanged = !deepEqual(baseScripts, headScripts);
-  const protectedFindings = findProtected(diff, added, scriptsChanged);
+  // A rebuilt bundle carries the suppression pattern itself; source is checked.
+  const generated = await generatedPaths(repo, [...added.keys()]);
+  const protectedFindings = findProtected(
+    diff,
+    added,
+    scriptsChanged,
+    generated,
+  );
   // A person approved these: judge them as the change has them. Put back to
   // base, an approved test change would fail against the code it was changed
   // for, every round.
@@ -238,6 +246,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
             .filter((f) => f.reason === "suppression")
             .map((f) => f.path),
         ),
+        generated,
       }),
     ];
     const ran = catalogChecks.filter((c) => c.outcome !== "n/a");

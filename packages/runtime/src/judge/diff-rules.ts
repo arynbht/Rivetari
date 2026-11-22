@@ -30,6 +30,8 @@ export interface DiffRuleOptions {
   /** The diff's hunks: with them, a comment line that replaces one isn't new. */
   hunks?: ReadonlyMap<string, readonly Hunk[]> | undefined;
   allowedSuppressions?: ReadonlySet<string> | undefined;
+  /** Machine-written paths: a rebuilt bundle re-adds lines that only look like suppressions. */
+  generated?: ReadonlySet<string> | undefined;
 }
 
 const CODE = /\.(?:[cm]?[jt]sx?|py|go|rs|java|kt|rb|sh|cs|swift|php)$/i;
@@ -150,7 +152,11 @@ export function diffRules(
     : null;
 
   const suppressionHits = lines
-    .filter(({ path }) => !options.allowedSuppressions?.has(path))
+    .filter(
+      ({ path }) =>
+        !options.allowedSuppressions?.has(path) &&
+        !options.generated?.has(path),
+    )
     .filter(({ line }) => SUPPRESSION.test(line) || SKIPPED_TEST.test(line))
     .map(({ path, line }) => `${path}: ${line.trim().slice(0, 80)}`);
 

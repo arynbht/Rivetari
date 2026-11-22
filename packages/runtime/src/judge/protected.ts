@@ -1,4 +1,5 @@
 import picomatch from "picomatch";
+import type { SimpleGit } from "simple-git";
 
 /** One file in the diff between the base commit and the change under review. */
 export interface DiffEntry {
@@ -104,6 +105,47 @@ const isLintConfig = matcher(PROTECTED.lintConfig);
 const isCiConfig = matcher(PROTECTED.ciConfig);
 export const isTestFile = matcher(PROTECTED.tests);
 
+/** Machine-written files: reviewing them wastes the budget and finds nothing. */
+const GENERATED = picomatch(
+  [
+    "**/dist/**",
+    "**/*.min.js",
+    "**/*.map",
+    "**/pnpm-lock.yaml",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/bun.lock",
+    "**/bun.lockb",
+    "**/Cargo.lock",
+    "**/poetry.lock",
+    "**/uv.lock",
+    "**/go.sum",
+  ],
+  { dot: true },
+);
+
+export const isGeneratedPath = (path: string): boolean => GENERATED(path);
+
+/**
+ * Which of `paths` are machine-written: the paths above, plus the files the
+ * repo marks as generated (`linguist-generated` in .gitattributes).
+ */
+export async function generatedPaths(
+  git: SimpleGit,
+  paths: readonly string[],
+): Promise<Set<string>> {
+  const generated = new Set(paths.filter((p) => GENERATED(p)));
+  if (paths.length === 0) return generated;
+  const attrs = await git
+    .raw(["check-attr", "linguist-generated", "--", ...paths])
+    .catch(() => "");
+  for (const line of attrs.split("\n")) {
+    const m = /^(.*): linguist-generated: (set|true)$/.exec(line.trim());
+    if (m?.[1]) generated.add(m[1]);
+  }
+  return generated;
+}
+
 /**
  * How a protected change is asked about, at build and in the judge: the same
  * text in both, so a person who allowed it at build isn't asked again.
@@ -118,11 +160,16 @@ export const protectedDetail = (f: ProtectedFinding) =>
  *
  * `addedLines` maps a path to the lines the change adds (from a zero-context
  * diff); `scriptsChanged` says whether package.json `scripts` differ from base.
+ * Added lines in `generated` paths aren't searched for suppressions: a rebuilt
+ * bundle re-adds every minified line it touches, and the runtime's own
+ * suppression pattern is bundled into it. A suppression there came from
+ * source, which is still searched.
  */
 export function findProtected(
   diff: readonly DiffEntry[],
   addedLines: ReadonlyMap<string, readonly string[]>,
   scriptsChanged: boolean,
+  generated: ReadonlySet<string> = new Set(),
 ): ProtectedFinding[] {
   const findings: ProtectedFinding[] = [];
   for (const entry of diff) {
@@ -183,6 +230,7 @@ export function findProtected(
   }
 
   for (const [path, lines] of addedLines) {
+    if (generated.has(path)) continue;
     const hit = lines.find((line) => SUPPRESSION.test(line));
     if (hit) {
       findings.push({
