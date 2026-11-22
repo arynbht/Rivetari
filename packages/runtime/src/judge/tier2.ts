@@ -18,16 +18,14 @@ import {
   isSensitivePath,
   looksLikeSecret,
 } from "@arynbht/factory-engine";
+import picomatch from "picomatch";
 import { type SimpleGit, simpleGit } from "simple-git";
 import { z } from "zod";
 
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
 import { bannedSection, loadBanned } from "./banned.js";
-import { generatedPaths, isTestFile } from "./protected.js";
-import { parseNameStatus } from "./tier1.js";
-
-export { generatedPaths, isGeneratedPath } from "./protected.js";
+import { isTestFile, parseNameStatus } from "./protected.js";
 
 export const BLOCKING_KINDS = ["defect", "contract", "acceptance"] as const;
 export const FINDING_KINDS = [...BLOCKING_KINDS, "suggestion"] as const;
@@ -37,6 +35,47 @@ export type FindingKind = (typeof FINDING_KINDS)[number];
 export const JUDGE_DEFAULT_MODEL = "claude-opus-5-5";
 /** Max characters of diff packed into the prompt (~35k tokens). */
 const DIFF_BUDGET = 400_000;
+
+/** Machine-written files: reviewing them wastes the budget and finds nothing. */
+const GENERATED = picomatch(
+  [
+    "**/dist/**",
+    "**/*.min.js",
+    "**/*.map",
+    "**/pnpm-lock.yaml",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/bun.lock",
+    "**/bun.lockb",
+    "**/Cargo.lock",
+    "**/poetry.lock",
+    "**/uv.lock",
+    "**/go.sum",
+  ],
+  { dot: true },
+);
+
+export const isGeneratedPath = (path: string): boolean => GENERATED(path);
+
+/**
+ * Which of `paths` are machine-written: the paths above, plus the files the
+ * repo marks as generated (`linguist-generated` in .gitattributes).
+ */
+export async function generatedPaths(
+  git: SimpleGit,
+  paths: readonly string[],
+): Promise<Set<string>> {
+  const generated = new Set(paths.filter((p) => GENERATED(p)));
+  if (paths.length === 0) return generated;
+  const attrs = await git
+    .raw(["check-attr", "linguist-generated", "--", ...paths])
+    .catch(() => "");
+  for (const line of attrs.split("\n")) {
+    const m = /^(.*): linguist-generated: (set|true)$/.exec(line.trim());
+    if (m?.[1]) generated.add(m[1]);
+  }
+  return generated;
+}
 
 /** Review order when the budget is tight: source, then tests, then docs and config. */
 function priority(path: string): number {

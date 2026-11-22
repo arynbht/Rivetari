@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { diffRules } from "./diff-rules.js";
 import { findProtected } from "./protected.js";
 
-// Joined at runtime so this file's own added lines aren't suppressions.
 const DISABLE = `// ${["eslint", "disable-next-line"].join("-")} no-console`;
 const IGNORE = `// ${["@ts", "ignore"].join("-")}`;
 const ONLY = `${["it", "only"].join(".")}("bundled", () => {});`;

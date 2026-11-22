@@ -1,6 +1,3 @@
-// The protected-path stop on suppressions: a rebuilt bundle re-adds lines that
-// carry the runtime's own suppression pattern, so generated files are skipped
-// (T-0008 stopped on one with no suppression in its source); source isn't.
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -20,7 +17,6 @@ const assembly = { stop_and_ask: [] } as unknown as Parameters<
   typeof findStops
 >[3];
 
-/** A repo with `base` committed, then `change` committed on top. */
 async function change(
   base: Record<string, string>,
   edits: Record<string, string>,
@@ -45,7 +41,6 @@ async function change(
   return { dir, from, to };
 }
 
-// Joined at runtime so this file's own added lines aren't suppressions.
 const DISABLE = `// ${["eslint", "disable-next-line"].join("-")} no-console`;
 const IGNORE = `// ${["@ts", "ignore"].join("-")}`;
 const BUNDLE_LINE = `var a=2;${DISABLE}\n`;
