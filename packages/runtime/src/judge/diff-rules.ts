@@ -19,9 +19,16 @@ export const DIFF_RULES = [
   },
 ] as const;
 
+export interface Hunk {
+  removed: string[];
+  added: string[];
+}
+
 export interface DiffRuleOptions {
   card?: Card | undefined;
   noNewComments?: boolean | undefined;
+  /** The diff's hunks: with them, a comment line that replaces one isn't new. */
+  hunks?: ReadonlyMap<string, readonly Hunk[]> | undefined;
   allowedSuppressions?: ReadonlySet<string> | undefined;
 }
 
@@ -36,6 +43,51 @@ export function isCommentLine(path: string, line: string): boolean {
   if (t.startsWith("//") || t.startsWith("/*") || /^\*(?:\s|\/|$)/.test(t))
     return true;
   return HASH_COMMENTS.test(path) && t.startsWith("#") && !t.startsWith("#!");
+}
+
+const asHunks = (added: ReadonlyMap<string, string[]>) =>
+  new Map([...added].map(([path, ls]) => [path, [{ removed: [], added: ls }]]));
+
+/** Runs of consecutive comment lines, each with its first line's indentation. */
+function commentBlocks(path: string, lines: readonly string[]) {
+  const blocks: { indent: string; lines: string[] }[] = [];
+  let open: { indent: string; lines: string[] } | null = null;
+  for (const line of lines) {
+    if (!isCommentLine(path, line)) {
+      open = null;
+      continue;
+    }
+    if (!open) {
+      open = { indent: /^\s*/.exec(line)?.[0] ?? "", lines: [] };
+      blocks.push(open);
+    }
+    open.lines.push(line);
+  }
+  return blocks;
+}
+
+/**
+ * Comment lines a change adds to code. A comment block a hunk adds is matched
+ * to one it removes at the same indentation, and each removed line covers one
+ * added line, so rewording a doc comment isn't a new one but swapping one
+ * comment for an unrelated one elsewhere is.
+ */
+function newComments(hunks: ReadonlyMap<string, readonly Hunk[]>) {
+  const found: { path: string; line: string }[] = [];
+  for (const [path, list] of hunks) {
+    if (!CODE.test(path)) continue;
+    for (const hunk of list) {
+      const removed = commentBlocks(path, hunk.removed);
+      for (const block of commentBlocks(path, hunk.added)) {
+        const at = removed.findIndex((r) => r.indent === block.indent);
+        const covered = at >= 0 ? (removed[at]?.lines.length ?? 0) : 0;
+        if (at >= 0) removed.splice(at, 1);
+        for (const line of block.lines.slice(covered))
+          found.push({ path, line });
+      }
+    }
+  }
+  return found;
 }
 
 const where = (hits: string[]) =>
@@ -76,11 +128,9 @@ export function diffRules(
   );
 
   const commentHits = options.noNewComments
-    ? lines
-        .filter(
-          ({ path, line }) => CODE.test(path) && isCommentLine(path, line),
-        )
-        .map(({ path, line }) => `${path}: ${line.trim().slice(0, 80)}`)
+    ? newComments(options.hunks ?? asHunks(added)).map(
+        ({ path, line }) => `${path}: ${line.trim().slice(0, 80)}`,
+      )
     : null;
 
   const named = options.card

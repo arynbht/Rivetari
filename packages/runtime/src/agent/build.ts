@@ -259,7 +259,7 @@ function sentBack(task: Task): string | undefined {
     const lines = after
       .filter((e) => e.section === "judge" && JUDGE_FEEDBACK.test(e.text))
       .map((e) => e.text);
-    return `the judge sent the change back; fix these and nothing else — ${lines.join(" | ")}`;
+    return `the judge sent the change back; fix these and nothing else — ${lines.join(" | ")}. A tier 1 failure is fixed by changing the code that triggered it, never by deleting something that existed at base.`;
   }
   return undefined;
 }

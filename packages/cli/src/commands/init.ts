@@ -132,6 +132,11 @@ async function keepBackup(
   }
 }
 
+/**
+ * Write a generated file under --force: a missing one is written, and a
+ * different one is replaced, the old one kept as a backup. Returns a note when
+ * it replaced one.
+ */
 async function writeReplacing(
   root: string,
   rel: string,
