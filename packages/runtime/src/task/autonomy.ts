@@ -1,5 +1,4 @@
 import type { Autonomy } from "@arynbht/factory-catalog";
-import { buildContext } from "@arynbht/factory-engine";
 import picomatch from "picomatch";
 import { parse } from "yaml";
 
@@ -11,15 +10,13 @@ import {
   routeTask,
 } from "../router/task-route.js";
 import type { Card } from "./card.js";
+import { ladder } from "./ladder.js";
 import { confirmTask, loadTask, type Task } from "./tasks.js";
 
 export type { Autonomy };
 
 export async function repoAutonomy(repoPath: string): Promise<Autonomy> {
-  const profile = await buildContext(repoPath)
-    .profile()
-    .catch(() => null);
-  return profile?.autonomy ?? "supervised";
+  return (await ladder(repoPath)).effective;
 }
 
 export async function autonomyFor(

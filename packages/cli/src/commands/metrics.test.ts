@@ -56,6 +56,11 @@ describe("runMetrics", () => {
     });
     expect(await runMetrics(dir, { findings: true }, { token: null })).toBe(0);
     const text = out.join("");
+    expect(text).toContain("Trust ladder");
+    expect(text).toMatch(/Autonomy\s+supervised/);
+    expect(text).toMatch(
+      /review-at-pr\s+not earned: tier 1 rules 8: needs 20, or double the count at entry; 2 of 10 reviewed PRs needed/,
+    );
     expect(text).toMatch(/Tier 1 rules\s+8 \(5 checks, 3 diff rules\)/);
     expect(text).toMatch(/Findings per PR\s+1\.0/);
     expect(text).toContain(

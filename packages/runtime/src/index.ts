@@ -197,6 +197,18 @@ export {
 } from "./judge/findings.js";
 export { DIFF_RULES, diffRules } from "./judge/diff-rules.js";
 export {
+  AUTONOMY_DIR,
+  type AutonomyEntry,
+  autonomyEntries,
+  enforceFallback,
+  ladder,
+  type LadderNumbers,
+  type LadderState,
+  type RuleCount,
+  ruleCount,
+  setAutonomy,
+} from "./task/ladder.js";
+export {
   type Advance,
   advanceTask,
   type Autonomy,

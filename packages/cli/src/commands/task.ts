@@ -12,6 +12,7 @@ import {
   CardError,
   closeTask,
   commitTask,
+  enforceFallback,
   type CommitOptions,
   holderName,
   isolateTask,
@@ -577,6 +578,13 @@ export function runTaskClose(
       // A closed task's lease is given up, and its row joins the history.
       ({ row }) => ({ release: true, history: [JSON.stringify(row)] }),
     );
+    const ladderState = await enforceFallback(repo, {
+      by: `factory runtime (for ${await whoami(repo)})`,
+    });
+    if (ladderState.effective !== ladderState.configured)
+      process.stdout.write(
+        `autonomy fell back to ${ladderState.effective}: ${ladderState.fallback}\n`,
+      );
     process.stdout.write(
       `${id} closed: ${row.outcome}${row.pr ? ` (PR #${row.pr})` : ""} · ${row.minutes} min · ${row.tokens} tokens · $${row.cost_usd.toFixed(2)}; ledger sealed\n`,
     );
