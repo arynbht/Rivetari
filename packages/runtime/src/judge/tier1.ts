@@ -27,7 +27,7 @@ import { type SimpleGit, simpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
 import { bannedCheck, loadBanned } from "./banned.js";
-import { diffRules } from "./diff-rules.js";
+import { diffRules, type Hunk } from "./diff-rules.js";
 import {
   type DiffEntry,
   findProtected,
@@ -520,11 +520,6 @@ export function parseAddedLines(output: string): Map<string, string[]> {
     }
   }
   return added;
-}
-
-export interface Hunk {
-  removed: string[];
-  added: string[];
 }
 
 /** Each file's hunks from a `git diff -U0`, with the lines each one swaps. */

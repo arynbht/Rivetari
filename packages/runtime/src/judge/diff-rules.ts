@@ -3,7 +3,6 @@ import picomatch from "picomatch";
 import type { Card } from "../task/card.js";
 import { type DiffEntry, SUPPRESSION } from "./protected.js";
 import type { CheckOutcome } from "./outcome.js";
-import type { Hunk } from "./tier1.js";
 
 export const DIFF_RULES = [
   {
@@ -19,6 +18,11 @@ export const DIFF_RULES = [
     title: "The change adds no check suppressions or skipped tests",
   },
 ] as const;
+
+export interface Hunk {
+  removed: string[];
+  added: string[];
+}
 
 export interface DiffRuleOptions {
   card?: Card | undefined;
