@@ -20,6 +20,8 @@
 - 2026-11-22 22:43 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 22:49 judge: judge passed · round 2 · head 6073273c900c · record sha256 5bb37c4247a83f719975cdbc39791cd570c70a09faebe90f800202e57b015a8a (factory judge (for arynbht@gmail.com))
 - 2026-11-22 22:49 ship: draft PR opened: #175 https://github.com/arynbht/software-factory/pull/175 · fix/t-0009 at 6073273c900c → main (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 22:56 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0009 kept: it couldn't be removed; remove it by hand · branch fix/t-0009 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 22:56 close: ledger sealed · merged (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -76,3 +78,7 @@
 - 2026-11-22 22:49 acceptance A2: met — generated-suppressions.test.ts first case: diff.no-new-suppressions passes with the bundle in `generated`. tier1.ts now computes and passes `generated`.
 - 2026-11-22 22:49 acceptance A3: met — stops.test.ts third case asserts a protected_path stop for src/a.ts. generated-suppressions.test.ts second case asserts diff.no-new-suppressions fails and findProtected flags src/b.ts.
 - 2026-11-22 22:49 judge review posted: https://github.com/arynbht/software-factory/pull/175#pullrequestreview-6014947431
+
+## Outcome
+
+- 2026-11-22 22:56 PR #175 merged by arynbht 2026-11-22 22:56 · 1h11m · 5394k tokens · $4.39
