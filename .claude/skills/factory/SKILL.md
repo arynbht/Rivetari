@@ -72,8 +72,14 @@ their task over.
      --accept "<criterion>::unit" --accept "<criterion>::e2e" --touches "src/x/**"
    ```
 
-   Show the card (`.factory/tasks/<id>/card.yml`, which `factory task confirm` prints
-   too) and ask: "Confirm this card?" On a clear yes, run
+   When the repo's autonomy is above `supervised`, `factory task new` confirms the
+   card and approves the route itself, says so, and ends with
+   ``next: `factory task run <id>` ``: there is nothing to ask, so go straight to
+   step 4. When it ends with `next: route: a person approves this route (…)`, show
+   that reason and the assembly, and ask as in step 3.
+
+   Otherwise, show the card (`.factory/tasks/<id>/card.yml`, which
+   `factory task confirm` prints too) and ask: "Confirm this card?" On a clear yes, run
    `factory task confirm <id> --yes`. To change an unconfirmed card, either the
    person edits `card.yml` themselves, or you draft a corrected card with
    `factory task new` and drop the old one with
