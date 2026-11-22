@@ -132,11 +132,6 @@ async function keepBackup(
   }
 }
 
-/**
- * Write a file the factory owns (`factory.yml`): a missing one is written, and
- * with --force a different one is replaced, the old one kept as a backup.
- * Returns a note when it replaced one.
- */
 async function writeReplacing(
   root: string,
   rel: string,
@@ -496,13 +491,16 @@ export async function runInit(
   ).catch((err: NodeJS.ErrnoException) => {
     if (err.code !== "EEXIST") throw err;
   });
-  const workflow = await writeReplacing(
+  const workflow = await writeBeside(
     root,
     ".github/workflows/factory.yml",
     buildWorkflow(draft.phase ?? "build"),
-    flags.force,
+    false,
   );
-  if (workflow) beside.push(workflow);
+  if (workflow)
+    beside.push(
+      `${workflow}, then delete it (every file in .github/workflows runs on GitHub, so don't commit it)`,
+    );
 
   // Backups init leaves under .factory/ are for the person to look at, not commit.
   await ignoreInFactory(root, [

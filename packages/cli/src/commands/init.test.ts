@@ -283,12 +283,75 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     expect(await read(".factory", "evidence.yml")).toBe("- note: kept\n");
     expect(await read(".factory", "profile.yml")).toContain("type: library");
     expect(await read(".factory", "profile.yml.bak")).toBe(profile);
-    expect(await read(".github", "workflows", "factory.yml")).toContain(
+    expect(await read(".github", "workflows", "factory.yml")).toBe(workflow);
+    expect(await read(".github", "workflows", "factory.factory.yml")).toContain(
       "gate: build",
     );
-    expect(await read(".github", "workflows", "factory.yml.bak")).toBe(
-      workflow,
+    await expect(
+      access(join(dir, ".github", "workflows", "factory.yml.bak")),
+    ).rejects.toThrow();
+  });
+
+  it("--force keeps a customised factory.yml and writes the template beside it", async () => {
+    const dir = await tmp();
+    const out = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    await runInit(dir, { type: "cli", yes: true }, { token: null });
+    const wf = (...p: string[]) => join(dir, ".github", "workflows", ...p);
+    const custom =
+      "name: factory\r\non: [pull_request]\njobs:\n  factory:\n    uses: ./packages/action\n";
+    await writeFile(wf("factory.yml"), custom);
+
+    const fresh = await tmp();
+    await runInit(
+      fresh,
+      { type: "cli", phase: "build", yes: true },
+      { token: null },
     );
+    const template = await readFile(
+      join(fresh, ".github", "workflows", "factory.yml"),
+      "utf8",
+    );
+
+    out.mockClear();
+    expect(
+      await runInit(
+        dir,
+        { type: "cli", phase: "build", yes: true, force: true },
+        { token: null },
+      ),
+    ).toBe(0);
+    expect(await readFile(wf("factory.yml"), "utf8")).toBe(custom);
+    const sibling = await readFile(wf("factory.factory.yml"), "utf8");
+    expect(sibling).toContain("gate: build");
+    expect(sibling).toBe(template);
+    await expect(access(wf("factory.yml.bak"))).rejects.toThrow();
+
+    const said = out.mock.calls.join("");
+    expect(said).toContain(".github/workflows/factory.factory.yml");
+    expect(said).toContain("merge it by hand");
+  });
+
+  it("writes factory.yml from the template when there's none, with or without --force", async () => {
+    const dir = await tmp();
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const wf = (...p: string[]) => join(dir, ".github", "workflows", ...p);
+    await runInit(dir, { type: "cli", yes: true }, { token: null });
+    const template = await readFile(wf("factory.yml"), "utf8");
+    expect(template).toContain("name: factory");
+    expect(template).toContain("gate: scaffold");
+    await expect(access(wf("factory.factory.yml"))).rejects.toThrow();
+
+    await rm(wf("factory.yml"));
+    await runInit(
+      dir,
+      { type: "cli", yes: true, force: true },
+      { token: null },
+    );
+    expect(await readFile(wf("factory.yml"), "utf8")).toBe(template);
+    await expect(access(wf("factory.factory.yml"))).rejects.toThrow();
+    await expect(access(wf("factory.yml.bak"))).rejects.toThrow();
   });
 
   it("refuses to overwrite an existing config without --force", async () => {
