@@ -15,345 +15,346 @@ new tests:
 [1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/arynb/Documents/Projects/Software Factory - Dev/.worktrees/T-0009[39m
       [2mCoverage enabled with [22m[33mv8[39m
 
- [32m✓[39m packages/engine/src/floorplan/swarm.test.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 40[2mms[22m[39m
- [32m✓[39m packages/engine/src/ai/context.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 77[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/merge.test.ts [2m([22m[2m14 tests[22m[2m)[22m[90m 167[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/template.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 521[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/real-repo.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 178[2mms[22m[39m
- [32m✓[39m packages/runtime/src/task/tasks.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1508[2mms[22m[39m
-   [33m[2m✓[22m[39m the ledger can't be rewritten outside the runtime[2m > [22mlives outside every task worktree, where the agent works [33m1110[2mms[22m[39m
+ [32m✓[39m packages/engine/src/floorplan/swarm.test.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 36[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/context.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 88[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/merge.test.ts [2m([22m[2m14 tests[22m[2m)[22m[90m 227[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/template.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 407[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/real-repo.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 184[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/tasks.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1293[2mms[22m[39m
+   [33m[2m✓[22m[39m the ledger can't be rewritten outside the runtime[2m > [22mlives outside every task worktree, where the agent works [33m897[2mms[22m[39m
  [32m✓[39m packages/runtime/src/judge/diff-rules.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 17[2mms[22m[39m
- [32m✓[39m packages/runtime/src/router/route.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 197[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/apply.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 152[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/github-api.test.ts [2m([22m[2m12 tests[22m[2m)[22m[90m 253[2mms[22m[39m
- [32m✓[39m packages/engine/src/ai/generate.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 59[2mms[22m[39m
- [32m✓[39m packages/engine/src/evaluate.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 41[2mms[22m[39m
- [32m✓[39m packages/engine/src/orchestrate/build.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 15[2mms[22m[39m
- [32m✓[39m packages/engine/src/ai/client.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 117[2mms[22m[39m
- [32m✓[39m packages/engine/src/evidence.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 59[2mms[22m[39m
- [32m✓[39m packages/catalog/src/schema.test.ts [2m([22m[2m15 tests[22m[2m)[22m[90m 18[2mms[22m[39m
- [32m✓[39m packages/engine/src/stack.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 123[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/workflow-checks.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 4221[2mms[22m[39m
-   [33m[2m✓[22m[39m CI controls read workflow structure[2m > [22mwrite-all fails workflow permissions; every workflow must declare them [33m490[2mms[22m[39m
-   [33m[2m✓[22m[39m CI controls read workflow structure[2m > [22ma keyword in a comment no longer satisfies SAST [33m378[2mms[22m[39m
-   [33m[2m✓[22m[39m the Node CI the factory writes[2m > [22mpasses the CI controls when the repo has the scripts, and only runs those [33m972[2mms[22m[39m
-   [33m[2m✓[22m[39m the Node CI the factory writes[2m > [22madds real steps beside ones that can't fail, so one fix run passes [33m767[2mms[22m[39m
-   [33m[2m✓[22m[39m command detector[2m > [22mskips unless the context allows running commands [33m754[2mms[22m[39m
-   [33m[2m✓[22m[39m command detector[2m > [22mruns the command for the detected stack [33m353[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/exec.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 2178[2mms[22m[39m
-   [33m[2m✓[22m[39m runTool[2m > [22mresolves and runs a .cmd shim (npm) on Windows [33m1313[2mms[22m[39m
- [32m✓[39m packages/engine/src/github/app.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 45[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/ci.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2329[2mms[22m[39m
-   [33m[2m✓[22m[39m runCi (integration)[2m > [22mfails closed on an unknown gate [33m328[2mms[22m[39m
-   [33m[2m✓[22m[39m runCi (integration)[2m > [22mposts a sticky PR comment and fails on a red gate [33m448[2mms[22m[39m
-   [33m[2m✓[22m[39m runCi (integration)[2m > [22mwrites the report to the job summary [33m487[2mms[22m[39m
-   [33m[2m✓[22m[39m runCi (integration)[2m > [22mwarns and does not fail a non-PR run when the repository is unset [33m799[2mms[22m[39m
- [32m✓[39m packages/runtime/src/router/task-route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 4100[2mms[22m[39m
-   [33m[2m✓[22m[39m task route and approve[2m > [22mproposes, records why, and seals the assembly on approval [33m521[2mms[22m[39m
-   [33m[2m✓[22m[39m task route and approve[2m > [22mcatches an edit to assembly.yml after approval [33m399[2mms[22m[39m
-   [33m[2m✓[22m[39m task route and approve[2m > [22mre-checks a human's edit before approving it, and records it [33m397[2mms[22m[39m
-   [33m[2m✓[22m[39m task route and approve[2m > [22mreads an unlocked repo as no skills, the profile's flags, and the judge's checks [33m1285[2mms[22m[39m
-   [33m[2m✓[22m[39m task route and approve[2m > [22mwon't approve before routing, or an assembly that isn't YAML [33m415[2mms[22m[39m
-   [33m[2m✓[22m[39m task route and approve[2m > [22mrecords borderline sectors for the approver [33m425[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/github-setting.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 228[2mms[22m[39m
- [32m✓[39m packages/engine/src/paths.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 37[2mms[22m[39m
- [32m✓[39m packages/engine/src/profile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 183[2mms[22m[39m
- [32m✓[39m packages/runtime/src/judge/findings.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1871[2mms[22m[39m
-   [33m[2m✓[22m[39m findings metrics[2m > [22mcounts findings per PR and lists a pattern seen in two PRs as a candidate rule [33m543[2mms[22m[39m
-   [33m[2m✓[22m[39m findings metrics[2m > [22mcounts the judge's tier 1 rules: the catalog's change checks and the diff rules [33m876[2mms[22m[39m
-   [33m[2m✓[22m[39m findings metrics[2m > [22mreads task rows from the local history file [33m424[2mms[22m[39m
- [32m✓[39m packages/engine/src/metrics.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 191[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/claude.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 42[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/apply.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 148[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/router/route.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 190[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/generate.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 58[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/github-api.test.ts [2m([22m[2m12 tests[22m[2m)[22m[90m 239[2mms[22m[39m
+ [32m✓[39m packages/engine/src/evaluate.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 44[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/build.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 16[2mms[22m[39m
+ [32m✓[39m packages/engine/src/evidence.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 51[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/client.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 134[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/schema.test.ts [2m([22m[2m15 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+ [32m✓[39m packages/engine/src/stack.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 117[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/workflow-checks.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 4128[2mms[22m[39m
+   [33m[2m✓[22m[39m CI controls read workflow structure[2m > [22mwrite-all fails workflow permissions; every workflow must declare them [33m488[2mms[22m[39m
+   [33m[2m✓[22m[39m the Node CI the factory writes[2m > [22mpasses the CI controls when the repo has the scripts, and only runs those [33m815[2mms[22m[39m
+   [33m[2m✓[22m[39m the Node CI the factory writes[2m > [22madds real steps beside ones that can't fail, so one fix run passes [33m1149[2mms[22m[39m
+   [33m[2m✓[22m[39m command detector[2m > [22mskips unless the context allows running commands [33m676[2mms[22m[39m
+   [33m[2m✓[22m[39m command detector[2m > [22mruns the command for the detected stack [33m334[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/exec.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 2069[2mms[22m[39m
+   [33m[2m✓[22m[39m runTool[2m > [22mpasses an argument containing spaces as a single token [33m400[2mms[22m[39m
+   [33m[2m✓[22m[39m runTool[2m > [22mresolves and runs a .cmd shim (npm) on Windows [33m1058[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/app.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 48[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/router/task-route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 3869[2mms[22m[39m
+   [33m[2m✓[22m[39m task route and approve[2m > [22mproposes, records why, and seals the assembly on approval [33m431[2mms[22m[39m
+   [33m[2m✓[22m[39m task route and approve[2m > [22mcatches an edit to assembly.yml after approval [33m331[2mms[22m[39m
+   [33m[2m✓[22m[39m task route and approve[2m > [22mre-checks a human's edit before approving it, and records it [33m575[2mms[22m[39m
+   [33m[2m✓[22m[39m task route and approve[2m > [22mreads an unlocked repo as no skills, the profile's flags, and the judge's checks [33m1083[2mms[22m[39m
+   [33m[2m✓[22m[39m task route and approve[2m > [22mwon't approve before routing, or an assembly that isn't YAML [33m527[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/github-setting.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 210[2mms[22m[39m
+ [32m✓[39m packages/engine/src/profile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 107[2mms[22m[39m
+ [32m✓[39m packages/engine/src/paths.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 35[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/ci.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2976[2mms[22m[39m
+   [33m[2m✓[22m[39m runCi (integration)[2m > [22mfails closed on an unknown gate [33m344[2mms[22m[39m
+   [33m[2m✓[22m[39m runCi (integration)[2m > [22mposts a sticky PR comment and fails on a red gate [33m416[2mms[22m[39m
+   [33m[2m✓[22m[39m runCi (integration)[2m > [22mmaintains the status issue on a scheduled (non-PR) run and never fails [33m467[2mms[22m[39m
+   [33m[2m✓[22m[39m runCi (integration)[2m > [22mwrites the report to the job summary [33m1008[2mms[22m[39m
+   [33m[2m✓[22m[39m runCi (integration)[2m > [22mwarns and does not fail a non-PR run when the repository is unset [33m727[2mms[22m[39m
+ [32m✓[39m packages/engine/src/metrics.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 179[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/findings.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1973[2mms[22m[39m
+   [33m[2m✓[22m[39m findings metrics[2m > [22mcounts findings per PR and lists a pattern seen in two PRs as a candidate rule [33m366[2mms[22m[39m
+   [33m[2m✓[22m[39m findings metrics[2m > [22mcounts the judge's tier 1 rules: the catalog's change checks and the diff rules [33m1168[2mms[22m[39m
+   [33m[2m✓[22m[39m findings metrics[2m > [22mreads task rows from the local history file [33m409[2mms[22m[39m
  [32m✓[39m apps/desktop/src/main/auth/device-flow.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 9[2mms[22m[39m
- [32m✓[39m packages/engine/src/waivers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 75[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/app.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 215[2mms[22m[39m
- [32m✓[39m packages/engine/src/state.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 62[2mms[22m[39m
- [32m✓[39m packages/eslint-rules/rules.test.ts [2m([22m[2m17 tests[22m[2m)[22m[90m 157[2mms[22m[39m
- [32m✓[39m packages/engine/src/orchestrate/verify.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1703[2mms[22m[39m
-   [33m[2m✓[22m[39m verify runs repo code without the caller's secrets[2m > [22ma script can't read a variable outside the allowlist [33m1637[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/ai.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 6488[2mms[22m[39m
-   [33m[2m✓[22m[39m runAi[2m > [22mdry-run previews the generated file without writing it [33m489[2mms[22m[39m
-   [33m[2m✓[22m[39m runAi[2m > [22mopens a PR for the generated artifact [33m5354[2mms[22m[39m
- [32m✓[39m packages/runtime/src/judge/banned.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1863[2mms[22m[39m
-   [33m[2m✓[22m[39m banned patterns[2m > [22mreads the list from the working copy or from a commit [33m1846[2mms[22m[39m
- [32m✓[39m packages/engine/src/ai/claude-cli.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 21[2mms[22m[39m
- [32m✓[39m packages/engine/src/floorplan/store.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 53[2mms[22m[39m
- [32m✓[39m packages/engine/src/quality.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 147[2mms[22m[39m
- [32m✓[39m packages/engine/src/ai/usage.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 39[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/audit.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2400[2mms[22m[39m
-   [33m[2m✓[22m[39m runAudit (integration)[2m > [22maudits a repo end-to-end, prints a report, writes state.json, exits 0 [33m359[2mms[22m[39m
-   [33m[2m✓[22m[39m runAudit (integration)[2m > [22mexits 1 when a requested gate is red [33m426[2mms[22m[39m
-   [33m[2m✓[22m[39m runAudit (integration)[2m > [22mkeeps stdout valid JSON when --json is combined with --gate [33m789[2mms[22m[39m
-   [33m[2m✓[22m[39m runAudit (integration)[2m > [22merrors on an unknown gate [33m683[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/claude.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 38[2mms[22m[39m
+ [32m✓[39m packages/engine/src/waivers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 79[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/app.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 404[2mms[22m[39m
+   [33m[2m✓[22m[39m factory app register[2m > [22mposts the manifest to GitHub, takes the code back, and keeps the credentials [33m403[2mms[22m[39m
+ [32m✓[39m packages/engine/src/state.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 52[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/audit.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1157[2mms[22m[39m
+   [33m[2m✓[22m[39m runAudit (integration)[2m > [22maudits a repo end-to-end, prints a report, writes state.json, exits 0 [33m371[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/verify.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1738[2mms[22m[39m
+   [33m[2m✓[22m[39m verify runs repo code without the caller's secrets[2m > [22ma script can't read a variable outside the allowlist [33m1697[2mms[22m[39m
+ [32m✓[39m packages/eslint-rules/rules.test.ts [2m([22m[2m17 tests[22m[2m)[22m[90m 141[2mms[22m[39m
+ [32m✓[39m packages/engine/src/floorplan/store.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 56[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/claude-cli.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 16[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/usage.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 42[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/banned.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2154[2mms[22m[39m
+   [33m[2m✓[22m[39m banned patterns[2m > [22mreads the list from the working copy or from a commit [33m2140[2mms[22m[39m
+ [32m✓[39m packages/engine/src/quality.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 121[2mms[22m[39m
  [32m✓[39m packages/cli/src/report.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 8[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/config-commands.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 4046[2mms[22m[39m
-   [33m[2m✓[22m[39m profile / waive / evidence commands[2m > [22mprofile set changes the autonomy level, and refuses one that doesn't exist [33m3877[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/file-exists.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 46[2mms[22m[39m
- [32m✓[39m packages/runtime/src/judge/protected.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/ai.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 7368[2mms[22m[39m
+   [33m[2m✓[22m[39m runAi[2m > [22mdry-run previews the generated file without writing it [33m510[2mms[22m[39m
+   [33m[2m✓[22m[39m runAi[2m > [22mrecords usage and `ai usage` summarizes it [33m821[2mms[22m[39m
+   [33m[2m✓[22m[39m runAi[2m > [22mopens a PR for the generated artifact [33m5589[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/config-commands.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 3966[2mms[22m[39m
+   [33m[2m✓[22m[39m profile / waive / evidence commands[2m > [22mprofile set changes the autonomy level, and refuses one that doesn't exist [33m3837[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-exists.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 48[2mms[22m[39m
  [32m✓[39m packages/engine/src/gates.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 6[2mms[22m[39m
- [32m✓[39m packages/engine/src/github/token.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 359[2mms[22m[39m
-   [33m[2m✓[22m[39m githubToken[2m > [22macts as the factory's App when it's installed on the repo [33m355[2mms[22m[39m
- [32m✓[39m packages/engine/src/ai/git-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 8[2mms[22m[39m
- [32m✓[39m packages/engine/src/github/pr.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 135[2mms[22m[39m
- [32m✓[39m apps/desktop/src/main/update/check.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 7[2mms[22m[39m
- [32m✓[39m packages/engine/src/ci.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 169[2mms[22m[39m
- [32m✓[39m packages/engine/src/applicability.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 4[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/banned.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 107[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/metrics.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 6172[2mms[22m[39m
-   [33m[2m✓[22m[39m runMetrics[2m > [22mshows the judge's findings without GitHub, with candidate rules [33m1746[2mms[22m[39m
-   [33m[2m✓[22m[39m runMetrics[2m > [22mshows where the tier 1 rules come from: findings, stack defaults, or built in [33m1295[2mms[22m[39m
-   [33m[2m✓[22m[39m runMetrics[2m > [22merrors when no GitHub client is available (no token/remote) [33m1483[2mms[22m[39m
-   [33m[2m✓[22m[39m runMetrics[2m > [22mrejects an invalid --window [33m1646[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/file-yaml-path.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 42[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/build.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 10[2mms[22m[39m
- [32m✓[39m packages/runtime/src/judge/generated-suppressions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/protected.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/git-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/token.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 620[2mms[22m[39m
+   [33m[2m✓[22m[39m githubToken[2m > [22macts as the factory's App when it's installed on the repo [33m616[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/update/check.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/pr.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 121[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ci.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 141[2mms[22m[39m
+ [32m✓[39m packages/engine/src/applicability.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/banned.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 57[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/metrics.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 6815[2mms[22m[39m
+   [33m[2m✓[22m[39m runMetrics[2m > [22mshows the judge's findings without GitHub, with candidate rules [33m2125[2mms[22m[39m
+   [33m[2m✓[22m[39m runMetrics[2m > [22mshows where the tier 1 rules come from: findings, stack defaults, or built in [33m1135[2mms[22m[39m
+   [33m[2m✓[22m[39m runMetrics[2m > [22merrors when no GitHub client is available (no token/remote) [33m1398[2mms[22m[39m
+   [33m[2m✓[22m[39m runMetrics[2m > [22mrejects an invalid --window [33m2155[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-yaml-path.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 39[2mms[22m[39m
  [32m✓[39m packages/engine/src/floorplan/doc.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 3[2mms[22m[39m
- [32m✓[39m packages/engine/src/fs-atomic.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 72[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/command.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 961[2mms[22m[39m
-   [33m[2m✓[22m[39m commandGenerator[2m > [22mruns the command on write and succeeds on exit 0 [33m377[2mms[22m[39m
-   [33m[2m✓[22m[39m commandGenerator[2m > [22mrecords a failure on a non-zero exit [33m468[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/path.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 6[2mms[22m[39m
- [32m✓[39m packages/engine/src/orchestrate/plan.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/build.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/command.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 646[2mms[22m[39m
+ [32m✓[39m packages/engine/src/fs-atomic.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 65[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/path.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/plan.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 8[2mms[22m[39m
  [32m✓[39m packages/engine/src/history.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 27[2mms[22m[39m
- [32m✓[39m packages/catalog/src/profile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 12[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/status.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1426[2mms[22m[39m
-   [33m[2m✓[22m[39m runStatus[2m > [22minfers discovery on an empty repo and lists blockers [33m892[2mms[22m[39m
-   [33m[2m✓[22m[39m runStatus[2m > [22m--json returns a structured report sorted by severity [33m531[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/file-json-path.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 30[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/multi.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1763[2mms[22m[39m
-   [33m[2m✓[22m[39m runAuditAll[2m > [22maudits every repo in the list and prints a combined table [33m1129[2mms[22m[39m
-   [33m[2m✓[22m[39m runAuditAll[2m > [22m--json returns a row per repo, marking a missing one as an error [33m631[2mms[22m[39m
- [32m✓[39m packages/engine/src/generators/run.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/generated-suppressions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/profile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/status.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1270[2mms[22m[39m
+   [33m[2m✓[22m[39m runStatus[2m > [22minfers discovery on an empty repo and lists blockers [33m653[2mms[22m[39m
+   [33m[2m✓[22m[39m runStatus[2m > [22m--json returns a structured report sorted by severity [33m614[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-json-path.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 22[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/multi.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1722[2mms[22m[39m
+   [33m[2m✓[22m[39m runAuditAll[2m > [22maudits every repo in the list and prints a combined table [33m1063[2mms[22m[39m
+   [33m[2m✓[22m[39m runAuditAll[2m > [22m--json returns a row per repo, marking a missing one as an error [33m656[2mms[22m[39m
  [32m✓[39m packages/engine/src/dates.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 5[2mms[22m[39m
- [32m✓[39m packages/engine/src/github/slug.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 6[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/file-matches.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 17[2mms[22m[39m
- [32m✓[39m packages/catalog/src/validate.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 41[2mms[22m[39m
- [32m✓[39m apps/desktop/src/main/engine/audit.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 962[2mms[22m[39m
-   [33m[2m✓[22m[39m runAudit (desktop adapter)[2m > [22mproduces a lane scorecard for the factory repo [33m961[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/init.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 15433[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22mseeds the banned list from the stack, and keeps one that's there [33m1859[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22mwrites config + workflow and runs the first audit [33m869[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22mnever overwrites a file the repo already has: the factory's version goes beside it [33m2566[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22mmerges its hooks into an existing settings.json, keeping everything else [33m2157[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22mputs its hooks beside a settings.json it can't parse, and says the guard is off [33m769[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22m--force backs up what it replaces, and never resets waivers or evidence [33m1475[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22m--force keeps a customised factory.yml and writes the template beside it [33m3184[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22mwrites factory.yml from the template when there's none, with or without --force [33m1535[2mms[22m[39m
-   [33m[2m✓[22m[39m runInit (integration)[2m > [22mrefuses to overwrite an existing config without --force [33m786[2mms[22m[39m
- [32m✓[39m apps/desktop/src/main/engine/gates.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 646[2mms[22m[39m
-   [33m[2m✓[22m[39m computeGates (desktop adapter)[2m > [22mcomputes phase gates and an inferred phase for the factory repo [33m645[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/run.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/slug.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/validate.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 38[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-matches.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 18[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/audit.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 1027[2mms[22m[39m
+   [33m[2m✓[22m[39m runAudit (desktop adapter)[2m > [22mproduces a lane scorecard for the factory repo [33m1026[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/init.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 15498[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mseeds the banned list from the stack, and keeps one that's there [33m2712[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mwrites config + workflow and runs the first audit [33m996[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mnever overwrites a file the repo already has: the factory's version goes beside it [33m2231[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mmerges its hooks into an existing settings.json, keeping everything else [33m2138[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mputs its hooks beside a settings.json it can't parse, and says the guard is off [33m793[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22m--force backs up what it replaces, and never resets waivers or evidence [33m1257[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22m--force keeps a customised factory.yml and writes the template beside it [33m3012[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mwrites factory.yml from the template when there's none, with or without --force [33m1271[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mrefuses to overwrite an existing config without --force [33m774[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mrequires --type in non-interactive mode [33m312[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/worktree.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 3307[2mms[22m[39m
+   [33m[2m✓[22m[39m worktree git[2m > [22mcommits without running an in-repo hook the agent could edit [33m3306[2mms[22m[39m
  [32m✓[39m packages/engine/src/ai/prompts.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 35[2mms[22m[39m
- [32m✓[39m packages/engine/src/orchestrate/worktree.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 3729[2mms[22m[39m
-   [33m[2m✓[22m[39m worktree git[2m > [22mcommits without running an in-repo hook the agent could edit [33m3728[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/scorecard.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 76[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/command.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1741[2mms[22m[39m
-   [33m[2m✓[22m[39m command[2m > [22mpasses when the command exits 0 [33m340[2mms[22m[39m
-   [33m[2m✓[22m[39m command[2m > [22mpasses when the exit code matches expectExitCode [33m541[2mms[22m[39m
-   [33m[2m✓[22m[39m command[2m > [22mchecks a jsonPath in stdout [33m506[2mms[22m[39m
- [32m✓[39m packages/engine/src/detectors/catalog-regex.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 300[2mms[22m[39m
- [32m✓[39m packages/engine/src/ai/redact.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 4[2mms[22m[39m
- [32m✓[39m packages/catalog/src/gate.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 7[2mms[22m[39m
- [32m✓[39m packages/runtime/src/agent/stops.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 10273[2mms[22m[39m
-   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mdoesn't stop for a suppression-shaped line in the action's bundle [33m3045[2mms[22m[39m
-   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mdoesn't stop for one in a file .gitattributes marks linguist-generated [33m2432[2mms[22m[39m
-   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mstill stops for an eslint-disable added in a source file [33m4794[2mms[22m[39m
- [32m✓[39m packages/catalog/src/index.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 3[2mms[22m[39m
- [32m✓[39m packages/cli/src/cli.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 6[2mms[22m[39m
- [32m✓[39m apps/desktop/src/main/engine/docs.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 47[2mms[22m[39m
- [32m✓[39m apps/desktop/src/main/engine/ai.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 63[2mms[22m[39m
- [32m✓[39m apps/desktop/src/main/engine/fix.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 1054[2mms[22m[39m
-   [33m[2m✓[22m[39m planFix (desktop adapter)[2m > [22mreturns a dry-run plan for the factory repo [33m1052[2mms[22m[39m
- [32m✓[39m packages/engine/src/fix-pr.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 38749[2mms[22m[39m
-   [33m[2m✓[22m[39m openFixPr[2m > [22mbranches, commits per control, pushes, opens a PR, returns to base [33m4813[2mms[22m[39m
-   [33m[2m✓[22m[39m openFixPr[2m > [22mopens no PR and leaves no branch when nothing changed [33m3888[2mms[22m[39m
-   [33m[2m✓[22m[39m openFixPr[2m > [22mreturns to the base branch when opening the PR fails [33m5756[2mms[22m[39m
-   [33m[2m✓[22m[39m openFixPr[2m > [22mrefuses to run on detached HEAD [33m3402[2mms[22m[39m
-   [33m[2m✓[22m[39m openFixPr[2m > [22mrefuses to run on a dirty working tree [33m4359[2mms[22m[39m
-   [33m[2m✓[22m[39m openFixPr[2m > [22mreuses the branch and updates the PR on a second run [33m10243[2mms[22m[39m
-   [33m[2m✓[22m[39m openFixPr[2m > [22mdoes not push or touch a PR when a reused branch has no new changes [33m6286[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/fix.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 44412[2mms[22m[39m
-   [33m[2m✓[22m[39m runFix (integration)[2m > [22mdry-run previews file creates without touching disk [33m4886[2mms[22m[39m
-   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--write materialises files on disk [33m4745[2mms[22m[39m
-   [33m[2m✓[22m[39m runFix (integration)[2m > [22mrunning twice is idempotent (second run makes no file changes) [33m8368[2mms[22m[39m
-   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mopens a PR and reports it [33m13577[2mms[22m[39m
-   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mmaps a FixPrError to exit 1 (dirty working tree) [33m1065[2mms[22m[39m
-   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mexits 1 when no token/slug is available to open a PR [33m11548[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/hook.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 43755[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard[2m > [22mrefuses edits in the primary checkout on main, new files included [33m3095[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard[2m > [22mallows edits in a task's worktree, but never to .factory/** [33m1831[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard[2m > [22mstill guards .factory/** when the checkout is reached through a symlink [33m2524[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard[2m > [22mallows edits on another branch, and in repos without a factory profile [33m2430[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses writes through Bash to anything the edit guard protects [33m5777[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses wiping the checkout, whichever way it's spelled [33m5157[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mdoesn't let a cd that may not have moved the shell hide a write [33m4287[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22monly sees sed -i and perl -i as in-place [33m2335[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mchecks command lines run through sh -c and eval [33m2730[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses Bash writes to .factory/** from a task's worktree too [33m1114[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mlets reads, scratch writes and a task's worktree through [33m1897[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses git commands that destroy work, in a factory repo only [33m2925[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook session-start[2m > [22msays on its first line whether the guard is on [33m1052[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook session-start[2m > [22mstates the contract and points at a missing AGENTS.md [33m1098[2mms[22m[39m
-   [33m[2m✓[22m[39m factory hook session-start[2m > [22mlists the tasks waiting on a person under Needs you [33m2112[2mms[22m[39m
-   [33m[2m✓[22m[39m factory doctor[2m > [22mpasses a set-up repo whose hooks are live and skills match the lock [33m1050[2mms[22m[39m
-   [33m[2m✓[22m[39m factory doctor[2m > [22mfails while the guard can't run: not installed, or factory off PATH [33m2044[2mms[22m[39m
- [32m✓[39m packages/runtime/src/task/ladder.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 46283[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mcounts the tier 1 rules: checks, diff rules, boundary rules and the repo's own lint rules [33m1388[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mrefuses to raise a level the numbers don't support, and says why [33m2599[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mraises with an override, writing the reason and the rule count in the ledger [33m3644[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mlogs an override for the level a repo is already at, so the setting has a record [33m4227[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22malways lets a person lower the level, and logs it [33m2920[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mraises without an override once the numbers support it, counting the rules doubled since entry [33m5838[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mdrops review-at-pr to supervised when blocking findings pass 1 per PR over the first five, and logs it once [33m11671[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mdrops a level when a PR merged since entering it is reverted within 7 days [33m4245[2mms[22m[39m
-   [33m[2m✓[22m[39m the trust ladder[2m > [22mcan't earn unattended yet: smell counts and sampled reads aren't measured [33m1622[2mms[22m[39m
-   [33m[2m✓[22m[39m the rule count with banned patterns[2m > [22mcounts each banned pattern once, not ones a lint rule already covers, and not the lint rule that carries them [33m2316[2mms[22m[39m
-   [33m[2m✓[22m[39m where the rules come from[2m > [22mtells rules from findings and stack defaults apart, and keeps defaults from earning unattended [33m1793[2mms[22m[39m
-   [33m[2m✓[22m[39m the autonomy ledger's view[2m > [22mre-renders a view a formatter changed, but never repairs a changed record [33m4017[2mms[22m[39m
- [32m✓[39m packages/runtime/src/judge/tier2.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 55206[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22ma nit labelled as a defect, with no reproduction, never requests changes [33m3420[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the review and the gate every decision a person allowed, and says not to block on it [33m2719[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mcounts the cost the transport reports, and prices the default model otherwise [33m4366[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mtells the reviewer what autonomy flagged instead of asking, apart from what a person allowed [33m3882[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the review and a contract finding's gate the base's banned patterns [33m5866[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22msays nothing about decisions when nobody was asked [33m2103[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22ma confirmed defect blocks, carrying the gate's reproduction [33m4840[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mnever shows the model a secret-shaped file, and says what it left out [33m2309[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mjudges by the base's AGENTS.md even when the change rewrites it [33m3105[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mdowngrades a blocking finding about a file the reviewer wasn't shown [33m3672[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mfails the review when a gate call fails, instead of approving [33m2338[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mcaps gate calls, not just confirmed findings [33m3499[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mkeeps a review whose finding has a bad line or no title [33m2607[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mleaves out a file whose removed lines hold a secret [33m1624[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mwon't approve a change with files the reviewer wasn't shown [33m2641[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the gate the contract a contract finding cites [33m1480[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mblocks on a criterion the reviewer marked unmet, through the gate [33m3449[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 2[2m > [22mhands blocking findings to a person after two rounds [33m1282[2mms[22m[39m
- [32m✓[39m packages/runtime/src/task/autonomy.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 57941[2mms[22m[39m
-   [33m[2m✓[22m[39m autonomy levels[2m > [22mreads the repo's level, and keeps a high-risk task supervised [33m5443[2mms[22m[39m
-   [33m[2m✓[22m[39m autonomy levels[2m > [22masks about a route with a borderline sector or a sensitive path [33m1937[2mms[22m[39m
-   [33m[2m✓[22m[39m autonomy levels[2m > [22mconfirms the card and approves the route without asking at review-at-pr [33m2720[2mms[22m[39m
-   [33m[2m✓[22m[39m autonomy levels[2m > [22mstops at the route, with the evidence, when it touches a sensitive path [33m3216[2mms[22m[39m
-   [33m[2m✓[22m[39m autonomy levels[2m > [22mleaves a supervised task, and a high-risk one, for a person [33m1685[2mms[22m[39m
-   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mgoes from a draft card to a draft PR with no prompts, and the PR shows the card, the route and the soft stops [33m16007[2mms[22m[39m
-   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mstill stops on a hard stop: a secret in the change [33m8193[2mms[22m[39m
-   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mflags a new dependency whose installed license is on the OSI list, and asks about one it can't check [33m8347[2mms[22m[39m
-   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mflags a new dependency when every installed license is on the OSI list [33m9955[2mms[22m[39m
- [32m✓[39m packages/registry/src/skills.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 64100[2mms[22m[39m
-   [33m[2m✓[22m[39m skills sync[2m > [22mfetches the pinned commit, verifies the hash, and installs the spine [33m5352[2mms[22m[39m
-   [33m[2m✓[22m[39m skills sync[2m > [22mfails the hash on a tampered cache, and status catches a tampered install [33m6140[2mms[22m[39m
-   [33m[2m✓[22m[39m skills sync[2m > [22mrefuses a lock whose hash doesn't match the pinned content [33m3613[2mms[22m[39m
-   [33m[2m✓[22m[39m skills sync[2m > [22mblocks a skill whose body tries to switch off checks [33m6355[2mms[22m[39m
-   [33m[2m✓[22m[39m skills sync[2m > [22mremoves a skill an earlier sync installed once it leaves the lock [33m3678[2mms[22m[39m
-   [33m[2m✓[22m[39m manifest validation[2m > [22mrejects a conflict with an unknown skill and one-sided conflicts [33m2546[2mms[22m[39m
-   [33m[2m✓[22m[39m manifest validation[2m > [22msync refuses to run on an invalid manifest set [33m1100[2mms[22m[39m
-   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22madds a skill with no shipped manifest from flags, pinned to HEAD [33m4072[2mms[22m[39m
-   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mrefuses to add a skill without a manifest unless the fields are given [33m4275[2mms[22m[39m
-   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mshows the upstream diff, and moves the lock only when applied [33m8442[2mms[22m[39m
-   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mvendors verified copies that sync then prefers [33m3279[2mms[22m[39m
-   [33m[2m✓[22m[39m scan[2m > [22man allow covers exactly the reviewed line [33m812[2mms[22m[39m
-   [33m[2m✓[22m[39m scan[2m > [22ma new bad line in an allowed file is a new finding [33m1024[2mms[22m[39m
-   [33m[2m✓[22m[39m scan[2m > [22mignores another tool's ~/.factory, flags this repo's .factory/ [33m1101[2mms[22m[39m
-   [33m[2m✓[22m[39m registry rules[2m > [22mdrops every reviewed allow once the lock pins a different commit [33m3546[2mms[22m[39m
-   [33m[2m✓[22m[39m registry rules[2m > [22mrefuses a non-OSI license until a human signs a license_review [33m3037[2mms[22m[39m
-   [33m[2m✓[22m[39m registry rules[2m > [22mrequires a legal-sector skill to name the controls it serves [33m746[2mms[22m[39m
-   [33m[2m✓[22m[39m secret scanning fails closed[2m > [22mreports an unavailable scanner as a finding, never a clean pass [33m903[2mms[22m[39m
-   [33m[2m✓[22m[39m mirror fallback[2m > [22mfetches from the mirror when the source commit is gone, still verifying the hash [33m4078[2mms[22m[39m
- [32m✓[39m packages/runtime/src/task/run.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 84029[2mms[22m[39m
-   [33m[2m✓[22m[39m runTask[2m > [22mtakes an approved task to a draft PR and reports every ledger entry [33m14009[2mms[22m[39m
-   [33m[2m✓[22m[39m runTask[2m > [22mstops at a stop-and-ask question [33m10751[2mms[22m[39m
-   [33m[2m✓[22m[39m runTask[2m > [22mhands the task back after too many build rounds [33m44507[2mms[22m[39m
-   [33m[2m✓[22m[39m runTask[2m > [22ma round that changes nothing after a failed proof ends the run with the agent's question [33m11210[2mms[22m[39m
-   [33m[2m✓[22m[39m runTask[2m > [22man agent that ends with FACTORY_STOP stops the run before anything is committed or proved [33m2834[2mms[22m[39m
-   [33m[2m✓[22m[39m runTask[2m > [22mwon't start before a person has approved the route [33m716[2mms[22m[39m
- [31m❯[39m packages/runtime/src/task/store.test.ts [2m([22m[2m11 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 97023[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mputs a task on the branch, where another machine picks it up [33m6392[2mms[22m[39m
-[31m   [31m×[31m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[33m 30127[2mms[22m[31m[39m
+ [32m✓[39m packages/engine/src/detectors/scorecard.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 141[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/redact.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/command.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 1341[2mms[22m[39m
+   [33m[2m✓[22m[39m command[2m > [22mpasses when the command exits 0 [33m311[2mms[22m[39m
+   [33m[2m✓[22m[39m command[2m > [22mpasses when the exit code matches expectExitCode [33m356[2mms[22m[39m
+   [33m[2m✓[22m[39m command[2m > [22mchecks a jsonPath in stdout [33m301[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/gates.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 843[2mms[22m[39m
+   [33m[2m✓[22m[39m computeGates (desktop adapter)[2m > [22mcomputes phase gates and an inferred phase for the factory repo [33m841[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/catalog-regex.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 518[2mms[22m[39m
+   [33m[2m✓[22m[39m bundled catalog patterns[2m > [22mloads with no validation errors [33m352[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/gate.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m packages/cli/src/cli.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/docs.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 22[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/index.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 2[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/ai.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 47[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/agent/stops.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 9534[2mms[22m[39m
+   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mdoesn't stop for a suppression-shaped line in the action's bundle [33m3370[2mms[22m[39m
+   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mdoesn't stop for one in a file .gitattributes marks linguist-generated [33m2590[2mms[22m[39m
+   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mstill stops for an eslint-disable added in a source file [33m3572[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/fix.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 871[2mms[22m[39m
+   [33m[2m✓[22m[39m planFix (desktop adapter)[2m > [22mreturns a dry-run plan for the factory repo [33m870[2mms[22m[39m
+ [32m✓[39m packages/engine/src/fix-pr.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 36198[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mbranches, commits per control, pushes, opens a PR, returns to base [33m4632[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mopens no PR and leaves no branch when nothing changed [33m3910[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mreturns to the base branch when opening the PR fails [33m6545[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mrefuses to run on detached HEAD [33m3038[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mrefuses to run on a dirty working tree [33m3307[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mreuses the branch and updates the PR on a second run [33m7702[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mdoes not push or touch a PR when a reused branch has no new changes [33m7062[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/fix.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 42202[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22mdry-run previews file creates without touching disk [33m4389[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--write materialises files on disk [33m5420[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22mrunning twice is idempotent (second run makes no file changes) [33m6966[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mopens a PR and reports it [33m12291[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mmaps a FixPrError to exit 1 (dirty working tree) [33m1000[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mexits 1 when no token/slug is available to open a PR [33m11689[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/hook.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 42450[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard[2m > [22mrefuses edits in the primary checkout on main, new files included [33m2963[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard[2m > [22mallows edits in a task's worktree, but never to .factory/** [33m2252[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard[2m > [22mstill guards .factory/** when the checkout is reached through a symlink [33m2547[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard[2m > [22mallows edits on another branch, and in repos without a factory profile [33m3734[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses writes through Bash to anything the edit guard protects [33m5667[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses wiping the checkout, whichever way it's spelled [33m3663[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mdoesn't let a cd that may not have moved the shell hide a write [33m2767[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22monly sees sed -i and perl -i as in-place [33m2345[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mchecks command lines run through sh -c and eval [33m2580[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses Bash writes to .factory/** from a task's worktree too [33m1384[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mlets reads, scratch writes and a task's worktree through [33m3143[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook guard, for Bash[2m > [22mrefuses git commands that destroy work, in a factory repo only [33m1781[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook session-start[2m > [22msays on its first line whether the guard is on [33m1147[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook session-start[2m > [22mstates the contract and points at a missing AGENTS.md [33m2022[2mms[22m[39m
+   [33m[2m✓[22m[39m factory hook session-start[2m > [22mlists the tasks waiting on a person under Needs you [33m765[2mms[22m[39m
+   [33m[2m✓[22m[39m factory doctor[2m > [22mfails without a profile or the claude CLI, and warns without GitHub [33m341[2mms[22m[39m
+   [33m[2m✓[22m[39m factory doctor[2m > [22mpasses a set-up repo whose hooks are live and skills match the lock [33m1954[2mms[22m[39m
+   [33m[2m✓[22m[39m factory doctor[2m > [22mfails while the guard can't run: not installed, or factory off PATH [33m1366[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/ladder.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 45574[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mcounts the tier 1 rules: checks, diff rules, boundary rules and the repo's own lint rules [33m1447[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mrefuses to raise a level the numbers don't support, and says why [33m2627[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mraises with an override, writing the reason and the rule count in the ledger [33m4082[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mlogs an override for the level a repo is already at, so the setting has a record [33m4886[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22malways lets a person lower the level, and logs it [33m3255[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mraises without an override once the numbers support it, counting the rules doubled since entry [33m4713[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mdrops review-at-pr to supervised when blocking findings pass 1 per PR over the first five, and logs it once [33m10812[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mdrops a level when a PR merged since entering it is reverted within 7 days [33m3879[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mcan't earn unattended yet: smell counts and sampled reads aren't measured [33m3148[2mms[22m[39m
+   [33m[2m✓[22m[39m the rule count with banned patterns[2m > [22mcounts each banned pattern once, not ones a lint rule already covers, and not the lint rule that carries them [33m792[2mms[22m[39m
+   [33m[2m✓[22m[39m where the rules come from[2m > [22mtells rules from findings and stack defaults apart, and keeps defaults from earning unattended [33m1707[2mms[22m[39m
+   [33m[2m✓[22m[39m the autonomy ledger's view[2m > [22mre-renders a view a formatter changed, but never repairs a changed record [33m4224[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/tier2.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 52953[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22ma nit labelled as a defect, with no reproduction, never requests changes [33m3305[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the review and the gate every decision a person allowed, and says not to block on it [33m3057[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mcounts the cost the transport reports, and prices the default model otherwise [33m5558[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mtells the reviewer what autonomy flagged instead of asking, apart from what a person allowed [33m3289[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the review and a contract finding's gate the base's banned patterns [33m4505[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22msays nothing about decisions when nobody was asked [33m2189[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22ma confirmed defect blocks, carrying the gate's reproduction [33m2864[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mnever shows the model a secret-shaped file, and says what it left out [33m2654[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mjudges by the base's AGENTS.md even when the change rewrites it [33m3563[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mdowngrades a blocking finding about a file the reviewer wasn't shown [33m3443[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mfails the review when a gate call fails, instead of approving [33m2721[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mcaps gate calls, not just confirmed findings [33m3228[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mkeeps a review whose finding has a bad line or no title [33m2701[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mleaves out a file whose removed lines hold a secret [33m1989[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mwon't approve a change with files the reviewer wasn't shown [33m1837[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the gate the contract a contract finding cites [33m1763[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mblocks on a criterion the reviewer marked unmet, through the gate [33m2801[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mhands blocking findings to a person after two rounds [33m1483[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/autonomy.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 54764[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mreads the repo's level, and keeps a high-risk task supervised [33m5238[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22masks about a route with a borderline sector or a sensitive path [33m2293[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mconfirms the card and approves the route without asking at review-at-pr [33m3639[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mstops at the route, with the evidence, when it touches a sensitive path [33m2808[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mleaves a supervised task, and a high-risk one, for a person [33m1745[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mgoes from a draft card to a draft PR with no prompts, and the PR shows the card, the route and the soft stops [33m13681[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mstill stops on a hard stop: a secret in the change [33m9504[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mflags a new dependency whose installed license is on the OSI list, and asks about one it can't check [33m6651[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mflags a new dependency when every installed license is on the OSI list [33m8761[2mms[22m[39m
+ [32m✓[39m packages/registry/src/skills.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 61762[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mfetches the pinned commit, verifies the hash, and installs the spine [33m5192[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mfails the hash on a tampered cache, and status catches a tampered install [33m6910[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mrefuses a lock whose hash doesn't match the pinned content [33m3563[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mblocks a skill whose body tries to switch off checks [33m5141[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mremoves a skill an earlier sync installed once it leaves the lock [33m3560[2mms[22m[39m
+   [33m[2m✓[22m[39m manifest validation[2m > [22mrejects a conflict with an unknown skill and one-sided conflicts [33m1096[2mms[22m[39m
+   [33m[2m✓[22m[39m manifest validation[2m > [22msync refuses to run on an invalid manifest set [33m1465[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22madds a skill with no shipped manifest from flags, pinned to HEAD [33m4512[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mrefuses to add a skill without a manifest unless the fields are given [33m3863[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mshows the upstream diff, and moves the lock only when applied [33m8584[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mvendors verified copies that sync then prefers [33m2663[2mms[22m[39m
+   [33m[2m✓[22m[39m scan[2m > [22man allow covers exactly the reviewed line [33m886[2mms[22m[39m
+   [33m[2m✓[22m[39m scan[2m > [22ma new bad line in an allowed file is a new finding [33m1241[2mms[22m[39m
+   [33m[2m✓[22m[39m scan[2m > [22mignores another tool's ~/.factory, flags this repo's .factory/ [33m1655[2mms[22m[39m
+   [33m[2m✓[22m[39m registry rules[2m > [22mdrops every reviewed allow once the lock pins a different commit [33m2772[2mms[22m[39m
+   [33m[2m✓[22m[39m registry rules[2m > [22mrefuses a non-OSI license until a human signs a license_review [33m2247[2mms[22m[39m
+   [33m[2m✓[22m[39m registry rules[2m > [22mrequires a legal-sector skill to name the controls it serves [33m1013[2mms[22m[39m
+   [33m[2m✓[22m[39m secret scanning fails closed[2m > [22mreports an unavailable scanner as a finding, never a clean pass [33m995[2mms[22m[39m
+   [33m[2m✓[22m[39m mirror fallback[2m > [22mfetches from the mirror when the source commit is gone, still verifying the hash [33m4402[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/run.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 81235[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mtakes an approved task to a draft PR and reports every ledger entry [33m14722[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mstops at a stop-and-ask question [33m9750[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mhands the task back after too many build rounds [33m41518[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22ma round that changes nothing after a failed proof ends the run with the agent's question [33m11956[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22man agent that ends with FACTORY_STOP stops the run before anything is committed or proved [33m2386[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mwon't start before a person has approved the route [33m901[2mms[22m[39m
+ [31m❯[39m packages/runtime/src/task/store.test.ts [2m([22m[2m11 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 92460[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mputs a task on the branch, where another machine picks it up [33m5802[2mms[22m[39m
+[31m   [31m×[31m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[33m 30030[2mms[22m[31m[39m
 [31m     → Test timed out in 30000ms.
 If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".[39m
-[31m     → EBUSY: resource busy or locked, rmdir 'C:\Users\arynb\AppData\Local\Temp\factory-clone-BBjykQ'[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mkeeps this machine's copy of a task it holds when pulling [33m8228[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mnever deletes a record no push has carried, even after its lease expired [33m11439[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mwon't let a kept copy overwrite what someone else pushed since [33m12349[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mrenews only the lease on a heartbeat [33m4814[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22monly puts tasks that exist on the branch [33m1221[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mgives an id back when the push that would reserve it fails [33m6251[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mgives two machines different ids, and refuses to reuse one [33m6766[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mappends history rows once each, beside the tasks [33m7897[2mms[22m[39m
-   [33m[2m✓[22m[39m the task store[2m > [22mkeeps the branch local in a repo with no origin [33m1538[2mms[22m[39m
- [32m✓[39m packages/runtime/src/agent/agent.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 107813[2mms[22m[39m
-   [33m[2m✓[22m[39m isolate[2m > [22mcuts a worktree per task with its own branch, port and no hooks [33m3947[2mms[22m[39m
-   [33m[2m✓[22m[39m isolate[2m > [22mwon't isolate before the route is approved [33m1681[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mplans first, gives the agent the contract and rules, and commits its change [33m9266[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mpauses on a new dependency until a person answers [33m16516[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22man allowed stop isn't asked again, and the task moves on [33m7584[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mstops before building when the plan is over budget [33m4017[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22masks about edits to protected paths and existing tests [33m6225[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22masks a person when the agent changed nothing, with what it said [33m5526[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22man answered FACTORY_STOP question goes back to the agent, with the answer [33m5642[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mgives a retry round its change so far and the failure, not the repo slice again [33m7478[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mdoesn't stop on a test file that names a secret as data, but does on a real key shape in one [33m8530[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mdoesn't stop on a rebuilt bundle, but does on a real key shape in source [33m7278[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mreplans, never runs, a plan whose budget stop was denied [33m4794[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mpasses a denial to the next round only [33m7955[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22masks when a workspace package's scripts change [33m3966[2mms[22m[39m
-   [33m[2m✓[22m[39m build[2m > [22mwon't build on an env.json edited after isolation [33m1575[2mms[22m[39m
-   [33m[2m✓[22m[39m isolate runs no hooks[2m > [22mnot even post-checkout during worktree add [33m2692[2mms[22m[39m
-   [33m[2m✓[22m[39m the contract comes from the base[2m > [22man edit to CONSTRAINTS.md in the worktree doesn't reach the prompt [33m3138[2mms[22m[39m
- [32m✓[39m packages/runtime/src/ship/ship.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 114126[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma passing judge ships a draft PR, and close seals the ledger once it's merged [33m14404[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22mtells the reviewer what a person allowed at build, so an allowed test change passes in round 1 [33m14176[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22mblocking findings go back to the agent twice, then to a person [33m25732[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma protected change skips the review and asks a person; a denial rebuilds [33m9459[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22mtier 1 failing goes back to build without paying for a review [33m8753[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma send-back tells the agent never to delete what existed at base to clear tier 1 [33m9987[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22mwon't ship a branch that moved after the verdict, or a tampered judge record [33m6620[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22mthe judge won't run on a commit the last build round didn't make [33m6500[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma task can be abandoned before it ships; the unmerged branch is kept [33m6189[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22man unmerged worktree with uncommitted edits is kept, not forced away [33m5708[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma draft card can be abandoned, and then reads as done [33m683[2mms[22m[39m
-   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma close that stopped part-way finishes without recording twice [33m5738[2mms[22m[39m
- [32m✓[39m packages/cli/src/commands/task.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 117749[2mms[22m[39m
-   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mdrafts on one machine, and the other sees it but can't take it while it's held [33m58374[2mms[22m[39m
-   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22msays a beat is done when only the push of its record failed, and exits 1 [33m22465[2mms[22m[39m
-   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mruns --all only when the repo is unattended [33m2319[2mms[22m[39m
-   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mat review-at-pr, drafts, confirms and routes in one command and says to run next [33m13113[2mms[22m[39m
-   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mat review-at-pr, stops once at the route with the reason when a sector is borderline [33m9950[2mms[22m[39m
-   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mlists a closed task as closed, even one closed before it was confirmed [33m10767[2mms[22m[39m
-   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mrefuses a card with no verify before reserving an id [33m760[2mms[22m[39m
- [32m✓[39m packages/runtime/src/judge/tier1.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 119197[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mpasses a change that keeps the checks green [33m12314[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change a diff rule catches, even when every check is green [33m12097[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change that adds a pattern the base bans, even when the change empties the list [33m12660[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change that breaks a check [33m9498[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns the base's scripts and marks a scripts edit needs-human [33m8006[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mdoesn't ask again about a protected change a person allowed [33m12323[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns an allowed change to an existing test as changed, not as it was at base [33m9365[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mswitches to the change even when the base's checks wrote into the clone [33m6669[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mmarks a change to .factory/waivers.yml needs-human [33m5909[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mreports a check red on base and change as pre-existing, not a failure [33m6218[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mdisables the target repo's hooks inside the clone [33m5548[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mwon't pass a non-Node repo on checks that are red at base too [33m6880[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns the repo's scripts without the caller's secrets [33m8729[2mms[22m[39m
-   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails closed when a check can't run [33m2974[2mms[22m[39m
- [32m✓[39m packages/runtime/src/proof/proof.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 138128[2mms[22m[39m
-   [33m[2m✓[22m[39m server[2m > [22mwaits for the URL, and says why when the command dies first [33m2209[2mms[22m[39m
-   [33m[2m✓[22m[39m server[2m > [22mrefuses a port something else already answers on [33m1176[2mms[22m[39m
-   [33m[2m✓[22m[39m test-run proof[2m > [22mruns the tests and names the ones the change added [33m13936[2mms[22m[39m
-   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that fails once and passes on the retry is flaky, not a failed proof [33m14016[2mms[22m[39m
-   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that also fails on the base is pre-existing, not a failed proof [33m15658[2mms[22m[39m
-   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that fails on the change but passes on the base still fails the proof [33m11637[2mms[22m[39m
-   [33m[2m✓[22m[39m test-run proof[2m > [22ma failing test fails the proof and goes back to build, told why [33m12750[2mms[22m[39m
-   [33m[2m✓[22m[39m UI proof[2m > [22mshoots before and after at three breakpoints, and axe passes a clean page [33m12493[2mms[22m[39m
-   [33m[2m✓[22m[39m UI proof[2m > [22ma change that won't serve fails the proof and goes back to build [33m9664[2mms[22m[39m
-   [33m[2m✓[22m[39m UI proof[2m > [22mruns axe on an app whose CSP blocks inline scripts [33m11729[2mms[22m[39m
-   [33m[2m✓[22m[39m UI proof[2m > [22ma page the change serves as an error fails the proof [33m11464[2mms[22m[39m
-   [33m[2m✓[22m[39m UI proof[2m > [22mkeeps pages that look alike in separate images [33m12241[2mms[22m[39m
-   [33m[2m✓[22m[39m UI proof[2m > [22man image without alt text fails the proof [33m8823[2mms[22m[39m
+[31m     → EBUSY: resource busy or locked, rmdir 'C:\Users\arynb\AppData\Local\Temp\factory-clone-dJkF4I'[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps this machine's copy of a task it holds when pulling [33m6976[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mnever deletes a record no push has carried, even after its lease expired [33m10719[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mwon't let a kept copy overwrite what someone else pushed since [33m11345[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mrenews only the lease on a heartbeat [33m5236[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22monly puts tasks that exist on the branch [33m1262[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mgives an id back when the push that would reserve it fails [33m5728[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mgives two machines different ids, and refuses to reuse one [33m6455[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mappends history rows once each, beside the tasks [33m7491[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps the branch local in a repo with no origin [33m1413[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/agent/agent.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 103320[2mms[22m[39m
+   [33m[2m✓[22m[39m isolate[2m > [22mcuts a worktree per task with its own branch, port and no hooks [33m4028[2mms[22m[39m
+   [33m[2m✓[22m[39m isolate[2m > [22mwon't isolate before the route is approved [33m1944[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mplans first, gives the agent the contract and rules, and commits its change [33m10318[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mpauses on a new dependency until a person answers [33m14019[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22man allowed stop isn't asked again, and the task moves on [33m9272[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mstops before building when the plan is over budget [33m3440[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22masks about edits to protected paths and existing tests [33m4942[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22masks a person when the agent changed nothing, with what it said [33m4883[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22man answered FACTORY_STOP question goes back to the agent, with the answer [33m5699[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mgives a retry round its change so far and the failure, not the repo slice again [33m6328[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mdoesn't stop on a test file that names a secret as data, but does on a real key shape in one [33m7936[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mdoesn't stop on a rebuilt bundle, but does on a real key shape in source [33m6820[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mreplans, never runs, a plan whose budget stop was denied [33m4316[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mpasses a denial to the next round only [33m8055[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22masks when a workspace package's scripts change [33m4423[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mwon't build on an env.json edited after isolation [33m1542[2mms[22m[39m
+   [33m[2m✓[22m[39m isolate runs no hooks[2m > [22mnot even post-checkout during worktree add [33m2580[2mms[22m[39m
+   [33m[2m✓[22m[39m the contract comes from the base[2m > [22man edit to CONSTRAINTS.md in the worktree doesn't reach the prompt [33m2771[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/ship/ship.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 110493[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma passing judge ships a draft PR, and close seals the ledger once it's merged [33m15012[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mtells the reviewer what a person allowed at build, so an allowed test change passes in round 1 [33m13831[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mblocking findings go back to the agent twice, then to a person [33m22884[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma protected change skips the review and asks a person; a denial rebuilds [33m8789[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mtier 1 failing goes back to build without paying for a review [33m8252[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma send-back tells the agent never to delete what existed at base to clear tier 1 [33m9174[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mwon't ship a branch that moved after the verdict, or a tampered judge record [33m6179[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mthe judge won't run on a commit the last build round didn't make [33m6228[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma task can be abandoned before it ships; the unmerged branch is kept [33m6729[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22man unmerged worktree with uncommitted edits is kept, not forced away [33m6038[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma draft card can be abandoned, and then reads as done [33m726[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma close that stopped part-way finishes without recording twice [33m6483[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/task.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 114400[2mms[22m[39m
+   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mdrafts on one machine, and the other sees it but can't take it while it's held [33m55939[2mms[22m[39m
+   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22msays a beat is done when only the push of its record failed, and exits 1 [33m21582[2mms[22m[39m
+   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mruns --all only when the repo is unattended [33m1910[2mms[22m[39m
+   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mat review-at-pr, drafts, confirms and routes in one command and says to run next [33m12458[2mms[22m[39m
+   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mat review-at-pr, stops once at the route with the reason when a sector is borderline [33m10340[2mms[22m[39m
+   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mlists a closed task as closed, even one closed before it was confirmed [33m11438[2mms[22m[39m
+   [33m[2m✓[22m[39m factory task, shared through the factory/tasks branch[2m > [22mrefuses a card with no verify before reserving an id [33m731[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/tier1.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 117539[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mpasses a change that keeps the checks green [33m12943[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change a diff rule catches, even when every check is green [33m11292[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change that adds a pattern the base bans, even when the change empties the list [33m11337[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change that breaks a check [33m9978[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns the base's scripts and marks a scripts edit needs-human [33m7218[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mdoesn't ask again about a protected change a person allowed [33m11335[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns an allowed change to an existing test as changed, not as it was at base [33m9186[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mswitches to the change even when the base's checks wrote into the clone [33m6355[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mmarks a change to .factory/waivers.yml needs-human [33m5770[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mreports a check red on base and change as pre-existing, not a failure [33m6372[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mdisables the target repo's hooks inside the clone [33m6704[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mwon't pass a non-Node repo on checks that are red at base too [33m5985[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns the repo's scripts without the caller's secrets [33m10865[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails closed when a check can't run [33m2192[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/proof/proof.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 134581[2mms[22m[39m
+   [33m[2m✓[22m[39m evidence[2m > [22mstarts an orphan evidence branch and uploads each image under the task [33m564[2mms[22m[39m
+   [33m[2m✓[22m[39m server[2m > [22mwaits for the URL, and says why when the command dies first [33m2259[2mms[22m[39m
+   [33m[2m✓[22m[39m server[2m > [22mrefuses a port something else already answers on [33m1236[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22mruns the tests and names the ones the change added [33m14322[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that fails once and passes on the retry is flaky, not a failed proof [33m11175[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that also fails on the base is pre-existing, not a failed proof [33m15065[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that fails on the change but passes on the base still fails the proof [33m10994[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma failing test fails the proof and goes back to build, told why [33m12089[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22mshoots before and after at three breakpoints, and axe passes a clean page [33m11764[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22ma change that won't serve fails the proof and goes back to build [33m9942[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22mruns axe on an app whose CSP blocks inline scripts [33m11987[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22ma page the change serves as an error fails the proof [33m11244[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22mkeeps pages that look alike in separate images [33m12967[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22man image without alt text fails the proof [33m8911[2mms[22m[39m
 
 [2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m101 passed[39m[22m[90m (102)[39m
 [2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m747 passed[39m[22m[90m (748)[39m
-[2m   Start at [22m 16:55:24
-[2m   Duration [22m 144.26s[2m (transform 8.69s, setup 0ms, collect 104.20s, tests 1210.61s, environment 28ms, prepare 33.27s)[22m
+[2m   Start at [22m 17:14:09
+[2m   Duration [22m 141.05s[2m (transform 7.99s, setup 0ms, collect 105.46s, tests 1171.08s, environment 27ms, prepare 30.87s)[22m
 
  ELIFECYCLE  Test failed. See above for more details.
 
@@ -361,25 +362,21 @@ warning: in the working copy of 'README.md', LF will be replaced by CRLF the nex
 warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 Preparing worktree (new branch 'fix/t-0001')
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 [90mstderr[2m | packages/cli/src/commands/audit.test.ts[2m > [22m[2mrunAudit (integration)[2m > [22m[2mfails fast on a nonexistent path
 [22m[39mfactory audit: path not found: C:\Users\arynb\AppData\Local\Temp\factory-definitely-missing-xyz
 
-[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile set changes the autonomy level, and refuses one that doesn't exist
-[22m[39mreview-at-pr isn't earned yet: tier 1 rules 8: needs 20, or double the count at entry; 0 of 10 reviewed PRs needed for findings per PR; 0 of 10 merged PRs needed for first-pass merge rate. Raise it anyway with --override "<why>"; the reason goes in .factory/autonomy/ledger.md
-
-Preparing worktree (new branch 'fix/t-0001')
-Switched to a new branch 'by-hand'
 [90mstderr[2m | packages/cli/src/commands/audit.test.ts[2m > [22m[2mrunAudit (integration)[2m > [22m[2merrors when --json and a conflicting --format are both given
 [22m[39mfactory audit: --json conflicts with --format markdown; use one (--json is shorthand for --format json).
 
 warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile set changes the autonomy level, and refuses one that doesn't exist
+[22m[39mreview-at-pr isn't earned yet: tier 1 rules 8: needs 20, or double the count at entry; 0 of 10 reviewed PRs needed for findings per PR; 0 of 10 merged PRs needed for first-pass merge rate. Raise it anyway with --override "<why>"; the reason goes in .factory/autonomy/ledger.md
+
 [90mstderr[2m | packages/cli/src/commands/audit.test.ts[2m > [22m[2mrunAudit (integration)[2m > [22m[2merrors on an unknown gate
 [22m[39mUnknown gate "nope". Defined gates: architecture, build, design, discovery, harden, launch, operate, requirements, scaffold.
 
@@ -408,17 +405,21 @@ factory waive: --expires <YYYY-MM-DD> is required
 [90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mevidence add requires a url or file, then writes an entry
 [22m[39mfactory evidence add: provide --url or --file
 
+warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+Switched to a new branch 'by-hand'
 [90mstderr[2m | packages/cli/src/commands/metrics.test.ts[2m > [22m[2mrunMetrics[2m > [22m[2merrors when no GitHub client is available (no token/remote)
 [22m[39mfactory metrics: a GitHub token and an origin remote are required (set GITHUB_TOKEN or run `gh auth login`).
 
-warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 [90mstderr[2m | packages/cli/src/commands/metrics.test.ts[2m > [22m[2mrunMetrics[2m > [22m[2mrejects an invalid --window
 [22m[39mfactory metrics: a GitHub token and an origin remote are required (set GITHUB_TOKEN or run `gh auth login`).
 
 [90mstderr[2m | packages/cli/src/commands/metrics.test.ts[2m > [22m[2mrunMetrics[2m > [22m[2mfails fast on a nonexistent path
 [22m[39mfactory metrics: path not found: C:\Users\arynb\AppData\Local\Temp\factory-metrics-missing-xyz
 
+warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 Preparing worktree (new branch 'fix/t-0001')
 [90mstderr[2m | packages/cli/src/commands/status.test.ts[2m > [22m[2mrunStatus[2m > [22m[2mfails fast on a nonexistent path
 [22m[39mfactory status: path not found: C:\Users\arynb\AppData\Local\Temp\factory-status-missing-xyz
@@ -432,8 +433,6 @@ Preparing worktree (new branch 'fix/t-0001')
 [90mstderr[2m | packages/cli/src/commands/init.test.ts[2m > [22m[2mrunInit (integration)[2m > [22m[2mrequires --type in non-interactive mode
 [22m[39mfactory init: --type is required in non-interactive mode (one of: web-app, api, cli, library, mobile, desktop, data-pipeline, monorepo).
 
-warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 [90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2merrors on an unknown control
 [22m[39mfactory fix: unknown control "nope.not-real".
 
@@ -443,7 +442,6 @@ warning: in the working copy of 'README.md', LF will be replaced by CRLF the nex
 [90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2mfails fast on a nonexistent path
 [22m[39mfactory fix: path not found: C:\Users\arynb\AppData\Local\Temp\factory-fix-definitely-missing-xyz
 
-Preparing worktree (new branch 'fix/t-0001')
 warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 Preparing worktree (new branch 'fix/t-0001')
@@ -464,8 +462,8 @@ Preparing worktree (new branch 'fix/t-0001')
 
 warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 Preparing worktree (new branch 'fix/t-0001')
@@ -480,11 +478,14 @@ warning: in the working copy of 'README.md', LF will be replaced by CRLF the nex
 Preparing worktree (new branch 'fix/t-0001')
 warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 [90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2m--pr[2m > [22m[2mexits 1 when no token/slug is available to open a PR
 [22m[39mfactory fix --pr: no GitHub token or repository slug; cannot open a pull request
 
+warning: in the working copy of '.factory/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
@@ -499,6 +500,6 @@ If this is a long-running test, pass a timeout value as the last argument or con
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
 
 [31m[1m[7m FAIL [27m[22m[39m packages/runtime/src/task/store.test.ts[2m > [22mthe task store[2m > [22mkeeps a second machine off a task until the lease expires or is released
-[31m[1mError[22m: EBUSY: resource busy or locked, rmdir 'C:\Users\arynb\AppData\Local\Temp\factory-clone-BBjykQ'[39m
+[31m[1mError[22m: EBUSY: resource busy or locked, rmdir 'C:\Users\arynb\AppData\Local\Temp\factory-clone-dJkF4I'[39m
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
 
