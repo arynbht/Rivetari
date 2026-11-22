@@ -33,3 +33,4 @@
 
 - 2026-11-22 18:16 flagged: protected_path: packages/cli/src/commands/init.test.ts — modifies a test that existed at base
 - 2026-11-22 18:16 asked: secret: packages/action/dist/index.js adds a line that looks like a secret
+- 2026-11-22 18:25 answered: allowed — test edit approved: assertions encode the old --force behaviour the card changes; dist secret is a false positive from the regenerated bundle
