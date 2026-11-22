@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { newTask } from "@arynbht/factory-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { doctorChecks } from "./doctor.js";
+import { doctorChecks, tempCheck } from "./doctor.js";
 import {
   guardReason,
   guardSelfTest,
@@ -401,5 +401,17 @@ describe("factory doctor", () => {
       status: "fail",
       detail: expect.stringMatching(/on PATH/),
     });
+  });
+});
+
+describe("factory doctor's temp check", () => {
+  it("warns only when the temp folder is crowded, and names it", async () => {
+    const dir = await tmp("factory-temp-");
+    for (const n of ["a", "b", "c"]) await mkdir(join(dir, n));
+    expect(await tempCheck(dir, 10)).toBeNull();
+    const warn = await tempCheck(dir, 3);
+    expect(warn).toMatchObject({ name: "temp", status: "warn" });
+    expect(warn?.detail).toContain(`${dir} holds 3+ entries`);
+    expect(await tempCheck(join(dir, "missing"), 3)).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { access } from "node:fs/promises";
+import { access, opendir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 import { githubToken, resolveRepoSlug, runTool } from "@arynbht/factory-engine";
@@ -173,9 +174,37 @@ export async function doctorChecks(
   return checks;
 }
 
+export const CROWDED_TEMP = 20_000;
+
+export async function tempCheck(
+  dir: string = tmpdir(),
+  limit: number = CROWDED_TEMP,
+): Promise<DoctorCheck | null> {
+  let count = 0;
+  try {
+    const entries = await opendir(dir);
+    for await (const entry of entries) {
+      if (entry.name) count++;
+      if (count >= limit) break;
+    }
+  } catch {
+    return null;
+  }
+  if (count < limit) return null;
+  return {
+    name: "temp",
+    status: "warn",
+    detail: `${dir} holds ${limit.toLocaleString("en-US")}+ entries: every proof and judge run makes and removes temp repos there, so local runs are several times slower. Clear out what you don't need.`,
+  };
+}
+
 /** `factory doctor`: exit 1 when anything a task needs is missing. */
 export async function runDoctor(path: string): Promise<number> {
-  const checks = await doctorChecks(resolve(path));
+  const temp = await tempCheck();
+  const checks = [
+    ...(await doctorChecks(resolve(path))),
+    ...(temp ? [temp] : []),
+  ];
   const mark = { ok: "✓", warn: "!", fail: "✗" } as const;
   for (const c of checks)
     process.stdout.write(`${mark[c.status]} ${c.name.padEnd(8)} ${c.detail}\n`);

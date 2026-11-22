@@ -68,6 +68,31 @@ describe("runMetrics", () => {
     );
   });
 
+  it("shows where the tier 1 rules come from: findings, stack defaults, or built in", async () => {
+    const dir = await tmp();
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    await mkdir(join(dir, ".factory"), { recursive: true });
+    await writeFile(
+      join(dir, ".factory", "banned.json"),
+      JSON.stringify({
+        version: 1,
+        patterns: [
+          { id: "d", pattern: "d", why: "w", source: "stack default: node" },
+          { id: "f", pattern: "f", why: "w", source: "finding: T-0004" },
+        ],
+      }),
+    );
+    const out: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((s) => {
+      out.push(String(s));
+      return true;
+    });
+    expect(await runMetrics(dir, { findings: true }, { token: null })).toBe(0);
+    expect(out.join("")).toMatch(
+      /Tier 1 rules\s+10 \(5 checks, 3 diff rules, 0 boundary rules, 0 lint rules, 2 banned patterns\) · 1 from findings, 1 stack defaults, 8 built in or by hand/,
+    );
+  });
+
   it("errors when no GitHub client is available (no token/remote)", async () => {
     const dir = await tmp();
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);

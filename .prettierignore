@@ -30,3 +30,5 @@ docs/catalog/**
 # Desktop end-to-end (Playwright) artifacts.
 apps/desktop/test-results/**
 apps/desktop/playwright-report/**
+
+.factory/

@@ -177,11 +177,13 @@ function describe(task: Task): string {
   const status =
     task.problems.length > 0
       ? "TAMPERED"
-      : !task.confirmed
-        ? "draft"
-        : task.beat === "intake"
-          ? "confirmed"
-          : task.beat;
+      : nextStep(task) === "done"
+        ? "closed"
+        : !task.confirmed
+          ? "draft"
+          : task.beat === "intake"
+            ? "confirmed"
+            : task.beat;
   return `${task.card.id}  ${status.padEnd(9)} ${task.card.title}`;
 }
 

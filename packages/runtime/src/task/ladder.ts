@@ -41,6 +41,8 @@ export interface RuleCount {
   boundaries: number;
   lint: number;
   banned: number;
+  fromFindings: number;
+  defaults: number;
   total: number;
 }
 
@@ -116,22 +118,36 @@ export async function ruleCount(repoPath: string): Promise<RuleCount> {
     "eslint.config.cjs",
     "eslint.config.ts",
   ]);
-  const lint = new Set(
+  const lintRules = new Set(
     [...(eslint ?? "").matchAll(/["']factory\/([a-z0-9-]+)["']\s*:/g)]
-      .map((m) => m[1])
-      .filter((name) => name !== "no-banned"),
-  ).size;
-  const banned =
-    (await loadBanned(repoPath).catch(() => null))?.patterns.filter(
-      (p) => p.covered_by === undefined,
-    ).length ?? 0;
+      .map((m) => `factory/${m[1]}`)
+      .filter((name) => name !== "factory/no-banned"),
+  );
+  const patterns =
+    (await loadBanned(repoPath).catch(() => null))?.patterns ?? [];
+  const counted = patterns.filter((p) => p.covered_by === undefined);
+  const fromFinding = (p: { source: string }) => p.source.startsWith("finding");
+  const fromFindings =
+    counted.filter(fromFinding).length +
+    new Set(
+      patterns
+        .filter((p) => fromFinding(p) && p.covered_by !== undefined)
+        .map((p) => p.covered_by)
+        .filter((rule) => rule !== undefined && lintRules.has(rule)),
+    ).size;
+  const defaults = counted.filter((p) =>
+    p.source.startsWith("stack default"),
+  ).length;
+  const total = tier1Rules.total + boundaries + lintRules.size + counted.length;
   return {
     checks: tier1Rules.catalog,
     diff: tier1Rules.diff,
     boundaries,
-    lint,
-    banned,
-    total: tier1Rules.total + boundaries + lint + banned,
+    lint: lintRules.size,
+    banned: counted.length,
+    fromFindings,
+    defaults,
+    total,
   };
 }
 
@@ -260,6 +276,10 @@ export async function ladder(
     unattendedUnmet.push(
       `review-at-pr held ${Math.floor(atReview)} of 28 days`,
     );
+  if (rules.total - rules.defaults < 20)
+    unattendedUnmet.push(
+      `tier 1 rules without stack defaults ${rules.total - rules.defaults}: needs 20, and from here only rules from findings move it`,
+    );
   unattendedUnmet.push("smell counts aren't measured yet");
   unattendedUnmet.push("the sampled-read slop rate isn't measured yet");
 
@@ -311,6 +331,7 @@ async function record(
   now?: Date,
 ): Promise<void> {
   const ledger = await autonomyLedger(repoPath);
+  await ledger.rerenderView();
   await ledger.append({
     beat: "route",
     section: kind === "fell back" ? "outcome" : "decision",

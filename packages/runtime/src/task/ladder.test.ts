@@ -263,6 +263,7 @@ describe("the trust ladder", () => {
     const state = await ladder(dir, { now: NOW });
     expect(state.unmet.unattended).toEqual([
       "review-at-pr held 0 of 28 days",
+      `tier 1 rules without stack defaults ${state.numbers.rules.total}: needs 20, and from here only rules from findings move it`,
       "smell counts aren't measured yet",
       "the sampled-read slop rate isn't measured yet",
     ]);
@@ -297,5 +298,82 @@ describe("the rule count with banned patterns", () => {
     expect(count.lint).toBe(1);
     expect(count.banned).toBe(2);
     expect(count.total).toBe(count.checks + count.diff + 1 + 2);
+  });
+});
+
+describe("where the rules come from", () => {
+  it("tells rules from findings and stack defaults apart, and keeps defaults from earning unattended", async () => {
+    const dir = await repo();
+    await writeFile(
+      join(dir, "eslint.config.js"),
+      'export default [{ rules: { "factory/from-a-finding": "error", "factory/by-hand": "error", "factory/no-banned": ["error", {}] } }];\n',
+    );
+    await writeFile(
+      join(dir, ".factory", "banned.json"),
+      JSON.stringify({
+        version: 1,
+        patterns: [
+          { id: "d1", pattern: "d1", why: "w", source: "stack default: node" },
+          { id: "d2", pattern: "d2", why: "w", source: "stack default: node" },
+          { id: "f1", pattern: "f1", why: "w", source: "finding: T-0009" },
+          {
+            id: "f2",
+            pattern: "f2",
+            why: "w",
+            source: "finding: T-0004",
+            covered_by: "factory/from-a-finding",
+          },
+          {
+            id: "f3",
+            pattern: "f3",
+            why: "w",
+            source: "finding: T-0004",
+            covered_by: "factory/not-in-the-config",
+          },
+          { id: "p1", pattern: "p1", why: "w", source: "added by a person" },
+        ],
+      }),
+    );
+    const count = await ruleCount(dir);
+    expect(count.lint).toBe(2);
+    expect(count.banned).toBe(4);
+    expect(count.fromFindings).toBe(2);
+    expect(count.defaults).toBe(2);
+    const state = await ladder(dir, { now: NOW });
+    expect(state.unmet.unattended).toContain(
+      `tier 1 rules without stack defaults ${count.total - 2}: needs 20, and from here only rules from findings move it`,
+    );
+  });
+});
+
+describe("the autonomy ledger's view", () => {
+  it("re-renders a view a formatter changed, but never repairs a changed record", async () => {
+    const dir = await repo();
+    await setAutonomy(dir, "review-at-pr", { by, override: "first", now: NOW });
+    const md = join(dir, ".factory", "autonomy", "ledger.md");
+    const rendered = await readFile(md, "utf8");
+    await writeFile(md, rendered.replace(/\n\n\n/g, "\n\n"));
+    await setAutonomy(dir, "review-at-pr", {
+      by,
+      override: "second",
+      now: NOW,
+    });
+    expect((await autonomyEntries(dir)).map((e) => e.note)).toEqual([
+      "reason: first",
+      "reason: second",
+    ]);
+    expect((await (await autonomyLedger(dir)).verify()).ok).toBe(true);
+
+    const jsonl = join(dir, ".factory", "autonomy", "ledger.jsonl");
+    await writeFile(
+      jsonl,
+      (await readFile(jsonl, "utf8")).replace(
+        "reason: first",
+        "reason: forged",
+      ),
+    );
+    await expect(
+      setAutonomy(dir, "review-at-pr", { by, override: "third", now: NOW }),
+    ).rejects.toThrow(/fails verification/);
   });
 });
