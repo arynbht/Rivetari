@@ -152,6 +152,56 @@ describe("factory task, shared through the factory/tasks branch", () => {
     expect(out.join("")).toContain("shipped: none");
   }, 60_000);
 
+  it("at review-at-pr, drafts, confirms and routes in one command and says to run next", async () => {
+    const { ann } = await team();
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(ann, ".factory"), { recursive: true });
+    await writeFile(
+      join(ann, ".factory", "profile.yml"),
+      "version: 1\nname: demo\ntype: library\nautonomy: review-at-pr\n",
+    );
+    expect(
+      await runTaskNew("Fix total so it sums", {
+        type: "fix",
+        description: "total() returns 0; it should add up its list.",
+        accept: ["total adds up a list::unit"],
+        path: ann,
+      }),
+      err.join(" | "),
+    ).toBe(0);
+    const text = out.join("");
+    expect(text).toContain("drafted T-0001: Fix total so it sums");
+    expect(text).toContain(
+      "card confirmed without asking (autonomy review-at-pr)",
+    );
+    expect(text).toContain(
+      "route approved without asking (autonomy review-at-pr)",
+    );
+    expect(text).toContain("next: `factory task run T-0001`");
+    expect(text).not.toContain("factory task confirm");
+    out = [];
+    expect(await runTaskStatus({ path: ann })).toBe(0);
+    expect(out.join("")).toMatch(/T-0001\s+route\s+Fix total so it sums/);
+  }, 60_000);
+
+  it("at review-at-pr, stops once at the route with the reason when a sector is borderline", async () => {
+    const { ann } = await team();
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(ann, ".factory"), { recursive: true });
+    await writeFile(
+      join(ann, ".factory", "profile.yml"),
+      "version: 1\nname: demo\ntype: library\nautonomy: review-at-pr\n",
+    );
+    expect(await draft(ann), err.join(" | ")).toBe(0);
+    const text = out.join("");
+    expect(text).toContain(
+      "card confirmed without asking (autonomy review-at-pr)",
+    );
+    expect(text).toContain(
+      "next: route: a person approves this route (borderline sector(s): ui): review assembly.yml, then `factory task approve T-0001`",
+    );
+  }, 60_000);
+
   it("refuses a card with no verify before reserving an id", async () => {
     const { ann } = await team();
     expect(

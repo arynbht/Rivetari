@@ -1,0 +1,24 @@
+id: quality.boundaries.clean
+title: Module boundaries hold
+lane: quality
+phase: build
+severity: high
+effort: small
+applies:
+  all:
+    - stack: node
+    - file: ".dependency-cruiser.mjs|.dependency-cruiser.cjs|.dependency-cruiser.js|.dependency-cruiser.json"
+detect:
+  - type: command
+    byStack:
+      node: npm run boundaries
+    timeout: 600
+evidence: none
+references:
+  - name: dependency-cruiser — rules reference
+    url: https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md
+rationale: >
+  A repo that writes its package graph down as dependency-cruiser rules should
+  have every change checked against them. Running the repo's own `boundaries`
+  script, rather than trusting the config file to exist, is what stops a change
+  from quietly importing across a layer it was meant to stay out of.
