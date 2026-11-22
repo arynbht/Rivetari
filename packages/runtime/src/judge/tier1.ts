@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   access,
   mkdir,
@@ -32,7 +33,9 @@ import {
   acquireWorkspace,
   dependencyKey,
   installedKey,
+  readBaseResults,
   setInstalledKey,
+  writeBaseResults,
 } from "./workspace.js";
 import {
   type DiffEntry,
@@ -239,8 +242,55 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       install && !reuse ? await installDeps(workDir, log, options.env) : null;
     if (key !== null && !reuse && baseInstall?.ok !== false)
       await setInstalledKey(workDir, key);
-    log("running checks at base");
-    const baseResults = await runChecks(workDir, options);
+    // The base's results depend only on the base commit, the checks, the
+    // installed dependencies and the env the checks see, so every round and
+    // task on the same base shares one run.
+    const selected = await selectChecks(options);
+    const baseKey = options.persistent
+      ? createHash("sha256")
+          .update(
+            JSON.stringify({
+              mergeBase,
+              checks: selected,
+              deps: install
+                ? (key ?? (await dependencyKey(workDir)))
+                : "not installed",
+              env: options.env ?? [],
+            }),
+          )
+          .digest("hex")
+      : null;
+    const cached = baseKey
+      ? await readBaseResults(options.repoPath, baseKey, options.workspaceRoot)
+      : null;
+    const kept = new Map((cached ?? []).map((r) => [r.controlId, r]));
+    // Coverage is read from the same side's test run, so it can't run alone.
+    const rerun = selected.filter(
+      (c) =>
+        !kept.has(c.id) ||
+        (runsTests(c) &&
+          selected.some((s) => s.id === COVERAGE && !kept.has(s.id))),
+    );
+    const reused = selected.filter((c) => !rerun.includes(c));
+    if (reused.length > 0)
+      log(
+        `checks at base ${mergeBase.slice(0, 12)} already ran green: reusing ${reused.map((c) => c.id).join(", ")}`,
+      );
+    let baseResults = reused.flatMap((c) => kept.get(c.id) ?? []);
+    if (rerun.length > 0) {
+      log("running checks at base");
+      baseResults = [
+        ...baseResults,
+        ...(await runChecks(workDir, rerun, options)),
+      ];
+      if (baseKey && (baseInstall?.ok ?? true))
+        await writeBaseResults(
+          options.repoPath,
+          baseKey,
+          baseResults,
+          options.workspaceRoot,
+        );
+    }
 
     // The change, judged by the base's rules. The base's checks may have
     // written into tracked or untracked files (a build into a committed dist);
@@ -270,7 +320,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
         ? await installDeps(workDir, log, options.env)
         : baseInstall;
     log("running checks on the change");
-    const headResults = await runChecks(workDir, options);
+    const headResults = await runChecks(workDir, selected, options);
 
     if (headInstall && !headInstall.ok) {
       notes.push(`dependency install failed: ${headInstall.message}`);
@@ -357,15 +407,19 @@ export async function changeChecks(): Promise<Control[]> {
   );
 }
 
-async function runChecks(
-  dir: string,
-  options: Tier1Options,
-): Promise<ControlResult[]> {
-  const selected: Control[] = options.checks
+async function selectChecks(options: Tier1Options): Promise<Control[]> {
+  return options.checks
     ? (await loadBundledCatalog()).controls.filter((c) =>
         options.checks?.includes(c.id),
       )
-    : await changeChecks();
+    : changeChecks();
+}
+
+async function runChecks(
+  dir: string,
+  selected: readonly Control[],
+  options: Tier1Options,
+): Promise<ControlResult[]> {
   // One at a time, test runs first: coverage is read from what *this* side's
   // test run wrote, so the previous side's report is removed before it starts.
   const ordered = [...selected].sort(
@@ -390,6 +444,8 @@ async function runChecks(
 function runsTests(control: Control): boolean {
   return control.id === "quality.tests.pass";
 }
+
+const COVERAGE = "quality.coverage.floor";
 
 function side(result: ControlResult | undefined): Side {
   if (!result || result.status === "n/a") return "n/a";

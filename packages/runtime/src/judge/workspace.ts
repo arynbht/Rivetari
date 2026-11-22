@@ -13,9 +13,9 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
-import { runTool } from "@arynbht/factory-engine";
+import { type ControlResult, runTool } from "@arynbht/factory-engine";
 import { simpleGit } from "simple-git";
 
 export function judgeCacheRoot(): string {
@@ -52,6 +52,13 @@ async function takeLock(lock: string, now: number): Promise<boolean> {
   }
 }
 
+async function repoId(repoPath: string): Promise<string> {
+  return createHash("sha256")
+    .update(await realpath(repoPath))
+    .digest("hex")
+    .slice(0, 16);
+}
+
 /**
  * The repo's workspace, cloned on first use. Null when another judge holds
  * it: the caller then uses a fresh clone of its own, as before.
@@ -61,11 +68,7 @@ export async function acquireWorkspace(
   options: { root?: string | undefined; now?: number | undefined } = {},
 ): Promise<Workspace | null> {
   const root = options.root ?? judgeCacheRoot();
-  const id = createHash("sha256")
-    .update(await realpath(repoPath))
-    .digest("hex")
-    .slice(0, 16);
-  const dir = join(root, id);
+  const dir = join(root, await repoId(repoPath));
   const lock = `${dir}.lock`;
   await mkdir(root, { recursive: true });
   if (!(await takeLock(lock, options.now ?? Date.now()))) return null;
@@ -163,4 +166,53 @@ export async function setInstalledKey(
   const path = join(dir, ".git", KEY_FILE);
   if (key === null) await rm(path, { force: true });
   else await writeFile(path, `${key}\n`, "utf8");
+}
+
+async function baseResultsPath(
+  repoPath: string,
+  key: string,
+  root: string | undefined,
+): Promise<string> {
+  return join(
+    root ?? judgeCacheRoot(),
+    "base-results",
+    await repoId(repoPath),
+    `${key}.json`,
+  );
+}
+
+/** Tier 1's results at a base commit, from an earlier round or task. */
+export async function readBaseResults(
+  repoPath: string,
+  key: string,
+  root?: string,
+): Promise<ControlResult[] | null> {
+  const text = await readFile(
+    await baseResultsPath(repoPath, key, root),
+    "utf8",
+  ).catch(() => null);
+  if (text === null) return null;
+  try {
+    return JSON.parse(text) as ControlResult[];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Keep the base's results for the next round or task on that base. Only green
+ * and n/a results are kept: a red check may be a flake, and a cached one
+ * would mark the change's real failures as pre-existing for good, so it runs
+ * again every time.
+ */
+export async function writeBaseResults(
+  repoPath: string,
+  key: string,
+  results: readonly ControlResult[],
+  root?: string,
+): Promise<void> {
+  const kept = results.filter((r) => r.status === "pass" || r.status === "n/a");
+  const path = await baseResultsPath(repoPath, key, root);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, JSON.stringify(kept), "utf8");
 }
