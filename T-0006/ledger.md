@@ -11,6 +11,12 @@
 - 2026-11-22 18:12 isolate: worktree .worktrees/T-0006 · branch fix/t-0006 from origin/main (a263712cba56) · port 5174 · db software_factory_dev_t0006 · env sha256 9fea1b044b8cce9110988c56674f594009c9dbd634b9310b7c2bc8bbb5b6ea35 (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 18:13 build: build started · skills spine only · budget 8 steps / 60k ctx · 36 repo file(s) in context · 216876 tokens · $0.42 · 5 turns (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 18:16 build: build paused: 1 thing(s) to ask about · commit 111feb8e6463 · 950069 tokens · $0.68 · 22 turns (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 18:27 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 18:32 judge: judge failed · round 1 · head 111feb8e6463 · tier 1 failed · record sha256 89f3b47fe1073cf27fab9f5cdba00d265db8ec7ccdd15bcde97b0acd3ad55e2e (factory judge (for arynbht@gmail.com))
+- 2026-11-22 18:34 build: build done · commit b9009e44a089 · 4 file(s) this round · 329214 tokens · $0.34 · 17 turns · retry · I removed every comment line the judge flagged, so the diff no longer adds any code comments. Lint, typecheck and the full test suite pass (99 files, 736 tests). (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 18:36 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 18:56 judge: judge passed · round 2 · head b9009e44a089 · record sha256 eee52c986e32ca26e0dd56332c8cd34072df50d915d68bfddea5a8fa4156dba8 (factory judge (for arynbht@gmail.com))
+- 2026-11-22 18:56 ship: draft PR opened: #170 https://github.com/arynbht/software-factory/pull/170 · fix/t-0006 at b9009e44a089 → main (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -34,3 +40,25 @@
 - 2026-11-22 18:16 flagged: protected_path: packages/cli/src/commands/init.test.ts — modifies a test that existed at base
 - 2026-11-22 18:16 asked: secret: packages/action/dist/index.js adds a line that looks like a secret
 - 2026-11-22 18:25 answered: allowed — test edit approved: assertions encode the old --force behaviour the card changes; dist secret is a false positive from the regenerated bundle
+
+## Proof
+
+- 2026-11-22 18:27 tests passed (pnpm run test, exit 0) · new tests: packages/cli/src/commands/init.test.ts: --force keeps a customised factory.yml and writes the template beside it; packages/cli/src/commands/init.test.ts: writes factory.yml from the template when there's none, with or without --force
+- 2026-11-22 18:27 output: …: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+- 2026-11-22 18:27 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0006/test-run.txt?raw=true
+- 2026-11-22 18:36 tests passed (pnpm run test, exit 0) · new tests: packages/cli/src/commands/init.test.ts: --force keeps a customised factory.yml and writes the template beside it; packages/cli/src/commands/init.test.ts: writes factory.yml from the template when there's none, with or without --force
+- 2026-11-22 18:36 output: …: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+- 2026-11-22 18:36 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0006/test-run.txt?raw=true
+
+## Judge
+
+- 2026-11-22 18:32 tier 1 round 1: fail · 8/9 pass · 1 fail
+- 2026-11-22 18:32 tier 1 fail: diff.no-new-comments — new comments: packages/cli/src/commands/init.test.ts: // A fresh repo at the same phase gives the template init would write.; packages/cli/src/commands/init.ts: * Write a generated file under --force: a missing one is written, and a; packages/cli/src/commands/init.ts: * different one is replaced, th…
+- 2026-11-22 18:32 protected: packages/cli/src/commands/init.test.ts — modifies a test that existed at base (allowed at build)
+- 2026-11-22 18:41 tier 1 round 2: pass · 9/9 pass
+- 2026-11-22 18:41 protected: packages/cli/src/commands/init.test.ts — modifies a test that existed at base (allowed at build)
+- 2026-11-22 18:56 review round 2: approve; 0 blocking, 3 suggestion(s) (claude-opus-5-5) · 2471 tokens · $0.05
+- 2026-11-22 18:56 acceptance A1: met — The amended existing test and the new --force test both assert that factory.yml is unchanged (including the CRLF custom content), that factory.factory.yml equals the template, and that no .bak is writ…
+- 2026-11-22 18:56 acceptance A2: met — The new test covers a first run without --force and a re-run with --force after removing factory.yml. Both write the template and no sibling.
+- 2026-11-22 18:56 acceptance A3: met — The new test asserts that stdout contains '.github/workflows/factory.factory.yml' and 'merge it by hand'.
+- 2026-11-22 18:56 judge review posted: https://github.com/arynbht/software-factory/pull/170#pullrequestreview-6013856211

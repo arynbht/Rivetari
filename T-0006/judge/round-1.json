@@ -1,0 +1,92 @@
+{
+  "task": "T-0006",
+  "round": 1,
+  "verdict": "failed",
+  "head": "111feb8e6463146e47f85b120bd3ab3e8783f16f",
+  "base": "a263712cba56cb1665ee3bd2b2580a2398f3ae30",
+  "tier1": {
+    "verdict": "fail",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "66.83% lines ≥ floor 53% (.factory/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "red",
+        "outcome": "fail",
+        "message": "new comments: packages/cli/src/commands/init.test.ts: // A fresh repo at the same phase gives the template init would write.; packages/cli/src/commands/init.ts: * Write a generated file under --force: a missing one is written, and a; packages/cli/src/commands/init.ts: * different one is replaced, the old one kept as a backup. Returns a note when; packages/cli/src/commands/init.ts: * it replaced one.; packages/cli/src/commands/init.ts: /**; and 10 more"
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [
+      {
+        "reason": "existing-test",
+        "path": "packages/cli/src/commands/init.test.ts",
+        "detail": "modifies a test that existed at base"
+      }
+    ],
+    "notes": []
+  }
+}

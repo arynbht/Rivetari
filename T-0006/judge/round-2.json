@@ -1,0 +1,155 @@
+{
+  "task": "T-0006",
+  "round": 2,
+  "verdict": "passed",
+  "head": "b9009e44a0899a63a8d201e3ad2b8fb73adbc3f6",
+  "base": "a263712cba56cb1665ee3bd2b2580a2398f3ae30",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "66.83% lines ≥ floor 53% (.factory/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [
+      {
+        "reason": "existing-test",
+        "path": "packages/cli/src/commands/init.test.ts",
+        "detail": "modifies a test that existed at base"
+      }
+    ],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- factory-judge-review round=2 -->\n### Factory judge · round 2 · approve\n\n#### Acceptance\n- A1: met — The amended existing test and the new --force test both assert that factory.yml is unchanged (including the CRLF custom content), that factory.factory.yml equals the template, and that no .bak is written.\n- A2: met — The new test covers a first run without --force and a re-run with --force after removing factory.yml. Both write the template and no sibling.\n- A3: met — The new test asserts that stdout contains '.github/workflows/factory.factory.yml' and 'merge it by hand'.\n\n<details><summary>3 suggestion(s), non-blocking</summary>\n\n- writeReplacing loses its doc comment and may now be unused `packages/cli/src/commands/init.ts:135` — Delete writeReplacing if it has no other caller. Otherwise restore a comment that says what it is still used for.\n- Appended delete note depends on writeBeside's message shape `packages/cli/src/commands/init.ts:503` — Have writeBeside take an optional trailing note, or build the factory.yml message in full here.\n- Sibling in .github/workflows is only guarded by a printed message `packages/cli/src/commands/init.ts:492` — Have `factory doctor` flag a leftover `.github/workflows/*.factory.yml`, or write a gitignore entry for it.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.ts",
+        "line": 135,
+        "acceptance_id": null,
+        "title": "writeReplacing loses its doc comment and may now be unused",
+        "detail": "The removed comment described writeReplacing as the writer for factory.yml, which was its only documented caller. If nothing else calls it, it is dead code. Under noUnusedLocals or no-unused-vars, lint or typecheck would go red. If something else does call it, it is now the only helper in the file without a comment.",
+        "repro": "Run `pnpm run typecheck` and `pnpm run lint` on the change, and grep init.ts for other `writeReplacing(` calls.",
+        "fix": "Delete writeReplacing if it has no other caller. Otherwise restore a comment that says what it is still used for.",
+        "pattern": "99a8c06645de"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.ts",
+        "line": 503,
+        "acceptance_id": null,
+        "title": "Appended delete note depends on writeBeside's message shape",
+        "detail": "The ', then delete it (...)' suffix is glued onto whatever note writeBeside returns. If that note ends in a full stop, or isn't phrased as an instruction, the printed line reads awkwardly. The other beside entries also lack this suffix, so the output is inconsistent.",
+        "repro": "Run `factory init --force` on a repo whose factory.yml differs from the template, and read the printed line for factory.factory.yml.",
+        "fix": "Have writeBeside take an optional trailing note, or build the factory.yml message in full here.",
+        "pattern": "48f6aceaf4ed"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.ts",
+        "line": 492,
+        "acceptance_id": null,
+        "title": "Sibling in .github/workflows is only guarded by a printed message",
+        "detail": "factory.factory.yml is a valid workflow named 'factory'. A `git add -A` commits it, and it then runs on GitHub alongside the real one with a duplicate check name. Only the console note prevents this.",
+        "repro": "Run `factory init --force` on a customised factory.yml, then `git add -A && git commit` and push.",
+        "fix": "Have `factory doctor` flag a leftover `.github/workflows/*.factory.yml`, or write a gitignore entry for it.",
+        "pattern": "66b21b22aae1"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The amended existing test and the new --force test both assert that factory.yml is unchanged (including the CRLF custom content), that factory.factory.yml equals the template, and that no .bak is written."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The new test covers a first run without --force and a re-run with --force after removing factory.yml. Both write the template and no sibling."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The new test asserts that stdout contains '.github/workflows/factory.factory.yml' and 'merge it by hand'."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 2471,
+      "costUsd": 0.05393379999999999
+    }
+  }
+}
