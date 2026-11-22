@@ -36,3 +36,4 @@
 
 - 2026-11-22 20:54 flagged: protected_path: packages/runtime/src/agent/agent.test.ts — modifies a test that existed at base
 - 2026-11-22 20:54 asked: protected_path: packages/action/dist/index.js — adds a check suppression: `).at(-1)??"";return n("fail",`commitlint couldn't run on ${m}: exited ${g.exitCode}${y?`: ${y}`:""}`)}d.push(`${m} brea
+- 2026-11-22 20:56 answered: allowed — test edit approved: the assertion encodes the old commit subject the card changes; dist suppression is a false positive from the regenerated bundle (findProtected doesn't skip generated paths — bug logged for a later card)
