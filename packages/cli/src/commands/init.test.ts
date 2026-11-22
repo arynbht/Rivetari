@@ -303,7 +303,6 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
       "name: factory\r\non: [pull_request]\njobs:\n  factory:\n    uses: ./packages/action\n";
     await writeFile(wf("factory.yml"), custom);
 
-    // A fresh repo at the same phase gives the template init would write.
     const fresh = await tmp();
     await runInit(
       fresh,

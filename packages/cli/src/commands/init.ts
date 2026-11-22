@@ -132,11 +132,6 @@ async function keepBackup(
   }
 }
 
-/**
- * Write a generated file under --force: a missing one is written, and a
- * different one is replaced, the old one kept as a backup. Returns a note when
- * it replaced one.
- */
 async function writeReplacing(
   root: string,
   rel: string,
@@ -165,20 +160,6 @@ async function writeBeside(
   force: boolean | undefined,
 ): Promise<string | null> {
   if (force) return writeReplacing(root, rel, content, force);
-  return writeKeeping(root, rel, content);
-}
-
-/**
- * Write a generated file and never replace one that's there: a missing file
- * is written, an identical one left alone, and a different one gets the
- * factory's version beside it as `name.factory.ext`. Returns a note when it
- * wrote the sibling.
- */
-async function writeKeeping(
-  root: string,
-  rel: string,
-  content: string,
-): Promise<string | null> {
   const path = resolve(root, rel);
   const existing = await readFile(path, "utf8").catch(() => null);
   if (existing === content) return null;
@@ -473,8 +454,7 @@ export async function runInit(
     }
   }
 
-  // --force never deletes. The profile it replaces is backed up first, and
-  // factory.yml is never replaced.
+  // --force never deletes. The profile it replaces is backed up first.
   const beside: string[] = [];
   const profileRel = ".factory/profile.yml";
   const oldProfile = profileExists
@@ -511,13 +491,11 @@ export async function runInit(
   ).catch((err: NodeJS.ErrnoException) => {
     if (err.code !== "EEXIST") throw err;
   });
-  // A factory.yml that differs from the template is someone's: its required
-  // check name, its action ref and its gate are kept, --force or not. The
-  // sibling is itself a live workflow on GitHub, so it's merged, not committed.
-  const workflow = await writeKeeping(
+  const workflow = await writeBeside(
     root,
     ".github/workflows/factory.yml",
     buildWorkflow(draft.phase ?? "build"),
+    false,
   );
   if (workflow)
     beside.push(
