@@ -17,6 +17,7 @@ import {
   saveProfile,
 } from "@arynbht/factory-engine";
 import { initLock } from "@arynbht/factory-registry";
+import { BANNED_PATH, defaultsFor } from "@arynbht/factory-runtime";
 import {
   cancel,
   intro,
@@ -488,6 +489,13 @@ export async function runInit(
         if (err.code !== "EEXIST") throw err;
       },
     );
+  await writeFile(
+    resolve(root, BANNED_PATH),
+    `${JSON.stringify({ version: 1, patterns: defaultsFor(draft.stack) }, null, 2)}\n`,
+    { flag: "wx" },
+  ).catch((err: NodeJS.ErrnoException) => {
+    if (err.code !== "EEXIST") throw err;
+  });
   const workflow = await writeReplacing(
     root,
     ".github/workflows/factory.yml",

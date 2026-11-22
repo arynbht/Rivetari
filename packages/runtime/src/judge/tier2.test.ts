@@ -216,6 +216,47 @@ describe("judge tier 2", { timeout: 30_000 }, () => {
     expect(prompt).not.toContain("## Decisions a person already made");
   });
 
+  it("shows the review and a contract finding's gate the base's banned patterns", async () => {
+    const banned = JSON.stringify({
+      version: 1,
+      patterns: [
+        {
+          id: "no-console-log",
+          pattern: String.raw`console\.log\(`,
+          files: "**/*.js",
+          why: "log through the logger",
+          source: "test",
+        },
+      ],
+    });
+    const r = await repoWithChange(
+      { ...BASE, ".factory/banned.json": banned },
+      CHANGE,
+    );
+    const { ai, calls } = scripted(
+      {
+        findings: [
+          {
+            kind: "contract",
+            file: "src/pay.js",
+            line: 2,
+            title: "Uses a banned pattern",
+            repro: "console.log on line 2",
+          },
+        ],
+      },
+      () => ({ reproducible: false, repro: "", reason: "checking the prompt" }),
+    );
+    await runTier2({ repoPath: r.dir, base: r.base, head: r.head, ai });
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call.prompt).toContain(
+        "## Banned patterns (the repo's own rules)",
+      );
+      expect(call.prompt).toContain("- no-console-log:");
+    }
+  });
+
   it("says nothing about decisions when nobody was asked", async () => {
     const r = await repoWithChange(BASE, CHANGE);
     const { ai, calls } = scripted({ findings: [] }, () => ({}));

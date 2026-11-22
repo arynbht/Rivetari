@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "patterns": [
+    {
+      "id": "no-eval",
+      "pattern": "(?<![\\w.$])eval\\s*\\(",
+      "files": "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+      "allow": [],
+      "why": "eval runs a string as code; parse the data or look it up instead",
+      "source": "stack default: node"
+    },
+    {
+      "id": "no-new-function",
+      "pattern": "\\bnew\\s+Function\\s*\\(",
+      "files": "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+      "allow": [],
+      "why": "new Function is eval by another name",
+      "source": "stack default: node"
+    },
+    {
+      "id": "no-debugger",
+      "pattern": "^\\s*debugger\\s*;?\\s*$",
+      "files": "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+      "allow": [],
+      "why": "a debugger statement left in stops every run under an inspector",
+      "source": "stack default: node"
+    },
+    {
+      "id": "no-inner-html",
+      "pattern": "\\bdangerouslySetInnerHTML\\b|\\.innerHTML\\s*=",
+      "files": "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+      "allow": ["apps/desktop/src/renderer/components/Docs.tsx"],
+      "why": "raw HTML from a string is an injection path; render elements, or sanitise in one shared place",
+      "source": "stack default: node"
+    },
+    {
+      "id": "no-spec-section-refs",
+      "pattern": "^\\s*(?://|/\\*|\\*|#).*§\\s*\\d",
+      "files": "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+      "allow": [],
+      "why": "say the rule itself: spec sections get renumbered and two citations of one rule end up disagreeing",
+      "source": "finding: T-0004 judge round 1, \"Section references disagree\"",
+      "covered_by": "factory/no-spec-section-refs"
+    },
+    {
+      "id": "no-generated-file-in-workflows",
+      "pattern": "(?:writeFile|writeFileSync|copyFile|copyFileSync|rename|renameSync|writeBeside|writeReplacing)\\s*\\(.*\\.github[\\/]+workflows",
+      "files": "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
+      "allow": ["packages/cli/src/commands/init.ts"],
+      "why": "every file in .github/workflows runs on GitHub, so a sibling or backup written there goes live; write it elsewhere",
+      "source": "finding: T-0004 judge rounds 1-2, \"The sibling factory.factory.yml is itself a live workflow\"",
+      "covered_by": "factory/no-writes-to-workflows"
+    }
+  ]
+}

@@ -65,6 +65,9 @@ const SECRET_CONTENT = [
   /\bAccountKey=[A-Za-z0-9+/=]{20,}/i, // Azure storage connection string
   // Connection URL with an inline password: scheme://user:password@host.
   /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|rediss|amqps?|ftp|ssh):\/\/[^\s:@/]+:[^\s:@/]+@/i,
+];
+
+const GENERIC_SECRET = [
   // Generic secret assignment, quoted or unquoted. An unquoted value must end
   // there (a dot is fine: passwords and JWTs have them), so
   // `token = resolveToken(flags.token)` is code, not a credential. So is a
@@ -75,6 +78,12 @@ const SECRET_CONTENT = [
 ];
 
 /** True if a file's contents look like they contain a secret. */
-export function looksLikeSecret(contents: string): boolean {
-  return SECRET_CONTENT.some((re) => re.test(contents));
+export function looksLikeSecret(
+  contents: string,
+  options: { generic?: boolean } = {},
+): boolean {
+  return [
+    ...SECRET_CONTENT,
+    ...(options.generic === false ? [] : GENERIC_SECRET),
+  ].some((re) => re.test(contents));
 }

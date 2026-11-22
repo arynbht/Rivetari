@@ -5,7 +5,15 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { existsSync, readFileSync } from "node:fs";
+
 import factory from "./packages/eslint-rules/index.js";
+
+const banned = existsSync(".factory/banned.json")
+  ? JSON.parse(readFileSync(".factory/banned.json", "utf8")).patterns.filter(
+      (p) => !p.covered_by,
+    )
+  : [];
 
 export default tseslint.config(
   {
@@ -70,6 +78,7 @@ export default tseslint.config(
         "error",
         { allow: ["packages/cli/src/commands/init.ts"] },
       ],
+      "factory/no-banned": ["error", { patterns: banned }],
     },
   },
 );

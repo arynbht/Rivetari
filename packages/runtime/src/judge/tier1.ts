@@ -26,6 +26,7 @@ import {
 import { type SimpleGit, simpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
+import { bannedCheck, loadBanned } from "./banned.js";
 import { diffRules } from "./diff-rules.js";
 import {
   type DiffEntry,
@@ -222,6 +223,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     const catalogChecks = compare(baseResults, headResults);
     const checks = [
       ...catalogChecks,
+      bannedCheck(await loadBanned(options.repoPath, mergeBase), added),
       ...diffRules(diff, added, {
         card: options.card,
         noNewComments: options.noNewComments,

@@ -2,6 +2,7 @@ import { RuleTester } from "eslint";
 import tseslint from "typescript-eslint";
 import { afterAll, describe, it } from "vitest";
 
+import noBanned from "./no-banned.js";
 import noSpecSectionRefs from "./no-spec-section-refs.js";
 import noWritesToWorkflows from "./no-writes-to-workflows.js";
 
@@ -58,6 +59,85 @@ tester.run("no-writes-to-workflows", noWritesToWorkflows, {
     {
       code: 'copyFileSync(src, root + "/.github/workflows/extra.yml");',
       errors: [{ messageId: "workflows" }],
+    },
+  ],
+});
+
+tester.run("no-banned", noBanned, {
+  valid: [
+    {
+      code: "const total = retrieval(x);",
+      filename: "src/a.ts",
+      options: [
+        {
+          patterns: [
+            {
+              id: "no-eval",
+              pattern: String.raw`(?<![\w.$])eval\s*\(`,
+              files: "**/*.ts",
+              why: "w",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: "const v = eval(x);",
+      filename: "src/sandbox/a.ts",
+      options: [
+        {
+          patterns: [
+            {
+              id: "no-eval",
+              pattern: String.raw`(?<![\w.$])eval\s*\(`,
+              files: "**/*.ts",
+              allow: ["src/sandbox/**"],
+              why: "w",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: "const v = eval(x);",
+      filename: "src/a.py",
+      options: [
+        {
+          patterns: [
+            {
+              id: "no-eval",
+              pattern: String.raw`(?<![\w.$])eval\s*\(`,
+              files: "**/*.{js,ts}",
+              why: "w",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  invalid: [
+    {
+      code: "const a = 1;\nconst v = eval(x);",
+      filename: "src/a.ts",
+      options: [
+        {
+          patterns: [
+            {
+              id: "no-eval",
+              pattern: String.raw`(?<![\w.$])eval\s*\(`,
+              files: "**/*.{js,ts}",
+              why: "parse it",
+            },
+          ],
+        },
+      ],
+      errors: [
+        {
+          messageId: "banned",
+          data: { id: "no-eval", why: "parse it" },
+          line: 2,
+        },
+      ],
     },
   ],
 });

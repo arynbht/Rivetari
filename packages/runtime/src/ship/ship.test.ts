@@ -37,7 +37,7 @@ import {
   nextStep,
   TASKS_DIR,
 } from "../task/tasks.js";
-import { closeTask, usageTotals } from "./close.js";
+import { closeTask, roundUsage, usageTotals } from "./close.js";
 import { type PostReviewParams, prTitle, shipTask } from "./ship.js";
 
 const made: string[] = [];
@@ -712,5 +712,42 @@ describe("prTitle", () => {
     expect(prTitle({ title: "API keys rotate", type: "spike" } as never)).toBe(
       "chore: API keys rotate",
     );
+  });
+});
+
+describe("round usage", () => {
+  const entry = (beat: string, section: string, text: string) =>
+    ({ beat, section, text }) as never;
+  it("records each build round's tokens, turns and whether it was a retry, and still counts a round with flagged decisions", () => {
+    const task = {
+      entries: [
+        entry(
+          "build",
+          "timeline",
+          "build started · skills spine only · budget 12 steps / 60k ctx · 3 repo file(s) in context · 1200 tokens · $0.10 · 2 turns",
+        ),
+        entry(
+          "build",
+          "timeline",
+          "build done · commit abcdef123456 · 2 file(s) this round · 1 decision(s) flagged for the PR (autonomy review-at-pr) · 40000 tokens · $0.40 · 9 turns · fixed it",
+        ),
+        entry(
+          "build",
+          "timeline",
+          "build paused: 1 thing(s) to ask about · commit abcdef123456 · 15000 tokens · $0.15 · 4 turns · retry",
+        ),
+        entry(
+          "build",
+          "timeline",
+          "build done · commit abcdef123456 · 1 file(s) this round · 9000 tokens · retry · ran 3 turns",
+        ),
+      ],
+    } as never;
+    expect(roundUsage(task)).toEqual([
+      { retry: false, tokens: 40000, turns: 9 },
+      { retry: true, tokens: 15000, turns: 4 },
+      { retry: true, tokens: 9000, turns: null },
+    ]);
+    expect(usageTotals(task).tokens).toBe(1200 + 40000 + 15000 + 9000);
   });
 });

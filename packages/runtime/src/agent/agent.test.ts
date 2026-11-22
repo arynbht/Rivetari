@@ -393,6 +393,37 @@ describe("build", () => {
     expect(calls[0]?.system).toContain("FACTORY_STOP:");
   });
 
+  it("doesn't stop on a test file that names a secret as data, but does on a real key shape in one", async () => {
+    const id = await approvedTask();
+    await isolateTask(repo, id, { ...by, base: "main" });
+    const fixture = await buildTask(repo, id, {
+      ...by,
+      agent: scripted(async (cwd) => {
+        await writeFile(
+          join(cwd, "src/stops.test.ts"),
+          'const detail = "x";\nexpect(line).toBe(`secret: ${detail}`);\nconst stop = { trigger: "secret", detail: "a-long-enough-value" };\nsecret: "aaaaaaaaaaaa";\n',
+        );
+      }).agent,
+    });
+    expect(fixture.stops.map((s) => s.trigger)).not.toContain("secret");
+
+    const id2 = await approvedTask();
+    await isolateTask(repo, id2, { ...by, base: "main" });
+    const key = await buildTask(repo, id2, {
+      ...by,
+      agent: scripted(async (cwd) => {
+        await writeFile(
+          join(cwd, "src/aws.test.ts"),
+          'const key = "AKIAIOSFODNN7EXAMPLE";\n',
+        );
+      }).agent,
+    });
+    expect(key.stops).toContainEqual({
+      trigger: "secret",
+      detail: "src/aws.test.ts adds a line that looks like a secret",
+    });
+  });
+
   it("replans, never runs, a plan whose budget stop was denied", async () => {
     const id = await approvedTask();
     await isolateTask(repo, id, { ...by, base: "main" });

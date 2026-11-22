@@ -113,6 +113,43 @@ describe("judge tier 1", () => {
     expect(outcome("diff.no-new-suppressions")).toBe("pass");
   }, 60_000);
 
+  it("fails a change that adds a pattern the base bans, even when the change empties the list", async () => {
+    const r = await repo();
+    await r.write(
+      ".factory/banned.json",
+      JSON.stringify({
+        version: 1,
+        patterns: [
+          {
+            id: "no-eval",
+            pattern: String.raw`(?<![\w.$])eval\s*\(`,
+            files: "**/*.js",
+            why: "eval runs a string as code",
+            source: "test",
+          },
+        ],
+      }),
+    );
+    await r.commit("ban eval");
+    const simple = simpleGit(r.dir);
+    await simple.branch(["-f", "base"]);
+    await r.write("src/feature.js", "module.exports = eval('2');\n");
+    await r.write(
+      ".factory/banned.json",
+      JSON.stringify({ version: 1, patterns: [] }),
+    );
+    await r.commit("feature");
+    const result = await judge(r.dir);
+    expect(result.verdict).not.toBe("pass");
+    expect(
+      result.checks.find((c) => c.id === "diff.no-banned-patterns"),
+    ).toMatchObject({
+      outcome: "fail",
+      message:
+        "banned patterns: no-eval: src/feature.js: module.exports = eval('2');",
+    });
+  }, 60_000);
+
   it("fails a change that breaks a check", async () => {
     const r = await repo();
     await r.write("src/feature.js", "// BAD\n");

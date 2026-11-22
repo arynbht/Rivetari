@@ -53,6 +53,7 @@ export interface TaskHistoryRow {
   build_rounds: number;
   judge_rounds: number;
   findings?: TaskFinding[] | undefined;
+  rounds?: RoundUsage[] | undefined;
 }
 
 export interface TaskFinding {
@@ -89,19 +90,47 @@ const SHIPPED = /^draft PR (?:opened|updated): #(\d+)/;
  * Where each entry carries its usage note, anchored on the runtime's own text
  * so an agent's summary (quoted after the note) can't add to the totals.
  */
-const USAGE = String.raw`((?: · \d+ tokens)?(?: · \$\d+\.\d+)?)`;
-const USAGE_AT = [
-  new RegExp(
-    String.raw`^build started · .* repo file\(s\) in context${USAGE}$`,
-  ),
+const USAGE = String.raw`((?: · \d+ tokens)?(?: · \$\d+\.\d+)?(?: · \d+ turns)?(?: · retry)?)`;
+const FLAGGED_NOTE = String.raw`(?: · \d+ decision\(s\) flagged for the PR \(autonomy [a-z-]+\))?`;
+const ROUND_AT = [
   new RegExp(
     String.raw`^build paused: \d+ thing\(s\) to ask about · commit [0-9a-f]+${USAGE}$`,
   ),
   new RegExp(
-    String.raw`^build done · commit [0-9a-f]+ · \d+ file\(s\) this round${USAGE}`,
+    String.raw`^build done · commit [0-9a-f]+ · \d+ file\(s\) this round${FLAGGED_NOTE}${USAGE}`,
   ),
+];
+const USAGE_AT = [
+  new RegExp(
+    String.raw`^build started · .* repo file\(s\) in context${USAGE}$`,
+  ),
+  ...ROUND_AT,
   new RegExp(String.raw`^review round \d+: [a-z-]+; .*\)${USAGE}$`),
 ];
+
+export interface RoundUsage {
+  retry: boolean;
+  tokens: number;
+  turns: number | null;
+}
+
+export function roundUsage(task: Task): RoundUsage[] {
+  return task.entries.flatMap((e) => {
+    if (e.beat !== "build" || e.section !== "timeline") return [];
+    const note = ROUND_AT.map((r) => r.exec(e.text)?.[1]).find(
+      (n) => n !== undefined,
+    );
+    if (note === undefined) return [];
+    const turns = / (\d+) turns/.exec(note)?.[1];
+    return [
+      {
+        retry: note.includes(" · retry"),
+        tokens: Number(/ (\d+) tokens/.exec(note)?.[1] ?? 0),
+        turns: turns === undefined ? null : Number(turns),
+      },
+    ];
+  });
+}
 
 /** Tokens and cost the ledger recorded for the agent and the judge. */
 export function usageTotals(task: Task): { tokens: number; costUsd: number } {
@@ -281,6 +310,7 @@ export async function closeTask(
     ).length,
     judge_rounds: judgeVerdicts(task).length,
     findings: await taskFindings(repoPath, id),
+    rounds: roundUsage(task),
   };
   const historyPath = join(repoPath, ".factory", "history.jsonl");
   const written = (await readFile(historyPath, "utf8").catch(() => ""))

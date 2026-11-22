@@ -24,6 +24,7 @@ import { z } from "zod";
 
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
+import { bannedSection, loadBanned } from "./banned.js";
 import { isTestFile } from "./protected.js";
 import { parseNameStatus } from "./tier1.js";
 
@@ -126,6 +127,7 @@ export interface PackedChange {
   lines: Map<string, Set<number>>;
   agents: string | null;
   constraints: string | null;
+  banned?: string | null | undefined;
 }
 
 export interface Tier2Result {
@@ -276,6 +278,7 @@ export async function packChange(
     lines,
     agents: await showAt(git, base, "AGENTS.md"),
     constraints: await showAt(git, base, "CONSTRAINTS.md"),
+    banned: bannedSection(await loadBanned(repoPath, base)).join("\n") || null,
   };
 }
 
@@ -345,6 +348,7 @@ function reviewPrompt(
     parts.push(`## AGENTS.md (the repo's contract)\n${packed.agents}`);
   if (packed.constraints)
     parts.push(`## CONSTRAINTS.md\n${packed.constraints}`);
+  if (packed.banned) parts.push(packed.banned);
   parts.push(...decisionsSection(decisions));
   if (packed.omitted.length) {
     parts.push(
@@ -371,6 +375,7 @@ function gatePrompt(
     parts.push(
       `## AGENTS.md (the repo's contract)\n${packed.agents ?? "(none)"}`,
       `## CONSTRAINTS.md\n${packed.constraints ?? "(none)"}`,
+      ...(packed.banned ? [packed.banned] : []),
     );
   }
   if (finding.kind === "acceptance") {
