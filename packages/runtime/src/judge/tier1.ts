@@ -145,9 +145,14 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
   const diff = parseNameStatus(
     await repo.raw(["diff", "--name-status", "-M", mergeBase, head]),
   );
-  const added = parseAddedLines(
-    await repo.raw(["diff", "-U0", "--no-color", mergeBase, head]),
-  );
+  const unified = await repo.raw([
+    "diff",
+    "-U0",
+    "--no-color",
+    mergeBase,
+    head,
+  ]);
+  const added = parseAddedLines(unified);
   const baseScripts = await scriptsAt(repo, mergeBase);
   const headScripts = await scriptsAt(repo, head);
   const scriptsChanged = !deepEqual(baseScripts, headScripts);
@@ -227,6 +232,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       ...diffRules(diff, added, {
         card: options.card,
         noNewComments: options.noNewComments,
+        hunks: parseHunks(unified),
         allowedSuppressions: new Set(
           allowedFindings
             .filter((f) => f.reason === "suppression")
@@ -514,4 +520,43 @@ export function parseAddedLines(output: string): Map<string, string[]> {
     }
   }
   return added;
+}
+
+export interface Hunk {
+  removed: string[];
+  added: string[];
+}
+
+/** Each file's hunks from a `git diff -U0`, with the lines each one swaps. */
+export function parseHunks(output: string): Map<string, Hunk[]> {
+  const hunks = new Map<string, Hunk[]>();
+  let current: Hunk[] | null = null;
+  let header = false;
+  for (const line of output.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      current = null;
+      header = true;
+      continue;
+    }
+    if (header && line.startsWith("+++ ")) {
+      const target = line.slice(4).trim();
+      current = null;
+      if (target !== "/dev/null") {
+        const path = target.replace(/^b\//, "");
+        current = hunks.get(path) ?? [];
+        hunks.set(path, current);
+      }
+      continue;
+    }
+    if (line.startsWith("@@")) {
+      header = false;
+      current?.push({ removed: [], added: [] });
+      continue;
+    }
+    const hunk = header ? undefined : current?.at(-1);
+    if (!hunk) continue;
+    if (line.startsWith("+")) hunk.added.push(line.slice(1));
+    else if (line.startsWith("-")) hunk.removed.push(line.slice(1));
+  }
+  return hunks;
 }

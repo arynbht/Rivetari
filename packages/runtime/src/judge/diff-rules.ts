@@ -3,6 +3,7 @@ import picomatch from "picomatch";
 import type { Card } from "../task/card.js";
 import { type DiffEntry, SUPPRESSION } from "./protected.js";
 import type { CheckOutcome } from "./outcome.js";
+import type { Hunk } from "./tier1.js";
 
 export const DIFF_RULES = [
   {
@@ -22,6 +23,8 @@ export const DIFF_RULES = [
 export interface DiffRuleOptions {
   card?: Card | undefined;
   noNewComments?: boolean | undefined;
+  /** The diff's hunks: with them, a comment line that replaces one isn't new. */
+  hunks?: ReadonlyMap<string, readonly Hunk[]> | undefined;
   allowedSuppressions?: ReadonlySet<string> | undefined;
 }
 
@@ -36,6 +39,29 @@ export function isCommentLine(path: string, line: string): boolean {
   if (t.startsWith("//") || t.startsWith("/*") || /^\*(?:\s|\/|$)/.test(t))
     return true;
   return HASH_COMMENTS.test(path) && t.startsWith("#") && !t.startsWith("#!");
+}
+
+const asHunks = (added: ReadonlyMap<string, string[]>) =>
+  new Map([...added].map(([path, ls]) => [path, [{ removed: [], added: ls }]]));
+
+/**
+ * Comment lines a change adds to code. Within a hunk, each comment line it
+ * removes covers one it adds, so rewording a doc comment isn't a new one.
+ */
+function newComments(hunks: ReadonlyMap<string, readonly Hunk[]>) {
+  const found: { path: string; line: string }[] = [];
+  for (const [path, list] of hunks) {
+    if (!CODE.test(path)) continue;
+    for (const hunk of list) {
+      let replaced = hunk.removed.filter((l) => isCommentLine(path, l)).length;
+      for (const line of hunk.added) {
+        if (!isCommentLine(path, line)) continue;
+        if (replaced > 0) replaced--;
+        else found.push({ path, line });
+      }
+    }
+  }
+  return found;
 }
 
 const where = (hits: string[]) =>
@@ -76,11 +102,9 @@ export function diffRules(
   );
 
   const commentHits = options.noNewComments
-    ? lines
-        .filter(
-          ({ path, line }) => CODE.test(path) && isCommentLine(path, line),
-        )
-        .map(({ path, line }) => `${path}: ${line.trim().slice(0, 80)}`)
+    ? newComments(options.hunks ?? asHunks(added)).map(
+        ({ path, line }) => `${path}: ${line.trim().slice(0, 80)}`,
+      )
     : null;
 
   const named = options.card

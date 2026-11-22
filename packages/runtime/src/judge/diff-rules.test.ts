@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseCard } from "../task/card.js";
 import { DIFF_RULES, diffRules, isCommentLine } from "./diff-rules.js";
+import { parseAddedLines, parseHunks } from "./tier1.js";
 
 const card = (touches: string[]) =>
   parseCard({
@@ -55,6 +56,60 @@ describe("diff rules", () => {
     });
     const off = byId(diffRules([], added, {}));
     expect(off["diff.no-new-comments"]?.outcome).toBe("n/a");
+  });
+
+  it("doesn't count a reworded doc comment as new, but does a doc comment added beside it", () => {
+    // T-0006's first round: writeReplacing's doc comment reworded, and a new
+    // function with its own doc comment. Only the second is new.
+    const unified = [
+      "diff --git a/packages/cli/src/commands/init.ts b/packages/cli/src/commands/init.ts",
+      "index 69f2d92..51df2fd 100644",
+      "--- a/packages/cli/src/commands/init.ts",
+      "+++ b/packages/cli/src/commands/init.ts",
+      "@@ -136,3 +136,3 @@ async function keepBackup(",
+      "- * Write a file the factory owns (`factory.yml`): a missing one is written, and",
+      "- * with --force a different one is replaced, the old one kept as a backup.",
+      "- * Returns a note when it replaced one.",
+      "+ * Write a generated file under --force: a missing one is written, and a",
+      "+ * different one is replaced, the old one kept as a backup. Returns a note when",
+      "+ * it replaced one.",
+      "@@ -167,0 +168,8 @@ async function writeBeside(",
+      "+  return writeKeeping(root, rel, content);",
+      "+}",
+      "+",
+      "+/**",
+      "+ * Write a generated file and never replace one that's there.",
+      "+ */",
+      "+async function writeKeeping(",
+      "+  root: string,",
+      "",
+    ].join("\n");
+    const hunks = parseHunks(unified);
+    expect(hunks.get("packages/cli/src/commands/init.ts")).toHaveLength(2);
+
+    const on = byId(
+      diffRules(
+        [{ status: "M", path: "packages/cli/src/commands/init.ts" }],
+        parseAddedLines(unified),
+        { noNewComments: true, hunks },
+      ),
+    );
+    expect(on["diff.no-new-comments"]).toMatchObject({
+      outcome: "fail",
+      message:
+        "new comments: packages/cli/src/commands/init.ts: /**; packages/cli/src/commands/init.ts: * Write a generated file and never replace one that's there.; packages/cli/src/commands/init.ts: */",
+    });
+
+    const reworded = unified.split("@@ -167")[0] ?? "";
+    expect(
+      byId(
+        diffRules(
+          [{ status: "M", path: "packages/cli/src/commands/init.ts" }],
+          parseAddedLines(reworded),
+          { noNewComments: true, hunks: parseHunks(reworded) },
+        ),
+      )["diff.no-new-comments"]?.outcome,
+    ).toBe("pass");
   });
 
   it("fails Markdown the card doesn't name, and passes what it does", () => {
