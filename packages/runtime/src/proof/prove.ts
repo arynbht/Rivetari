@@ -1,4 +1,4 @@
-// The prove beat (§3.5, §9): the proof the assembly names, produced by a tool,
+// The prove beat: the proof the assembly names, produced by a tool,
 // never described by the agent. UI: the base and the change served side by
 // side, shot at three breakpoints, axe on the change, the images on the
 // `evidence` branch. Everything else: the test run, with the new tests named.
@@ -95,7 +95,7 @@ async function baseCheckout(repoPath: string, base: string): Promise<string> {
 const TEST_NAME = /\b(?:it|test)(?:\.\w+)?\(\s*(["'`])(.+?)\1/;
 
 /**
- * The tests a change adds, by name (§11: "new tests named"): every `it(…)` or
+ * The tests a change adds, by name ("new tests named"): every `it(…)` or
  * `test(…)` on an added line of a test file, whether the file is new or
  * existed at base. A new test file with no name we can read is listed by path.
  */

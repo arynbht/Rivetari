@@ -1,4 +1,4 @@
-// The sector agent's prompt (§7.1), assembled in a fixed order so the same
+// The sector agent's prompt, assembled in a fixed order so the same
 // task, assembly and base give the same prompt:
 //   1. the contract (AGENTS.md at the base commit)
 //   2. the task card

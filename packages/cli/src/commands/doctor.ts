@@ -50,7 +50,7 @@ function guardRunsInShell(root: string): Promise<boolean> {
 }
 
 /**
- * The machine and the repo, checked before a task starts (§3.0): a git repo
+ * The machine and the repo, checked before a task starts: a git repo
  * with a factory profile, its guard hook live, the Claude CLI the agent runs
  * on, a way to reach GitHub for ship and close, and skills that match their
  * lock.

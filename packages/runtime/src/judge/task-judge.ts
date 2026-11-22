@@ -1,4 +1,4 @@
-// The judge beat (§3.6, §8) for a task: tier 1 on a clean clone of base plus
+// The judge beat for a task: tier 1 on a clean clone of base plus
 // the task's branch, then tier 2 on the same change against the card. Never
 // the worktree. A protected change, or blocking findings past the round limit,
 // stop and ask a person; anything else blocking goes back to the agent. The
@@ -156,12 +156,17 @@ export async function judgeTask(
   const allowed = allowedStops(task);
   const wasAllowed = (f: ProtectedFinding) =>
     allowed.has(`protected_path: ${protectedDetail(f)}`);
+  const repoProfile = await buildContext(repoPath)
+    .profile()
+    .catch(() => null);
   const tier1 = await (options.tier1 ?? runTier1)({
     repoPath,
     base: isolation.base,
     head,
     checks: assembly.checks,
     allowed: wasAllowed,
+    card: task.card,
+    noNewComments: repoProfile?.quality?.["no-new-comments"] ?? false,
     log,
   });
   const ran = tier1.checks.filter((c) => c.outcome !== "n/a");
@@ -200,7 +205,7 @@ export async function judgeTask(
   let why = "";
 
   if (tier1.verdict === "needs-human") {
-    // §8.2: a change to what judges it goes to a person; tier 2 doesn't run.
+    // A change to what judges it goes to a person; tier 2 doesn't run.
     record.verdict = "needs a human";
     why = `${tier1.protected.filter((p) => !wasAllowed(p)).length} protected change(s)`;
   } else if (tier1.verdict === "fail") {

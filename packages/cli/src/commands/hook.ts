@@ -8,7 +8,7 @@ import { BEATS, listTasks, nextStep } from "@arynbht/factory-runtime";
 import { GUARD_COMMAND, GUARD_MATCHER, isFactoryHook } from "./init-files.js";
 
 // Claude Code hooks that `factory init` installs in `.claude/settings.json`
-// (§10). They run in the person's interactive session, not the sector agent's
+//. They run in the person's interactive session, not the sector agent's
 // (which runs with no repo hooks at all).
 
 const exists = (path: string) =>
@@ -106,7 +106,7 @@ export interface ShellCommand {
  * Split a shell line into simple commands, well enough to see what they
  * write: quotes and escapes, `;` `&&` `||` `|` `&` and newlines, subshells,
  * `>`/`>>`/`&>` targets (fd duplication like `2>&1` isn't a target), input
- * redirects, comments and heredoc bodies. A heuristic, not a shell (§5.2).
+ * redirects, comments and heredoc bodies. A heuristic, not a shell.
  */
 export function parseShell(line: string): ShellCommand[] {
   const out: ShellCommand[] = [];
@@ -327,7 +327,7 @@ function wordPath(word: string, cwd: string): string | null {
 /**
  * Why a git command must not run here, or null: the ones that destroy work
  * or history (force push, remote delete, hard reset, clean, force-deleting a
- * branch), in a factory repo. A person runs those themselves (§5.2).
+ * branch), in a factory repo. A person runs those themselves.
  */
 async function gitReason(args: string[], cwd: string): Promise<string | null> {
   let dir = cwd;
@@ -416,7 +416,7 @@ async function holdsFactoryState(abs: string, cwd: string): Promise<boolean> {
 /**
  * Why a Bash command must not run, or null: a write (redirect, `tee`, `cp`,
  * `mv`, `rm`, `sed -i`, …) to anything the edit guard protects, or a git
- * command that destroys work. Heuristic (§5.2): it reads the words, so a
+ * command that destroys work. Heuristic: it reads the words, so a
  * script that writes by itself isn't seen. The judge's protected-path check
  * is the backstop.
  */
@@ -551,7 +551,7 @@ export async function runHookGuard(): Promise<number> {
 }
 
 /**
- * Is the guard live in `root` (§12)? The current guard hook must be in
+ * Is the guard live in `root` ? The current guard hook must be in
  * `.claude/settings.json` (Claude Code reads no other file of ours) with a
  * matcher covering edits and Bash, and it must refuse a `.factory/**` edit.
  * Run in-process: whether `factory` is on PATH is `factory doctor`'s check.
@@ -616,7 +616,7 @@ export async function guardSelfTest(
 export async function sessionStartText(root: string): Promise<string> {
   const guard = await guardSelfTest(root);
   const lines = [
-    // First line, so a dead guard can't go unnoticed (§12).
+    // First line, so a dead guard can't go unnoticed.
     guard.ok
       ? "factory guard: on."
       : `factory guard: OFF. ${guard.detail}. Until it's fixed, nothing stops edits to .factory/** or to this checkout on the default branch.`,
@@ -631,6 +631,16 @@ export async function sessionStartText(root: string): Promise<string> {
   const open = await listTasks(root)
     .then((tasks) => tasks.filter((t) => nextStep(t) !== "done"))
     .catch(() => []);
+  const waiting = open.filter((t) =>
+    /^(stop-and-ask|intake|route: review|route: a person|close)/.test(
+      nextStep(t),
+    ),
+  );
+  if (waiting.length > 0) {
+    lines.push("Needs you:");
+    for (const t of waiting)
+      lines.push(`- ${t.card.id} ${t.card.title}: ${nextStep(t)}`);
+  }
   if (open.length > 0) {
     lines.push("Open tasks:");
     for (const t of open)

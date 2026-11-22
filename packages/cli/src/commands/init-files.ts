@@ -1,4 +1,4 @@
-// The files `factory init` writes into a repo (§10): the contract every agent
+// The files `factory init` writes into a repo: the contract every agent
 // reads (AGENTS.md, with CLAUDE.md pointing at it), the Claude Code hooks, the
 // PR template with its Proof section, and a CONSTRAINTS.md seed for the judge.
 import { BEATS, PROTECTED } from "@arynbht/factory-runtime";
@@ -132,8 +132,8 @@ export const CLAUDE_MD = `# CLAUDE.md
 Start every task with \`/factory\`. The contract above applies to Claude Code too.
 `;
 
-/** Claude Code hooks (§10): the beats at session start, and the edit guard. */
-// The hooks fail closed (§5.3). A hook that can't run exits non-blocking, so
+/** Claude Code hooks: the beats at session start, and the edit guard. */
+// The hooks fail closed. A hook that can't run exits non-blocking, so
 // the guard's command turns any failure, `factory` missing from PATH included,
 // into exit 2, which blocks the call. The session-start one says why on the
 // first line of the session instead of leaving every edit blocked unexplained.
@@ -168,7 +168,7 @@ interface HookGroup {
 }
 
 /**
- * `settings` with the factory's hooks in it (§12): every other setting and hook
+ * `settings` with the factory's hooks in it: every other setting and hook
  * kept as it is, and any factory hook an earlier `init` wrote replaced by this
  * version's, so a re-run converges. Throws when `settings` isn't an object
  * with an object of hook arrays.

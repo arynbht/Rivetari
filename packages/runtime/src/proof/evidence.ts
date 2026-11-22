@@ -1,5 +1,5 @@
 // Screenshots go to an orphan `evidence` branch through the Contents API
-// (§9): no external hosts, no gists, and nothing in the change's own history.
+// with no external hosts, no gists, and nothing in the change's own history.
 // Paths are `<task>/<file>`, so each task's proof sits in one directory.
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";

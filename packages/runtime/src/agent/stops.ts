@@ -1,10 +1,19 @@
-// Stop-and-ask (§7.2): what the agent's change did that a person has to agree
+// Stop-and-ask: what the agent's change did that a person has to agree
 // to before the task moves on. Found from the committed diff, not the agent's
 // account of it, so an agent can't talk its way past one.
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+
+import { looksLikeSecret } from "@arynbht/factory-engine";
+import { OSI_ALLOWED } from "@arynbht/factory-registry";
 import picomatch from "picomatch";
 import { type SimpleGit, simpleGit } from "simple-git";
 
-import { findProtected, protectedDetail } from "../judge/protected.js";
+import {
+  findProtected,
+  protectedDetail,
+  type ProtectedReason,
+} from "../judge/protected.js";
 import { parseAddedLines, parseNameStatus } from "../judge/tier1.js";
 import type { Assembly } from "../router/route.js";
 
@@ -15,11 +24,74 @@ export type StopTrigger =
   | "sensitive_path"
   | "budget_exhausted"
   | "no_change"
-  | "agent_question";
+  | "agent_question"
+  | "secret"
+  | "database_url"
+  | "history_rewritten";
 
 export interface Stop {
   trigger: StopTrigger;
   detail: string;
+  reason?: ProtectedReason | undefined;
+  manifest?: string | undefined;
+  packages?: string[] | undefined;
+  osi?: boolean | undefined;
+}
+
+const DATABASE_URL =
+  /DATABASE_URL["']?\s*[:=]\s*["'`]?[a-z][a-z0-9+.-]*:\/\/(?:[^@\s"'`/]*@)?([^\s:/?"'`]+)/i;
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "0.0.0.0"]);
+
+export function remoteDatabaseHost(line: string): string | undefined {
+  const host = DATABASE_URL.exec(line)?.[1];
+  if (!host || /[${}]/.test(host)) return undefined;
+  return LOCAL_HOSTS.has(host.toLowerCase()) ? undefined : host;
+}
+
+async function licenseOf(
+  worktree: string,
+  manifest: string,
+  name: string,
+): Promise<string | undefined> {
+  for (const dir of [join(worktree, dirname(manifest)), worktree]) {
+    try {
+      const pkg = JSON.parse(
+        await readFile(join(dir, "node_modules", name, "package.json"), "utf8"),
+      ) as { license?: unknown };
+      if (typeof pkg.license === "string") return pkg.license;
+      const typed = (pkg.license as { type?: unknown } | undefined)?.type;
+      if (typeof typed === "string") return typed;
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
+export async function withLicenses(
+  worktree: string,
+  stop: Stop,
+): Promise<Stop> {
+  if (stop.trigger !== "new_dependency" || !stop.manifest || !stop.packages)
+    return stop;
+  const licenses = await Promise.all(
+    stop.packages.map(
+      async (name) =>
+        [name, await licenseOf(worktree, stop.manifest ?? "", name)] as const,
+    ),
+  );
+  const osi = licenses.every(
+    ([, license]) =>
+      license !== undefined &&
+      (OSI_ALLOWED as readonly string[]).includes(license),
+  );
+  return {
+    ...stop,
+    osi,
+    detail: osi
+      ? stop.detail
+      : `${stop.detail} (${licenses.map(([n, l]) => `${n}: ${l ?? "license unknown"}`).join(", ")}; not all on the OSI list)`,
+  };
 }
 
 const DEPENDENCY_KEYS = [
@@ -113,6 +185,8 @@ export async function findStops(
           stops.push({
             trigger: "new_dependency",
             detail: `${entry.path} adds ${added.join(", ")}`,
+            manifest: entry.path,
+            packages: added,
           });
       } else if (OTHER_MANIFESTS(entry.path)) {
         stops.push({
@@ -156,7 +230,24 @@ export async function findStops(
     if (before !== (await scripts(head, entry.path))) scriptsChanged = true;
   }
   for (const f of findProtected(diff, added, scriptsChanged)) {
-    stops.push({ trigger: "protected_path", detail: protectedDetail(f) });
+    stops.push({
+      trigger: "protected_path",
+      detail: protectedDetail(f),
+      reason: f.reason,
+    });
+  }
+  for (const [path, lines] of added) {
+    if (lines.length > 0 && looksLikeSecret(lines.join("\n")))
+      stops.push({
+        trigger: "secret",
+        detail: `${path} adds a line that looks like a secret`,
+      });
+    const host = lines.map(remoteDatabaseHost).find(Boolean);
+    if (host)
+      stops.push({
+        trigger: "database_url",
+        detail: `${path} points DATABASE_URL at ${host}, not a local database`,
+      });
   }
   return stops;
 }

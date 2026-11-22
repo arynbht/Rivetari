@@ -1,8 +1,8 @@
-// The close beat (§3.8): once a person has merged or closed the PR (or given
+// The close beat: once a person has merged or closed the PR (or given
 // up on the task), record the outcome with its duration, tokens and cost,
 // remove the worktree, append a row to `.factory/history.jsonl`, and seal the
 // ledger so nothing is written to it again.
-import { access, appendFile, mkdir, readFile } from "node:fs/promises";
+import { access, appendFile, mkdir, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { buildContext, githubToken } from "@arynbht/factory-engine";
@@ -10,6 +10,7 @@ import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
 import { loadIsolation } from "../agent/isolate.js";
+import { type Finding, findingPattern } from "../judge/tier2.js";
 import { AssemblySchema } from "../router/route.js";
 import { isSeal, SEAL_TEXT } from "../task/ledger.js";
 import {
@@ -17,6 +18,7 @@ import {
   loadTask,
   type Task,
   TaskError,
+  TASKS_DIR,
 } from "../task/tasks.js";
 
 export interface PrState {
@@ -50,6 +52,36 @@ export interface TaskHistoryRow {
   cost_usd: number;
   build_rounds: number;
   judge_rounds: number;
+  findings?: TaskFinding[] | undefined;
+}
+
+export interface TaskFinding {
+  pattern: string;
+  kind: string;
+  title: string;
+}
+
+export async function taskFindings(
+  repoPath: string,
+  id: string,
+): Promise<TaskFinding[]> {
+  const dir = join(repoPath, TASKS_DIR, id, "judge");
+  const names = await readdir(dir).catch(() => [] as string[]);
+  const seen = new Map<string, TaskFinding>();
+  for (const name of names.filter((n) => /^round-\d+\.json$/.test(n)).sort()) {
+    const record = JSON.parse(await readFile(join(dir, name), "utf8")) as {
+      review?: { blocking?: Finding[]; suggestions?: Finding[] };
+    };
+    for (const f of [
+      ...(record.review?.blocking ?? []),
+      ...(record.review?.suggestions ?? []),
+    ]) {
+      const pattern = f.pattern ?? findingPattern(f.kind, f.title);
+      if (!seen.has(pattern))
+        seen.set(pattern, { pattern, kind: f.kind, title: f.title });
+    }
+  }
+  return [...seen.values()];
 }
 
 const SHIPPED = /^draft PR (?:opened|updated): #(\d+)/;
@@ -248,6 +280,7 @@ export async function closeTask(
         /^build (done|paused)/.test(e.text),
     ).length,
     judge_rounds: judgeVerdicts(task).length,
+    findings: await taskFindings(repoPath, id),
   };
   const historyPath = join(repoPath, ".factory", "history.jsonl");
   const written = (await readFile(historyPath, "utf8").catch(() => ""))

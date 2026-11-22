@@ -5,6 +5,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import factory from "./packages/eslint-rules/index.js";
+
 export default tseslint.config(
   {
     ignores: [
@@ -56,6 +58,18 @@ export default tseslint.config(
       // TypeScript covers prop types; the new runtime needs no React in scope.
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
+    },
+  },
+  {
+    files: ["packages/*/src/**/*.ts", "apps/*/src/**/*.{ts,tsx}"],
+    ignores: ["**/*.{test,spec}.{ts,tsx}"],
+    plugins: { factory },
+    rules: {
+      "factory/no-spec-section-refs": "error",
+      "factory/no-writes-to-workflows": [
+        "error",
+        { allow: ["packages/cli/src/commands/init.ts"] },
+      ],
     },
   },
 );

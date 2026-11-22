@@ -10,6 +10,7 @@ import {
   runTaskNew,
   runTaskRelease,
   runTaskResume,
+  runTaskRunAll,
   runTaskStatus,
 } from "./task.js";
 
@@ -133,6 +134,23 @@ describe("factory task, shared through the factory/tasks branch", () => {
       "T-0001: confirm",
     );
   }, 120_000);
+
+  it("runs --all only when the repo is unattended", async () => {
+    const { ann } = await team();
+    expect(await runTaskRunAll({ path: ann })).toBe(1);
+    expect(err.join("\n")).toContain(
+      "run --all needs `autonomy: unattended` in .factory/profile.yml (this repo is supervised)",
+    );
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(ann, ".factory"), { recursive: true });
+    await writeFile(
+      join(ann, ".factory", "profile.yml"),
+      "version: 1\nname: demo\ntype: library\nautonomy: unattended\n",
+    );
+    out = [];
+    expect(await runTaskRunAll({ path: ann })).toBe(0);
+    expect(out.join("")).toContain("shipped: none");
+  }, 60_000);
 
   it("refuses a card with no verify before reserving an id", async () => {
     const { ann } = await team();

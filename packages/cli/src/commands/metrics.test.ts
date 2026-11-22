@@ -19,6 +19,50 @@ describe("runMetrics", () => {
     return d;
   }
 
+  it("shows the judge's findings without GitHub, with candidate rules", async () => {
+    const dir = await tmp();
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    await mkdir(join(dir, ".factory"), { recursive: true });
+    const finding = {
+      pattern: "aaaaaaaaaaaa",
+      kind: "suggestion",
+      title: "A generated sibling lands in .github/workflows",
+    };
+    const row = (task: string, pr: number) =>
+      JSON.stringify({
+        kind: "task",
+        date: "2026-11-21",
+        task,
+        type: "fix",
+        outcome: "merged",
+        pr,
+        sectors: [],
+        skills: [],
+        minutes: 1,
+        tokens: 1,
+        cost_usd: 0,
+        build_rounds: 1,
+        judge_rounds: 1,
+        findings: [finding],
+      });
+    await writeFile(
+      join(dir, ".factory", "history.jsonl"),
+      `${row("T-0001", 1)}\n${row("T-0002", 2)}\n`,
+    );
+    const out: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((s) => {
+      out.push(String(s));
+      return true;
+    });
+    expect(await runMetrics(dir, { findings: true }, { token: null })).toBe(0);
+    const text = out.join("");
+    expect(text).toMatch(/Tier 1 rules\s+8 \(5 checks, 3 diff rules\)/);
+    expect(text).toMatch(/Findings per PR\s+1\.0/);
+    expect(text).toContain(
+      "Candidate rules (a pattern seen in 2+ PRs):\n  aaaaaaaaaaaa  suggestion: A generated sibling lands in .github/workflows (#1, #2)",
+    );
+  });
+
   it("errors when no GitHub client is available (no token/remote)", async () => {
     const dir = await tmp();
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);

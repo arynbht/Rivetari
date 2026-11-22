@@ -77,7 +77,7 @@ export interface Task {
   confirmed: boolean;
   /** assembly.yml as written (unvalidated), once the task has been routed. */
   assemblyText?: string | undefined;
-  /** The human approved the assembly (§3.2); its hash is sealed in the ledger. */
+  /** The human approved the assembly; its hash is sealed in the ledger. */
   approved: boolean;
   /** The beat of the latest entry. */
   beat: Beat;
@@ -227,13 +227,24 @@ export interface AllowedDecision {
   by: string;
   at: string;
   note: string;
+  flagged?: boolean | undefined;
 }
+
+export const FLAGGED = /^flagged: /;
 
 export function allowedDecisions(task: Task): AllowedDecision[] {
   const decisions: AllowedDecision[] = [];
   let pending: string[] = [];
   for (const e of task.entries.filter((e) => e.section === "stop")) {
     if (ASKED.test(e.text)) pending.push(e.text.replace(ASKED, ""));
+    if (FLAGGED.test(e.text))
+      decisions.push({
+        asked: e.text.replace(FLAGGED, ""),
+        by: e.by,
+        at: e.at,
+        note: "not asked: autonomy let the build go on and flagged it for the person reviewing the PR",
+        flagged: true,
+      });
     const m = ANSWERED.exec(e.text);
     if (m) {
       if (m[1] === "allowed")
@@ -258,7 +269,7 @@ function lastAnswered(task: Task): string[] {
   return answered;
 }
 
-/** Stop-and-ask questions raised since the last answer (§7.2). */
+/** Stop-and-ask questions raised since the last answer. */
 export function openStops(task: Task): string[] {
   const stops = task.entries.filter((e) => e.section === "stop");
   const last = stops.map((e) => ANSWERED.test(e.text)).lastIndexOf(true);

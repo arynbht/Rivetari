@@ -189,3 +189,19 @@ export {
   runTask,
   type RunTaskOptions,
 } from "./task/run.js";
+export {
+  type FindingsMetrics,
+  findingsMetrics,
+  historyRows,
+  type PatternCount,
+} from "./judge/findings.js";
+export { DIFF_RULES, diffRules } from "./judge/diff-rules.js";
+export {
+  type Advance,
+  advanceTask,
+  type Autonomy,
+  autonomyFor,
+  isSoftStop,
+  repoAutonomy,
+  routeConcerns,
+} from "./task/autonomy.js";

@@ -1,4 +1,4 @@
-// Judge tier 2: a scoped AI review of a change (FACTORY_V2.md §8.3).
+// Judge tier 2: a scoped AI review of a change.
 //
 // Exactly three kinds of finding may block — a defect, a contract breach
 // (AGENTS.md / CONSTRAINTS.md), or an unmet acceptance criterion. Anything
@@ -9,6 +9,8 @@
 // The model sees only what this module packs into the prompt: the diff (minus
 // sensitive paths and anything secret-shaped) and the contract files from the
 // base commit. The CLI transport runs locked down (no tools, empty cwd).
+import { createHash } from "node:crypto";
+
 import {
   type AiClient,
   appendUsage,
@@ -29,7 +31,7 @@ export const BLOCKING_KINDS = ["defect", "contract", "acceptance"] as const;
 export const FINDING_KINDS = [...BLOCKING_KINDS, "suggestion"] as const;
 export type FindingKind = (typeof FINDING_KINDS)[number];
 
-/** Default judge model, deliberately not the drafting default (§14: independence). */
+/** Default judge model, deliberately not the drafting default (independence). */
 export const JUDGE_DEFAULT_MODEL = "claude-opus-5-5";
 /** Max characters of diff packed into the prompt (~35k tokens). */
 const DIFF_BUDGET = 400_000;
@@ -76,7 +78,24 @@ const FindingSchema = z.object({
 export type Finding = z.infer<typeof FindingSchema> & {
   /** Set when the false-positive gate turned a blocking finding into a suggestion. */
   downgraded?: string | undefined;
+  pattern?: string | undefined;
 };
+
+export function findingPattern(kind: string, message: string): string {
+  const normal = message
+    .toLowerCase()
+    .replace(/`[^`]*`/g, " x ")
+    .replace(/"[^"]*"|'[^']*'/g, " x ")
+    .replace(/[\w./-]+\.[a-z]{1,5}(?::\d+)?/g, " file ")
+    .replace(/\d+/g, " n ")
+    .replace(/[^a-z ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return createHash("sha256")
+    .update(`${kind}\0${normal}`)
+    .digest("hex")
+    .slice(0, 12);
+}
 
 const ReviewSchema = z.object({
   findings: z.array(FindingSchema).default([]),
@@ -142,9 +161,19 @@ export interface Tier2Options {
 function decisionsSection(
   decisions: readonly AllowedDecision[] | undefined,
 ): string[] {
-  if (!decisions?.length) return [];
+  const allowed = decisions?.filter((d) => !d.flagged) ?? [];
+  const flagged = decisions?.filter((d) => d.flagged) ?? [];
   return [
-    `## Decisions a person already made\nA person was asked about each of these and allowed it. Do not block on a change a person allowed: it is not a defect, a contract breach or an unmet criterion because of what was allowed.\n${decisions.map((d) => `- ${d.asked} — allowed by ${d.by} at ${d.at}${d.note ? `: ${d.note}` : ""}`).join("\n")}`,
+    ...(allowed.length > 0
+      ? [
+          `## Decisions a person already made\nA person was asked about each of these and allowed it. Do not block on a change a person allowed: it is not a defect, a contract breach or an unmet criterion because of what was allowed.\n${allowed.map((d) => `- ${d.asked} — allowed by ${d.by} at ${d.at}${d.note ? `: ${d.note}` : ""}`).join("\n")}`,
+        ]
+      : []),
+    ...(flagged.length > 0
+      ? [
+          `## Decisions flagged for the person reviewing the PR\nThe repo's autonomy level let the build go on without asking about these; the PR lists each one for a person to decide at merge. Do not block only because nobody was asked. Judge the change itself as usual.\n${flagged.map((d) => `- ${d.asked} — flagged at ${d.at}`).join("\n")}`,
+        ]
+      : []),
   ];
 }
 
@@ -445,7 +474,11 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
   const blocking: Finding[] = [];
   const suggestions: Finding[] = [];
   let checked = 0;
-  for (const finding of [...review.findings, ...unmet]) {
+  for (const found of [...review.findings, ...unmet]) {
+    const finding = {
+      ...found,
+      pattern: findingPattern(found.kind, found.title),
+    };
     if (finding.kind === "suggestion") {
       suggestions.push(finding);
       continue;

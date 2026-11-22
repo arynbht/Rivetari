@@ -88,7 +88,7 @@ export const PROTECTED = {
 } as const;
 
 /** Lines that switch a check off for the code next to them. */
-const SUPPRESSION =
+export const SUPPRESSION =
   /(eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck|#\s*noqa|#\s*type:\s*ignore|\/\/\s*nolint|#\s*pragma:\s*no cover|#!?\[allow\(|biome-ignore)/;
 
 // Wrapped so a matcher passed to `.some()` never receives the array index as

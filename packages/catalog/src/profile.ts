@@ -45,6 +45,13 @@ const ProjectSchema = z
   })
   .optional();
 
+export const AUTONOMY_LEVELS = [
+  "supervised",
+  "review-at-pr",
+  "unattended",
+] as const;
+export type Autonomy = (typeof AUTONOMY_LEVELS)[number];
+
 export const ProfileSchema = z.strictObject({
   version: z.literal(1),
   name: z.string().min(1),
@@ -56,6 +63,7 @@ export const ProfileSchema = z.strictObject({
   /** Optional per-lane on/off toggle; a lane absent here defaults to on. */
   lanes: LanesSchema,
   "severity-floor": z.enum(SEVERITIES).default("low"),
+  autonomy: z.enum(AUTONOMY_LEVELS).default("supervised"),
   project: ProjectSchema,
   ai: z
     .strictObject({
@@ -65,7 +73,7 @@ export const ProfileSchema = z.strictObject({
       judge_model: z.string().min(1).optional(),
     })
     .optional(),
-  /** How the proof runner serves the app for UI proof (FACTORY_V2 §9). */
+  /** How the proof runner serves the app for UI proof. */
   proof: z
     .strictObject({
       /** The command that serves the app; it gets PORT in its environment. */
@@ -83,6 +91,7 @@ export const ProfileSchema = z.strictObject({
        * the first measured run (`.factory/quality.json`), which only ratchets up.
        */
       coverage: z.number().min(0).max(100).optional(),
+      "no-new-comments": z.boolean().optional(),
     })
     .optional(),
 });

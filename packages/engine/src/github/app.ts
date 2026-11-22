@@ -1,4 +1,4 @@
-// The factory's GitHub App (ADR-0007, spec v2.1 §14): registered once from a
+// The factory's GitHub App (ADR-0007): registered once from a
 // manifest, then the factory's identity in every repo it's installed on: the
 // judge's reviews, evidence uploads, the status issue, task pushes.
 // Uninstalling it revokes all of that at once.

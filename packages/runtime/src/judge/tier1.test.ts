@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { simpleGit } from "simple-git";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { parseCard } from "../task/card.js";
 import { runTier1, sweepStaleClones } from "./tier1.js";
 
 const LINT = `const fs = require("fs");
@@ -80,6 +81,36 @@ describe("judge tier 1", () => {
     expect(
       result.checks.find((c) => c.id === "quality.lint.clean")?.outcome,
     ).toBe("pass");
+  }, 60_000);
+
+  it("fails a change a diff rule catches, even when every check is green", async () => {
+    const r = await repo();
+    await r.write("src/feature.js", "module.exports = 2;\n/* explains it */\n");
+    await r.write("NOTES.md", "# notes\n");
+    await r.commit("feature");
+    const result = await runTier1({
+      repoPath: r.dir,
+      base: "base",
+      install: false,
+      noNewComments: true,
+      card: parseCard({
+        id: "T-0001",
+        title: "Feature",
+        type: "feature",
+        description: "d",
+        acceptance: [{ id: "A1", text: "works", verify: "unit" }],
+        touches: ["src/feature.js"],
+        owner: "dev@example.com",
+        created: "2026-11-21",
+      }),
+    });
+    expect(result.verdict).toBe("fail");
+    const outcome = (id: string) =>
+      result.checks.find((c) => c.id === id)?.outcome;
+    expect(outcome("quality.lint.clean")).toBe("pass");
+    expect(outcome("diff.no-new-comments")).toBe("fail");
+    expect(outcome("diff.markdown-in-card")).toBe("fail");
+    expect(outcome("diff.no-new-suppressions")).toBe("pass");
   }, 60_000);
 
   it("fails a change that breaks a check", async () => {

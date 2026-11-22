@@ -7,7 +7,9 @@ import { type AgentRunner, buildTask } from "../agent/build.js";
 import { isolateTask } from "../agent/isolate.js";
 import { judgeTask, type JudgeTaskOptions } from "../judge/task-judge.js";
 import { proveTask, type ProveOptions } from "../proof/prove.js";
+import type { RouteContext } from "../router/task-route.js";
 import { shipTask, type ShipOptions } from "../ship/ship.js";
+import { advanceTask } from "./autonomy.js";
 import type { LedgerEntry } from "./ledger.js";
 import { loadTask, nextStep, type Task, TaskError } from "./tasks.js";
 
@@ -29,6 +31,7 @@ export interface RunTaskOptions {
   judge?: Partial<JudgeTaskOptions> | undefined;
   ship?: Partial<ShipOptions> | undefined;
   now?: Date | undefined;
+  context?: RouteContext | undefined;
 }
 
 export interface RunOutcome {
@@ -57,16 +60,25 @@ export async function runTask(
   let task = await loadTask(repoPath, id);
   if (task.problems.length > 0)
     throw new TaskError(`task ${id} fails verification; not running`);
-  if (!task.confirmed || !task.approved)
-    throw new TaskError(
-      `task ${id} needs a person first: ${nextStep(task)} (run only starts after the card is confirmed and the route approved)`,
-    );
   let seen = task.entries.length;
   const report = async () => {
     task = await loadTask(repoPath, id);
     for (const e of task.entries.slice(seen)) options.onEntry?.(e);
     seen = task.entries.length;
   };
+  if (!task.confirmed || !task.approved) {
+    const advance = await advanceTask(repoPath, id, {
+      by: options.by,
+      now: options.now,
+      context: options.context,
+    });
+    await report();
+    if (advance.waiting) return { task, ran: [], next: advance.waiting };
+  }
+  if (!task.confirmed || !task.approved)
+    throw new TaskError(
+      `task ${id} needs a person first: ${nextStep(task)} (run only starts after the card is confirmed and the route approved)`,
+    );
 
   const ran: string[] = [];
   let builds = 0;

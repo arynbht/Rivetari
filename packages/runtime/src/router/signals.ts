@@ -1,4 +1,4 @@
-// What a task looks like in each sector, for the router (§5.1). Manifests only
+// What a task looks like in each sector, for the router. Manifests only
 // describe the skills that exist, and some sectors (data, api) have none, so
 // the router carries its own signals and uses manifest triggers on top.
 import type { Sector } from "@arynbht/factory-registry";
@@ -229,7 +229,7 @@ export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
   },
 };
 
-/** Files that mean the repo has infrastructure as code (§5.1: infra joins). */
+/** Files that mean the repo has infrastructure as code (infra joins). */
 export const IAC_PATHS = [
   "**/*.tf",
   "**/*.tfvars",
@@ -238,14 +238,14 @@ export const IAC_PATHS = [
   "**/*.bicep",
 ];
 
-/** Paths that pause the agent whatever the task (§5.2 `stop_and_ask.touches`). */
+/** Paths that pause the agent whatever the task (`stop_and_ask.touches`). */
 export const SENSITIVE_PATHS = [
   "**/auth/**",
   "**/billing/**",
   "**/payments/**",
 ];
 
-/** Words that shape the phases (§5.1 step 4). */
+/** Words that shape the phases. */
 export const DESIGN_WORDS = ["redesign", "polish", "new page"];
 export const FIX_WORDS = ["fix", "bug", "regression", "broken"];
 /** Words that mean the schema changes, so data's proof is a migration dry-run. */

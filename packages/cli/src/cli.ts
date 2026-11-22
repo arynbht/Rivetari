@@ -31,6 +31,7 @@ import {
   runTaskResume,
   runTaskRoute,
   runTaskRun,
+  runTaskRunAll,
   runTaskShip,
   runTaskStatus,
   type TaskNewFlags,
@@ -262,19 +263,27 @@ export function buildProgram(): Command {
     .description(
       "After route approval: isolate, build, prove, judge and ship, stopping wherever a person is needed",
     )
-    .argument("<id>", "task id")
+    .argument("[id]", "task id")
     .option("--model <model>", "the sector agent's model")
     .option(
       "--base <ref>",
       "cut the worktree from this ref (default: origin's default branch)",
     )
+    .option(
+      "--all",
+      "autonomy unattended: run every routed task in turn, parking any that would ask",
+    )
     .option("--path <path>", "path to the repo", ".")
     .action(
       async (
-        id: string,
-        flags: { model?: string; base?: string; path?: string },
+        id: string | undefined,
+        flags: { model?: string; base?: string; path?: string; all?: boolean },
       ) => {
-        process.exitCode = await runTaskRun(id, flags);
+        process.exitCode = flags.all
+          ? await runTaskRunAll(flags)
+          : id
+            ? await runTaskRun(id, flags)
+            : (console.error("factory task run: give a task id, or --all"), 1);
       },
     );
   task
@@ -583,6 +592,10 @@ export function buildProgram(): Command {
     .option("--json", "output JSON instead of text")
     .option("--window <days>", "trailing window in days (default 90)")
     .option("--token <token>", "GitHub token (else GITHUB_TOKEN or gh auth)")
+    .option(
+      "--findings",
+      "only the judge's findings: tier 1 rules, findings per PR, recurring patterns and candidate rules (no GitHub needed)",
+    )
     .action(async (path: string, flags: MetricsFlags) => {
       process.exitCode = await runMetrics(path, flags);
     });

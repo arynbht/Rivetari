@@ -1,4 +1,4 @@
-// The router (§5): a confirmed card and the repo in, an assembly out — which
+// The router: a confirmed card and the repo in, an assembly out — which
 // sectors, phases, skills, checks, proof and budget the task runs with. It is
 // deterministic (no model call), and every decision carries its reason, so the
 // human approving the assembly sees why each part is there.
@@ -34,11 +34,11 @@ export type ProofType = (typeof PROOF_TYPES)[number];
 
 export const STOP_TRIGGERS = ["new_dependency", "schema_change"] as const;
 
-/** Task-scope skills per assembly; the spine doesn't count (§5.3). */
+/** Task-scope skills per assembly; the spine doesn't count. */
 export const MAX_TASK_SKILLS = 4;
 /** A sector is in at this score: one path hit, or one title keyword. */
 export const SECTOR_THRESHOLD = 2;
-/** Critique skills in order of preference: one per task (§5.3). */
+/** Critique skills in order of preference: one per task. */
 const CRITIQUE = ["impeccable", "taste-skill"];
 /** Loaded only when no critique skill is in the assembly. */
 const CRITIQUE_FALLBACK = "frontend-design";
@@ -76,7 +76,7 @@ export const AssemblySchema = z.strictObject({
       z.strictObject({ touches: z.array(z.string().min(1)).min(1) }),
     ]),
   ),
-  /** Sectors in the task that no vendored skill covers (§5.3). */
+  /** Sectors in the task that no vendored skill covers. */
   gaps: z.array(z.string()).default([]),
 });
 export type Assembly = z.infer<typeof AssemblySchema>;
@@ -104,7 +104,7 @@ export interface Routing {
   assembly: Assembly;
   /** Every sector that scored, highest first. */
   scores: SectorScore[];
-  /** Sectors that scored under the threshold: the human decides (§5.1). */
+  /** Sectors that scored under the threshold: the human decides. */
   borderline: Sector[];
   /** Decisions made along the way: conflicts, unavailable skills, the cap. */
   notes: string[];
@@ -378,7 +378,7 @@ function withRequires(
   return [...requires.flatMap((r) => withRequires(r, manifests, seen)), name];
 }
 
-/** The proof a tool produces for this task (§3.5), most specific sector first. */
+/** The proof a tool produces for this task, most specific sector first. */
 function proofFor(
   sectors: ReadonlySet<Sector>,
   text: string,

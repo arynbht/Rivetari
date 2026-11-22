@@ -8,11 +8,43 @@ import {
   type Metrics,
   resolveToken,
 } from "@arynbht/factory-engine";
+import {
+  type FindingsMetrics,
+  findingsMetrics,
+} from "@arynbht/factory-runtime";
 
 export interface MetricsFlags {
   json?: boolean;
   window?: string;
   token?: string;
+  findings?: boolean;
+}
+
+export function renderFindings(f: FindingsMetrics): string {
+  const lines = [
+    "Judge findings",
+    "",
+    `  Tier 1 rules           ${f.tier1Rules.total} (${f.tier1Rules.catalog} checks, ${f.tier1Rules.diff} diff rules)`,
+    `  Reviewed tasks         ${f.reviewed}`,
+    `  Findings per PR        ${f.findingsPerPr === null ? "n/a" : f.findingsPerPr.toFixed(1)}`,
+    `  Distinct patterns      ${f.patterns.length}`,
+    "",
+    "Pattern recurrence:",
+    ...(f.patterns.length > 0
+      ? f.patterns.map(
+          (p) =>
+            `  ${p.pattern}  ${p.prs.length} PR(s)  ${p.kind}: ${p.title} (${p.prs.join(", ")})`,
+        )
+      : ["  none yet"]),
+    "",
+    "Candidate rules (a pattern seen in 2+ PRs):",
+    ...(f.candidates.length > 0
+      ? f.candidates.map(
+          (p) => `  ${p.pattern}  ${p.kind}: ${p.title} (${p.prs.join(", ")})`,
+        )
+      : ["  none yet"]),
+  ];
+  return lines.join("\n");
 }
 
 export interface RunMetricsOptions {
@@ -35,6 +67,16 @@ export async function runMetrics(
   } catch {
     console.error(`factory metrics: path not found: ${path}`);
     return 1;
+  }
+
+  const findings = await findingsMetrics(root);
+  if (flags.findings) {
+    process.stdout.write(
+      flags.json
+        ? `${JSON.stringify({ findings }, null, 2)}\n`
+        : `${renderFindings(findings)}\n`,
+    );
+    return 0;
   }
 
   const token =
@@ -68,11 +110,15 @@ export async function runMetrics(
   const history = await loadHistory(root);
 
   if (flags.json) {
-    process.stdout.write(`${JSON.stringify({ metrics, history }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ metrics, history, findings }, null, 2)}\n`,
+    );
     return 0;
   }
 
-  process.stdout.write(`${render(metrics, history.length)}\n`);
+  process.stdout.write(
+    `${render(metrics, history.length)}\n\n${renderFindings(findings)}\n`,
+  );
   return 0;
 }
 

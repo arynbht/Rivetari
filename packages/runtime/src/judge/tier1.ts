@@ -25,6 +25,8 @@ import {
 } from "@arynbht/factory-engine";
 import { type SimpleGit, simpleGit } from "simple-git";
 
+import type { Card } from "../task/card.js";
+import { diffRules } from "./diff-rules.js";
 import {
   type DiffEntry,
   findProtected,
@@ -33,22 +35,8 @@ import {
   type ProtectedFinding,
 } from "./protected.js";
 
-/** A check's state on one side: green, red (fail, or could not run), or n/a. */
-export type Side = "green" | "red" | "n/a";
-
-export interface CheckOutcome {
-  id: string;
-  title: string;
-  base: Side;
-  head: Side;
-  /**
-   * `pass` green on the change; `fixed` red at base, green now; `fail` red now
-   * but not at base (this change broke it, or it can't be checked now);
-   * `pre-existing` red on both — reported, not blamed on this change.
-   */
-  outcome: "pass" | "fixed" | "fail" | "pre-existing" | "n/a";
-  message: string;
-}
+export { type CheckOutcome, outcomeOf, type Side } from "./outcome.js";
+import { type CheckOutcome, outcomeOf, type Side } from "./outcome.js";
 
 export interface Tier1Result {
   verdict: "pass" | "fail" | "needs-human";
@@ -87,6 +75,8 @@ export interface Tier1Options {
    * rest of the protected paths are still put back to base.
    */
   allowed?: ((finding: ProtectedFinding) => boolean) | undefined;
+  card?: Card | undefined;
+  noNewComments?: boolean | undefined;
   /** Install dependencies in the clone before checking (default true). */
   install?: boolean | undefined;
   now?: Date | undefined;
@@ -229,8 +219,20 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       notes.push(`dependency install failed: ${headInstall.message}`);
     }
 
-    const checks = compare(baseResults, headResults);
-    const ran = checks.filter((c) => c.outcome !== "n/a");
+    const catalogChecks = compare(baseResults, headResults);
+    const checks = [
+      ...catalogChecks,
+      ...diffRules(diff, added, {
+        card: options.card,
+        noNewComments: options.noNewComments,
+        allowedSuppressions: new Set(
+          allowedFindings
+            .filter((f) => f.reason === "suppression")
+            .map((f) => f.path),
+        ),
+      }),
+    ];
+    const ran = catalogChecks.filter((c) => c.outcome !== "n/a");
     if (ran.length === 0) {
       notes.push(
         "no check applies to this repo (unknown stack?); nothing was verified",
@@ -355,12 +357,6 @@ function compare(
       message,
     };
   });
-}
-
-export function outcomeOf(before: Side, after: Side): CheckOutcome["outcome"] {
-  if (after === "n/a") return "n/a";
-  if (after === "green") return before === "red" ? "fixed" : "pass";
-  return before === "red" ? "pre-existing" : "fail";
 }
 
 /** Put protected paths back to their base state in the clone. */

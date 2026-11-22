@@ -1,4 +1,4 @@
-// The ship beat (§3.7): push the task's branch and open a draft PR whose body
+// The ship beat: push the task's branch and open a draft PR whose body
 // is generated from the card, the ledger, the proof and the judge's record —
 // summary, acceptance criteria with the judge's verdict on each, proof, files
 // changed, skills, model and iterations. The factory never merges.
@@ -15,7 +15,7 @@ import {
   pushBranch,
 } from "@arynbht/factory-engine";
 import { simpleGit } from "simple-git";
-import { parse } from "yaml";
+import { parse, stringify } from "yaml";
 
 import { type Isolation, loadIsolation } from "../agent/isolate.js";
 import { type JudgeRecord, loadJudgeRecord } from "../judge/task-judge.js";
@@ -24,6 +24,7 @@ import type { ProofRecord } from "../proof/prove.js";
 import { type Assembly, AssemblySchema } from "../router/route.js";
 import type { Card } from "../task/card.js";
 import {
+  allowedDecisions,
   judgeVerdicts,
   loadTask,
   nextStep,
@@ -62,6 +63,50 @@ export interface PrBodyInput {
   proof: ProofRecord | null;
   /** `git diff --name-status` from the merge-base to the judged head. */
   files: { status: string; path: string }[];
+  flagged?: { asked: string; diff: string }[] | undefined;
+}
+
+const DIFF_LINES = 120;
+
+function flaggedPaths(asked: string): string[] {
+  const [trigger, ...rest] = asked.split(": ");
+  const detail = rest.join(": ");
+  if (trigger === "new_dependency") {
+    const manifest = detail.split(" adds ")[0] ?? "";
+    return [manifest, "pnpm-lock.yaml", "package-lock.json", "yarn.lock"];
+  }
+  if (trigger === "schema_change")
+    return detail.replace(/^touches /, "").split(", ");
+  if (trigger === "protected_path") return [detail.split(" — ")[0] ?? ""];
+  return [];
+}
+
+export async function flaggedDiffs(
+  repoPath: string,
+  task: Task,
+  base: string,
+  head: string,
+): Promise<{ asked: string; diff: string }[]> {
+  const git = simpleGit(repoPath);
+  const out: { asked: string; diff: string }[] = [];
+  for (const d of allowedDecisions(task).filter((d) => d.flagged)) {
+    const paths = flaggedPaths(d.asked).filter(Boolean);
+    const diff =
+      paths.length > 0
+        ? await git
+            .raw(["diff", "--no-color", base, head, "--", ...paths])
+            .catch(() => "")
+        : "";
+    const lines = diff.trimEnd().split("\n");
+    out.push({
+      asked: d.asked,
+      diff:
+        lines.length > DIFF_LINES
+          ? `${lines.slice(0, DIFF_LINES).join("\n")}\n… ${lines.length - DIFF_LINES} more line(s)`
+          : diff.trimEnd(),
+    });
+  }
+  return out;
 }
 
 /** The draft PR's body, in the order a reviewer reads it. */
@@ -81,6 +126,53 @@ export function renderPrBody(input: PrBodyInput): string {
   ];
   if (card.out_of_scope.length > 0)
     out.push("", `Out of scope: ${card.out_of_scope.join("; ")}.`);
+
+  const flagged = input.flagged ?? [];
+  if (flagged.length > 0) {
+    out.push(
+      "",
+      "## Decisions you would have been asked",
+      "",
+      "The repo's autonomy level let the build go on without asking. Decide each one before you merge.",
+      "",
+      "| Decision | What changed |",
+      "| -------- | ------------ |",
+      ...flagged.map((f) => {
+        const [trigger, ...rest] = f.asked.split(": ");
+        return `| ${cell(trigger ?? "")} | ${cell(rest.join(": "))} |`;
+      }),
+    );
+    for (const f of flagged.filter((f) => f.diff))
+      out.push(
+        "",
+        `<details><summary>${f.asked.replace(/[<>]/g, "")}</summary>`,
+        "",
+        "```diff",
+        f.diff,
+        "```",
+        "",
+        "</details>",
+      );
+  }
+
+  out.push(
+    "",
+    "<details><summary>Card</summary>",
+    "",
+    "```yaml",
+    stringify(card).trimEnd(),
+    "```",
+    "",
+    "</details>",
+    "",
+    "<details><summary>Route</summary>",
+    "",
+    "```yaml",
+    stringify(assembly).trimEnd(),
+    "```",
+    "",
+    "</details>",
+  );
 
   out.push(
     "",
@@ -144,9 +236,10 @@ export function renderPrBody(input: PrBodyInput): string {
             .join(", ")} red on base too)`
         : ""
     }`,
-    ...t1.protected.map(
-      (p) =>
-        `- Protected change, approved by a person: \`${p.path}\` — ${p.detail}`,
+    ...t1.protected.map((p) =>
+      flagged.some((f) => f.asked === `protected_path: ${p.path} — ${p.detail}`)
+        ? `- Protected change, flagged for you above: \`${p.path}\` — ${p.detail}`
+        : `- Protected change, approved by a person: \`${p.path}\` — ${p.detail}`,
     ),
   );
   if (judge.review) {
@@ -213,7 +306,7 @@ export function renderPrBody(input: PrBodyInput): string {
 export const TASK_REVIEW_MARKER = "<!-- factory-task-review";
 
 /**
- * The judge's verdict as one PR review (§10): the tier 2 review when it ran,
+ * The judge's verdict as one PR review: the tier 2 review when it ran,
  * after a line on tier 1 and any protected change a person allowed.
  */
 export function renderTaskReview(task: Task, judge: JudgeRecord): string {
@@ -337,7 +430,8 @@ export async function shipTask(
   const files = parseNameStatus(
     await git.raw(["diff", "--name-status", "-M", judge.base, judge.head]),
   ).map((f) => ({ status: f.status, path: f.path }));
-  const body = renderPrBody({ task, assembly, judge, proof, files });
+  const flagged = await flaggedDiffs(repoPath, task, judge.base, judge.head);
+  const body = renderPrBody({ task, assembly, judge, proof, files, flagged });
   const base = baseBranch(isolation);
 
   let openPr = options.openPr;

@@ -52,3 +52,19 @@ describe("ProfileSchema", () => {
     );
   });
 });
+
+describe("ProfileSchema autonomy", () => {
+  it("defaults to supervised and accepts the three levels", () => {
+    expect(ProfileSchema.parse(base).autonomy).toBe("supervised");
+    for (const autonomy of ["supervised", "review-at-pr", "unattended"])
+      expect(ProfileSchema.parse({ ...base, autonomy }).autonomy).toBe(
+        autonomy,
+      );
+  });
+
+  it("rejects any other level", () => {
+    expect(ProfileSchema.safeParse({ ...base, autonomy: "yolo" }).success).toBe(
+      false,
+    );
+  });
+});

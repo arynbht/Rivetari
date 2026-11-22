@@ -1,4 +1,4 @@
-// The task store (§8): `.factory/tasks/` is a working copy of the repo's
+// The task store: `.factory/tasks/` is a working copy of the repo's
 // `factory/tasks` branch, so a task's record lives in the repo, not on one
 // machine. Each task directory is a subtree on that branch:
 //
@@ -332,7 +332,7 @@ export interface CommitOptions {
   /** The commit message's subject. */
   message: string;
   now?: Date;
-  /** History rows to append to `history.jsonl` on the branch (§8). */
+  /** History rows to append to `history.jsonl` on the branch. */
   history?: string[];
   /** Give the lease up instead of renewing it (the task is closed or released). */
   release?: boolean;

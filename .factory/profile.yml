@@ -12,7 +12,10 @@ flags:
   open-source: true
   distributes-binaries: true
 severity-floor: medium
+autonomy: review-at-pr
 project:
   license: MIT
   owner: "@arynbht"
   security-contact: https://github.com/arynbht/software-factory/security/advisories/new
+quality:
+  no-new-comments: true

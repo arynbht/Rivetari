@@ -37,6 +37,24 @@ describe("profile / waive / evidence commands", () => {
     expect(p?.flags["handles-pii"]).toBe(true);
   });
 
+  it("profile set changes the autonomy level, and refuses one that doesn't exist", async () => {
+    const dir = await repo();
+    expect((await loadProfile(dir))?.autonomy).toBe("supervised");
+    expect(await runProfileSet("autonomy", "review-at-pr", dir)).toBe(0);
+    expect((await loadProfile(dir))?.autonomy).toBe("review-at-pr");
+    expect(await runProfileSet("autonomy", "yolo", dir)).toBe(1);
+  });
+
+  it("profile set turns the no-new-comments rule on, and keeps it through another edit", async () => {
+    const dir = await repo();
+    expect(await runProfileSet("quality.no-new-comments", "true", dir)).toBe(0);
+    expect(await runProfileSet("type", "library", dir)).toBe(0);
+    expect((await loadProfile(dir))?.quality?.["no-new-comments"]).toBe(true);
+    expect(await runProfileSet("quality.no-new-comments", "maybe", dir)).toBe(
+      1,
+    );
+  });
+
   it("profile set rejects an unknown key and an invalid value", async () => {
     const dir = await repo();
     expect(await runProfileSet("bogus", "x", dir)).toBe(1);
