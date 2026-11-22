@@ -1,0 +1,149 @@
+{
+  "task": "T-0009",
+  "round": 2,
+  "verdict": "passed",
+  "head": "6073273c900ce1ba0c30f64e553699f60374b82f",
+  "base": "ac2b17f69f6cb645512684fdb9fdf2736785cef3",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "red",
+        "head": "red",
+        "outcome": "pre-existing",
+        "message": "`npm test` exited 1 (expected 0)\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/runtime/src/task/store.test.ts\u001b[2m > \u001b[22mthe task store\u001b[2m > \u001b[22mkeeps a second machine off a task until the lease expires or is released\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/runtime/src/task/store.test.ts\u001b[2m > \u001b[22mthe task store\u001b[2m > \u001b[22mkeeps a second machine off a task until the lease expires or is released\n\u001b[31m\u001b[1mError\u001b[22m: EBUSY: resource busy or locked, rmdir 'C:\\Users\\arynb\\AppData\\Local\\Temp\\factory-clone-OLMENl'\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\u001b[22m\u001b[39m"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "red",
+        "head": "red",
+        "outcome": "pre-existing",
+        "message": "coverage is configured, but the test run wrote no coverage/coverage-summary.json"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [
+      {
+        "reason": "suppression",
+        "path": "packages/action/dist/index.js",
+        "detail": "adds a check suppression: `)}`]}var BG=ue(qr(),1);var RG=ue(qr(),1),mt={factoryState:[\".factory/**\"],skillRegistry:[\".factory/skills.lock\",\".facto"
+      },
+      {
+        "reason": "suppression",
+        "path": "packages/runtime/src/agent/stops.test.ts",
+        "detail": "adds a check suppression: it(\"still stops for an eslint-disable added in a source file\", async () => {"
+      }
+    ],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- factory-judge-review round=2 -->\n### Factory judge · round 2 · approve\n\n#### Acceptance\n- A1: met — stops.test.ts first case: the only change is a suppression-shaped line in packages/action/dist/index.js, and it asserts no protected_path stops.\n- A2: met — generated-suppressions.test.ts first case: diff.no-new-suppressions passes with the bundle in `generated`. tier1.ts now computes and passes `generated`.\n- A3: met — stops.test.ts third case asserts a protected_path stop for src/a.ts. generated-suppressions.test.ts second case asserts diff.no-new-suppressions fails and findProtected flags src/b.ts.\n\n<details><summary>2 suggestion(s), non-blocking</summary>\n\n- Generated-path skip may trust the change's own .gitattributes `packages/runtime/src/judge/tier1.ts:163` — For the suppression skip, resolve linguist-generated against the base's `.gitattributes`, or treat a change to `.gitattributes` as protected. Add a test where `.gitattributes` and the suppression arrive in the same commit.\n- Bundle comment no longer sits next to the line it explains `packages/runtime/src/agent/stops.ts:235` — Move the comment above the `generated` declaration and make it cover both the suppression and secret checks.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 163,
+        "acceptance_id": null,
+        "title": "Generated-path skip may trust the change's own .gitattributes",
+        "detail": "Both suppression checks now skip anything `generatedPaths` calls generated, and that includes `linguist-generated` files. If `generatedPaths` reads `.gitattributes` from the head or worktree, a change can mark its own source as generated. The deterministic suppression gate then goes quiet. `.gitattributes` isn't a protected path. The task card asks for linguist-generated to be skipped, and the new tests only put `.gitattributes` in the base commit, so whether this happens depends on `generatedPaths` code that isn't in this diff.",
+        "repro": "If attributes are read at head: one change adds `.gitattributes` with `src/** linguist-generated` and adds an eslint-disable line to `src/a.ts`. findStops raises no protected_path stop, and diff.no-new-suppressions passes.",
+        "fix": "For the suppression skip, resolve linguist-generated against the base's `.gitattributes`, or treat a change to `.gitattributes` as protected. Add a test where `.gitattributes` and the suppression arrive in the same commit.",
+        "pattern": "c88cff736bec"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/agent/stops.ts",
+        "line": 235,
+        "acceptance_id": null,
+        "title": "Bundle comment no longer sits next to the line it explains",
+        "detail": "`generated` is now declared above `findProtected`. The comment that explains why generated paths are skipped stayed below, next to the secret loop, so the protected-path use has no comment.",
+        "repro": "n/a",
+        "fix": "Move the comment above the `generated` declaration and make it cover both the suppression and secret checks.",
+        "pattern": "4db542d61658"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "stops.test.ts first case: the only change is a suppression-shaped line in packages/action/dist/index.js, and it asserts no protected_path stops."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "generated-suppressions.test.ts first case: diff.no-new-suppressions passes with the bundle in `generated`. tier1.ts now computes and passes `generated`."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "stops.test.ts third case asserts a protected_path stop for src/a.ts. generated-suppressions.test.ts second case asserts diff.no-new-suppressions fails and findProtected flags src/b.ts."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 2656,
+      "costUsd": 0.15872360000000002
+    }
+  }
+}

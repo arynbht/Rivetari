@@ -17,6 +17,9 @@
 - 2026-11-22 22:22 prove: proof failed · test-run (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 22:29 build: build paused: 1 thing(s) to ask about · commit 6073273c900c · 215210 tokens · $0.28 · 7 turns · retry (factory runtime (for arynbht@gmail.com))
 - 2026-11-22 22:34 build: build paused: 1 thing(s) to ask about · commit 6073273c900c · 127258 tokens · $0.20 · 4 turns · retry (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 22:43 prove: proof passed · test-run (factory runtime (for arynbht@gmail.com))
+- 2026-11-22 22:49 judge: judge passed · round 2 · head 6073273c900c · record sha256 5bb37c4247a83f719975cdbc39791cd570c70a09faebe90f800202e57b015a8a (factory judge (for arynbht@gmail.com))
+- 2026-11-22 22:49 ship: draft PR opened: #175 https://github.com/arynbht/software-factory/pull/175 · fix/t-0009 at 6073273c900c → main (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -55,6 +58,9 @@
 - 2026-11-22 22:22 tests failed (pnpm run test, exit 1) · new tests: packages/runtime/src/agent/stops.test.ts: doesn't stop for a suppression-shaped line in the action's bundle; packages/runtime/src/agent/stops.test.ts: doesn't stop for one in a file .gitattributes marks linguist-generated; packages/runtime/src/agent/stops.test.ts: still stops for an eslint-disable added in a source file; packages/runtime/src/judge/generated-suppressions.test.ts: passes diff.no-new-suppressions and isn't protected when the only one is in a generated path; packages/runtime/src/judge/generated-suppressions.test.ts: still fails one added in a source file; packages/runtime/src/judge/generated-suppressions.test.ts: checks a dist file no one said was generated
 - 2026-11-22 22:22 output: …[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m [31m[1m[7m FAIL [27m[22m[39m packages/runtime/src/task/store.test.ts[2m > [22mthe task store[2m > [22mkeeps a second machine off a task until the lease expires or is released [31m[1mError[22m: EBUSY: resource busy or locked, rmdir 'C:\Users\arynb\AppData\Local\Temp\factory-clone-dJkF4I'[39m [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
 - 2026-11-22 22:22 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0009/test-run.txt?raw=true
+- 2026-11-22 22:43 tests failed on the change and on the base: pre-existing, not blamed on this change (pnpm run test, exit 1) · new tests: packages/runtime/src/agent/stops.test.ts: doesn't stop for a suppression-shaped line in the action's bundle; packages/runtime/src/agent/stops.test.ts: doesn't stop for one in a file .gitattributes marks linguist-generated; packages/runtime/src/agent/stops.test.ts: still stops for an eslint-disable added in a source file; packages/runtime/src/judge/generated-suppressions.test.ts: passes diff.no-new-suppressions and isn't protected when the only one is in a generated path; packages/runtime/src/judge/generated-suppressions.test.ts: still fails one added in a source file; packages/runtime/src/judge/generated-suppressions.test.ts: checks a dist file no one said was generated
+- 2026-11-22 22:43 output: …[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯[22m[39m [31m[1m[7m FAIL [27m[22m[39m packages/runtime/src/task/store.test.ts[2m > [22mthe task store[2m > [22mkeeps a second machine off a task until the lease expires or is released [31m[1mError[22m: EBUSY: resource busy or locked, rmdir 'C:\Users\arynb\AppData\Local\Temp\factory-clone-PjPwZU'[39m [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯[22m[39m
+- 2026-11-22 22:43 evidence: the test run on the evidence branch: https://github.com/arynbht/software-factory/blob/evidence/T-0009/test-run.txt?raw=true
 
 ## Judge
 
@@ -62,3 +68,11 @@
 - 2026-11-22 22:09 tier 1 fail: diff.no-new-comments — new comments: packages/runtime/src/agent/stops.test.ts: // The protected-path stop on suppressions: a rebuilt bundle re-adds lines that; packages/runtime/src/agent/stops.test.ts: // carry the runtime's own suppression pattern, so generated files are skipped; packages/runtime/src/agent/stops.test.ts:…
 - 2026-11-22 22:09 protected: packages/action/dist/index.js — adds a check suppression: `)}`]}var VG=ue(fn(),1);var t0=ue(fn(),1),mt={factoryState:[".factory/**"],skillRegistry:[".factory/skills.lock",".facto (allowed at build)
 - 2026-11-22 22:09 protected: packages/runtime/src/agent/stops.test.ts — adds a check suppression: it("still stops for an eslint-disable added in a source file", async () => { (allowed at build)
+- 2026-11-22 22:49 tier 1 round 2: pass · 7/9 pass · 2 pre-existing
+- 2026-11-22 22:49 protected: packages/action/dist/index.js — adds a check suppression: `)}`]}var BG=ue(qr(),1);var RG=ue(qr(),1),mt={factoryState:[".factory/**"],skillRegistry:[".factory/skills.lock",".facto (allowed at build)
+- 2026-11-22 22:49 protected: packages/runtime/src/agent/stops.test.ts — adds a check suppression: it("still stops for an eslint-disable added in a source file", async () => { (allowed at build)
+- 2026-11-22 22:49 review round 2: approve; 0 blocking, 2 suggestion(s) (claude-opus-5-5) · 2656 tokens · $0.16
+- 2026-11-22 22:49 acceptance A1: met — stops.test.ts first case: the only change is a suppression-shaped line in packages/action/dist/index.js, and it asserts no protected_path stops.
+- 2026-11-22 22:49 acceptance A2: met — generated-suppressions.test.ts first case: diff.no-new-suppressions passes with the bundle in `generated`. tier1.ts now computes and passes `generated`.
+- 2026-11-22 22:49 acceptance A3: met — stops.test.ts third case asserts a protected_path stop for src/a.ts. generated-suppressions.test.ts second case asserts diff.no-new-suppressions fails and findProtected flags src/b.ts.
+- 2026-11-22 22:49 judge review posted: https://github.com/arynbht/software-factory/pull/175#pullrequestreview-6014947431
