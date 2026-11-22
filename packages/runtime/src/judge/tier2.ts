@@ -58,6 +58,26 @@ const GENERATED = picomatch(
 
 export const isGeneratedPath = (path: string): boolean => GENERATED(path);
 
+/**
+ * Which of `paths` are machine-written: the paths above, plus the files the
+ * repo marks as generated (`linguist-generated` in .gitattributes).
+ */
+export async function generatedPaths(
+  git: SimpleGit,
+  paths: readonly string[],
+): Promise<Set<string>> {
+  const generated = new Set(paths.filter((p) => GENERATED(p)));
+  if (paths.length === 0) return generated;
+  const attrs = await git
+    .raw(["check-attr", "linguist-generated", "--", ...paths])
+    .catch(() => "");
+  for (const line of attrs.split("\n")) {
+    const m = /^(.*): linguist-generated: (set|true)$/.exec(line.trim());
+    if (m?.[1]) generated.add(m[1]);
+  }
+  return generated;
+}
+
 /** Review order when the budget is tight: source, then tests, then docs and config. */
 function priority(path: string): number {
   if (isTestFile(path)) return 1;
@@ -204,22 +224,10 @@ export async function packChange(
   const all = parseNameStatus(
     await git.raw(["diff", "--name-status", "-M", base, head]),
   );
-  // Files the repo marks as generated (`linguist-generated` in .gitattributes).
-  const marked = new Set<string>();
-  if (all.length > 0) {
-    const attrs = await git
-      .raw([
-        "check-attr",
-        "linguist-generated",
-        "--",
-        ...all.map((e) => e.path),
-      ])
-      .catch(() => "");
-    for (const line of attrs.split("\n")) {
-      const m = /^(.*): linguist-generated: (set|true)$/.exec(line.trim());
-      if (m?.[1]) marked.add(m[1]);
-    }
-  }
+  const generated = await generatedPaths(
+    git,
+    all.map((e) => e.path),
+  );
   const entries = all
     .map((entry, i) => ({ entry, i }))
     .sort(
@@ -235,7 +243,7 @@ export async function packChange(
       omitted.push({ path: entry.path, why: "sensitive path" });
       continue;
     }
-    if (GENERATED(entry.path) || marked.has(entry.path)) {
+    if (generated.has(entry.path)) {
       omitted.push({ path: entry.path, why: "generated" });
       continue;
     }
