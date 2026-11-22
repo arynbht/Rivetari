@@ -40,7 +40,12 @@ describe("profile / waive / evidence commands", () => {
   it("profile set changes the autonomy level, and refuses one that doesn't exist", async () => {
     const dir = await repo();
     expect((await loadProfile(dir))?.autonomy).toBe("supervised");
-    expect(await runProfileSet("autonomy", "review-at-pr", dir)).toBe(0);
+    expect(await runProfileSet("autonomy", "review-at-pr", dir)).toBe(1);
+    expect(
+      await runProfileSet("autonomy", "review-at-pr", dir, {
+        override: "testing the command",
+      }),
+    ).toBe(0);
     expect((await loadProfile(dir))?.autonomy).toBe("review-at-pr");
     expect(await runProfileSet("autonomy", "yolo", dir)).toBe(1);
   });

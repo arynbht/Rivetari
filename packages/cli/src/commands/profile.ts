@@ -1,11 +1,21 @@
 import { resolve } from "node:path";
 
-import type { Profile } from "@arynbht/factory-catalog";
+import {
+  type Autonomy,
+  AUTONOMY_LEVELS,
+  type Profile,
+} from "@arynbht/factory-catalog";
 import {
   loadProfile,
   ProfileError,
   saveProfile,
 } from "@arynbht/factory-engine";
+import {
+  AUTONOMY_DIR,
+  setAutonomy,
+  TaskError,
+  whoami,
+} from "@arynbht/factory-runtime";
 
 /** `factory profile show` — print the resolved profile. */
 export async function runProfileShow(path: string): Promise<number> {
@@ -32,8 +42,15 @@ export async function runProfileSet(
   key: string,
   value: string,
   path: string,
+  options: { override?: string | undefined } = {},
 ): Promise<number> {
   const root = resolve(path);
+  if (key === "autonomy")
+    return setAutonomyLevel(root, value, options.override);
+  if (options.override !== undefined) {
+    console.error("--override only applies to `profile set autonomy`.");
+    return 1;
+  }
   let profile: Profile | null;
   try {
     profile = await loadProfile(root);
@@ -54,7 +71,7 @@ export async function runProfileSet(
 
   if (key === "name" || key === "type" || key === "phase") {
     draft[key] = value;
-  } else if (key === "severity-floor" || key === "autonomy") {
+  } else if (key === "severity-floor") {
     draft[key] = value;
   } else if (key === "stack") {
     draft["stack"] = value
@@ -91,4 +108,39 @@ export async function runProfileSet(
   }
   process.stdout.write(`Set ${key} = ${value}\n`);
   return 0;
+}
+
+async function setAutonomyLevel(
+  root: string,
+  value: string,
+  override: string | undefined,
+): Promise<number> {
+  if (!(AUTONOMY_LEVELS as readonly string[]).includes(value)) {
+    console.error(
+      `autonomy must be one of ${AUTONOMY_LEVELS.join(", ")} (got "${value}").`,
+    );
+    return 1;
+  }
+  if (override !== undefined && !override.trim()) {
+    console.error("--override needs a reason.");
+    return 1;
+  }
+  try {
+    const { state, kind } = await setAutonomy(root, value as Autonomy, {
+      by: await whoami(root),
+      override,
+    });
+    process.stdout.write(
+      kind === null
+        ? `autonomy is already ${value}\n`
+        : `Set autonomy = ${value} (${kind}); recorded in ${AUTONOMY_DIR}/ledger.md\n${state.effective !== state.configured ? `but it runs at ${state.effective}: ${state.fallback}\n` : ""}`,
+    );
+    return 0;
+  } catch (err) {
+    if (err instanceof TaskError || err instanceof ProfileError) {
+      console.error(err.message);
+      return 1;
+    }
+    throw err;
+  }
 }

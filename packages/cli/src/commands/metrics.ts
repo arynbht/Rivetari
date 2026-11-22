@@ -11,6 +11,8 @@ import {
 import {
   type FindingsMetrics,
   findingsMetrics,
+  ladder,
+  type LadderState,
 } from "@arynbht/factory-runtime";
 
 export interface MetricsFlags {
@@ -18,6 +20,32 @@ export interface MetricsFlags {
   window?: string;
   token?: string;
   findings?: boolean;
+}
+
+const pct = (n: number | null) =>
+  n === null ? "n/a" : `${Math.round(n * 100)}%`;
+
+export function renderLadder(l: LadderState): string {
+  const n = l.numbers;
+  const r = n.rules;
+  const level = (name: "review-at-pr" | "unattended") =>
+    l.unmet[name].length === 0
+      ? `  ${name.padEnd(13)} earned`
+      : `  ${name.padEnd(13)} not earned: ${l.unmet[name].join("; ")}`;
+  return [
+    "Trust ladder",
+    "",
+    `  Autonomy               ${l.configured}${l.effective !== l.configured ? ` (running at ${l.effective}: ${l.fallback})` : ""}${l.entry ? ` · ${l.entry.kind} on ${l.entry.at.slice(0, 10)}` : ""}`,
+    `  Tier 1 rules           ${r.total} (${r.checks} checks, ${r.diff} diff rules, ${r.boundaries} boundary rules, ${r.lint} lint rules)${n.rulesAtEntry !== null ? `; ${n.rulesAtEntry} at entry` : ""}`,
+    `  Blocking per PR        ${n.last10.blockingPerPr === null ? "n/a" : n.last10.blockingPerPr.toFixed(2)} over ${n.last10.prs} reviewed PR(s)`,
+    `  First-pass merge       ${pct(n.firstPass.rate)} of ${n.firstPass.merged} merged PR(s)`,
+    `  Since entering         ${n.sinceEntry.blocking} blocking finding(s) over ${n.sinceEntry.prs} PR(s); falls back above 5 over five`,
+    `  Reverts in 7 days      ${n.reverts.length > 0 ? n.reverts.join("; ") : "none"}`,
+    `  Rejection rate         ${pct(n.rejection.rate)} of ${n.rejection.prs} PR(s)`,
+    "",
+    level("review-at-pr"),
+    level("unattended"),
+  ].join("\n");
 }
 
 export function renderFindings(f: FindingsMetrics): string {
@@ -70,11 +98,12 @@ export async function runMetrics(
   }
 
   const findings = await findingsMetrics(root);
+  const trust = await ladder(root, { now: options.now });
   if (flags.findings) {
     process.stdout.write(
       flags.json
-        ? `${JSON.stringify({ findings }, null, 2)}\n`
-        : `${renderFindings(findings)}\n`,
+        ? `${JSON.stringify({ findings, ladder: trust }, null, 2)}\n`
+        : `${renderLadder(trust)}\n\n${renderFindings(findings)}\n`,
     );
     return 0;
   }
@@ -111,13 +140,13 @@ export async function runMetrics(
 
   if (flags.json) {
     process.stdout.write(
-      `${JSON.stringify({ metrics, history, findings }, null, 2)}\n`,
+      `${JSON.stringify({ metrics, history, findings, ladder: trust }, null, 2)}\n`,
     );
     return 0;
   }
 
   process.stdout.write(
-    `${render(metrics, history.length)}\n\n${renderFindings(findings)}\n`,
+    `${render(metrics, history.length)}\n\n${renderLadder(trust)}\n\n${renderFindings(findings)}\n`,
   );
   return 0;
 }
