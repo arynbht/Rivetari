@@ -1,2 +1,3 @@
 {"kind":"task","date":"2026-11-14","task":"T-0001","type":"fix","outcome":"abandoned","pr":null,"sectors":["docs","testing"],"skills":[],"minutes":15,"tokens":366321,"cost_usd":0.87,"build_rounds":2,"judge_rounds":0}
 {"kind":"task","date":"2026-11-21","task":"T-0002","type":"fix","outcome":"abandoned","pr":null,"sectors":["docs","testing"],"skills":[],"minutes":11007,"tokens":3539776,"cost_usd":3.25,"build_rounds":7,"judge_rounds":3}
+{"kind":"task","date":"2026-11-22","task":"T-0005","type":"feature","outcome":"abandoned","pr":null,"sectors":[],"skills":[],"minutes":606,"tokens":0,"cost_usd":0,"build_rounds":0,"judge_rounds":0,"findings":[],"rounds":[]}
