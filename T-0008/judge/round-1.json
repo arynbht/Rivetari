@@ -1,0 +1,97 @@
+{
+  "task": "T-0008",
+  "round": 1,
+  "verdict": "failed",
+  "head": "33ea1ed2e2868eac1cd389a6bed542c557c31f12",
+  "base": "391fa7d0005e4d8159930f9e0198962ec05a6c0a",
+  "tier1": {
+    "verdict": "fail",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "69.86% lines ≥ floor 53% (.factory/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "red",
+        "outcome": "fail",
+        "message": "new comments: packages/cli/src/commands/init.squash.test.ts: /** A repo whose squash merges take `title` until the fix is applied. */; packages/cli/src/commands/init.ts: /** Reads and sets whether the repo's squash merges take the PR title. */; packages/cli/src/commands/init.ts: /** The repo's squash merge setting (default: through the GitHub API). */; packages/cli/src/commands/init.ts: /** Asks a yes/no question (default: a clack confirm). */; packages/cli/src/commands/init.ts: /** The squash merge setting through the GitHub API, or null without a token. */; and 46 more"
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "red",
+        "outcome": "fail",
+        "message": "Markdown the card doesn't name: docs/catalog/README.md; docs/catalog/hygiene.md"
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [
+      {
+        "reason": "existing-test",
+        "path": "packages/runtime/src/agent/agent.test.ts",
+        "detail": "modifies a test that existed at base"
+      },
+      {
+        "reason": "suppression",
+        "path": "packages/action/dist/index.js",
+        "detail": "adds a check suppression: `).at(-1)??\"\";return n(\"fail\",`commitlint couldn't run on ${m}: exited ${g.exitCode}${y?`: ${y}`:\"\"}`)}d.push(`${m} brea"
+      }
+    ],
+    "notes": []
+  }
+}
