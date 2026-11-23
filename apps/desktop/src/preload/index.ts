@@ -45,6 +45,10 @@ import {
   MapBlocked,
   MapGetRequest,
   MapView,
+  TaskAnswerIpcRequest,
+  TaskAnswerResult,
+  TaskOpenPrRequest,
+  TaskOpenPrResult,
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
@@ -303,6 +307,22 @@ const api = {
     },
     async unwatch() {
       await ipcRenderer.invoke(IpcChannel.TasksUnwatch);
+    },
+    /** Allow or deny a task's open stops; the answer is recorded under your name. */
+    async answer(repoPath: string, id: string, allow: boolean, note: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.TasksAnswer,
+        TaskAnswerIpcRequest.parse({ repoPath, id, allow, note }),
+      );
+      return TaskAnswerResult.parse(raw);
+    },
+    /** Open a task's PR in the OS browser (the URL comes from its ledger). */
+    async openPr(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.TasksOpenPr,
+        TaskOpenPrRequest.parse({ repoPath, id }),
+      );
+      return TaskOpenPrResult.parse(raw);
     },
     /** Subscribe to task changes; returns an unsubscribe fn. */
     onUpdate(callback: (state: TasksState) => void) {

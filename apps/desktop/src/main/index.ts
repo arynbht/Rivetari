@@ -44,6 +44,10 @@ import {
   SettingsView,
   MapGetRequest,
   MapView,
+  TaskAnswerIpcRequest,
+  TaskAnswerResult,
+  TaskOpenPrRequest,
+  TaskOpenPrResult,
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
@@ -55,6 +59,7 @@ import {
   loadAnthropicKey,
   saveAnthropicKey,
 } from "./auth/anthropic-key-store";
+import { notConfiguredMessage, resolveClientId } from "./auth/client-id";
 import {
   fetchUserLogin,
   pollForToken,
@@ -81,7 +86,12 @@ import {
   MAP_PARTITION,
   mapRequestAllowed,
 } from "./engine/map";
-import { unwatchTasks, watchRepoTasks } from "./engine/tasks";
+import {
+  answerTask,
+  openTaskPr,
+  unwatchTasks,
+  watchRepoTasks,
+} from "./engine/tasks";
 import { addRepo, listRepos, removeRepo } from "./store/repos";
 import { loadSettings, saveSettings } from "./store/settings";
 import { checkForUpdate } from "./update/check";
@@ -181,8 +191,6 @@ if (isDev) {
   }
 }
 
-/** GitHub App / OAuth client id for device flow (ADR-0007). Empty → not set up. */
-const GITHUB_CLIENT_ID = process.env.RIVETARI_GITHUB_CLIENT_ID ?? "";
 const GITHUB_SCOPE = "repo read:org";
 
 let mainWindow: BrowserWindow | null = null;
@@ -431,6 +439,22 @@ function registerIpcHandlers(): void {
     return MapView.parse(await mapFence.open(repoPath, getMap));
   });
 
+  ipcMain.handle(IpcChannel.TasksAnswer, async (_event, raw: unknown) => {
+    const { repoPath, ...request } = TaskAnswerIpcRequest.parse(raw);
+    return TaskAnswerResult.parse(await answerTask(repoPath, request));
+  });
+
+  ipcMain.handle(IpcChannel.TasksOpenPr, async (_event, raw: unknown) => {
+    const { repoPath, id } = TaskOpenPrRequest.parse(raw);
+    // Any https host: a PR can live on GitHub Enterprise, and the URL is the
+    // one the task's signed ledger records, not one the renderer sends.
+    return TaskOpenPrResult.parse(
+      await openTaskPr(repoPath, id, (url) =>
+        isE2E ? Promise.resolve() : shell.openExternal(url),
+      ),
+    );
+  });
+
   ipcMain.handle(IpcChannel.AuthStatus, async () => {
     const token = await loadToken();
     if (!token) return AuthStatus.parse({ signedIn: false, login: null });
@@ -444,14 +468,12 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.AuthSignIn, async () => {
-    if (!GITHUB_CLIENT_ID) {
-      throw new Error(
-        "GitHub sign-in isn't configured. Set RIVETARI_GITHUB_CLIENT_ID to a " +
-          "registered GitHub App/OAuth client id (ADR-0007).",
-      );
-    }
+    // Looked up per sign-in, so registering the App with the shell open works.
+    const resolved = await resolveClientId();
+    if (!resolved) throw new Error(notConfiguredMessage());
+    const { clientId } = resolved;
     const deps = { fetch: authFetch };
-    const code = await requestDeviceCode(GITHUB_CLIENT_ID, GITHUB_SCOPE, deps);
+    const code = await requestDeviceCode(clientId, GITHUB_SCOPE, deps);
     // Open github.com/login/device for the user (host is allow-listed). Skipped in
     // E2E so the suite doesn't spawn a real browser.
     if (!isE2E) openExternalIfAllowed(code.verificationUri);
@@ -467,7 +489,7 @@ function registerIpcHandlers(): void {
     // not save a token or push a stale outcome.
     void (async () => {
       try {
-        const token = await pollForToken(GITHUB_CLIENT_ID, code, deps, signal);
+        const token = await pollForToken(clientId, code, deps, signal);
         if (signal.aborted) return;
         await saveToken(token);
         let login = "";
