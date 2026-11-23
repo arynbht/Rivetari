@@ -143,11 +143,6 @@ jobs:
         # default, which otherwise leaves the window (and firstWindow) hanging.
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" pnpm --filter @arynbht/rivetari-desktop e2e
 
-  # One status check ("ci-full") that gates on every upstream job, so branch
-  # protection needs just one context regardless of how many OSes the matrix runs.
-  # `if: always()` plus the explicit result check matters: without it a failed
-  # dependency makes this job *skipped*, and GitHub treats a skipped required
-  # check as passing.
   boundaries:
     name: boundaries
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci:full')
@@ -172,6 +167,10 @@ jobs:
       - name: Check module boundaries
         run: pnpm boundaries
 
+  # One status check ("ci-full") that gates on every upstream job.
+  # `if: always()` plus the explicit result check matters: without it a failed
+  # dependency makes this job *skipped*, and GitHub treats a skipped check as
+  # passing.
   ci-full:
     name: ci-full
     if: always() && (github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ci:full'))

@@ -404,6 +404,13 @@ jobs:
           for r in $RESULTS; do
             if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then red=true; fi
           done
+          # Main runs for consecutive merges overlap and finish in any order;
+          # only the run for main's current head speaks for main.
+          head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "main has moved on to $head; leaving the issue to its run"
+            [ "$red" = true ] && exit 1 || exit 0
+          fi
           issue=$(gh issue list --state open --search 'in:title "main is red"' \
             --json number,title --jq '[.[] | select(.title == "main is red")][0].number // empty')
           if [ "$red" = true ]; then
