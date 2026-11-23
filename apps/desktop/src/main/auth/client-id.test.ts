@@ -53,9 +53,20 @@ describe("the GitHub client id sign-in uses", () => {
     expect(await resolveClientId({})).toBeNull();
   });
 
-  it("reads no client id from an app.json that's broken or lacks one", async () => {
-    await writeFile(join(config, "app.json"), "{ not json");
-    expect(await appClientId()).toBeNull();
+  it("says what's wrong with an app.json it can't use, and reads none from one without a client id", async () => {
+    const path = join(config, "app.json");
+    await writeFile(path, "{ not json");
+    await expect(appClientId()).rejects.toThrow(`${path} isn't valid JSON`);
+    // Even with the env var unset, a broken file isn't reported as "not set up".
+    await expect(resolveClientId({})).rejects.toThrow("isn't valid JSON");
+
+    const denied = Object.assign(new Error("EACCES: permission denied"), {
+      code: "EACCES",
+    });
+    await expect(appClientId(() => Promise.reject(denied))).rejects.toThrow(
+      `couldn't read ${path} for the GitHub App's client id: EACCES: permission denied`,
+    );
+
     await writeApp({ id: 1, slug: "x", clientId: "" });
     expect(await appClientId()).toBeNull();
     await writeApp({ id: 1, slug: "x", clientId: 42 });

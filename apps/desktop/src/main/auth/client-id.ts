@@ -19,24 +19,38 @@ export interface ClientId {
 /** app.json's path, for the message that names where the client id is looked for. */
 export const appJsonPath = (): string => join(rivetariConfigDir(), "app.json");
 
-/** The registered App's client id, or null when there's no readable app.json with one. */
+/**
+ * The registered App's client id, or null when no App is registered (no
+ * app.json) or its record has none. An app.json that can't be read or isn't
+ * JSON is an error, said with the path, so it isn't mistaken for "not set up".
+ */
 export async function appClientId(
   read: (path: string) => Promise<string> = (path) => readFile(path, "utf8"),
 ): Promise<string | null> {
+  const path = appJsonPath();
   let text: string;
   try {
-    text = await read(appJsonPath());
-  } catch {
-    return null;
+    text = await read(path);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw new Error(
+      `couldn't read ${path} for the GitHub App's client id: ${(err as Error).message}`,
+      { cause: err },
+    );
   }
+  let record: unknown;
   try {
-    const clientId = (JSON.parse(text) as { clientId?: unknown }).clientId;
-    return typeof clientId === "string" && clientId.trim() !== ""
-      ? clientId.trim()
-      : null;
-  } catch {
-    return null;
+    record = JSON.parse(text);
+  } catch (err) {
+    throw new Error(
+      `${path} isn't valid JSON (${(err as Error).message}); run \`rivetari app register\` again or fix the file`,
+      { cause: err },
+    );
   }
+  const clientId = (record as { clientId?: unknown } | null)?.clientId;
+  return typeof clientId === "string" && clientId.trim() !== ""
+    ? clientId.trim()
+    : null;
 }
 
 /** The env var's client id, else the registered App's, else null. */
