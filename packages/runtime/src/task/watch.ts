@@ -358,9 +358,19 @@ export interface TaskWatcher {
 export function watchTasks(
   repo: string,
   onEvent: (event: TaskEvent) => void,
-  options: { intervalMs?: number } = {},
+  options: {
+    intervalMs?: number;
+    /** Hears an error `onEvent` threw (default: written to stderr). */
+    onListenerError?: (err: unknown) => void;
+  } = {},
 ): TaskWatcher {
   const interval = options.intervalMs ?? WATCH_INTERVAL_MS;
+  const listenerFailed =
+    options.onListenerError ??
+    ((err: unknown) =>
+      process.stderr.write(
+        `rivetari watch: a listener failed on ${repo}'s tasks: ${err instanceof Error ? err.message : String(err)}\n`,
+      ));
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let current = new Map<string, TaskView>();
@@ -369,9 +379,9 @@ export function watchTasks(
     if (stopped) return;
     try {
       onEvent(event);
-    } catch {
-      // A listener's own failure is its to handle: it mustn't stop the polling
-      // or leave `ready` unsettled.
+    } catch (err) {
+      // Said, but it mustn't stop the polling or leave `ready` unsettled.
+      listenerFailed(err);
     }
   };
   const reader = new TaskReader(repo, (message) =>
