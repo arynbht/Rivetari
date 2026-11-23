@@ -110,6 +110,25 @@ export const ProfileSchema = z.strictObject({
         .optional(),
     })
     .optional(),
+  /** What CI may spend, and whether it may lean on the judge. */
+  ci: z
+    .strictObject({
+      /**
+       * GitHub Actions minutes the repo means to spend in a calendar month
+       * (UTC), counted per job and rounded up to the minute as GitHub bills.
+       * `rivetari doctor` warns at 75% and the status issue shows the month
+       * so far against it. Unset: nothing is counted.
+       */
+      budget_minutes_per_month: z.number().int().positive().optional(),
+      /**
+       * Post a `rivetari/judge` check run on a shipped task's head commit when
+       * the judge passed it, which CI can trust to skip lint, typecheck and
+       * tests the judge already ran. Unset: true when the repo belongs to the
+       * account Rivetari's App is registered to, false on anyone else's.
+       */
+      trust_judge: z.boolean().optional(),
+    })
+    .optional(),
   quality: z
     .strictObject({
       /**

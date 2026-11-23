@@ -2,6 +2,7 @@
 // is generated from the card, the ledger, the proof and the judge's record —
 // summary, acceptance criteria with the judge's verdict on each, proof, files
 // changed, skills, model and iterations. Rivetari never merges.
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -9,10 +10,15 @@ import {
   buildContext,
   type GitHubClient,
   githubToken,
+  type JudgeCheckParams,
+  loadApp,
+  loadProfile,
   openOrReusePr,
   type OpenPrParams,
+  postJudgeCheck,
   type PrResult,
   pushBranch,
+  resolveRepoSlug,
 } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse, stringify } from "yaml";
@@ -355,6 +361,35 @@ export interface ShipOptions {
    */
   postReview?:
     ((params: PostReviewParams) => Promise<string | null>) | undefined;
+  /**
+   * Post the `rivetari/judge` check run on a passed head (default: as the
+   * App, alongside the default review). Returns its URL, or null when the
+   * head already has one.
+   */
+  postCheck?:
+    ((params: JudgeCheckParams) => Promise<string | null>) | undefined;
+  /** Whether CI may trust the judge (default: `trustsJudge`). */
+  trustJudge?: boolean | undefined;
+}
+
+/**
+ * Whether a passed judge gets a `rivetari/judge` check CI can skip on: the
+ * profile's `ci.trust_judge`, else true only when the repo belongs to the
+ * account Rivetari's App is registered to. A client's repo opts in, since
+ * the check lets its CI skip tests on the judge's word.
+ */
+export async function trustsJudge(repoPath: string): Promise<boolean> {
+  // A profile that doesn't load grants nothing.
+  const profile = await loadProfile(repoPath).catch(() => false as const);
+  if (profile === false) return false;
+  const set = profile?.ci?.trust_judge;
+  if (set !== undefined) return set;
+  const [app, slug] = await Promise.all([loadApp(), resolveRepoSlug(repoPath)]);
+  return (
+    !!app?.owner &&
+    !!slug &&
+    app.owner.toLowerCase() === slug.owner.toLowerCase()
+  );
 }
 
 export const NEEDS_HUMAN_LABEL = "rivetari:needs-human";
@@ -441,6 +476,7 @@ export async function shipTask(
 
   let openPr = options.openPr;
   let postReview = options.postReview;
+  let postCheck = options.postCheck;
   if (!openPr || !postReview) {
     const auth = await githubToken(repoPath);
     const gh = auth
@@ -452,6 +488,9 @@ export async function shipTask(
       );
     openPr ??= (params) => openOrReusePr(gh, params);
     postReview ??= (params) => postTaskReview(gh, params);
+    // Only an App can create check runs; a person's token would be refused.
+    if (auth?.source !== "gh")
+      postCheck ??= (params) => postJudgeCheck(gh, params);
   }
   await (
     options.push ??
@@ -480,6 +519,38 @@ export async function shipTask(
       by: `rivetari runtime (for ${options.by})`,
       at: options.now,
     });
+  // A passed head gets the check CI may skip on; a head a person let through
+  // with findings gets nothing, so CI runs in full. Not getting it posted
+  // costs CI time, never the ship.
+  if (
+    postCheck &&
+    judge.verdict === "passed" &&
+    (options.trustJudge ?? (await trustsJudge(repoPath)))
+  ) {
+    const record = await readFile(
+      join(repoPath, TASKS_DIR, id, "judge", `round-${judge.round}.json`),
+      "utf8",
+    );
+    const line = await postCheck({
+      head,
+      task: id,
+      round: judge.round,
+      recordSha256: createHash("sha256").update(record).digest("hex"),
+      ledgerHash: (await task.ledger.entries()).at(-1)?.mac ?? "",
+    }).then(
+      (url) => (url ? `judge check posted: ${url}` : null),
+      (err: Error) =>
+        `judge check not posted (ship goes on): ${err.message.replace(/\s+/g, " ").slice(0, 300)}`,
+    );
+    if (line)
+      await task.ledger.append({
+        beat: "ship",
+        section: "judge",
+        text: line,
+        by: `rivetari runtime (for ${options.by})`,
+        at: options.now,
+      });
+  }
   await task.ledger.append({
     beat: "ship",
     section: "timeline",
