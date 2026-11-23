@@ -161,17 +161,16 @@ describe("the ledger can't be rewritten outside the runtime", () => {
     expect((await loadTask(repo, "T-0001")).problems.length).toBeGreaterThan(0);
   });
 
-  it("detects a hand edit to ledger.md and to a confirmed card", async () => {
+  it("undoes a hand edit to ledger.md by rendering it again from the signed record", async () => {
     await newTask(repo, CARD, by);
     await confirmTask(repo, "T-0001", by);
     const md = join(repo, ".rivetari/tasks/T-0001/ledger.md");
-    await writeFile(
-      md,
-      (await readFile(md, "utf8")).replace("Timeline", "Notes"),
-    );
-    expect((await loadTask(repo, "T-0001")).problems).toContain(
-      "ledger.md was edited by hand; it is rendered from ledger.jsonl",
-    );
+    const rendered = await readFile(md, "utf8");
+    await writeFile(md, rendered.replace("Timeline", "Notes"));
+    const task = await loadTask(repo, "T-0001");
+    expect(task.problems).toEqual([]);
+    expect(task.viewRerendered).toBe(true);
+    expect(await readFile(md, "utf8")).toBe(rendered);
   });
 
   it("detects a card changed after confirmation", async () => {
