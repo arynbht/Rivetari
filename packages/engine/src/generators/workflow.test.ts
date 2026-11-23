@@ -545,6 +545,37 @@ jobs:
     expect(doc.jobs.installer?.if).toBe("github.event_name != 'pull_request'");
   });
 
+  it("fails, and fixes the rest with a note, when a workflow doesn't parse", async () => {
+    const broken =
+      "on: [pull_request]\njobs:\n\tbuild:\n\t\truns-on: ubuntu-latest\n";
+    const dir = await repoWith({
+      [WF]: SHAPED,
+      ".github/workflows/broken.yml": broken,
+      ".github/workflows/empty.yml": "",
+    });
+    const [result] = await evaluateControls(
+      [control("ci.job-timeouts")],
+      ctx(dir),
+      { profile: null, waivers: [] },
+    );
+    // The check can't vouch for files it couldn't read.
+    expect(result?.status).toBe("fail");
+    expect(result?.detectors[0]?.message).toContain(
+      "couldn't parse .github/workflows/broken.yml",
+    );
+    const changes = await workflowGenerator(
+      ctx(dir),
+      control("ci.job-timeouts"),
+    );
+    expect(changes[0]).toMatchObject({
+      type: "note",
+      message: expect.stringContaining("fix these by hand"),
+    });
+    expect((changes[0] as { message: string }).message).toContain(
+      ".github/workflows/empty.yml",
+    );
+  });
+
   it("adds a secret scan that needs no license", async () => {
     const dir = await repoWith({ [WF]: LEGACY });
     await fix(dir, "ci.secret-scan-on-pr");

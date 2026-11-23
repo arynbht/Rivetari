@@ -23,28 +23,49 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The workflows under `.github/workflows`, minus `exclude`; unparseable files are skipped. */
+/** A workflow file that couldn't be read as a workflow, and why. */
+export interface Unreadable {
+  path: string;
+  reason: string;
+}
+
+export interface LoadedWorkflows {
+  workflows: Workflow[];
+  unreadable: Unreadable[];
+}
+
+/** The workflows under `.github/workflows`, minus `exclude`, and the files that don't parse. */
 export async function loadWorkflows(
   ctx: AuditContext,
   exclude?: string,
-): Promise<Workflow[]> {
+): Promise<LoadedWorkflows> {
   let files = await ctx.glob(splitGlobs(WORKFLOW_FILES));
   if (exclude) {
     const excluded = new Set(await ctx.glob(splitGlobs(exclude)));
     files = files.filter((f) => !excluded.has(f));
   }
   const workflows: Workflow[] = [];
+  const unreadable: Unreadable[] = [];
   for (const path of files.sort()) {
     const text = await ctx.readFile(path);
     if (text === null) continue;
     try {
       const doc: unknown = parseYaml(text);
       if (isRecord(doc)) workflows.push({ path, doc });
-    } catch {
-      // A broken workflow fails in GitHub itself; it isn't this check's to judge.
+      else unreadable.push({ path, reason: "not a YAML mapping" });
+    } catch (err) {
+      unreadable.push({
+        path,
+        reason: (err as Error).message.split("\n")[0] ?? "",
+      });
     }
   }
-  return workflows;
+  return { workflows, unreadable };
+}
+
+/** "couldn't parse a.yml: reason; b.yml: reason". */
+export function unreadableMessage(unreadable: Unreadable[]): string {
+  return `couldn't parse ${unreadable.map((u) => `${u.path}: ${u.reason}`).join("; ")}`;
 }
 
 /** The events a workflow runs on, from any of `on`'s three shapes. */
@@ -383,6 +404,9 @@ export async function workflow(
   ctx: AuditContext,
   config: WorkflowConfig,
 ): Promise<DetectorResult> {
-  const workflows = await loadWorkflows(ctx, config.exclude);
+  const { workflows, unreadable } = await loadWorkflows(ctx, config.exclude);
+  // A file the check can't read could hold exactly what it looks for, so it
+  // fails rather than passing on the rest.
+  if (unreadable.length > 0) return fail(unreadableMessage(unreadable));
   return checks[config.check](workflows, ctx);
 }

@@ -30,6 +30,7 @@ import {
   runsOnPr,
   scansSecrets,
   scansSecretsOnPr,
+  unreadableMessage,
   type Workflow,
 } from "../detectors/workflow.js";
 import type { Change, Generator } from "./types.js";
@@ -604,12 +605,38 @@ function merged(
  */
 export const workflowGenerator: Generator = async (ctx, control) => {
   if (control.fix?.type !== "workflow") return [];
-  const { patch } = control.fix;
-  const workflows = await loadWorkflows(ctx, excludeOf(control));
+  const { workflows, unreadable } = await loadWorkflows(
+    ctx,
+    excludeOf(control),
+  );
   const note = (message: string): Change[] => [
     { type: "note", controlId: control.id, message },
   ];
+  // The readable workflows are still fixed; the rest are left for a person.
+  const changes = await planFix(
+    ctx,
+    control,
+    control.fix.patch,
+    workflows,
+    note,
+  );
+  return unreadable.length > 0
+    ? [
+        ...note(
+          `${unreadableMessage(unreadable)}; fix these by hand, then run this fix again`,
+        ),
+        ...changes,
+      ]
+    : changes;
+};
 
+async function planFix(
+  ctx: AuditContext,
+  control: Control,
+  patch: Patch,
+  workflows: Workflow[],
+  note: (message: string) => Change[],
+): Promise<Change[]> {
   if (patch === "pin-actions") {
     const gh = await ctx.github();
     const resolve = githubResolver(
@@ -650,4 +677,4 @@ export const workflowGenerator: Generator = async (ctx, control) => {
     if (left) changes.push(...note(left));
   }
   return changes;
-};
+}
