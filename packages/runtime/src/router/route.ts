@@ -47,7 +47,13 @@ const STEPS: Record<(typeof RISKS)[number], number> = {
   medium: 12,
   high: 16,
 };
-const CONTEXT_TOKENS = 60_000;
+// A low-risk card's slice is a file or two and what they import: a smaller
+// cap keeps a wide touches list from packing the prompt it re-reads each turn.
+const CONTEXT_TOKENS: Record<(typeof RISKS)[number], number> = {
+  low: 15_000,
+  medium: 60_000,
+  high: 60_000,
+};
 
 export const AssemblySchema = z.strictObject({
   task: z.string().min(1),
@@ -341,7 +347,7 @@ export function route(input: RouteInput): Routing {
           (sum, n) => sum + (manifests.get(n)?.tokens ?? 0),
           0,
         ),
-        context_tokens: CONTEXT_TOKENS,
+        context_tokens: CONTEXT_TOKENS[card.risk],
         steps: STEPS[card.risk],
       },
       checks: [...input.checks],

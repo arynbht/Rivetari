@@ -114,6 +114,8 @@ export function spawnWithLimit(
     cwd?: string | undefined;
     env?: NodeJS.ProcessEnv | undefined;
     signal?: AbortSignal | undefined;
+    /** A non-zero exit whose output this accepts still resolves (a call stopped at its turn limit). */
+    accept?: ((stdout: string) => boolean) | undefined;
   },
 ): Promise<string> {
   const callMinutes = callTimeoutMinutes();
@@ -165,7 +167,7 @@ export function spawnWithLimit(
     child.on("error", (err) => finish(() => reject(err)));
     child.on("close", (code) =>
       finish(() =>
-        code === 0
+        code === 0 || options.accept?.(stdout)
           ? resolve(stdout)
           : reject(
               new Error(stderr.trim() || `claude exited with code ${code}`),

@@ -86,16 +86,23 @@ function priority(path: string): number {
 /** Max blocking findings sent to the false-positive gate. */
 const MAX_FP_CHECKS = 8;
 
+/** Optional text the model may send as null or leave out: both mean none. */
+const optionalText = () =>
+  z
+    .string()
+    .nullish()
+    .transform((v) => v ?? "");
+
 const FindingSchema = z.object({
   kind: z.enum(FINDING_KINDS).catch("suggestion"),
-  file: z.string().default(""),
+  file: optionalText(),
   // A bad line or a missing title shouldn't throw away the whole review.
   line: z.number().int().nonnegative().nullable().default(null).catch(null),
   acceptance_id: z.string().nullable().optional(),
   title: z.string().min(1).catch("(untitled)"),
-  detail: z.string().default(""),
-  repro: z.string().default(""),
-  fix: z.string().default(""),
+  detail: optionalText(),
+  repro: optionalText(),
+  fix: optionalText(),
 });
 export type Finding = z.infer<typeof FindingSchema> & {
   /** Set when the false-positive gate turned a blocking finding into a suggestion. */
@@ -126,7 +133,7 @@ const ReviewSchema = z.object({
       z.object({
         id: z.string(),
         status: z.enum(["met", "unmet", "unverified"]).catch("unverified"),
-        note: z.string().default(""),
+        note: optionalText(),
       }),
     )
     .default([]),
@@ -134,8 +141,8 @@ const ReviewSchema = z.object({
 
 const GateSchema = z.object({
   reproducible: z.boolean(),
-  repro: z.string().default(""),
-  reason: z.string().default(""),
+  repro: optionalText(),
+  reason: optionalText(),
 });
 
 export interface PackedChange {
@@ -603,7 +610,7 @@ export function renderReview(
         "",
         `**${f.kind}${f.acceptance_id ? ` (${f.acceptance_id})` : ""}: ${f.title}** ${where(f)}`,
         f.detail,
-        `- **Repro:** ${f.repro}`,
+        ...(f.repro ? [`- **Repro:** ${f.repro}`] : []),
         ...(f.fix ? [`- **Fix:** ${f.fix}`] : []),
       );
     }

@@ -46,6 +46,8 @@ export interface AgentCall {
   cwd: string;
   model?: string | undefined;
   env: NodeJS.ProcessEnv;
+  /** The most model replies the call may take (`claude --max-turns`). */
+  maxTurns?: number | undefined;
 }
 
 /** An agent call's final text, with what it cost when the runner knows. */
@@ -53,7 +55,14 @@ export interface AgentReply {
   text: string;
   tokens?: number | undefined;
   costUsd?: number | undefined;
+  /**
+   * The CLI's `num_turns`. It counts the prompt and every tool result, so a
+   * reply that ran parallel tool calls reports more than `--max-turns`, which
+   * counts model replies.
+   */
   turns?: number | undefined;
+  /** The turn limit the call stopped at before it replied, when it did. */
+  turnLimit?: number | undefined;
 }
 
 /** Runs one agent call and resolves its final text (or a reply with usage). */
@@ -67,8 +76,30 @@ export function usageNote(reply: AgentReply, retry = false): string {
 const asReply = (r: string | AgentReply): AgentReply =>
   typeof r === "string" ? { text: r } : r;
 
-export const claudeAgent: AgentRunner = async (call) => {
-  const args = [
+export const PLAN_TURNS = 4;
+
+/**
+ * Subagents' turns don't count toward the caller's --max-turns, and the Agent
+ * tool needs no approval, so a capped call would spend them there instead.
+ */
+const SUBAGENT_TOOLS = ["Agent", "Task"];
+
+/** How a plan call's turn-limit stop starts, so its answer can be found. */
+const OUT_OF_TURNS = "the plan call reached its";
+
+/** What the CLI reports when a call stops at --max-turns before replying. */
+const MAX_TURNS = "error_max_turns";
+
+const hitTurnLimit = (stdout: string): boolean => {
+  try {
+    return (JSON.parse(stdout) as { subtype?: unknown }).subtype === MAX_TURNS;
+  } catch {
+    return false;
+  }
+};
+
+export function agentArgs(call: AgentCall): string[] {
+  return [
     "-p",
     "--output-format",
     "json",
@@ -86,14 +117,29 @@ export const claudeAgent: AgentRunner = async (call) => {
           DENIED_BUILD_TOOLS.join(","),
         ]
       : ["--allowedTools", READ_ONLY_TOOLS.join(",")]),
+    ...(call.maxTurns
+      ? [
+          "--max-turns",
+          String(call.maxTurns),
+          ...(call.mode === "plan"
+            ? ["--disallowedTools", SUBAGENT_TOOLS.join(",")]
+            : []),
+        ]
+      : []),
   ];
-  const { command, argv } = await claudeCommand(args);
+}
+
+export const claudeAgent: AgentRunner = async (call) => {
+  const { command, argv } = await claudeCommand(agentArgs(call));
   const stdout = await spawnWithLimit(command, argv, {
     input: call.prompt,
     cwd: call.cwd,
     env: call.env,
+    accept: hitTurnLimit,
   });
-  const text = parseClaudeJson(stdout, call.model ?? "").text;
+  // A call stopped at its turn limit has no reply, only what it cost.
+  const limited = hitTurnLimit(stdout);
+  const text = limited ? "" : parseClaudeJson(stdout, call.model ?? "").text;
   // The CLI's own totals: cache reads and writes included, cost as it reports it.
   const data = JSON.parse(stdout) as {
     total_cost_usd?: number;
@@ -113,6 +159,7 @@ export const claudeAgent: AgentRunner = async (call) => {
     costUsd:
       typeof data.total_cost_usd === "number" ? data.total_cost_usd : undefined,
     turns: typeof data.num_turns === "number" ? data.num_turns : undefined,
+    turnLimit: limited ? call.maxTurns : undefined,
   };
 };
 
@@ -310,10 +357,15 @@ export async function buildTask(
     answer !== null &&
     !answer.allowed &&
     answer.stops.some((s) => s.startsWith("budget_exhausted"));
+  // A plan call that ran out of turns plans again either way: allowed, with
+  // twice the turns; denied, within the limit, told to read less.
+  const outOfTurns =
+    answer !== null &&
+    answer.stops.some((s) => s.startsWith(`budget_exhausted: ${OUT_OF_TURNS}`));
 
   // Plan first, recorded before any edit.
-  let steps = replan ? [] : plan(task);
-  if (steps.length === 0 && !replan && isFastPath(task.card)) {
+  let steps = replan || outOfTurns ? [] : plan(task);
+  if (steps.length === 0 && !replan && !outOfTurns && isFastPath(task.card)) {
     steps = fastPlan(task.card);
     await log(
       "timeline",
@@ -328,9 +380,11 @@ export async function buildTask(
       card: task.card,
       assembly,
       isolation,
-      answer: replan
-        ? `your plan was over budget and was refused — ${answer.note || "plan fewer, larger steps"}`
-        : undefined,
+      answer: outOfTurns
+        ? `your last plan call ran out of turns before it replied — ${answer.note || "read only what the plan needs, then reply"}`
+        : replan
+          ? `your plan was over budget and was refused — ${answer.note || "plan fewer, larger steps"}`
+          : undefined,
     });
     const reply = asReply(
       await agent({
@@ -340,13 +394,22 @@ export async function buildTask(
         cwd: isolation.worktree,
         model: options.model,
         env,
+        maxTurns: outOfTurns && answer.allowed ? PLAN_TURNS * 2 : PLAN_TURNS,
       }),
     );
+    const started = `build started · skills ${planning.skills.join(", ") || "spine only"} · budget ${assembly.budget.steps} steps / ${assembly.budget.context_tokens / 1000}k ctx · ~${planning.approxTokens} prompt tokens · ${planning.files.length} repo file(s) in context${usageNote(reply)}`;
+    if (reply.turnLimit) {
+      // Logged as a start with no plan, so what the call cost is counted.
+      await log("timeline", started);
+      const stop: Stop = {
+        trigger: "budget_exhausted",
+        detail: `${OUT_OF_TURNS} ${reply.turnLimit}-turn limit before it replied with a plan; allow to plan again with ${PLAN_TURNS * 2} turns, or deny to plan again within ${PLAN_TURNS}`,
+      };
+      await log("stop", `asked: ${stop.trigger}: ${stop.detail}`);
+      return { task: await loadTask(repoPath, id), stops: [stop] };
+    }
     steps = PlanSchema.parse(extractJson(reply.text)).steps;
-    await log(
-      "timeline",
-      `build started · skills ${planning.skills.join(", ") || "spine only"} · budget ${assembly.budget.steps} steps / ${assembly.budget.context_tokens / 1000}k ctx · ${planning.files.length} repo file(s) in context${usageNote(reply)}`,
-    );
+    await log("timeline", started);
     for (const [i, step] of steps.entries())
       await log("plan", `${i + 1}. ${step}`);
     if (steps.length > assembly.budget.steps) {
