@@ -33,3 +33,29 @@ notes: >
   bar's claude or codex). The scripts can't move the map out of floorplan/ at the repo root
   (describe.mjs, refresh.mjs and recent.mjs ignore --out), so it stays there, ignored by its own
   .gitignore and the repo's. Unrelated to the engine's deep-audit "Floor Plan".
+
+scan_allow:
+  - rule: exfiltrate
+    file: scripts/lib/health.mjs
+    match_sha256: 26ac740e3df46068da9fcf4536727b84d395d7e1841ba113c545b45b58274ec6
+    reviewed_by: arynbht
+    reviewed: "2026-11-23"
+    note: "ENV_LOOKUP, a regex literal in the Health check that spots env lookups in scanned code; it sends nothing."
+  - rule: exfiltrate
+    file: scripts/lib/health.mjs
+    match_sha256: 1d35a597debf6eb0d5a2151713c8f1e1b709e7ac9081bcd8b8e258a1793556e9
+    reviewed_by: arynbht
+    reviewed: "2026-11-23"
+    note: "SERVER_CODE, a regex literal that spots servers in scanned code; it sends nothing."
+  - rule: disable-checks
+    file: SKILL.md
+    match_sha256: cbea0805d13b3ddf732f88d6b6bfaf0c728bbedc3de9f5a437fe726a07ca4bab
+    reviewed_by: arynbht
+    reviewed: "2026-11-23"
+    note: '"Skip tests and drive-by edits" means leave test files off the Recent work highlights, not skip running tests.'
+  - rule: disable-checks
+    file: workflow.json
+    match_sha256: 1feff6c59f6ce2b6be4e0056d3fbc708b290528946ab128e151f7c7ec683942e
+    reviewed_by: arynbht
+    reviewed: "2026-11-23"
+    note: "The same Recent work rule as SKILL.md:114, in the unattended workflow's recent_work job."
