@@ -1,0 +1,23 @@
+id: ci.concurrency-pr-only
+title: CI cancels superseded PR runs, and only those
+lane: cicd
+phase: build
+severity: low
+effort: small
+detect:
+  - type: workflow
+    check: concurrency-pr-only
+    exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
+evidence: none
+# Groups PR runs by ref and default-branch runs by commit, cancelling only on PRs.
+fix:
+  type: workflow
+  patch: concurrency-pr-only
+references:
+  - name: GitHub Docs — Control the concurrency of workflows and jobs
+    url: https://docs.github.com/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
+rationale: >
+  A new push to a pull request makes its running CI worthless, so cancelling it
+  saves minutes and gets the answer for the latest commit sooner. A run on the
+  default branch is the record of a merge, so it must never be cancelled or
+  replaced by the next merge's run.

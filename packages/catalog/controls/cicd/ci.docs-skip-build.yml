@@ -1,0 +1,26 @@
+id: ci.docs-skip-build
+title: Docs-only PRs skip build and test
+lane: cicd
+phase: build
+severity: low
+effort: small
+detect:
+  - type: workflow
+    check: docs-path-filter
+    exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
+evidence: none
+# Adds a `changes` job (dorny/paths-filter) and runs the other jobs only when
+# something besides docs and Markdown changed; the `ci` aggregator and the
+# secret scan still run on every PR.
+fix:
+  type: workflow
+  patch: docs-path-filter
+references:
+  - name: dorny/paths-filter
+    url: https://github.com/dorny/paths-filter
+  - name: GitHub Docs — Handling skipped but required checks
+    url: https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/troubleshooting-required-status-checks#handling-skipped-but-required-checks
+rationale: >
+  A typo fix in the docs doesn't need a full build and test run. Filtering jobs
+  by the paths a PR changes, rather than skipping the whole workflow, keeps the
+  required check reporting so the PR can still merge.

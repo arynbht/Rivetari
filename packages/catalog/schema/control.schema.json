@@ -255,6 +255,37 @@
             "properties": {
               "type": {
                 "type": "string",
+                "const": "workflow"
+              },
+              "check": {
+                "type": "string",
+                "enum": [
+                  "required-aggregator",
+                  "concurrency-pr-only",
+                  "job-timeouts",
+                  "docs-path-filter",
+                  "pr-os-matrix",
+                  "secret-scan-on-pr"
+                ],
+                "description": "Named check across `.github/workflows/*.yml`."
+              },
+              "exclude": {
+                "description": "Glob (may be `a|b|c`) of workflows that never count, e.g. Rivetari's own.",
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "type",
+              "check"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
                 "const": "command"
               },
               "run": {
@@ -580,6 +611,37 @@
                       "properties": {
                         "type": {
                           "type": "string",
+                          "const": "workflow"
+                        },
+                        "check": {
+                          "type": "string",
+                          "enum": [
+                            "required-aggregator",
+                            "concurrency-pr-only",
+                            "job-timeouts",
+                            "docs-path-filter",
+                            "pr-os-matrix",
+                            "secret-scan-on-pr"
+                          ],
+                          "description": "Named check across `.github/workflows/*.yml`."
+                        },
+                        "exclude": {
+                          "description": "Glob (may be `a|b|c`) of workflows that never count, e.g. Rivetari's own.",
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "check"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
                           "const": "command"
                         },
                         "run": {
@@ -886,6 +948,33 @@
           "required": [
             "type",
             "task"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "workflow"
+            },
+            "patch": {
+              "type": "string",
+              "enum": [
+                "required-aggregator",
+                "concurrency-pr-only",
+                "job-timeouts",
+                "docs-path-filter",
+                "pr-os-matrix",
+                "secret-scan-on-pr",
+                "pin-actions"
+              ],
+              "description": "Named edit to the repo's GitHub Actions workflows, made in place."
+            }
+          },
+          "required": [
+            "type",
+            "patch"
           ],
           "additionalProperties": false
         }

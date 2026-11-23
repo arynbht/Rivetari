@@ -10,6 +10,7 @@ import { coverageDetector } from "../quality.js";
 import { reviewed } from "./reviewed.js";
 import { scorecard } from "./scorecard.js";
 import type { DetectorFn } from "./types.js";
+import { workflow } from "./workflow.js";
 
 /**
  * Maps a detector type to its implementation. Partial while types are still being
@@ -23,6 +24,7 @@ export const registry: Partial<Record<DetectorType, DetectorFn>> = {
   "file-json-path": fileJsonPath as DetectorFn,
   "file-yaml-path": fileYamlPath as DetectorFn,
   "github-api": githubApi as DetectorFn,
+  workflow: workflow as DetectorFn,
   command: command as DetectorFn,
   scorecard: scorecard as DetectorFn,
   reviewed: reviewed as DetectorFn,
