@@ -15,6 +15,8 @@
 - 2026-11-23 09:25 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 09:25 judge: judge passed · round 1 · head 2577f1484e35 · record sha256 fa62b68a3c174839ef397d96c262e2ea326bf36282443cf99906973a6c394c2f (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 09:25 ship: draft PR opened: #194 https://github.com/arynbht/Rivetari/pull/194 · fix/t-0023 at 2577f1484e35 → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 09:41 close: worktree removed · branch fix/t-0023 deleted (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 09:41 close: ledger sealed · merged (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -47,3 +49,7 @@
 - 2026-11-23 09:25 acceptance A3: met — estimateCost adds inp*1.25 and inp*0.1 for the cache tokens, and the tests cover both rates.
 - 2026-11-23 09:25 acceptance A4: met — The new tests cover the no-cache usage, total and cost. Every test file in the diff is new.
 - 2026-11-23 09:25 judge review posted: https://github.com/arynbht/Rivetari/pull/194#pullrequestreview-6019161072
+
+## Outcome
+
+- 2026-11-23 09:41 PR #194 merged by arynbht 2026-11-23 09:41 · 33m · 967k tokens · $1.09
