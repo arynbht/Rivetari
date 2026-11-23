@@ -1,0 +1,58 @@
+id: T-0024
+title: Verify the autonomy ledger before the trust ladder reads it
+type: fix
+source: prompt
+description: "Bugs 12 and 15, redraft of T-0014 (branched before the rename).
+  ladder() in packages/runtime/src/task/ladder.ts reads the autonomy ledger's
+  entries without verifying them, so a hand-edited signed entry still counts,
+  and the view is re-rendered only before an append, so since the rename every
+  repo's autonomy ledger fails verification on its stale 'Written by the factory
+  runtime' header. ladder() first re-renders a view-only mismatch with the
+  ledger's rerenderView() (as loadTask does for task ledgers since #186), then
+  verifies. If verification still fails, the repo is treated as supervised:
+  effective is supervised whatever is configured, the ladder state carries the
+  verification problems, and enforceFallback appends nothing to a ledger that
+  fails verification. rivetari metrics' trust ladder section and the
+  session-start text say the autonomy ledger failed verification, list the
+  problems and say the repo runs supervised; an intact ledger adds no such
+  lines. A ledger that isn't valid JSON lines or whose key can't be read is
+  treated the same way and never throws. The owner pre-authorised this card to
+  touch the autonomy ledger's verification. No existing test changes."
+acceptance:
+  - id: A1
+    text: ladder() on a repo whose autonomy ledger has an edited signed entry
+      reports effective supervised, configured review-at-pr, and the
+      verification problem naming that entry
+    verify: unit
+  - id: A2
+    text: ladder() on a repo whose ledger.md differs only in the rendered view (a
+      header naming the factory runtime) re-renders it, verifies, and stays at
+      review-at-pr
+    verify: unit
+  - id: A3
+    text: a ledger.jsonl with a line that isn't JSON, or an unreadable ledger key,
+      makes ladder() and enforceFallback() resolve without throwing, report
+      supervised, and append nothing
+    verify: unit
+  - id: A4
+    text: rivetari metrics and the session-start text name the failed verification,
+      list its problems and say the repo runs supervised, and print none of that
+      for an intact ledger
+    verify: unit
+  - id: A5
+    text: no test file that existed at base is modified
+    verify: review
+out_of_scope: []
+touches:
+  - packages/runtime/src/task/ladder.ts
+  - packages/runtime/src/task/ladder-verify.test.ts
+  - packages/cli/src/commands/metrics.ts
+  - packages/cli/src/commands/hook.ts
+  - packages/cli/src/commands/ladder-verify.test.ts
+  - packages/action/dist/**
+  - .changeset/verify-autonomy-ledger.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-23
