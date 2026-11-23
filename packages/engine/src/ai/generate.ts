@@ -1,11 +1,11 @@
 // Run an AI task: load its prompt template, pack secret-guarded context, call the
 // model, and render a generated file with the review header + checklist convention.
-// Used by the `claude` generator (control-wired tasks) and by `factory ai <task>`.
+// Used by the `claude` generator (control-wired tasks) and by `rivetari ai <task>`.
 
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { bundledPromptsDir, type Control } from "@arynbht/factory-catalog";
+import { bundledPromptsDir, type Control } from "@arynbht/rivetari-catalog";
 import { parse as parseYaml } from "yaml";
 
 import type { AiClient, AiUsage } from "./client.js";
@@ -180,9 +180,9 @@ export function renderGeneratedFile(args: RenderArgs): string {
     ? args.filesConsulted.join(", ")
     : "(none)";
   const header = [
-    "<!-- factory:generated",
+    "<!-- rivetari:generated",
     `task: ${args.task}`,
-    `generated-by: factory ai ${args.task}`,
+    `generated-by: rivetari ai ${args.task}`,
     `date: ${args.date}`,
     `model: ${args.model}`,
     `files-consulted: ${files}`,
@@ -195,7 +195,7 @@ export function renderGeneratedFile(args: RenderArgs): string {
     parts.push(
       "",
       [
-        "<!-- factory:reviewer-checklist",
+        "<!-- rivetari:reviewer-checklist",
         ...args.checklist.map((item) => `- [ ] ${item}`),
         "-->",
       ].join("\n"),

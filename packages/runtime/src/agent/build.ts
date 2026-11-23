@@ -17,7 +17,7 @@ import {
   ISOLATED_AGENT_ARGS,
   parseClaudeJson,
   READ_ONLY_TOOLS,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 import { z } from "zod";
@@ -146,7 +146,7 @@ const oneLine = (text: string, max: number) => {
 };
 
 async function worktreeTree(worktree: string): Promise<string> {
-  const scratch = await mkdtemp(join(tmpdir(), "factory-tree-"));
+  const scratch = await mkdtemp(join(tmpdir(), "rivetari-tree-"));
   const env = { ...process.env, GIT_INDEX_FILE: join(scratch, "index") };
   const git = (args: string[]) =>
     promisify(execFile)("git", args, { cwd: worktree, env, windowsHide: true });
@@ -286,8 +286,8 @@ export interface BuildOutcome {
 }
 
 /**
- * `factory task build <id>`: plan (once), build, commit, check. Returns the
- * stops it raised; the task waits on `factory task answer` until they're answered.
+ * `rivetari task build <id>`: plan (once), build, commit, check. Returns the
+ * stops it raised; the task waits on `rivetari task answer` until they're answered.
  */
 export async function buildTask(
   repoPath: string,
@@ -306,14 +306,14 @@ export async function buildTask(
   const isolation = await loadIsolation(repoPath, id);
   if (!isolation)
     throw new TaskError(
-      `task ${id} has no worktree: \`factory task isolate ${id}\``,
+      `task ${id} has no worktree: \`rivetari task isolate ${id}\``,
     );
   if (openStops(task).length > 0)
     throw new TaskError(
-      `task ${id} is waiting on an answer: \`factory task answer ${id} --allow|--deny\``,
+      `task ${id} is waiting on an answer: \`rivetari task answer ${id} --allow|--deny\``,
     );
   const assembly = AssemblySchema.parse(parse(task.assemblyText ?? ""));
-  const by = `factory runtime (for ${options.by})`;
+  const by = `rivetari runtime (for ${options.by})`;
   const log = (section: "timeline" | "plan" | "stop", text: string) =>
     task.ledger.append({ beat: "build", section, text, by, at: options.now });
   const env = taskEnv(isolation);
@@ -495,7 +495,7 @@ export async function buildTask(
 }
 
 /**
- * `factory task answer <id> --allow|--deny [note]`: a person answers the open
+ * `rivetari task answer <id> --allow|--deny [note]`: a person answers the open
  * stops. Allowed: the task moves on (and isn't asked again). Denied: the next
  * build round gets the note and undoes it.
  */
@@ -536,7 +536,7 @@ export async function answerStops(
 function taskEnv(isolation: Isolation): NodeJS.ProcessEnv {
   return agentEnv({
     PORT: String(isolation.port),
-    FACTORY_TASK: isolation.task,
-    FACTORY_DATABASE: isolation.database,
+    RIVETARI_TASK: isolation.task,
+    RIVETARI_DATABASE: isolation.database,
   });
 }

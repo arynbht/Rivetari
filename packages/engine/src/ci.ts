@@ -1,8 +1,8 @@
 import type { Octokit } from "@octokit/rest";
 
 /** Hidden marker so we can find and update our own comment/issue idempotently. */
-export const FACTORY_MARKER = "<!-- factory-audit -->";
-export const STATUS_ISSUE_TITLE = "Factory status";
+export const RIVETARI_MARKER = "<!-- rivetari-audit -->";
+export const STATUS_ISSUE_TITLE = "Rivetari status";
 
 /** Create or update a single sticky PR comment identified by the marker. */
 export async function upsertStickyComment(
@@ -12,14 +12,14 @@ export async function upsertStickyComment(
   issueNumber: number,
   body: string,
 ): Promise<void> {
-  const marked = `${FACTORY_MARKER}\n${body}`;
+  const marked = `${RIVETARI_MARKER}\n${body}`;
   const comments = await octokit.paginate(octokit.rest.issues.listComments, {
     owner,
     repo,
     issue_number: issueNumber,
     per_page: 100,
   });
-  const existing = comments.find((c) => c.body?.includes(FACTORY_MARKER));
+  const existing = comments.find((c) => c.body?.includes(RIVETARI_MARKER));
   if (existing) {
     await octokit.rest.issues.updateComment({
       owner,
@@ -38,7 +38,7 @@ export async function upsertStickyComment(
 }
 
 /**
- * Maintain one pinned "Factory status" issue for scheduled runs: open/update it
+ * Maintain one pinned "Rivetari status" issue for scheduled runs: open/update it
  * while gates are red/amber, and close it once everything is green.
  */
 export async function upsertStatusIssue(
@@ -59,7 +59,7 @@ export async function upsertStatusIssue(
   const existing = issues.find(
     (i) => i.title === STATUS_ISSUE_TITLE && !i.pull_request,
   );
-  const marked = `${FACTORY_MARKER}\n${body}`;
+  const marked = `${RIVETARI_MARKER}\n${body}`;
 
   if (allGreen) {
     if (existing && existing.state === "open") {

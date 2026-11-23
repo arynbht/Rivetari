@@ -1,4 +1,4 @@
-// Persistence for the floor-plan model: `.factory/floorplan.json` is factory-
+// Persistence for the floor-plan model: `.rivetari/floorplan.json` is rivetari-
 // managed state (ADR-0003), written atomically like state.json. Loading tolerates
 // a missing or corrupt file (returns null) so the UI degrades to "run an audit".
 // `isStale` compares the repo's current git HEAD to the model's recorded commit,
@@ -12,7 +12,7 @@ import { writeFileAtomic } from "../fs-atomic.js";
 import type { RepositoryModel } from "./types.js";
 
 function floorplanPath(repoPath: string): string {
-  return resolve(repoPath, ".factory", "floorplan.json");
+  return resolve(repoPath, ".rivetari", "floorplan.json");
 }
 
 /** Load the persisted model, or null if absent / unreadable / malformed. */
@@ -37,7 +37,7 @@ export async function loadFloorPlan(
   }
 }
 
-/** Write the model to `.factory/floorplan.json` (atomic, trailing newline). */
+/** Write the model to `.rivetari/floorplan.json` (atomic, trailing newline). */
 export async function saveFloorPlan(
   repoPath: string,
   model: RepositoryModel,

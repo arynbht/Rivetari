@@ -1,11 +1,11 @@
 // The close beat: once a person has merged or closed the PR (or given
 // up on the task), record the outcome with its duration, tokens and cost,
-// remove the worktree, append a row to `.factory/history.jsonl`, and seal the
+// remove the worktree, append a row to `.rivetari/history.jsonl`, and seal the
 // ledger so nothing is written to it again.
 import { access, appendFile, mkdir, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { buildContext, githubToken } from "@arynbht/factory-engine";
+import { buildContext, githubToken } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
@@ -37,7 +37,7 @@ export interface CloseOptions {
   prState?: ((pr: number) => Promise<PrState>) | undefined;
 }
 
-/** A task's row in `.factory/history.jsonl` (posture snapshots share the file). */
+/** A task's row in `.rivetari/history.jsonl` (posture snapshots share the file). */
 export interface TaskHistoryRow {
   kind: "task";
   date: string;
@@ -164,7 +164,7 @@ async function githubPrState(repoPath: string, pr: number): Promise<PrState> {
     : null;
   if (!gh)
     throw new TaskError(
-      "closing needs to see the PR: the factory's App installed on the repo, GITHUB_TOKEN or `gh auth login`, and an origin remote",
+      "closing needs to see the PR: Rivetari's App installed on the repo, GITHUB_TOKEN or `gh auth login`, and an origin remote",
     );
   const { data } = await gh.octokit.rest.pulls.get({
     owner: gh.owner,
@@ -180,8 +180,8 @@ async function githubPrState(repoPath: string, pr: number): Promise<PrState> {
 }
 
 /**
- * `factory task close <id>`: after a person merges or closes the PR, or with
- * `abandon` at any point. Refuses while the PR is open: the factory never
+ * `rivetari task close <id>`: after a person merges or closes the PR, or with
+ * `abandon` at any point. Refuses while the PR is open: Rivetari never
  * merges, and a task isn't over until a person has decided.
  */
 export async function closeTask(
@@ -195,7 +195,7 @@ export async function closeTask(
   const last = task.entries.at(-1);
   if (last && isSeal(last)) throw new TaskError(`task ${id} is already closed`);
   const now = options.now ?? new Date();
-  const by = `factory runtime (for ${options.by})`;
+  const by = `rivetari runtime (for ${options.by})`;
   const append = (section: "timeline" | "outcome", text: string) =>
     task.ledger.append({ beat: "close", section, text, by, at: now });
 
@@ -312,7 +312,7 @@ export async function closeTask(
     findings: await taskFindings(repoPath, id),
     rounds: roundUsage(task),
   };
-  const historyPath = join(repoPath, ".factory", "history.jsonl");
+  const historyPath = join(repoPath, ".rivetari", "history.jsonl");
   const written = (await readFile(historyPath, "utf8").catch(() => ""))
     .split("\n")
     .some((line) => {
@@ -324,7 +324,7 @@ export async function closeTask(
       }
     });
   if (!written) {
-    await mkdir(join(repoPath, ".factory"), { recursive: true });
+    await mkdir(join(repoPath, ".rivetari"), { recursive: true });
     await appendFile(historyPath, `${JSON.stringify(row)}\n`, "utf8");
   }
   await append("timeline", `${SEAL_TEXT} · ${outcome}`);

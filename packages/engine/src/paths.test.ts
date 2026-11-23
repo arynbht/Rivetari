@@ -73,9 +73,9 @@ describe("symlink guards", () => {
   });
 
   it("refuses a write whose target is a symlink out of the repo", async () => {
-    const root = await mkdtemp(join(tmpdir(), "factory-sym-"));
+    const root = await mkdtemp(join(tmpdir(), "rivetari-sym-"));
     made.push(root);
-    const outside = await mkdtemp(join(tmpdir(), "factory-out-"));
+    const outside = await mkdtemp(join(tmpdir(), "rivetari-out-"));
     made.push(outside);
     if (!(await canSymlink(root))) return; // unprivileged Windows → skip
 
@@ -87,9 +87,9 @@ describe("symlink guards", () => {
   });
 
   it("refuses a write through a symlinked intermediate directory", async () => {
-    const root = await mkdtemp(join(tmpdir(), "factory-sym-"));
+    const root = await mkdtemp(join(tmpdir(), "rivetari-sym-"));
     made.push(root);
-    const outside = await mkdtemp(join(tmpdir(), "factory-out-"));
+    const outside = await mkdtemp(join(tmpdir(), "rivetari-out-"));
     made.push(outside);
     if (!(await canSymlink(root))) return;
 
@@ -101,7 +101,7 @@ describe("symlink guards", () => {
   });
 
   it("allows a normal (non-symlinked) new path", async () => {
-    const root = await mkdtemp(join(tmpdir(), "factory-sym-"));
+    const root = await mkdtemp(join(tmpdir(), "rivetari-sym-"));
     made.push(root);
     await mkdir(join(root, "docs"), { recursive: true });
     await expect(
@@ -110,9 +110,9 @@ describe("symlink guards", () => {
   });
 
   it("containedReadPath returns null for a symlink escaping the repo", async () => {
-    const root = await mkdtemp(join(tmpdir(), "factory-sym-"));
+    const root = await mkdtemp(join(tmpdir(), "rivetari-sym-"));
     made.push(root);
-    const outside = await mkdtemp(join(tmpdir(), "factory-out-"));
+    const outside = await mkdtemp(join(tmpdir(), "rivetari-out-"));
     made.push(outside);
     if (!(await canSymlink(root))) return;
 
@@ -122,7 +122,7 @@ describe("symlink guards", () => {
   });
 
   it("containedReadPath resolves a normal in-repo file", async () => {
-    const root = await mkdtemp(join(tmpdir(), "factory-sym-"));
+    const root = await mkdtemp(join(tmpdir(), "rivetari-sym-"));
     made.push(root);
     await writeFile(join(root, "real.txt"), "hi", "utf8");
     expect(await containedReadPath(root, "real.txt")).toBe(

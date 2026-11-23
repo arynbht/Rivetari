@@ -4,20 +4,20 @@ import {
   type Autonomy,
   AUTONOMY_LEVELS,
   type Profile,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   loadProfile,
   ProfileError,
   saveProfile,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import {
   AUTONOMY_DIR,
   setAutonomy,
   TaskError,
   whoami,
-} from "@arynbht/factory-runtime";
+} from "@arynbht/rivetari-runtime";
 
-/** `factory profile show` — print the resolved profile. */
+/** `rivetari profile show` — print the resolved profile. */
 export async function runProfileShow(path: string): Promise<number> {
   const root = resolve(path);
   let profile: Profile | null;
@@ -29,7 +29,7 @@ export async function runProfileShow(path: string): Promise<number> {
   }
   if (!profile) {
     console.error(
-      "No .factory/profile.yml found. Run `factory init` to create one.",
+      "No .rivetari/profile.yml found. Run `rivetari init` to create one.",
     );
     return 1;
   }
@@ -37,7 +37,7 @@ export async function runProfileShow(path: string): Promise<number> {
   return 0;
 }
 
-/** `factory profile set <key> <value>` — update one field and write it back. */
+/** `rivetari profile set <key> <value>` — update one field and write it back. */
 export async function runProfileSet(
   key: string,
   value: string,
@@ -60,7 +60,7 @@ export async function runProfileSet(
   }
   if (!profile) {
     console.error(
-      "No .factory/profile.yml found. Run `factory init` to create one.",
+      "No .rivetari/profile.yml found. Run `rivetari init` to create one.",
     );
     return 1;
   }

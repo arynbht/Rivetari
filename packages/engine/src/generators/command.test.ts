@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildContext } from "../context.js";
@@ -30,7 +30,7 @@ describe("commandGenerator", () => {
     made.length = 0;
   });
   const tmp = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-cmdgen-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-cmdgen-"));
     made.push(d);
     return d;
   };

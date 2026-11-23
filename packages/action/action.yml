@@ -1,5 +1,5 @@
-name: Factory audit
-description: Audit a repository against the factory control catalog and gate PRs.
+name: Rivetari audit
+description: Audit a repository against Rivetari control catalog and gate PRs.
 author: Aryan Bhatia
 
 inputs:
@@ -19,9 +19,9 @@ runs:
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: "22"
-    - name: Factory audit
+    - name: Rivetari audit
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
-        FACTORY_GATE: ${{ inputs.gate }}
+        RIVETARI_GATE: ${{ inputs.gate }}
       run: node "${{ github.action_path }}/dist/index.js" ci

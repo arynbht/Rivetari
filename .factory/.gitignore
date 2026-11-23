@@ -1,8 +1,0 @@
-tasks/
-ai-usage.log
-cache/
-*.bak
-*.bak.*
-# factory skills (managed by `factory skills sync`)
-skills.state.json
-# end factory skills

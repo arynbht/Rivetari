@@ -1,4 +1,4 @@
-import type { DetectorConfig } from "@arynbht/factory-catalog";
+import type { DetectorConfig } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext } from "../context.js";
 import { detectStacks, templateStacks } from "../stack.js";
@@ -36,7 +36,7 @@ export async function command(
 ): Promise<DetectorResult> {
   if (!ctx.runCommands) {
     return skip(
-      "command checks run in the judge (`factory judge`) or with `factory audit --commands`",
+      "command checks run in the judge (`rivetari judge`) or with `rivetari audit --commands`",
     );
   }
 

@@ -6,7 +6,7 @@ blocker until it is either done or explicitly waived.
 
 ## Readiness
 
-- [ ] All launch-gate controls are green or waived (`factory audit --gate launch`)
+- [ ] All launch-gate controls are green or waived (`rivetari audit --gate launch`)
 - [ ] Runbooks exist for the alerts that can fire on day one
 - [ ] Rollback path is documented and has been exercised
 - [ ] On-call owner and escalation path are named

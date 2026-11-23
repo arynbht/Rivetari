@@ -1,6 +1,6 @@
 # CONSTRAINTS.md
 
-<!-- Seeded by `factory init`. The judge's review blocks a change that breaks a rule
+<!-- Seeded by `rivetari init`. The judge's review blocks a change that breaks a rule
 here, so keep every rule concrete enough to check against a diff. Add this codebase's
 rules below; delete any of these that don't fit. -->
 
@@ -21,6 +21,6 @@ rules below; delete any of these that don't fit. -->
   allowlisted environment, never the caller's: no tokens or API keys reach it.
 - Fail closed: a check, proof or guard that can't run reports red, never green.
 - Only the runtime writes a task's ledger; nothing else appends to or edits it.
-- The factory never merges, approves its own PR, or lowers a gate.
+- Rivetari never merges, approves its own PR, or lowers a gate.
 - GitHub calls go through `githubToken()` (explicit, env, the App, then `gh`), not a
   token read some other way.

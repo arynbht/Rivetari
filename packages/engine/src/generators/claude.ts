@@ -1,4 +1,4 @@
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 
 import { AiKeyError } from "../ai/client.js";
 import { generateArtifact, loadPrompt } from "../ai/generate.js";
@@ -13,15 +13,15 @@ import type { Change, Generator } from "./types.js";
  * is not threaded here — control-wired tasks rely on the control + task globs.
  *
  * AI output is non-deterministic and carries a `date:` header, so it can never be
- * idempotent: if we regenerated on every `factory fix` run the artifact would show a
+ * idempotent: if we regenerated on every `rivetari fix` run the artifact would show a
  * fresh diff each time (and burn an API call and, under `--pr`, a new commit).
  * Instead the draft is produced once: if the task's output file already exists, this
- * generator makes no change. Redraft deliberately with `factory ai <task> --pr`.
+ * generator makes no change. Redraft deliberately with `rivetari ai <task> --pr`.
  *
  * When AI isn't explicitly configured for unattended use (`ctx.aiEnabled`) it
- * degrades to no change rather than aborting a mixed `factory fix` run — and,
+ * degrades to no change rather than aborting a mixed `rivetari fix` run — and,
  * crucially, never spawns the interactive Claude CLI during a plain fix/dry-run.
- * AI drafts are produced on demand via `factory ai`, which uses the subscription
+ * AI drafts are produced on demand via `rivetari ai`, which uses the subscription
  * CLI (or surfaces a missing key) explicitly.
  */
 export const claudeGenerator: Generator = async (

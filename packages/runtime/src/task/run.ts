@@ -1,4 +1,4 @@
-// `factory task run <id>`: after a person has confirmed the card and approved
+// `rivetari task run <id>`: after a person has confirmed the card and approved
 // the route, take the task through isolate → build → prove → judge → ship,
 // one beat at a time, and stop wherever a person is needed — a stop-and-ask
 // question, a judge that needs a human, the open PR, or a build that keeps
@@ -91,7 +91,7 @@ export async function runTask(
       return {
         task,
         ran,
-        next: `stopped after ${MAX_BUILDS_PER_RUN} build rounds without a passing proof and judge; read the ledger (\`factory task resume ${id}\`), then run again`,
+        next: `stopped after ${MAX_BUILDS_PER_RUN} build rounds without a passing proof and judge; read the ledger (\`rivetari task resume ${id}\`), then run again`,
       };
     ran.push(beat);
     try {
@@ -120,7 +120,7 @@ export async function runTask(
     // A beat that ran without moving the task on would otherwise run forever.
     if (beat !== "build" && nextStep(task) === next)
       throw new TaskError(
-        `${beat} ran but ${id} is still at "${next}"; read the ledger (\`factory task resume ${id}\`)`,
+        `${beat} ran but ${id} is still at "${next}"; read the ledger (\`rivetari task resume ${id}\`)`,
       );
   }
 }

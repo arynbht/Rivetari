@@ -1,4 +1,4 @@
-// AI usage accounting: every call appends a JSONL line to `.factory/ai-usage.log`
+// AI usage accounting: every call appends a JSONL line to `.rivetari/ai-usage.log`
 // (gitignored) so the monthly cost is visible. Cost is estimated from a small
 // per-model price table; an unknown model is counted with a zero estimate.
 
@@ -37,7 +37,7 @@ export function estimateCost(model: string, usage: AiUsage): number {
   return (usage.inputTokens / 1e6) * inp + (usage.outputTokens / 1e6) * out;
 }
 
-const LOG_PATH = ".factory/ai-usage.log";
+const LOG_PATH = ".rivetari/ai-usage.log";
 
 /** Append one usage record as a JSON line. */
 export async function appendUsage(

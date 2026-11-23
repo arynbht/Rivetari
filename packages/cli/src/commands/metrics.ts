@@ -7,13 +7,13 @@ import {
   loadHistory,
   type Metrics,
   resolveToken,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import {
   type FindingsMetrics,
   findingsMetrics,
   ladder,
   type LadderState,
-} from "@arynbht/factory-runtime";
+} from "@arynbht/rivetari-runtime";
 
 export interface MetricsFlags {
   json?: boolean;
@@ -80,7 +80,7 @@ export interface RunMetricsOptions {
   token?: string | null | undefined;
 }
 
-/** `factory metrics` — the four DORA keys for the repo, from the GitHub API. */
+/** `rivetari metrics` — the four DORA keys for the repo, from the GitHub API. */
 export async function runMetrics(
   path: string,
   flags: MetricsFlags,
@@ -89,11 +89,11 @@ export async function runMetrics(
   const root = resolve(path);
   try {
     if (!(await stat(root)).isDirectory()) {
-      console.error(`factory metrics: not a directory: ${path}`);
+      console.error(`rivetari metrics: not a directory: ${path}`);
       return 1;
     }
   } catch {
-    console.error(`factory metrics: path not found: ${path}`);
+    console.error(`rivetari metrics: path not found: ${path}`);
     return 1;
   }
 
@@ -116,7 +116,7 @@ export async function runMetrics(
   const gh = await ctx.github();
   if (!gh) {
     console.error(
-      "factory metrics: a GitHub token and an origin remote are required (set GITHUB_TOKEN or run `gh auth login`).",
+      "rivetari metrics: a GitHub token and an origin remote are required (set GITHUB_TOKEN or run `gh auth login`).",
     );
     return 1;
   }
@@ -127,7 +127,7 @@ export async function runMetrics(
     (!Number.isFinite(windowDays) || windowDays <= 0)
   ) {
     console.error(
-      `factory metrics: --window must be a positive number of days.`,
+      `rivetari metrics: --window must be a positive number of days.`,
     );
     return 1;
   }
@@ -174,7 +174,7 @@ function render(m: Metrics, historyPoints: number): string {
   if (historyPoints > 0) {
     lines.push(
       "",
-      `Hygiene trend: ${historyPoints} snapshot(s) in .factory/history.jsonl`,
+      `Hygiene trend: ${historyPoints} snapshot(s) in .rivetari/history.jsonl`,
     );
   }
   return lines.join("\n");

@@ -22,22 +22,22 @@ const { privateKey, publicKey } = generateKeyPairSync("rsa", {
 });
 
 let dir: string;
-const saved = process.env.FACTORY_CONFIG_DIR;
+const saved = process.env.RIVETARI_CONFIG_DIR;
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "factory-app-"));
-  process.env.FACTORY_CONFIG_DIR = dir;
+  dir = await mkdtemp(join(tmpdir(), "rivetari-app-"));
+  process.env.RIVETARI_CONFIG_DIR = dir;
 });
 afterEach(async () => {
-  if (saved === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = saved;
+  if (saved === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = saved;
   await rm(dir, { recursive: true, force: true });
 });
 
-describe("the factory's GitHub App", () => {
+describe("Rivetari's GitHub App", () => {
   it("asks for ADR-0007's permissions and no webhook", () => {
     const manifest = appManifest({
-      name: "factory",
-      url: "https://github.com/arynbht/software-factory",
+      name: "rivetari",
+      url: "https://github.com/arynbht/rivetari",
       redirectUrl: "http://localhost:4567/callback",
     });
     expect(manifest.default_permissions).toEqual(APP_PERMISSIONS);
@@ -107,20 +107,20 @@ describe("the factory's GitHub App", () => {
     expect(await loadApp()).toBeNull();
     const record = await saveApp({
       id: 7,
-      slug: "factory-arynbht",
+      slug: "rivetari-arynbht",
       client_id: "Iv1.abc",
       client_secret: "shh",
       webhook_secret: null,
       pem: privateKey,
-      html_url: "https://github.com/apps/factory-arynbht",
+      html_url: "https://github.com/apps/rivetari-arynbht",
       owner: { login: "arynbht" },
     });
     expect(record).toEqual({
       id: 7,
-      slug: "factory-arynbht",
+      slug: "rivetari-arynbht",
       clientId: "Iv1.abc",
       owner: "arynbht",
-      htmlUrl: "https://github.com/apps/factory-arynbht",
+      htmlUrl: "https://github.com/apps/rivetari-arynbht",
     });
     expect(await loadApp()).toEqual({ ...record, privateKey });
     // No secret in the record anyone might share.

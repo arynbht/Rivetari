@@ -16,7 +16,7 @@ import {
   type LedgerEntry,
 } from "./ledger.js";
 
-export const TASKS_DIR = ".factory/tasks";
+export const TASKS_DIR = ".rivetari/tasks";
 
 export class TaskError extends Error {
   constructor(message: string) {
@@ -35,10 +35,10 @@ export const sha256 = (text: string) =>
 
 /**
  * Keep task records out of the product branches: they live on the
- * factory/tasks branch (store.ts), and this checkout's copy is a working one.
+ * rivetari/tasks branch (store.ts), and this checkout's copy is a working one.
  */
 async function ignoreTasks(repoPath: string): Promise<void> {
-  const path = join(repoPath, ".factory", ".gitignore");
+  const path = join(repoPath, ".rivetari", ".gitignore");
   let text = "";
   try {
     text = await readFile(path, "utf8");
@@ -46,7 +46,7 @@ async function ignoreTasks(repoPath: string): Promise<void> {
     // new file
   }
   if (/^tasks\/$/m.test(text)) return;
-  await mkdir(join(repoPath, ".factory"), { recursive: true });
+  await mkdir(join(repoPath, ".rivetari"), { recursive: true });
   await writeFile(
     path,
     `${text}${text && !text.endsWith("\n") ? "\n" : ""}tasks/\n`,
@@ -165,7 +165,7 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
 }
 
 /**
- * `factory task new`: validate a draft card (acceptance items with a `verify`
+ * `rivetari task new`: validate a draft card (acceptance items with a `verify`
  * each, or it is refused), write it, and open the ledger. Nothing runs on the
  * card until a human confirms it.
  */
@@ -207,7 +207,7 @@ export async function newTask(
 }
 
 /**
- * `factory task confirm`: the human agrees the card and its hash is sealed in
+ * `rivetari task confirm`: the human agrees the card and its hash is sealed in
  * the ledger. Until the task is isolated, confirming an edited card records an
  * amendment with the new hash, and the route has to be proposed again.
  */
@@ -312,7 +312,7 @@ export function openStops(task: Task): string[] {
 }
 
 const answerStep = (id: string) =>
-  `stop-and-ask: \`factory task answer ${id} --allow\` or \`--deny "<why>"\``;
+  `stop-and-ask: \`rivetari task answer ${id} --allow\` or \`--deny "<why>"\``;
 
 /** A judge verdict on the timeline; the head is the commit it judged. */
 export const JUDGE_VERDICT =
@@ -341,12 +341,12 @@ function judgeStep(task: Task): string {
     if (answer)
       return answer[1] === "allowed"
         ? "ship"
-        : `build: \`factory task build ${id}\` (a person sent the change back)`;
+        : `build: \`rivetari task build ${id}\` (a person sent the change back)`;
     const verdict =
       e.section === "timeline" ? JUDGE_VERDICT.exec(e.text)?.[1] : undefined;
     if (verdict === "passed") return "ship";
     if (verdict === "failed")
-      return `build: \`factory task build ${id}\` (the judge sent the change back)`;
+      return `build: \`rivetari task build ${id}\` (the judge sent the change back)`;
   }
   return "judge";
 }
@@ -372,7 +372,7 @@ function buildStep(task: Task): string {
     (stage === "paused" && answer === "allowed" && !question)
   )
     return "prove";
-  return `build: \`factory task build ${id}\``;
+  return `build: \`rivetari task build ${id}\``;
 }
 
 /** What happens next for a task, from its ledger. */
@@ -385,13 +385,13 @@ export function nextStep(task: Task): string {
   if (!task.confirmed) return "intake: review the card and confirm it";
   if (!task.approved) {
     return task.assemblyText === undefined
-      ? `route: \`factory task route ${task.card.id}\``
-      : `route: review assembly.yml, then \`factory task approve ${task.card.id}\``;
+      ? `route: \`rivetari task route ${task.card.id}\``
+      : `route: review assembly.yml, then \`rivetari task approve ${task.card.id}\``;
   }
   if (task.beat === "close")
-    return `close: \`factory task close ${task.card.id}\` (it stopped part-way)`;
+    return `close: \`rivetari task close ${task.card.id}\` (it stopped part-way)`;
   if (task.beat === "ship")
-    return `close: once the PR is merged or closed, \`factory task close ${task.card.id}\``;
+    return `close: once the PR is merged or closed, \`rivetari task close ${task.card.id}\``;
   if (task.beat === "judge") return judgeStep(task);
   if (task.beat === "build") return buildStep(task);
   if (task.beat === "prove") {
@@ -402,21 +402,21 @@ export function nextStep(task: Task): string {
     return proved?.text.startsWith("proof passed") ||
       proved?.text.startsWith("proof deferred")
       ? "judge"
-      : `build: \`factory task build ${task.card.id}\` (the proof failed)`;
+      : `build: \`rivetari task build ${task.card.id}\` (the proof failed)`;
   }
   if (task.beat === "isolate")
-    return `build: \`factory task build ${task.card.id}\``;
+    return `build: \`rivetari task build ${task.card.id}\``;
   if (task.beat === "route")
-    return `isolate: \`factory task isolate ${task.card.id}\``;
+    return `isolate: \`rivetari task isolate ${task.card.id}\``;
   const i = BEATS.indexOf(task.beat);
   return `${BEATS[Math.min(i + 1, BEATS.length - 1)]}`;
 }
 
-/** `factory task status`: every task, its beat, and whether its record is intact. */
+/** `rivetari task status`: every task, its beat, and whether its record is intact. */
 export async function listTasks(
   repoPath: string,
   warn: (message: string) => void = (m) =>
-    process.stderr.write(`factory task: ${m}\n`),
+    process.stderr.write(`rivetari task: ${m}\n`),
 ): Promise<Task[]> {
   const tasks: Task[] = [];
   for (const id of await taskIds(repoPath)) {

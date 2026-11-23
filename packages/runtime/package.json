@@ -1,7 +1,7 @@
 {
-  "name": "@arynbht/factory-runtime",
+  "name": "@arynbht/rivetari-runtime",
   "version": "0.0.0",
-  "description": "Task runtime: task cards and ledger, the router, and the judge (and, later, sector agents) for factory v2.",
+  "description": "Task runtime: task cards and ledger, the router, and the judge (and, later, sector agents) for rivetari v2.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,9 +17,9 @@
   ],
   "scripts": {},
   "dependencies": {
-    "@arynbht/factory-catalog": "workspace:*",
-    "@arynbht/factory-engine": "workspace:*",
-    "@arynbht/factory-registry": "workspace:*",
+    "@arynbht/rivetari-catalog": "workspace:*",
+    "@arynbht/rivetari-engine": "workspace:*",
+    "@arynbht/rivetari-registry": "workspace:*",
     "axe-core": "^4.14.0",
     "picomatch": "^4.0.7",
     "playwright-core": "1.63.0",

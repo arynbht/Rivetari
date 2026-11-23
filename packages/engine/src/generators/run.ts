@@ -1,4 +1,4 @@
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import picomatch from "picomatch";
 
 import type { AuditContext } from "../context.js";

@@ -82,7 +82,7 @@
                 "description": "Glob; passes if at least one file matches."
               },
               "exclude": {
-                "description": "Glob (may be `a|b|c`) of paths that do NOT count as a match, e.g. the factory's own workflow. Files matching `exclude` are removed before the pass/fail decision.",
+                "description": "Glob (may be `a|b|c`) of paths that do NOT count as a match, e.g. Rivetari's own workflow. Files matching `exclude` are removed before the pass/fail decision.",
                 "type": "string",
                 "minLength": 1
               }
@@ -153,7 +153,7 @@
                 "type": "boolean"
               },
               "exclude": {
-                "description": "Glob (may be `a|b|c`) of files that never count, e.g. the factory's own workflow.",
+                "description": "Glob (may be `a|b|c`) of files that never count, e.g. Rivetari's own workflow.",
                 "type": "string",
                 "minLength": 1
               },
@@ -202,7 +202,7 @@
                 "type": "boolean"
               },
               "exclude": {
-                "description": "Glob (may be `a|b|c`) of files that never count, e.g. the factory's own workflow.",
+                "description": "Glob (may be `a|b|c`) of files that never count, e.g. Rivetari's own workflow.",
                 "type": "string",
                 "minLength": 1
               },
@@ -341,7 +341,7 @@
                 "const": "reviewed"
               },
               "task": {
-                "description": "Only drafts from this `factory ai` task (the header's `task:`); default every draft. Passes when every such draft carries a filled `reviewed-by:` line.",
+                "description": "Only drafts from this `rivetari ai` task (the header's `task:`); default every draft. Passes when every such draft carries a filled `reviewed-by:` line.",
                 "type": "string",
                 "minLength": 1
               }
@@ -407,7 +407,7 @@
                           "description": "Glob; passes if at least one file matches."
                         },
                         "exclude": {
-                          "description": "Glob (may be `a|b|c`) of paths that do NOT count as a match, e.g. the factory's own workflow. Files matching `exclude` are removed before the pass/fail decision.",
+                          "description": "Glob (may be `a|b|c`) of paths that do NOT count as a match, e.g. Rivetari's own workflow. Files matching `exclude` are removed before the pass/fail decision.",
                           "type": "string",
                           "minLength": 1
                         }
@@ -478,7 +478,7 @@
                           "type": "boolean"
                         },
                         "exclude": {
-                          "description": "Glob (may be `a|b|c`) of files that never count, e.g. the factory's own workflow.",
+                          "description": "Glob (may be `a|b|c`) of files that never count, e.g. Rivetari's own workflow.",
                           "type": "string",
                           "minLength": 1
                         },
@@ -527,7 +527,7 @@
                           "type": "boolean"
                         },
                         "exclude": {
-                          "description": "Glob (may be `a|b|c`) of files that never count, e.g. the factory's own workflow.",
+                          "description": "Glob (may be `a|b|c`) of files that never count, e.g. Rivetari's own workflow.",
                           "type": "string",
                           "minLength": 1
                         },
@@ -666,7 +666,7 @@
                           "const": "reviewed"
                         },
                         "task": {
-                          "description": "Only drafts from this `factory ai` task (the header's `task:`); default every draft. Passes when every such draft carries a filled `reviewed-by:` line.",
+                          "description": "Only drafts from this `rivetari ai` task (the header's `task:`); default every draft. Passes when every such draft carries a filled `reviewed-by:` line.",
                           "type": "string",
                           "minLength": 1
                         }
@@ -932,7 +932,7 @@
       "pattern": "^\\d+\\s*[dwy]?$"
     },
     "managed": {
-      "description": "The factory owns the files this control's fix writes and may rewrite them even after a human edit (only for factory state, never project files).",
+      "description": "Rivetari owns the files this control's fix writes and may rewrite them even after a human edit (only for rivetari state, never project files).",
       "type": "boolean"
     }
   },

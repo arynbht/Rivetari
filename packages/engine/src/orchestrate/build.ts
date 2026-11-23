@@ -1,7 +1,7 @@
 // The build pipeline: take an approved BuildPlan and carry it to a gated PR. All work
 // happens in an isolated git worktree (worktree.ts), so the user's checkout is never
 // touched. A write-capable agent implements the plan; the result is verified against
-// the repo's checks + the factory gate; failures feed a bounded fix-loop; then the
+// the repo's checks + Rivetari gate; failures feed a bounded fix-loop; then the
 // branch is committed, pushed, and a PR is opened. Every external effect (the agent,
 // git, verify, the PR call) is an injectable seam, so the whole flow is unit-tested
 // with no `claude`, git, or network — mirroring fix-pr.ts.
@@ -60,7 +60,7 @@ export interface BuildOptions {
   date: string;
   /** Inject the implementer agent (tests). Default spawns the write-agent. */
   writeAgent?: WriteAgentRunner;
-  /** Inject the verifier (tests). Default runs repo checks + factory gate. */
+  /** Inject the verifier (tests). Default runs repo checks + Rivetari gate. */
   verify?: (dir: string) => Promise<VerifyResult>;
   /** Inject dependency install (tests). Default installs in the fresh worktree. */
   install?: (dir: string) => Promise<void>;
@@ -136,7 +136,7 @@ function prBody(
     )
     .join("\n");
   return [
-    `Automated build from the Software Factory orchestrator.`,
+    `Automated build from the Rivetari orchestrator.`,
     "",
     `**Request:** ${plan.request}`,
     "",
@@ -170,7 +170,7 @@ export async function runBuild(
   };
 
   // A short suffix so retrying the same request the same day gets its own branch.
-  const branch = `factory/build-${options.date}-${slugify(plan.request)}-${randomBytes(3).toString("hex")}`;
+  const branch = `rivetari/build-${options.date}-${slugify(plan.request)}-${randomBytes(3).toString("hex")}`;
   // Know we can open the PR before anything is pushed (or built).
   const openPr = push
     ? (options.openPr ?? (await defaultOpenPr(ctx)))
@@ -265,7 +265,7 @@ export async function runBuild(
     // only push + open a PR when the acceptance checks actually passed.
     const committed = await git.commitAll(
       worktree.path,
-      `factory: build — ${plan.request.split("\n")[0]}`,
+      `rivetari: build — ${plan.request.split("\n")[0]}`,
     );
 
     if (committed && openPr && result.passed) {
@@ -279,7 +279,7 @@ export async function runBuild(
       pr = await openPr({
         head: branch,
         base: worktree.base,
-        title: `factory: ${plan.request.split("\n")[0]}`,
+        title: `rivetari: ${plan.request.split("\n")[0]}`,
         body: prBody(plan, result, iterations),
       });
       pushed = true;

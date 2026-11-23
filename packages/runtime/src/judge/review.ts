@@ -1,11 +1,11 @@
-// `factory review`: judge tier 2 on a local branch or a GitHub pull request,
+// `rivetari review`: judge tier 2 on a local branch or a GitHub pull request,
 // with the two-round limit and posting as a single PR review.
 import {
   type AiClient,
   Octokit,
   QUIET_LOG,
   resolveRepoSlug,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
@@ -92,7 +92,7 @@ export async function reviewPullRequest(
   });
 
   const git = simpleGit(options.repoPath);
-  const ref = `refs/factory/pr-${options.pr}`;
+  const ref = `refs/rivetari/pr-${options.pr}`;
   await git.raw([
     "fetch",
     "--quiet",

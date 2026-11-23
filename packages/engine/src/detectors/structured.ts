@@ -14,7 +14,7 @@ export interface StructuredPathConfig {
   all?: boolean | undefined;
   /** Minimum for numeric values (e.g. a coverage percentage). */
   min?: number | undefined;
-  /** Glob of files that never count (e.g. the factory's own workflow). */
+  /** Glob of files that never count (e.g. Rivetari's own workflow). */
   exclude?: string | undefined;
 }
 

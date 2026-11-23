@@ -16,12 +16,12 @@ import {
   validateManifestSet,
 } from "./schema.js";
 
-export const LOCK_FILE = ".factory/skills.lock";
-export const STATE_FILE = ".factory/skills.state.json";
-export const LOCAL_MANIFESTS = ".factory/skills/manifests";
-export const VENDOR_DIR = ".factory/vendor/skills";
+export const LOCK_FILE = ".rivetari/skills.lock";
+export const STATE_FILE = ".rivetari/skills.state.json";
+export const LOCAL_MANIFESTS = ".rivetari/skills/manifests";
+export const VENDOR_DIR = ".rivetari/vendor/skills";
 
-/** The manifests that ship with the factory. */
+/** The manifests that ship with Rivetari. */
 export function bundledManifestsDir(): string {
   return fileURLToPath(new URL("../manifests", import.meta.url));
 }
@@ -58,7 +58,7 @@ export async function writeLock(repoPath: string, lock: Lock): Promise<void> {
   };
   await writeFile(
     path,
-    `# Pinned skills for this repo. Edit with \`factory skills add|update\`.\n${stringify(sorted)}`,
+    `# Pinned skills for this repo. Edit with \`rivetari skills add|update\`.\n${stringify(sorted)}`,
     "utf8",
   );
 }
@@ -103,8 +103,8 @@ async function readManifestDir(dir: string): Promise<{
 }
 
 /**
- * Every manifest the repo can use: the factory's bundled ones, overridden by
- * name by the repo's own (`.factory/skills/manifests/`). Schema errors and
+ * Every manifest the repo can use: Rivetari's bundled ones, overridden by
+ * name by the repo's own (`.rivetari/skills/manifests/`). Schema errors and
  * cross-manifest problems (unknown or one-sided conflicts) are returned, not
  * thrown, so callers can report them all.
  */

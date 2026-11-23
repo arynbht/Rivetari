@@ -6,7 +6,7 @@ export default defineConfig({
     include: ["packages/**/*.{test,spec}.ts", "apps/**/*.{test,spec}.ts"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     // Many tests drive real git repos and child processes. Under the whole
-    // suite with coverage on a loaded machine (a factory task's worktree on
+    // suite with coverage on a loaded machine (a rivetari task's worktree on
     // Windows), the 5s default timed them out; nothing about them was wrong.
     testTimeout: 30_000,
     hookTimeout: 30_000,

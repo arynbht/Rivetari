@@ -1,4 +1,4 @@
-import type { Control, Profile, Waiver } from "@arynbht/factory-catalog";
+import type { Control, Profile, Waiver } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext } from "./context.js";
 import { type ControlResult, evaluateControl } from "./evaluate.js";

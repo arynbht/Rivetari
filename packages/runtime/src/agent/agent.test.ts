@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -31,16 +31,16 @@ const tmp = async (prefix: string) => {
   made.push(dir);
   return dir;
 };
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
-const savedSecret = process.env.FACTORY_TEST_SECRET;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
+const savedSecret = process.env.RIVETARI_TEST_SECRET;
 let repo: string;
 let context: RouteContext;
 const by = { by: "dev@example.com", now: new Date("2026-11-10T16:00:00Z") };
 
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
-  process.env.FACTORY_TEST_SECRET = "caller-token";
-  repo = await tmp("factory-agent-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
+  process.env.RIVETARI_TEST_SECRET = "caller-token";
+  repo = await tmp("rivetari-agent-");
   const git = simpleGit(repo);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -67,10 +67,10 @@ beforeEach(async () => {
   };
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
-  if (savedSecret === undefined) delete process.env.FACTORY_TEST_SECRET;
-  else process.env.FACTORY_TEST_SECRET = savedSecret;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
+  if (savedSecret === undefined) delete process.env.RIVETARI_TEST_SECRET;
+  else process.env.RIVETARI_TEST_SECRET = savedSecret;
   for (const d of made) {
     await simpleGit(d)
       .raw(["worktree", "prune"])
@@ -130,7 +130,7 @@ describe("isolate", () => {
     );
     expect(
       (await wt.raw(["config", "--worktree", "core.hooksPath"])).trim(),
-    ).toMatch(/factory-no-hooks$/);
+    ).toMatch(/rivetari-no-hooks$/);
     // The worktree never shows up as untracked in the primary checkout.
     expect(await simpleGit(repo).raw(["status", "--porcelain"])).not.toContain(
       ".worktrees",
@@ -178,7 +178,7 @@ describe("build", () => {
     expect(build?.prompt).toContain("1. Sum the lines in src/total.ts");
     expect(build?.prompt).toContain("port is 5174");
     // The agent runs repo code: no caller tokens in its environment.
-    expect(build?.env.FACTORY_TEST_SECRET).toBeUndefined();
+    expect(build?.env.RIVETARI_TEST_SECRET).toBeUndefined();
     expect(build?.env.PORT).toBe("5174");
 
     const iso = await loadIsolation(repo, id);
@@ -309,7 +309,7 @@ describe("build", () => {
     expect(calls[1]?.prompt).toContain("You can't ask during the round.");
   });
 
-  it("an answered FACTORY_STOP question goes back to the agent, with the answer", async () => {
+  it("an answered RIVETARI_STOP question goes back to the agent, with the answer", async () => {
     const id = await approvedTask();
     await isolateTask(repo, id, { ...by, base: "main" });
     const first = await buildTask(repo, id, {
@@ -317,7 +317,7 @@ describe("build", () => {
       agent: async (call) =>
         call.mode === "plan"
           ? JSON.stringify({ steps: ["Sum the lines"] })
-          : "Before I start:\nFACTORY_STOP: May total() ignore blank lines?",
+          : "Before I start:\nRIVETARI_STOP: May total() ignore blank lines?",
     });
     expect(first.stops).toEqual([
       {
@@ -367,13 +367,13 @@ describe("build", () => {
       beat: "prove",
       section: "proof",
       text: "tests failed (pnpm run test, exit 1) · total([]) throws",
-      by: "factory runtime (for dev@example.com)",
+      by: "rivetari runtime (for dev@example.com)",
     });
     await task.ledger.append({
       beat: "prove",
       section: "timeline",
       text: "proof failed · test-run",
-      by: "factory runtime (for dev@example.com)",
+      by: "rivetari runtime (for dev@example.com)",
     });
     calls.length = 0;
     await buildTask(repo, id, { ...by, agent });
@@ -390,7 +390,7 @@ describe("build", () => {
     expect(retry).toContain("# Operating rules");
     expect(first).toContain("## Repository files");
     expect(retry).not.toContain("## Repository files");
-    expect(calls[0]?.system).toContain("FACTORY_STOP:");
+    expect(calls[0]?.system).toContain("RIVETARI_STOP:");
   });
 
   it("doesn't stop on a test file that names a secret as data, but does on a real key shape in one", async () => {
@@ -546,7 +546,7 @@ describe("build", () => {
   it("won't build on an env.json edited after isolation", async () => {
     const id = await approvedTask();
     const { isolation } = await isolateTask(repo, id, { ...by, base: "main" });
-    const path = join(repo, ".factory/tasks", id, "env.json");
+    const path = join(repo, ".rivetari/tasks", id, "env.json");
     await writeFile(path, JSON.stringify({ ...isolation, worktree: repo }));
     await expect(
       buildTask(repo, id, {

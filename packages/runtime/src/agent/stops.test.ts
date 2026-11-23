@@ -21,7 +21,7 @@ async function change(
   base: Record<string, string>,
   edits: Record<string, string>,
 ): Promise<{ dir: string; from: string; to: string }> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-stops-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-stops-"));
   made.push(dir);
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);

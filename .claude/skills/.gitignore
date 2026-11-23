@@ -1,4 +1,4 @@
-# factory skills (managed by `factory skills sync`)
+# rivetari skills (managed by `rivetari skills sync`)
 /code-review-and-quality
 /constraint-driven-development
 /differential-review
@@ -11,4 +11,4 @@
 /spec-driven-development
 /test-driven-development
 /webapp-testing
-# end factory skills
+# end rivetari skills

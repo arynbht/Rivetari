@@ -1,7 +1,7 @@
 {
-  "name": "@arynbht/factory-desktop",
+  "name": "@arynbht/rivetari-desktop",
   "version": "0.0.1",
-  "description": "Electron desktop shell over the factory engine.",
+  "description": "Electron desktop shell over Rivetari engine.",
   "author": "Aryan Bhatia",
   "license": "MIT",
   "private": true,
@@ -19,8 +19,8 @@
     "package:dir": "electron-vite build && electron-builder --dir"
   },
   "dependencies": {
-    "@arynbht/factory-catalog": "workspace:*",
-    "@arynbht/factory-engine": "workspace:*",
+    "@arynbht/rivetari-catalog": "workspace:*",
+    "@arynbht/rivetari-engine": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cytoscape": "^3.30.0",

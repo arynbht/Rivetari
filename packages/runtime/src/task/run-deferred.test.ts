@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -18,7 +18,7 @@ import { runTask } from "./run.js";
 import { confirmTask, newTask } from "./tasks.js";
 
 const made: string[] = [];
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const by = { by: "dev@example.com", now: new Date("2026-11-23T01:00:00Z") };
 
 const tmp = async (prefix: string) => {
@@ -27,11 +27,11 @@ const tmp = async (prefix: string) => {
   return dir;
 };
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) {
     await simpleGit(d)
       .raw(["worktree", "prune"])
@@ -42,7 +42,7 @@ afterEach(async () => {
 });
 
 async function approvedTask(): Promise<{ repo: string; id: string }> {
-  const repo = await tmp("factory-run-deferred-");
+  const repo = await tmp("rivetari-run-deferred-");
   const git = simpleGit(repo);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -202,7 +202,7 @@ describe("a deferred test-run proof", { timeout: 180_000 }, () => {
     ).toBe(true);
     const proof = JSON.parse(
       await readFile(
-        join(repo, ".factory", "tasks", id, "proof", "proof.json"),
+        join(repo, ".rivetari", "tasks", id, "proof", "proof.json"),
         "utf8",
       ),
     ) as { passed: boolean; tests: { output: string } };

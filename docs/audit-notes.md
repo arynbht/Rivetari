@@ -1,13 +1,13 @@
 # Audit notes
 
-A running log of dogfooding `factory audit` on real repositories: every false
+A running log of dogfooding `rivetari audit` on real repositories: every false
 positive, its cause, and whether it was fixed in a detector, a control, or is
 expected. Add an entry (and ideally a fixture) each time a real repo exposes a
 problem.
 
-## 2026-11-01 — Milestone 1 dogfood on the factory repo
+## 2026-11-01 — Milestone 1 dogfood on Rivetari repo
 
-First end-to-end run of `factory audit .` against the factory repo itself, with
+First end-to-end run of `rivetari audit .` against Rivetari repo itself, with
 all 40 M1 controls.
 
 **Result:** `28 pass, 10 fail, 1 need evidence, 1 skip (40 controls)` in ~1.1s
@@ -21,14 +21,14 @@ all 40 M1 controls.
 
 ### False positives pending Milestone 2
 
-| Control            | Why it is a false positive                                                                                                                                                                         | Resolution                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `test.e2e.present` | The factory is not public-facing, so E2E tests should not apply. The control carries `applies: { flag: public-facing }`, but applicability is not evaluated until M2, so in M1 every control runs. | Will show `n/a` once M2 evaluates `applies` against the profile. |
+| Control            | Why it is a false positive                                                                                                                                                                      | Resolution                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `test.e2e.present` | Rivetari is not public-facing, so E2E tests should not apply. The control carries `applies: { flag: public-facing }`, but applicability is not evaluated until M2, so in M1 every control runs. | Will show `n/a` once M2 evaluates `applies` against the profile. |
 
 ### Genuine gaps (not false positives)
 
 These failures are real and are expected to be closed by later milestones
-(several are exactly what the factory's own generators will fix in M3):
+(several are exactly what Rivetari's own generators will fix in M3):
 
 - `ci.actions-pinned-sha` — actions are pinned by tag (`@v4`), not SHA. Renovate
   is configured with `helpers:pinGitHubActionDigests` and will convert these.
@@ -46,7 +46,7 @@ These failures are real and are expected to be closed by later milestones
 - `sec.scorecard.score` → **skip**: OpenSSF Scorecard is not installed locally, so
   the `scorecard` detector correctly skips rather than fails.
 - `sec.threat-model` → **needs-evidence**: a `manual` control with no evidence in
-  `.factory/evidence.yml`.
+  `.rivetari/evidence.yml`.
 
 ### Known limitations logged for later
 
@@ -56,15 +56,15 @@ These failures are real and are expected to be closed by later milestones
   affect normal use, but it means `github-api` checks are not meaningful when
   auditing, say, a fixture directory inside this repo. Running without a token
   makes those checks skip cleanly.
-- **Multi-repo dogfooding**: per the weekly rhythm, `factory audit` should be run
+- **Multi-repo dogfooding**: per the weekly rhythm, `rivetari audit` should be run
   against several standalone real repos. The engine is additionally exercised
   against the `empty`, `node-minimal`, and `node-complete` fixture repos in the
   unit tests, covering pass/fail/skip for every detector on different repo shapes.
 
-## 2026-11-01 — Milestone 3 dogfood: `factory fix` on a fresh repo
+## 2026-11-01 — Milestone 3 dogfood: `rivetari fix` on a fresh repo
 
-First end-to-end run of the M3 remediation flow — `factory init` then
-`factory fix --write`/`--pr` — on a throwaway Node repo, reviewing the output as
+First end-to-end run of the M3 remediation flow — `rivetari init` then
+`rivetari fix --write`/`--pr` — on a throwaway Node repo, reviewing the output as
 if a stranger had sent the PR. Validated against the M3 Definition of Done.
 
 ### DoD results
@@ -83,7 +83,7 @@ if a stranger had sent the PR. Validated against the M3 Definition of Done.
   preserved. Caveat below.
 - **(3) Running `fix` twice produces no second diff.** _Fully met._ A second
   `fix --write` on a committed scaffold reports `0 file changes applied` and
-  leaves a clean working tree (the managed-hash registry in `.factory/state.json`
+  leaves a clean working tree (the managed-hash registry in `.rivetari/state.json`
   makes the apply idempotent).
 
 ### Fixed during this pass
@@ -116,21 +116,21 @@ if a stranger had sent the PR. Validated against the M3 Definition of Done.
 
 ## 2026-11-01 — Milestone 4 dogfood: Claude integration
 
-The M4 AI pipeline (client → context packer → `claude` generator → `factory ai`
+The M4 AI pipeline (client → context packer → `claude` generator → `rivetari ai`
 → usage log → skill) is covered end-to-end by **recorded-response fixtures** so the
 whole flow is tested without a network call or a key. The parts that need a live
 `ANTHROPIC_API_KEY` are the human's final check (below).
 
 ### Validated offline (no key)
 
-- `factory init` installs the Claude Code skill at `.claude/skills/factory/SKILL.md`
-  alongside `.factory/` and the workflow.
-- `factory ai explain-gaps` with no key → `factory ai: no Anthropic API key. Set
+- `rivetari init` installs the Claude Code skill at `.claude/skills/rivetari/SKILL.md`
+  alongside `.rivetari/` and the workflow.
+- `rivetari ai explain-gaps` with no key → `rivetari ai: no Anthropic API key. Set
 ANTHROPIC_API_KEY and retry.` and exit 1 (clean, no stack trace).
-- `factory ai bogus-task` → lists the nine available tasks (`adr, brief, c4,
+- `rivetari ai bogus-task` → lists the nine available tasks (`adr, brief, c4,
 explain-gaps, license-summary, runbook, stories, test-scaffold, threat-model`),
   confirming every prompt is bundled and discoverable.
-- `factory ai usage` on a fresh repo → `No AI usage recorded yet.`
+- `rivetari ai usage` on a fresh repo → `No AI usage recorded yet.`
 - **Secret guard** (the key safety property): a unit test proves a `.env` and a
   secret-content file are excluded from the packed context even under a greedy
   `**/*` glob, and the secret values never appear in what would be sent.
@@ -140,8 +140,8 @@ explain-gaps, license-summary, runbook, stories, test-scaffold, threat-model`),
 These can't run in this environment (no `ANTHROPIC_API_KEY`); run them locally to
 close the loop:
 
-1. `factory ai explain-gaps` produces a sendable narrative on a half-built repo.
-2. `factory ai threat-model --pr` opens a PR with a STRIDE table whose rows
+1. `rivetari ai explain-gaps` produces a sendable narrative on a half-built repo.
+2. `rivetari ai threat-model --pr` opens a PR with a STRIDE table whose rows
    reference real components.
 3. Claude Code, with the installed skill, answers "what's left?" by running the
    audit.
@@ -160,4 +160,4 @@ plumbing.
   `release.changelog` still waits on M6 catalog breadth.
 - Eight of the nine task→control wirings wait on M6 catalog breadth; only
   `sec.threat-model` is control-wired today (the rest run as standalone
-  `factory ai <task>`).
+  `rivetari ai <task>`).

@@ -1,14 +1,14 @@
 ---
-"@arynbht/factory-registry": minor
-"@arynbht/factory-engine": minor
-"@arynbht/factory-runtime": minor
-"@arynbht/factory": patch
+"@arynbht/rivetari-registry": minor
+"@arynbht/rivetari-engine": minor
+"@arynbht/rivetari-runtime": minor
+"@arynbht/rivetari": patch
 ---
 
 Registry review rules: `scan_allow` binds to one exact line (sha256) with a named
 reviewer and is ignored once the lock pins another commit; licenses outside the
 OSI allow-list need a signed `license_review`; legal-sector skills must name the
-controls they serve; the `.factory/` scan rule matches repo paths only;
+controls they serve; the `.rivetari/` scan rule matches repo paths only;
 `pnpm registry:scan` lists open findings. The judge protects the skill registry
 and agent harness settings, and runs installs and checks with an environment
 allowlist (`allowlistedEnv`; `--env` to pass more). Manifests: drop

@@ -77,14 +77,14 @@ async function ensureBranch(
         mode: "100644",
         type: "blob",
         content:
-          "# Evidence\n\nProof the factory produced for its tasks, one directory per task. Written by `factory task prove`; nothing here is code.\n",
+          "# Evidence\n\nProof Rivetari produced for its tasks, one directory per task. Written by `rivetari task prove`; nothing here is code.\n",
       },
     ],
   });
   const commit = await gh.rest.git.createCommit({
     owner,
     repo,
-    message: "chore(factory): start the evidence branch",
+    message: "chore(rivetari): start the evidence branch",
     tree: tree.data.sha,
     parents: [],
   });
@@ -128,7 +128,7 @@ export async function publishEvidence(options: {
       owner,
       repo,
       path,
-      message: `chore(factory): ${task} proof`,
+      message: `chore(rivetari): ${task} proof`,
       content: (await readFile(file)).toString("base64"),
       branch: EVIDENCE_BRANCH,
       ...(sha ? { sha } : {}),

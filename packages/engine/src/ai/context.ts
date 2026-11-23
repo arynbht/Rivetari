@@ -4,7 +4,7 @@
 // content scan (see redact.ts). The list of included files is returned so the PR
 // description can tell a reviewer exactly what the model was shown.
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext } from "../context.js";
 import type { ControlResult } from "../evaluate.js";
@@ -46,13 +46,13 @@ export interface PackContextOptions {
 const DEFAULT_MAX_BYTES = 60_000;
 
 /**
- * Render a compact architecture summary from `.factory/floorplan.json` (the deep-
+ * Render a compact architecture summary from `.rivetari/floorplan.json` (the deep-
  * audit model), or null when there is no floor plan / it's unreadable. Lists the
  * systems and their top subsystems, plus the cross-system connections — enough to
  * orient the model without blowing the context budget.
  */
 async function architectureSection(ctx: AuditContext): Promise<string | null> {
-  const raw = await ctx.readFile(".factory/floorplan.json").catch(() => null);
+  const raw = await ctx.readFile(".rivetari/floorplan.json").catch(() => null);
   if (!raw) return null;
   let model: {
     nodes?: { id: string; kind: string; title: string; parent?: string }[];

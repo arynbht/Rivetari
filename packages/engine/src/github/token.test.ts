@@ -59,11 +59,11 @@ describe("githubToken", () => {
     });
   });
 
-  it("acts as the factory's App when it's installed on the repo", async () => {
-    const config = await mkdtemp(join(tmpdir(), "factory-app-"));
-    const repo = await mkdtemp(join(tmpdir(), "factory-repo-"));
+  it("acts as Rivetari's App when it's installed on the repo", async () => {
+    const config = await mkdtemp(join(tmpdir(), "rivetari-app-"));
+    const repo = await mkdtemp(join(tmpdir(), "rivetari-repo-"));
     made.push(config, repo);
-    process.env.FACTORY_CONFIG_DIR = config;
+    process.env.RIVETARI_CONFIG_DIR = config;
     execFileSync("git", ["init", "-q", repo]);
     execFileSync("git", [
       "-C",
@@ -80,12 +80,12 @@ describe("githubToken", () => {
     });
     await saveApp({
       id: 1,
-      slug: "factory",
+      slug: "rivetari",
       client_id: "Iv1.x",
       client_secret: "s",
       webhook_secret: null,
       pem: privateKey,
-      html_url: "https://github.com/apps/factory",
+      html_url: "https://github.com/apps/rivetari",
     });
     const seen: string[] = [];
     const fake = (async (url: string) => {

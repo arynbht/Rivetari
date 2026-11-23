@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -20,7 +20,7 @@ const tmp = async (prefix: string) => {
   made.push(dir);
   return dir;
 };
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 let repo: string;
 let context: RouteContext;
 const by = { by: "dev@example.com", now: new Date("2026-11-23T10:00:00Z") };
@@ -30,8 +30,8 @@ const amender = {
 };
 
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
-  repo = await tmp("factory-amend-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
+  repo = await tmp("rivetari-amend-");
   const git = simpleGit(repo);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -49,8 +49,8 @@ beforeEach(async () => {
   };
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) {
     await simpleGit(d)
       .raw(["worktree", "prune"])
@@ -76,7 +76,7 @@ async function confirmedTask(): Promise<string> {
   return draft.card.id;
 }
 
-const cardFile = (id: string) => join(repo, ".factory/tasks", id, "card.yml");
+const cardFile = (id: string) => join(repo, ".rivetari/tasks", id, "card.yml");
 
 async function editCard(id: string): Promise<{ old: string; next: string }> {
   const path = cardFile(id);
@@ -124,7 +124,7 @@ describe("amending a confirmed card before isolate", () => {
     const amended = await confirmTask(repo, id, amender);
     expect(amended.approved).toBe(false);
     expect(amended.problems).toEqual([]);
-    expect(nextStep(amended)).toMatch(/^route: `factory task route T-0001`/);
+    expect(nextStep(amended)).toMatch(/^route: `rivetari task route T-0001`/);
 
     const rerouted = await routeTask(repo, id, { ...by, context });
     expect(rerouted.task.problems).toEqual([]);

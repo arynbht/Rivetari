@@ -96,7 +96,7 @@ export function Fix({
     setError(null);
     setNotice(null);
     setPr(null);
-    window.factory.fix.plan(repoPath).then(
+    window.rivetari.fix.plan(repoPath).then(
       (p) => active && setPlan(p),
       (err: unknown) => active && setError(errorMessage(err)),
     );
@@ -124,7 +124,7 @@ export function Fix({
 
   async function handleApply(): Promise<void> {
     await run(async () => {
-      const result = await window.factory.fix.apply(repoPath);
+      const result = await window.rivetari.fix.apply(repoPath);
       setPlan(result);
       const applied = result.changes.filter(
         (c) => c.action === "create" || c.action === "update",
@@ -138,7 +138,7 @@ export function Fix({
 
   async function handleOpenPr(): Promise<void> {
     await run(async () => {
-      const outcome = await window.factory.fix.openPr(repoPath);
+      const outcome = await window.rivetari.fix.openPr(repoPath);
       setPr(outcome);
       if (!outcome.pr) setNotice("No changes to propose — no PR opened.");
     });

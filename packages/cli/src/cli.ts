@@ -67,13 +67,13 @@ export function buildProgram(): Command {
   const program = new Command();
 
   program
-    .name("factory")
+    .name("rivetari")
     .description("An auditor and scaffolder for GitHub repositories");
 
   program
     .command("init")
     .description(
-      "Set up .factory config and a workflow, then run the first audit",
+      "Set up .rivetari config and a workflow, then run the first audit",
     )
     .argument("[path]", "path to the repo", ".")
     .option("--type <type>", "project type (non-interactive)")
@@ -92,7 +92,10 @@ export function buildProgram(): Command {
       "where to report vulnerabilities (email or URL)",
     )
     .option("--yes", "non-interactive; use flags and defaults")
-    .option("--force", "overwrite existing .factory config and generated files")
+    .option(
+      "--force",
+      "overwrite existing .rivetari config and generated files",
+    )
     .action(async (path: string, flags: InitFlags) => {
       process.exitCode = await runInit(path, flags);
     });
@@ -109,7 +112,7 @@ export function buildProgram(): Command {
 
   const hook = program
     .command("hook")
-    .description("Claude Code hooks that `factory init` installs");
+    .description("Claude Code hooks that `rivetari init` installs");
   hook
     .command("session-start")
     .description("Print the contract in brief and the open tasks")
@@ -120,7 +123,7 @@ export function buildProgram(): Command {
   hook
     .command("guard")
     .description(
-      "PreToolUse: refuse edits to .factory/** and to the primary checkout on the default branch, shell commands that write them, and in a factory repo a force push or remote delete, git reset --hard, git clean -f and git branch -D",
+      "PreToolUse: refuse edits to .rivetari/** and to the primary checkout on the default branch, shell commands that write them, and in a rivetari repo a force push or remote delete, git reset --hard, git clean -f and git branch -D",
     )
     .action(async () => {
       process.exitCode = await runHookGuard();
@@ -290,7 +293,7 @@ export function buildProgram(): Command {
           ? await runTaskRunAll(flags)
           : id
             ? await runTaskRun(id, flags)
-            : (console.error("factory task run: give a task id, or --all"), 1);
+            : (console.error("rivetari task run: give a task id, or --all"), 1);
       },
     );
   task
@@ -379,12 +382,12 @@ export function buildProgram(): Command {
   const app = program
     .command("app")
     .description(
-      "The factory's GitHub App: its identity in the repos it works on",
+      "Rivetari's GitHub App: its identity in the repos it works on",
     );
   app
     .command("register")
     .description(
-      "Create the factory's GitHub App from its manifest, in one click, and keep its credentials on this machine",
+      "Create Rivetari's GitHub App from its manifest, in one click, and keep its credentials on this machine",
     )
     .argument("[path]", "a repo whose owner names the App", ".")
     .option(
@@ -400,7 +403,7 @@ export function buildProgram(): Command {
   app
     .command("status")
     .description(
-      "Show the registered App, and whether the factory acts as it here",
+      "Show the registered App, and whether Rivetari acts as it here",
     )
     .argument("[path]", "path to the repo", ".")
     .action(async (path: string) => {
@@ -421,7 +424,7 @@ export function buildProgram(): Command {
     .description("Pinned, hashed, scanned agent skills for this repo");
   skills
     .command("init")
-    .description("Lock the skills the factory ships manifests for")
+    .description("Lock the skills Rivetari ships manifests for")
     .argument("[path]", "path to the repo", ".")
     .option("--spine-only", "only the always-scope skills")
     .action(
@@ -432,7 +435,7 @@ export function buildProgram(): Command {
   skills
     .command("sync")
     .description(
-      "Fetch, verify, scan and install the skills in .factory/skills.lock",
+      "Fetch, verify, scan and install the skills in .rivetari/skills.lock",
     )
     .argument("[path]", "path to the repo", ".")
     .option("--refetch", "replace a cache entry that fails its hash")
@@ -480,7 +483,7 @@ export function buildProgram(): Command {
   skills
     .command("vendor")
     .description(
-      "Copy verified skills into .factory/vendor/skills/ for offline runs",
+      "Copy verified skills into .rivetari/vendor/skills/ for offline runs",
     )
     .argument("[path]", "path to the repo", ".")
     .option("--refetch", "replace a cache entry that fails its hash")
@@ -552,7 +555,7 @@ export function buildProgram(): Command {
     .option("--all", "audit every repo in the repo list (combined table)")
     .option(
       "--repos <file>",
-      "repo list file (default ~/.config/factory/repos.yml)",
+      "repo list file (default ~/.config/rivetari/repos.yml)",
     )
     .action(async (path: string, flags: AuditFlags & MultiFlags) => {
       process.exitCode = flags.all
@@ -571,7 +574,7 @@ export function buildProgram(): Command {
     .option("--gate <phase>", "fix only controls in this gate")
     .option("--lane <lane>", "fix only controls in this lane")
     .option("--write", "apply changes locally (default: dry-run preview)")
-    .option("--pr", "apply on a factory branch and open/reuse a pull request")
+    .option("--pr", "apply on a rivetari branch and open/reuse a pull request")
     .option(
       "--token <token>",
       "GitHub token (for --pr and github-setting fixes)",
@@ -613,11 +616,11 @@ export function buildProgram(): Command {
     .argument("<task>", "task to run (e.g. explain-gaps, threat-model, adr)")
     .argument("[path]", "path to the repo", ".")
     .option("--write", "apply the generated file locally (default: dry-run)")
-    .option("--pr", "apply on a factory branch and open/reuse a pull request")
+    .option("--pr", "apply on a rivetari branch and open/reuse a pull request")
     .option("--token <token>", "GitHub token (for --pr)")
     .option("--no-color", "disable coloured output")
     .action(async (task: string, path: string, flags: AiFlags) => {
-      // `factory ai usage` is a reserved task that reports the usage log.
+      // `rivetari ai usage` is a reserved task that reports the usage log.
       if (task === "usage") {
         process.exitCode = await runAiUsage(path);
         return;
@@ -645,7 +648,7 @@ export function buildProgram(): Command {
 
   const profile = program
     .command("profile")
-    .description("Show or edit the repo's .factory/profile.yml");
+    .description("Show or edit the repo's .rivetari/profile.yml");
 
   profile
     .command("show")
@@ -677,7 +680,7 @@ export function buildProgram(): Command {
   const banned = program
     .command("banned")
     .description(
-      "The repo's banned patterns (.factory/banned.json): the judge fails a change that adds one",
+      "The repo's banned patterns (.rivetari/banned.json): the judge fails a change that adds one",
     );
   banned
     .command("list")

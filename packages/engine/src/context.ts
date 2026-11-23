@@ -4,7 +4,7 @@
 import { readFile as fsReadFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 
-import type { Profile, Waiver } from "@arynbht/factory-catalog";
+import type { Profile, Waiver } from "@arynbht/rivetari-catalog";
 import { Octokit } from "@octokit/rest";
 import { simpleGit } from "simple-git";
 import { glob as tinyglob } from "tinyglobby";
@@ -31,7 +31,7 @@ export interface GitHubClient {
 
 /**
  * Octokit's request log prints every failed call (`GET /repos/… - 404`) — noise
- * for the factory, which probes endpoints that legitimately 404 and turns each
+ * for Rivetari, which probes endpoints that legitimately 404 and turns each
  * failure into a detector result. Errors surface as exceptions; warnings (e.g.
  * deprecations) still go to stderr.
  */
@@ -59,19 +59,19 @@ export interface AuditContext {
   readFile(relPath: string): Promise<string | null>;
   /** The GitHub client, or null if there is no token or the slug is unknown. */
   github(): Promise<GitHubClient | null>;
-  /** Human evidence entries from `.factory/evidence.yml` (loaded once per run). */
+  /** Human evidence entries from `.rivetari/evidence.yml` (loaded once per run). */
   evidence(): Promise<EvidenceEntry[]>;
-  /** The resolved profile from `.factory/profile.yml`, or null if none. */
+  /** The resolved profile from `.rivetari/profile.yml`, or null if none. */
   profile(): Promise<Profile | null>;
-  /** Waivers from `.factory/waivers.yml` (loaded once per run). */
+  /** Waivers from `.rivetari/waivers.yml` (loaded once per run). */
   waivers(): Promise<Waiver[]>;
   /** The AI client for `claude` generators (built from the run's AI options). */
   ai(): AiClient;
   /**
    * True when AI is explicitly configured for unattended use — an injected
    * transport or an API key. The `claude` fix generator checks this so a plain
-   * `factory fix`/dry-run never spawns the interactive Claude CLI; deliberate AI
-   * (`factory ai`, the desktop AI screen) calls the client directly regardless.
+   * `rivetari fix`/dry-run never spawns the interactive Claude CLI; deliberate AI
+   * (`rivetari ai`, the desktop AI screen) calls the client directly regardless.
    */
   readonly aiEnabled: boolean;
   /**
@@ -122,7 +122,7 @@ export function buildContext(
 
   // AI is "enabled for unattended use" when a transport is injected (tests) or an
   // API key is resolvable now. The interactive CLI deliberately does NOT count,
-  // so `fix` won't spawn it; `factory ai` uses the client directly either way.
+  // so `fix` won't spawn it; `rivetari ai` uses the client directly either way.
   const aiEnabled =
     Boolean(options.ai?.transport) ||
     resolveAnthropicKey(options.ai?.apiKey) !== undefined;

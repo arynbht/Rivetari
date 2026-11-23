@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { loadProfile } from "@arynbht/factory-engine";
+import { loadProfile } from "@arynbht/rivetari-engine";
 import {
   addBanned,
   BANNED_PATH,
@@ -8,7 +8,7 @@ import {
   defaultsFor,
   loadBanned,
   saveBanned,
-} from "@arynbht/factory-runtime";
+} from "@arynbht/rivetari-runtime";
 
 export interface BannedAddFlags {
   pattern?: string;
@@ -68,14 +68,14 @@ export async function runBannedAdd(
   });
   if (!parsed.success) {
     console.error(
-      `factory banned add: ${parsed.error.issues.map((i) => `${i.path.join(".") || "entry"}: ${i.message}`).join("; ")}`,
+      `rivetari banned add: ${parsed.error.issues.map((i) => `${i.path.join(".") || "entry"}: ${i.message}`).join("; ")}`,
     );
     return 1;
   }
   const entry = parsed.data;
   const { list, added } = addBanned(await loadBanned(root), entry);
   if (!added) {
-    console.error(`factory banned add: ${id} is already in ${BANNED_PATH}`);
+    console.error(`rivetari banned add: ${id} is already in ${BANNED_PATH}`);
     return 1;
   }
   await saveBanned(root, list);
@@ -92,7 +92,7 @@ export async function runBannedAllow(
   const list = await loadBanned(root);
   const entry = list.patterns.find((p) => p.id === id);
   if (!entry) {
-    console.error(`factory banned allow: no ${id} in ${BANNED_PATH}`);
+    console.error(`rivetari banned allow: no ${id} in ${BANNED_PATH}`);
     return 1;
   }
   if (!entry.allow.includes(glob)) entry.allow.push(glob);

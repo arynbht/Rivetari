@@ -8,7 +8,7 @@ import {
   type AiClient,
   type OpenPrParams,
   type PrResult,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { runAi, runAiUsage } from "./ai.js";
@@ -24,7 +24,7 @@ afterEach(async () => {
 });
 
 async function tmp(): Promise<string> {
-  const d = await mkdtemp(join(tmpdir(), "factory-ai-"));
+  const d = await mkdtemp(join(tmpdir(), "rivetari-ai-"));
   made.push(d);
   return d;
 }
@@ -65,9 +65,9 @@ describe("runAi", () => {
 
     expect(code).toBe(0);
     const text = out.join("");
-    expect(text).toMatch(/explain-gaps|create|docs\/factory-gaps\.md/);
+    expect(text).toMatch(/explain-gaps|create|docs\/rivetari-gaps\.md/);
     expect(text).toContain("200 in / 80 out");
-    expect(await exists(join(dir, "docs", "factory-gaps.md"))).toBe(false);
+    expect(await exists(join(dir, "docs", "rivetari-gaps.md"))).toBe(false);
   });
 
   it("--write materialises the generated file", async () => {
@@ -82,7 +82,7 @@ describe("runAi", () => {
     );
 
     expect(code).toBe(0);
-    expect(await exists(join(dir, "docs", "factory-gaps.md"))).toBe(true);
+    expect(await exists(join(dir, "docs", "rivetari-gaps.md"))).toBe(true);
   });
 
   it("errors clearly on an unknown task", async () => {
@@ -107,7 +107,7 @@ describe("runAi", () => {
   it("records usage and `ai usage` summarizes it", async () => {
     const dir = await tmp();
     const { mkdir } = await import("node:fs/promises");
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
     await runAi(
@@ -116,7 +116,7 @@ describe("runAi", () => {
       { write: true },
       { client: recorded, today: "2026-11-01", token: null },
     );
-    expect(await exists(join(dir, ".factory", "ai-usage.log"))).toBe(true);
+    expect(await exists(join(dir, ".rivetari", "ai-usage.log"))).toBe(true);
 
     const out: string[] = [];
     vi.spyOn(process.stdout, "write").mockImplementation((c) => {

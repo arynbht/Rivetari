@@ -1,5 +1,5 @@
 // Phase-gate adapter: compute each phase's gate status + blockers and the
-// inferred phase (mirrors `factory status`), and apply waivers / evidence. Kept
+// inferred phase (mirrors `rivetari status`), and apply waivers / evidence. Kept
 // free of any electron import so it unit-tests as plain functions.
 import {
   loadBundledCatalog,
@@ -7,7 +7,7 @@ import {
   PHASES,
   SEVERITIES,
   type Waiver,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   addEvidence,
   addWaiver,
@@ -15,7 +15,7 @@ import {
   evaluateControls,
   evaluateGate,
   type EvidenceEntry,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import type { GateBlocker, GatePhase, GatesReport } from "../../shared/ipc";
 

@@ -33,11 +33,11 @@ function taskRows(text: string): TaskHistoryRow[] {
 
 export async function historyRows(repoPath: string): Promise<TaskHistoryRow[]> {
   const local = await readFile(
-    join(repoPath, ".factory", "history.jsonl"),
+    join(repoPath, ".rivetari", "history.jsonl"),
     "utf8",
   ).catch(() => "");
   const branch = await simpleGit(repoPath)
-    .show(["refs/heads/factory/tasks:history.jsonl"])
+    .show(["refs/heads/rivetari/tasks:history.jsonl"])
     .catch(() => "");
   const rows = new Map<string, TaskHistoryRow>();
   for (const row of [...taskRows(branch), ...taskRows(local)])

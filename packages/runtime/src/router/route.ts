@@ -8,7 +8,7 @@ import {
   SECTORS,
   SKILL_PHASES,
   type SkillPhase,
-} from "@arynbht/factory-registry";
+} from "@arynbht/rivetari-registry";
 import picomatch from "picomatch";
 import { z } from "zod";
 
@@ -265,7 +265,7 @@ export function route(input: RouteInput): Routing {
     );
   if (available.size === 0 && candidates.length > 0) {
     notes.push(
-      `no skills are synced in this repo (\`factory skills init\`, then \`factory skills sync\`); matched: ${candidates.map((c) => c.m.name).join(", ")}`,
+      `no skills are synced in this repo (\`rivetari skills init\`, then \`rivetari skills sync\`); matched: ${candidates.map((c) => c.m.name).join(", ")}`,
     );
   }
   for (const { m } of available.size > 0 ? candidates : []) {

@@ -65,7 +65,7 @@ describe("fileExists", () => {
     async function makeRepo(
       workflows: Record<string, string>,
     ): Promise<string> {
-      dir = await mkdtemp(join(tmpdir(), "factory-fileexists-"));
+      dir = await mkdtemp(join(tmpdir(), "rivetari-fileexists-"));
       const wf = join(dir, ".github", "workflows");
       await mkdir(wf, { recursive: true });
       for (const [name, body] of Object.entries(workflows)) {
@@ -77,22 +77,22 @@ describe("fileExists", () => {
     const config = {
       type: "file-exists",
       path: ".github/workflows/*.yml|.github/workflows/*.yaml",
-      exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml",
+      exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml",
     } as const;
 
-    it("does NOT pass when only factory.yml is present", async () => {
+    it("does NOT pass when only rivetari.yml is present", async () => {
       const ctx = buildContext(
-        await makeRepo({ "factory.yml": "name: factory\n" }),
+        await makeRepo({ "rivetari.yml": "name: rivetari\n" }),
       );
       const result = await fileExists(ctx, config);
       expect(result.status).toBe("fail");
       expect(result.remediation).toBeDefined();
     });
 
-    it("passes when a real ci.yml exists alongside factory.yml", async () => {
+    it("passes when a real ci.yml exists alongside rivetari.yml", async () => {
       const ctx = buildContext(
         await makeRepo({
-          "factory.yml": "name: factory\n",
+          "rivetari.yml": "name: rivetari\n",
           "ci.yml": "name: CI\n",
         }),
       );
@@ -101,7 +101,7 @@ describe("fileExists", () => {
       expect(result.message).toContain("ci.yml");
     });
 
-    it("passes on a real ci.yml with no factory.yml at all", async () => {
+    it("passes on a real ci.yml with no rivetari.yml at all", async () => {
       const ctx = buildContext(await makeRepo({ "ci.yml": "name: CI\n" }));
       const result = await fileExists(ctx, config);
       expect(result.status).toBe("pass");

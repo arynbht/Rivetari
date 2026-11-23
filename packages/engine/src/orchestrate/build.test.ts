@@ -63,7 +63,7 @@ describe("runBuild", () => {
     expect(writeAgent).toHaveBeenCalledTimes(1); // implement only
     expect(result.pushed).toBe(true);
     expect(result.pr?.number).toBe(7);
-    expect(result.branch).toContain("factory/build-2026-11-03-");
+    expect(result.branch).toContain("rivetari/build-2026-11-03-");
     expect(git.removed).toEqual(["/wt"]); // worktree cleaned up
   });
 

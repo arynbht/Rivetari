@@ -1,7 +1,7 @@
 // What a task looks like in each sector, for the router. Manifests only
 // describe the skills that exist, and some sectors (data, api) have none, so
 // the router carries its own signals and uses manifest triggers on top.
-import type { Sector } from "@arynbht/factory-registry";
+import type { Sector } from "@arynbht/rivetari-registry";
 
 export interface SectorSignals {
   /** Matched as whole words in the card's title and description. */

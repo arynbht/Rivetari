@@ -1,20 +1,20 @@
-import type { DetectorConfig } from "@arynbht/factory-catalog";
+import type { DetectorConfig } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext } from "../context.js";
 import type { DetectorResult } from "./types.js";
 
 type ReviewedConfig = Extract<DetectorConfig, { type: "reviewed" }>;
 
-/** The provenance header `factory ai` writes (see ai/generate.ts). */
-const GENERATED = /<!--\s*factory:generated[\s\S]*?-->/;
+/** The provenance header `rivetari ai` writes (see ai/generate.ts). */
+const GENERATED = /<!--\s*rivetari:generated[\s\S]*?-->/;
 const REVIEWED = /^reviewed-by:[ \t]*\S/m;
 const TASK = /^task:[ \t]*(\S+)/m;
 
-/** Where drafts land: `factory ai` writes Markdown. */
+/** Where drafts land: `rivetari ai` writes Markdown. */
 const DRAFTS = ["**/*.md", "**/*.mdx", "**/*.markdown"];
 
 /**
- * Claude drafts, humans sign. Finds drafts by their `factory:generated` header —
+ * Claude drafts, humans sign. Finds drafts by their `rivetari:generated` header —
  * not by a path glob — and requires every one (for `task`, when given) to carry
  * a filled `reviewed-by:` line. Human-written files have no header and don't
  * count either way; whether the artifact exists at all is the control's other

@@ -32,7 +32,7 @@ describe("worktree git", { timeout: 30_000 }, () => {
       ".husky",
     );
 
-    const wt = await createWorktree(repo, "factory/test");
+    const wt = await createWorktree(repo, "rivetari/test");
     made.push(wt.path);
     const marker = join(wt.path, "hook-ran");
     await mkdir(join(wt.path, ".husky"), { recursive: true });
@@ -43,7 +43,7 @@ describe("worktree git", { timeout: 30_000 }, () => {
       await chmod(path, 0o755);
     }
     await writeFile(join(wt.path, "a.txt"), "changed\n");
-    expect(await commitAll(wt.path, "factory: change")).toBe(true);
+    expect(await commitAll(wt.path, "rivetari: change")).toBe(true);
     await expect(access(marker)).rejects.toThrow();
     await removeWorktree(repo, wt.path);
   });

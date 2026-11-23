@@ -1,4 +1,4 @@
-# @arynbht/factory-action
+# @arynbht/rivetari-action
 
 ## 0.0.1
 
@@ -37,4 +37,4 @@
 - Updated dependencies [563aea4]
 - Updated dependencies [2a0db12]
 - Updated dependencies [96bd726]
-  - @arynbht/factory@1.0.0
+  - @arynbht/rivetari@1.0.0

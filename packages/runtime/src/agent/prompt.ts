@@ -8,8 +8,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { buildContext, packContext } from "@arynbht/factory-engine";
-import { loadSkill, readLock } from "@arynbht/factory-registry";
+import { buildContext, packContext } from "@arynbht/rivetari-engine";
+import { loadSkill, readLock } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { stringify } from "yaml";
 
@@ -47,14 +47,14 @@ export function sliceGlobs(card: Card): string[] {
   );
 }
 
-export const STOP_MARKER = "FACTORY_STOP:";
+export const STOP_MARKER = "RIVETARI_STOP:";
 
 export const STOP_RULE = `You can't ask during the round. When the plan needs something the operating rules say a person is asked about, make the change: the runtime finds it in the diff and asks before anything ships. When you can't go on without a person's answer, stop and end your reply with a last line \`${STOP_MARKER} <your question>\`: the runtime ends the round there, asks it, and gives you the answer next round. A round that changes nothing ends the run and shows a person your reply.`;
 
 const SYSTEM = [
-  "You are a factory sector agent working one task inside an isolated git worktree.",
+  "You are a rivetari sector agent working one task inside an isolated git worktree.",
   "Work only toward the task card's acceptance criteria; the judge verifies each by id, from a clean clone, after you finish.",
-  "Do not commit, push or create branches: the runtime does that. Do not edit .factory/**, lint or CI config, or tests that already exist; add new tests instead.",
+  "Do not commit, push or create branches: the runtime does that. Do not edit .rivetari/**, lint or CI config, or tests that already exist; add new tests instead.",
   STOP_RULE,
   "Finish with a short plain-text summary of what you changed.",
 ].join("\n");
@@ -129,8 +129,8 @@ export async function assemblePrompt(options: {
     [
       "# Operating rules",
       `- Budget: at most ${assembly.budget.steps} plan steps.`,
-      `- A person is asked, after your round, about: ${[...stops, "deleting or changing an existing test", "changing lint, CI or .factory files"].join("; ")}. ${STOP_RULE}`,
-      `- Protected paths (never edit): ${[...PROTECTED.factoryState, ...PROTECTED.ciConfig, ...PROTECTED.lintConfig].join(", ")}.`,
+      `- A person is asked, after your round, about: ${[...stops, "deleting or changing an existing test", "changing lint, CI or .rivetari files"].join("; ")}. ${STOP_RULE}`,
+      `- Protected paths (never edit): ${[...PROTECTED.rivetariState, ...PROTECTED.ciConfig, ...PROTECTED.lintConfig].join(", ")}.`,
       `- Proof: this task's proof is \`${assembly.proof}\`, produced by a tool after you finish; make sure it can be.`,
       `- Checks the judge runs: ${assembly.checks.join(", ")}.`,
       "- Run only the tests related to the files you touched, through the package manager (npx isn't available): for vitest, `pnpm vitest related --run <files>` (or `npm run test -- related --run <files>`), after the repo's build if its packages need building first. Never the whole suite: the judge runs everything, once, on a clean copy.",

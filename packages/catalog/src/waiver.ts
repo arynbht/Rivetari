@@ -1,4 +1,4 @@
-// Waiver schema. A waiver (`.factory/waivers.yml`) is an accepted exception to a
+// Waiver schema. A waiver (`.rivetari/waivers.yml`) is an accepted exception to a
 // control, with a reason, an owner, and an expiry — never a silently disabled check.
 import { z } from "zod";
 

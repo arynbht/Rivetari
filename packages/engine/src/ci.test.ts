@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { Octokit } from "@octokit/rest";
 
 import {
-  FACTORY_MARKER,
+  RIVETARI_MARKER,
   upsertStatusIssue,
   upsertStickyComment,
 } from "./ci.js";
@@ -37,7 +37,7 @@ describe("upsertStickyComment", () => {
     let updatedId: number | null = null;
     server.use(
       http.get(COMMENTS, () =>
-        HttpResponse.json([{ id: 42, body: `${FACTORY_MARKER}\nold` }]),
+        HttpResponse.json([{ id: 42, body: `${RIVETARI_MARKER}\nold` }]),
       ),
       http.patch("https://api.github.com/repos/o/r/issues/comments/42", () => {
         updatedId = 42;
@@ -68,7 +68,7 @@ describe("upsertStatusIssue", () => {
     server.use(
       http.get(ISSUES, () =>
         HttpResponse.json([
-          { number: 9, title: "Factory status", state: "open" },
+          { number: 9, title: "Rivetari status", state: "open" },
         ]),
       ),
       http.patch(`${ISSUES}/9`, async ({ request }) => {

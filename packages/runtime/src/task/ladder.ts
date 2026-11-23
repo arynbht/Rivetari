@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { Autonomy } from "@arynbht/factory-catalog";
-import { loadProfile, saveProfile } from "@arynbht/factory-engine";
+import type { Autonomy } from "@arynbht/rivetari-catalog";
+import { loadProfile, saveProfile } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 
 import { loadBanned } from "../judge/banned.js";
@@ -11,7 +11,7 @@ import type { TaskHistoryRow } from "../ship/close.js";
 import { Ledger } from "./ledger.js";
 import { TaskError } from "./tasks.js";
 
-export const AUTONOMY_DIR = ".factory/autonomy";
+export const AUTONOMY_DIR = ".rivetari/autonomy";
 const RANK: Record<Autonomy, number> = {
   supervised: 0,
   "review-at-pr": 1,
@@ -119,9 +119,9 @@ export async function ruleCount(repoPath: string): Promise<RuleCount> {
     "eslint.config.ts",
   ]);
   const lintRules = new Set(
-    [...(eslint ?? "").matchAll(/["']factory\/([a-z0-9-]+)["']\s*:/g)]
-      .map((m) => `factory/${m[1]}`)
-      .filter((name) => name !== "factory/no-banned"),
+    [...(eslint ?? "").matchAll(/["']rivetari\/([a-z0-9-]+)["']\s*:/g)]
+      .map((m) => `rivetari/${m[1]}`)
+      .filter((name) => name !== "rivetari/no-banned"),
   );
   const patterns =
     (await loadBanned(repoPath).catch(() => null))?.patterns ?? [];
@@ -353,7 +353,7 @@ export async function setAutonomy(
   const profile = await loadProfile(repoPath);
   if (!profile)
     throw new TaskError(
-      "No .factory/profile.yml found. Run `factory init` to create one.",
+      "No .rivetari/profile.yml found. Run `rivetari init` to create one.",
     );
   const before = await ladder(repoPath, { now: options.now });
   const override = options.override?.replace(/\s+/g, " ").trim();

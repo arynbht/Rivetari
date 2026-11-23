@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import type { CheckOutcome } from "./outcome.js";
 
-export const BANNED_PATH = ".factory/banned.json";
+export const BANNED_PATH = ".rivetari/banned.json";
 
 const validRegex = (source: string) => {
   try {

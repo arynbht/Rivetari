@@ -15,7 +15,7 @@ supported until a `1.0` release is tagged.
 Please report security issues privately. Do **not** open a public issue for a
 vulnerability.
 
-- Preferred: open a [GitHub private security advisory](https://github.com/arynbht/software-factory/security/advisories/new).
+- Preferred: open a [GitHub private security advisory](https://github.com/arynbht/rivetari/security/advisories/new).
 - Alternatively, email **aryan.bhatia@pilotship.io** with details and, if
   possible, a proof of concept.
 
@@ -24,11 +24,11 @@ a fix before any public disclosure.
 
 ## Handling of secrets
 
-The factory never writes tokens to `.factory/` or logs; secrets live only in the
+Rivetari never writes tokens to `.rivetari/` or logs; secrets live only in the
 environment (CLI/CI) or the desktop app's secure store. If you believe a secret
 was committed, treat it as compromised and rotate it immediately.
 
-Values that reference a control (`.factory/waivers.yml` and `.factory/evidence.yml`
+Values that reference a control (`.rivetari/waivers.yml` and `.rivetari/evidence.yml`
 `control:` fields) are validated against the control-id shape at load time, so an
 arbitrary string can't be smuggled into the pull-request / status-issue comment the
 Action posts.
@@ -42,11 +42,11 @@ Action to a full commit SHA** rather than a mutable tag:
 
 ```yaml
 # Prefer this:
-- uses: arynbht/software-factory/packages/action@<commit-sha>
+- uses: arynbht/rivetari/packages/action@<commit-sha>
 # over a mutable tag like @v1.
 ```
 
-The scaffolded `factory.yml` grants least privilege per trigger: pull-request runs
+The scaffolded `rivetari.yml` grants least privilege per trigger: pull-request runs
 get `pull-requests: write` (to post the review comment) and nothing else;
 scheduled/push runs get `issues: write` (to maintain the status issue). The audit
 must never execute repository-authored code with the default token.

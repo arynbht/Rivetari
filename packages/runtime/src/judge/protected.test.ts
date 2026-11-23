@@ -6,10 +6,10 @@ import { parseAddedLines, parseNameStatus } from "./tier1.js";
 describe("findProtected", () => {
   const none = new Map<string, string[]>();
 
-  it("flags factory state, lint config and CI config", () => {
+  it("flags rivetari state, lint config and CI config", () => {
     const findings = findProtected(
       [
-        { status: "M", path: ".factory/waivers.yml" },
+        { status: "M", path: ".rivetari/waivers.yml" },
         { status: "A", path: "eslint.config.js" },
         { status: "M", path: ".github/workflows/ci.yml" },
         { status: "M", path: "src/app.ts" },
@@ -18,7 +18,7 @@ describe("findProtected", () => {
       false,
     );
     expect(findings.map((f) => f.reason)).toEqual([
-      "factory-state",
+      "rivetari-state",
       "lint-config",
       "ci-config",
     ]);
@@ -97,7 +97,7 @@ describe("skill registry and agent config are protected", () => {
   it("marks lock, manifests and harness settings needs-human", () => {
     const findings = findProtected(
       [
-        { status: "M", path: ".factory/skills.lock" },
+        { status: "M", path: ".rivetari/skills.lock" },
         { status: "M", path: "packages/registry/manifests/impeccable.yml" },
         { status: "A", path: ".claude/settings.local.json" },
         { status: "A", path: ".github/hooks/impeccable.json" },

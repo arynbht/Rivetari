@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -23,7 +23,7 @@ afterEach(async () => {
   made.length = 0;
 });
 async function tmp(): Promise<string> {
-  const d = await mkdtemp(join(tmpdir(), "factory-ghset-"));
+  const d = await mkdtemp(join(tmpdir(), "rivetari-ghset-"));
   made.push(d);
   return d;
 }
@@ -82,7 +82,7 @@ describe("githubSettingGenerator", () => {
     let posted = 0;
     server.use(
       http.get(`${REPO}/rulesets`, () =>
-        HttpResponse.json([{ name: "factory: protect default branch" }]),
+        HttpResponse.json([{ name: "rivetari: protect default branch" }]),
       ),
       http.post(`${REPO}/rulesets`, () => {
         posted += 1;

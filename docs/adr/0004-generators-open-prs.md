@@ -6,7 +6,7 @@
 
 ## Context and Problem Statement
 
-The factory generates files and settings (scaffold files, CI steps, rulesets) and
+Rivetari generates files and settings (scaffold files, CI steps, rulesets) and
 drafts documents with Claude. Applying these directly to the default branch would
 be fast but unreviewable and risky, especially for AI-drafted content. How should
 generated changes reach a repo?
@@ -21,7 +21,7 @@ generated changes reach a repo?
 
 Chosen: **every run is a dry run by default.** `--write` applies changes to the
 local working tree; `--pr` applies them on a branch and opens a PR titled
-`factory: <n> fixes for <gate>` with one commit per control. Claude-drafted
+`rivetari: <n> fixes for <gate>` with one commit per control. Claude-drafted
 artifacts always land on a branch or as a draft file and still require human
 evidence to pass a gate. Generators never overwrite a human-edited file (tracked
 via a hash registry in `state.json`).

@@ -2,7 +2,7 @@
 // the task's branch, then tier 2 on the same change against the card. Never
 // the worktree. A protected change, or blocking findings past the round limit,
 // stop and ask a person; anything else blocking goes back to the agent. The
-// round's record is written to `.factory/tasks/<id>/judge/round-<n>.json` and
+// round's record is written to `.rivetari/tasks/<id>/judge/round-<n>.json` and
 // its hash sealed in the verdict entry, so ship can trust what it reads.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,7 +11,7 @@ import {
   type AiClient,
   buildContext,
   createAiClient,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
@@ -119,7 +119,7 @@ export async function loadJudgeRecord(
 }
 
 /**
- * `factory task judge <id>`: judge the built, proved branch. Passed → ship.
+ * `rivetari task judge <id>`: judge the built, proved branch. Passed → ship.
  * Failed (rounds 1–2) → back to build with the findings. Needs a human (a
  * protected change, blocking findings in round 3, files the reviewer couldn't
  * see) → a stop-and-ask question; `--allow` ships it, `--deny` rebuilds.
@@ -158,7 +158,7 @@ export async function judgeTask(
     );
 
   const round = judgeVerdicts(task).length + 1;
-  const by = `factory judge (for ${options.by})`;
+  const by = `rivetari judge (for ${options.by})`;
   const append = (section: "timeline" | "judge" | "stop", text: string) =>
     task.ledger.append({ beat: "judge", section, text, by, at: options.now });
 

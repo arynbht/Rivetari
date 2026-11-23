@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { type AiTransport } from "../ai/client.js";
@@ -30,7 +30,7 @@ describe("claude generator", () => {
   });
 
   it("generates a file from the control's task via the context AI client", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-claude-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-claude-"));
     made.push(dir);
     const ctx = buildContext(dir, {
       now: new Date("2026-11-01T00:00:00Z"),
@@ -46,7 +46,7 @@ describe("claude generator", () => {
     const change = changes[0]!;
     expect(change).toMatchObject({
       type: "file",
-      path: "docs/factory-gaps.md",
+      path: "docs/rivetari-gaps.md",
       op: "create",
       controlId: "sec.threat-model",
     });
@@ -56,7 +56,7 @@ describe("claude generator", () => {
   });
 
   it("makes no change (and no AI call) when the draft already exists", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-claude-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-claude-"));
     made.push(dir);
     let calls = 0;
     const counting: AiTransport = {
@@ -85,13 +85,13 @@ describe("claude generator", () => {
     // Write the draft to disk, then a second run is a no-op with no API call.
     const { mkdir, writeFile } = await import("node:fs/promises");
     await mkdir(join(dir, "docs"), { recursive: true });
-    await writeFile(join(dir, "docs", "factory-gaps.md"), "already drafted\n");
+    await writeFile(join(dir, "docs", "rivetari-gaps.md"), "already drafted\n");
     expect(await claudeGenerator(ctx, control)).toEqual([]);
     expect(calls).toBe(1);
   });
 
   it("returns nothing for a non-claude fix", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-claude-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-claude-"));
     made.push(dir);
     const ctx = buildContext(dir, { ai: { transport } });
     const control = {
@@ -105,7 +105,7 @@ describe("claude generator", () => {
     const saved = process.env.ANTHROPIC_API_KEY;
     delete process.env.ANTHROPIC_API_KEY;
     try {
-      const dir = await mkdtemp(join(tmpdir(), "factory-claude-"));
+      const dir = await mkdtemp(join(tmpdir(), "rivetari-claude-"));
       made.push(dir);
       // No transport and no key → ctx.aiEnabled is false, so the generator is a
       // no-op (it never falls through to spawning the interactive Claude CLI).

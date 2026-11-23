@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runBuildCommand } from "./build.js";
-import type { BuildPlan, BuildResult } from "@arynbht/factory-engine";
+import type { BuildPlan, BuildResult } from "@arynbht/rivetari-engine";
 
 const plan: BuildPlan = {
   request: "add a flag",
@@ -14,7 +14,7 @@ const plan: BuildPlan = {
 
 function result(passed: boolean): BuildResult {
   return {
-    branch: "factory/build-2026-11-03-add-a-flag",
+    branch: "rivetari/build-2026-11-03-add-a-flag",
     base: "main",
     worktree: "/wt",
     plan,

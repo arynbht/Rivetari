@@ -26,7 +26,7 @@ tester.run("no-spec-section-refs", noSpecSectionRefs, {
       errors: [{ messageId: "section", data: { section: "§10" } }],
     },
     {
-      code: "/**\n * The hooks fail closed (FACTORY_V2 § 5.3).\n */\nexport const b = 2;",
+      code: "/**\n * The hooks fail closed (RIVETARI_V2 § 5.3).\n */\nexport const b = 2;",
       errors: [{ messageId: "section", data: { section: "§5.3" } }],
     },
   ],
@@ -34,9 +34,9 @@ tester.run("no-spec-section-refs", noSpecSectionRefs, {
 
 tester.run("no-writes-to-workflows", noWritesToWorkflows, {
   valid: [
-    'await writeFile(join(root, ".factory", "profile.yml"), text);',
+    'await writeFile(join(root, ".rivetari", "profile.yml"), text);',
     'await writeFile(join(root, ".github", "PULL_REQUEST_TEMPLATE.md"), text);',
-    'const rel = ".github/workflows/factory.yml";\nlog(rel);',
+    'const rel = ".github/workflows/rivetari.yml";\nlog(rel);',
     {
       code: 'await writeFile(join(root, ".github/workflows/ci.yml"), text);',
       filename: "/repo/packages/cli/src/commands/init.ts",
@@ -45,7 +45,7 @@ tester.run("no-writes-to-workflows", noWritesToWorkflows, {
   ],
   invalid: [
     {
-      code: 'await writeFile(join(root, ".github", "workflows", "factory.factory.yml"), text);',
+      code: 'await writeFile(join(root, ".github", "workflows", "rivetari.rivetari.yml"), text);',
       errors: [{ messageId: "workflows" }],
     },
     {
@@ -53,7 +53,7 @@ tester.run("no-writes-to-workflows", noWritesToWorkflows, {
       errors: [{ messageId: "workflows" }],
     },
     {
-      code: 'await writeBeside(root, ".github/workflows/factory.yml", text, false);',
+      code: 'await writeBeside(root, ".github/workflows/rivetari.yml", text, false);',
       errors: [{ messageId: "workflows" }],
     },
     {

@@ -2,7 +2,7 @@
 // generated from the same sources the judge reads (the rule list, the
 // profile, and banned.json at the base), so the two can't drift and the agent
 // meets them on the first pass instead of learning them from a failed round.
-import { buildContext } from "@arynbht/factory-engine";
+import { buildContext } from "@arynbht/rivetari-engine";
 
 import { loadBanned } from "../judge/banned.js";
 import { DIFF_RULES, MARKDOWN_ALWAYS_SKIPPED } from "../judge/diff-rules.js";

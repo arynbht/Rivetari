@@ -34,7 +34,7 @@ export const BUILD_TOOLS = [
   "Bash(git show:*)",
 ] as const;
 
-/** The factory never honours the target repo's .claude config. */
+/** Rivetari never honours the target repo's .claude config. */
 export const ISOLATED_AGENT_ARGS = [
   "--safe-mode",
   "--strict-mcp-config",
@@ -55,7 +55,7 @@ export function agentEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
 /**
  * Carved out of BUILD_TOOLS (deny wins over allow): inline code and ad-hoc
  * package execution, pushing (the pipeline pushes, after
- * verify), and the factory's own state, which the agent never edits.
+ * verify), and Rivetari's own state, which the agent never edits.
  */
 export const DENIED_BUILD_TOOLS = [
   "Bash(node -e:*)",
@@ -67,8 +67,8 @@ export const DENIED_BUILD_TOOLS = [
   "Bash(pnpm exec:*)",
   "Bash(pnpm dlx:*)",
   "Bash(git push:*)",
-  "Edit(.factory/**)",
-  "Write(.factory/**)",
+  "Edit(.rivetari/**)",
+  "Write(.rivetari/**)",
   // Workflows run with the repo's secrets as soon as the branch is pushed.
   "Edit(.github/workflows/**)",
   "Write(.github/workflows/**)",

@@ -1,4 +1,4 @@
-import type { Control, Profile, Waiver } from "@arynbht/factory-catalog";
+import type { Control, Profile, Waiver } from "@arynbht/rivetari-catalog";
 
 import { appliesTo, type RepoFacts } from "./applicability.js";
 import type { AuditContext } from "./context.js";
@@ -38,7 +38,7 @@ export interface EvaluateOptions {
 /**
  * Run a control's detectors and aggregate a single status.
  *
- * `manual` detectors are satisfied by human evidence (`.factory/evidence.yml`)
+ * `manual` detectors are satisfied by human evidence (`.rivetari/evidence.yml`)
  * rather than an automated check: a valid, unexpired entry for the control passes
  * it; otherwise the control is `needs-evidence`.
  *
@@ -102,7 +102,7 @@ export async function evaluateControl(
       evidenceMissing = true;
       manualResult = {
         status: "skip",
-        message: "awaiting human evidence (.factory/evidence.yml)",
+        message: "awaiting human evidence (.rivetari/evidence.yml)",
       };
     }
   }

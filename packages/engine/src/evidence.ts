@@ -1,10 +1,10 @@
-// Reading `.factory/evidence.yml` and deciding whether a control's human evidence
+// Reading `.rivetari/evidence.yml` and deciding whether a control's human evidence
 // is still valid. This is the M1 stub; the full add/attach workflow lands in M2.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { CONTROL_ID_PATTERN } from "@arynbht/factory-catalog";
+import { CONTROL_ID_PATTERN } from "@arynbht/rivetari-catalog";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { DAY_MS, startOfDayMs } from "./dates.js";
@@ -23,11 +23,14 @@ export interface EvidenceEntry {
   "valid-for"?: string | undefined;
 }
 
-/** Load evidence entries from `<repo>/.factory/evidence.yml` (missing → none). */
+/** Load evidence entries from `<repo>/.rivetari/evidence.yml` (missing → none). */
 export async function loadEvidence(repoPath: string): Promise<EvidenceEntry[]> {
   let raw: string;
   try {
-    raw = await readFile(resolve(repoPath, ".factory", "evidence.yml"), "utf8");
+    raw = await readFile(
+      resolve(repoPath, ".rivetari", "evidence.yml"),
+      "utf8",
+    );
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw err;
@@ -151,7 +154,7 @@ export async function addEvidence(
   const existing = await loadEvidence(repoPath);
   const next = [...existing.filter((e) => e.control !== entry.control), entry];
   await writeFileAtomic(
-    resolve(repoPath, ".factory", "evidence.yml"),
+    resolve(repoPath, ".rivetari", "evidence.yml"),
     stringifyYaml(next),
   );
   return next;

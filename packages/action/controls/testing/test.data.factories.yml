@@ -7,7 +7,7 @@ effort: medium
 detect:
   - type: file-exists
     path: "**/factories/**|**/*factory*.{ts,js,py}|seed.{ts,js,py}|**/seeds/**|prisma/seed.ts"
-  # Claude drafts, humans sign: a factory draft counts once it is reviewed.
+  # Claude drafts, humans sign: a Rivetari draft counts once it is reviewed.
   - type: reviewed
     task: test-scaffold
 evidence: none

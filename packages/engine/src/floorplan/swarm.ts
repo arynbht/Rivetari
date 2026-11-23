@@ -104,7 +104,7 @@ const EDGE_KINDS = new Set<FloorPlanEdgeKind>([
 const IGNORED_DIRS = new Set([
   "node_modules",
   ".git",
-  ".factory",
+  ".rivetari",
   "dist",
   "out",
   "build",

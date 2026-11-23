@@ -1,4 +1,4 @@
-import type { DetectorType } from "@arynbht/factory-catalog";
+import type { DetectorType } from "@arynbht/rivetari-catalog";
 
 import { command } from "./command.js";
 import { fileExists } from "./file-exists.js";

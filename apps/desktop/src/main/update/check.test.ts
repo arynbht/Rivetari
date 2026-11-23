@@ -21,7 +21,7 @@ describe("isNewer", () => {
 
   it("ignores a leading v, a pkg@ prefix, and prerelease suffixes", () => {
     expect(isNewer("v1.2.0", "1.1.0")).toBe(true);
-    expect(isNewer("factory-desktop@1.2.0", "1.1.0")).toBe(true);
+    expect(isNewer("rivetari-desktop@1.2.0", "1.1.0")).toBe(true);
     expect(isNewer("1.2.0-beta.1", "1.2.0")).toBe(false);
   });
 });

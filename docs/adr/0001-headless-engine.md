@@ -6,7 +6,7 @@
 
 ## Context and Problem Statement
 
-The factory must run in four places: a terminal (CLI), CI (GitHub Action), an
+Rivetari must run in four places: a terminal (CLI), CI (GitHub Action), an
 agent (Claude Code skill), and a desktop app (Electron). If logic lives in any
 one surface, the others drift or cannot enforce the same gates. Where should the
 audit/fix/gate logic live?
@@ -20,7 +20,7 @@ audit/fix/gate logic live?
 
 ## Decision Outcome
 
-Chosen: **a headless `@arynbht/factory-engine` package** that resolves profiles,
+Chosen: **a headless `@arynbht/rivetari-engine` package** that resolves profiles,
 runs detectors, evaluates gates, and runs generators with no I/O assumptions
 beyond a repo path and tokens. The CLI, Action, skill, and desktop shell contain
 only argument parsing, presentation, and surface-specific glue.

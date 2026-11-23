@@ -4,7 +4,7 @@ import {
   loadBundledCatalog,
   loadBundledGates,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   appendHistory,
   buildContext,
@@ -22,7 +22,7 @@ import {
   upsertStickyComment,
   WaiverError,
   waiversExpiringWithin,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import { today } from "../dates.js";
 import { renderReport } from "../report.js";
@@ -49,15 +49,15 @@ export function exitCodeForCi(isPr: boolean, gateStatus: GateStatus): number {
 }
 
 /**
- * `factory ci` — the GitHub Action entrypoint, driven by `GITHUB_*` env vars.
+ * `rivetari ci` — the GitHub Action entrypoint, driven by `GITHUB_*` env vars.
  * Audits the checked-out repo, writes the report to the job summary, and either
- * posts a sticky PR comment (failing on a red gate) or maintains a "Factory
+ * posts a sticky PR comment (failing on a red gate) or maintains a "Rivetari
  * status" issue on a scheduled run (never failing). See ADR-0006.
  */
 export async function runCi(): Promise<number> {
   const [owner, repo] = (process.env.GITHUB_REPOSITORY ?? "").split("/");
   const token = resolveToken(process.env.GITHUB_TOKEN);
-  const gateName = process.env.FACTORY_GATE || "build";
+  const gateName = process.env.RIVETARI_GATE || "build";
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
   const now = new Date();
 
@@ -74,7 +74,7 @@ export async function runCi(): Promise<number> {
   if (!gate) {
     // Fail closed: a misconfigured gate must not let a PR pass unaudited.
     console.error(
-      `::error::factory ci: unknown gate "${gateName}". Defined gates: ${gates
+      `::error::rivetari ci: unknown gate "${gateName}". Defined gates: ${gates
         .map((g) => g.phase)
         .join(", ")}.`,
     );
@@ -99,7 +99,7 @@ export async function runCi(): Promise<number> {
       err instanceof WaiverError ||
       err instanceof EvidenceError
     ) {
-      console.error(`::error::factory ci: ${err.message}`);
+      console.error(`::error::rivetari ci: ${err.message}`);
       return 1;
     }
     throw err;
@@ -158,7 +158,7 @@ export async function runCi(): Promise<number> {
 
   if (!owner || !repo || !token) {
     console.error(
-      "::warning::factory ci: GITHUB_REPOSITORY and a token are required to comment or open issues.",
+      "::warning::rivetari ci: GITHUB_REPOSITORY and a token are required to comment or open issues.",
     );
     return exitCodeForCi(isPr, gateResult.status);
   }
@@ -169,7 +169,7 @@ export async function runCi(): Promise<number> {
       await upsertStickyComment(octokit, owner, repo, prNumber, body);
     } catch (err) {
       console.error(
-        `::warning::factory ci: could not post PR comment: ${(err as Error).message}`,
+        `::warning::rivetari ci: could not post PR comment: ${(err as Error).message}`,
       );
     }
     return exitCodeForCi(true, gateResult.status);
@@ -186,7 +186,7 @@ export async function runCi(): Promise<number> {
     );
   } catch (err) {
     console.error(
-      `::warning::factory ci: could not update status issue: ${(err as Error).message}`,
+      `::warning::rivetari ci: could not update status issue: ${(err as Error).message}`,
     );
   }
   return 0;

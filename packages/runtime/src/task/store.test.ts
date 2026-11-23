@@ -39,10 +39,10 @@ async function twoMachines(into = made): Promise<{
   a: string;
   b: string;
 }> {
-  const origin = await tmp("factory-origin-", into);
+  const origin = await tmp("rivetari-origin-", into);
   await cp(seeded, origin, { recursive: true });
   const clone = async () => {
-    const dir = await tmp("factory-clone-", into);
+    const dir = await tmp("rivetari-clone-", into);
     git(dir, "clone", "-q", origin, ".");
     return dir;
   };
@@ -51,9 +51,9 @@ async function twoMachines(into = made): Promise<{
 
 let seeded = "";
 beforeAll(async () => {
-  seeded = await tmp("factory-origin-", lasting);
+  seeded = await tmp("rivetari-origin-", lasting);
   git(seeded, "init", "--bare", "-b", "main");
-  const seed = await tmp("factory-seed-", lasting);
+  const seed = await tmp("rivetari-seed-", lasting);
   git(seed, "init", "-b", "main");
   git(seed, "config", "user.email", "t@t");
   git(seed, "config", "user.name", "t");
@@ -64,14 +64,14 @@ beforeAll(async () => {
 });
 
 const writeTask = async (repo: string, id: string, ledger: string) => {
-  const dir = join(repo, ".factory", "tasks", id);
+  const dir = join(repo, ".rivetari", "tasks", id);
   await mkdir(join(dir, "judge"), { recursive: true });
   await writeFile(join(dir, "card.yml"), `id: ${id}\n`);
   await writeFile(join(dir, "ledger.jsonl"), ledger);
   await writeFile(join(dir, "judge", "round-1.json"), "{}\n");
 };
 const read = (repo: string, ...p: string[]) =>
-  readFile(join(repo, ".factory", "tasks", ...p), "utf8");
+  readFile(join(repo, ".rivetari", "tasks", ...p), "utf8");
 
 const NOW = new Date("2026-11-12T10:00:00Z");
 const LATER = new Date("2026-11-12T13:00:00Z"); // past a 2h lease
@@ -389,7 +389,7 @@ describe("the task store", { timeout: 30_000 }, () => {
   });
 
   it("keeps the branch local in a repo with no origin", async () => {
-    const repo = await tmp("factory-local-");
+    const repo = await tmp("rivetari-local-");
     git(repo, "init", "-b", "main");
     await writeTask(repo, "T-0001", "{}\n");
     await commitTask(repo, "T-0001", { holder: "ann on a", message: "m" });

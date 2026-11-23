@@ -16,7 +16,7 @@ import {
 } from "./task.js";
 
 const made: string[] = [];
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const tmp = async (prefix: string) => {
   const dir = await mkdtemp(join(tmpdir(), prefix));
   made.push(dir);
@@ -29,7 +29,7 @@ let out: string[];
 let err: string[];
 beforeEach(async () => {
   // One ledger key for both "machines": the App holds the shared key later (§8).
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
   out = [];
   err = [];
   vi.spyOn(process.stdout, "write").mockImplementation((s) => {
@@ -42,17 +42,17 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.restoreAllMocks();
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) await rm(d, { recursive: true, force: true });
   made.length = 0;
 });
 
-/** An origin with a factory profile, and two people's clones of it. */
+/** An origin with a rivetari profile, and two people's clones of it. */
 async function team(): Promise<{ ann: string; bob: string }> {
-  const origin = await tmp("factory-origin-");
+  const origin = await tmp("rivetari-origin-");
   git(origin, "init", "--bare", "-b", "main");
-  const seed = await tmp("factory-seed-");
+  const seed = await tmp("rivetari-seed-");
   git(seed, "init", "-b", "main");
   execFileSync("git", ["-C", seed, "commit", "--allow-empty", "-m", "base"], {
     env: {
@@ -65,10 +65,10 @@ async function team(): Promise<{ ann: string; bob: string }> {
   });
   git(seed, "push", "-q", origin, "main");
   const clone = async (email: string) => {
-    const dir = await tmp("factory-clone-");
+    const dir = await tmp("rivetari-clone-");
     git(dir, "clone", "-q", origin, ".");
     git(dir, "config", "user.email", email);
-    await writeFile(join(dir, ".gitignore"), ".factory/tasks/\n");
+    await writeFile(join(dir, ".gitignore"), ".rivetari/tasks/\n");
     return dir;
   };
   return { ann: await clone("ann@team"), bob: await clone("bob@team") };
@@ -82,7 +82,7 @@ const draft = (path: string) =>
     path,
   });
 
-describe("factory task, shared through the factory/tasks branch", () => {
+describe("rivetari task, shared through the rivetari/tasks branch", () => {
   it("drafts on one machine, and the other sees it but can't take it while it's held", async () => {
     const { ann, bob } = await team();
     expect(await draft(ann), err.join(" | ")).toBe(0);
@@ -126,12 +126,12 @@ describe("factory task, shared through the factory/tasks branch", () => {
     });
     expect(await runTaskConfirm("T-0001", { yes: true, path: ann })).toBe(1);
     expect(stderr.join("")).toContain(
-      "factory task: confirm is done, but pushing its record failed:",
+      "rivetari task: confirm is done, but pushing its record failed:",
     );
     expect(stderr.join("")).toContain(
-      "the record is kept on this machine; the next `factory task` beat on T-0001 pushes it once origin is reachable",
+      "the record is kept on this machine; the next `rivetari task` beat on T-0001 pushes it once origin is reachable",
     );
-    expect(git(origin, "log", "-1", "--format=%s", "factory/tasks")).toBe(
+    expect(git(origin, "log", "-1", "--format=%s", "rivetari/tasks")).toBe(
       "T-0001: confirm",
     );
   }, 120_000);
@@ -140,12 +140,12 @@ describe("factory task, shared through the factory/tasks branch", () => {
     const { ann } = await team();
     expect(await runTaskRunAll({ path: ann })).toBe(1);
     expect(err.join("\n")).toContain(
-      "run --all needs `autonomy: unattended` in .factory/profile.yml (this repo is supervised)",
+      "run --all needs `autonomy: unattended` in .rivetari/profile.yml (this repo is supervised)",
     );
     const { mkdir } = await import("node:fs/promises");
-    await mkdir(join(ann, ".factory"), { recursive: true });
+    await mkdir(join(ann, ".rivetari"), { recursive: true });
     await writeFile(
-      join(ann, ".factory", "profile.yml"),
+      join(ann, ".rivetari", "profile.yml"),
       "version: 1\nname: demo\ntype: library\nautonomy: unattended\n",
     );
     out = [];
@@ -156,9 +156,9 @@ describe("factory task, shared through the factory/tasks branch", () => {
   it("at review-at-pr, drafts, confirms and routes in one command and says to run next", async () => {
     const { ann } = await team();
     const { mkdir } = await import("node:fs/promises");
-    await mkdir(join(ann, ".factory"), { recursive: true });
+    await mkdir(join(ann, ".rivetari"), { recursive: true });
     await writeFile(
-      join(ann, ".factory", "profile.yml"),
+      join(ann, ".rivetari", "profile.yml"),
       "version: 1\nname: demo\ntype: library\nautonomy: review-at-pr\n",
     );
     expect(
@@ -178,8 +178,8 @@ describe("factory task, shared through the factory/tasks branch", () => {
     expect(text).toContain(
       "route approved without asking (autonomy review-at-pr)",
     );
-    expect(text).toContain("next: `factory task run T-0001`");
-    expect(text).not.toContain("factory task confirm");
+    expect(text).toContain("next: `rivetari task run T-0001`");
+    expect(text).not.toContain("rivetari task confirm");
     out = [];
     expect(await runTaskStatus({ path: ann })).toBe(0);
     expect(out.join("")).toMatch(/T-0001\s+route\s+Fix total so it sums/);
@@ -188,9 +188,9 @@ describe("factory task, shared through the factory/tasks branch", () => {
   it("at review-at-pr, stops once at the route with the reason when a sector is borderline", async () => {
     const { ann } = await team();
     const { mkdir } = await import("node:fs/promises");
-    await mkdir(join(ann, ".factory"), { recursive: true });
+    await mkdir(join(ann, ".rivetari"), { recursive: true });
     await writeFile(
-      join(ann, ".factory", "profile.yml"),
+      join(ann, ".rivetari", "profile.yml"),
       "version: 1\nname: demo\ntype: library\nautonomy: review-at-pr\n",
     );
     expect(await draft(ann), err.join(" | ")).toBe(0);
@@ -199,7 +199,7 @@ describe("factory task, shared through the factory/tasks branch", () => {
       "card confirmed without asking (autonomy review-at-pr)",
     );
     expect(text).toContain(
-      "next: route: a person approves this route (borderline sector(s): ui): review assembly.yml, then `factory task approve T-0001`",
+      "next: route: a person approves this route (borderline sector(s): ui): review assembly.yml, then `rivetari task approve T-0001`",
     );
   }, 60_000);
 
@@ -225,6 +225,6 @@ describe("factory task, shared through the factory/tasks branch", () => {
       }),
     ).toBe(1);
     expect(err.join(" | ")).toMatch(/verify/);
-    expect(git(ann, "branch", "--list", "factory/tasks")).toBe("");
+    expect(git(ann, "branch", "--list", "rivetari/tasks")).toBe("");
   }, 60_000);
 });

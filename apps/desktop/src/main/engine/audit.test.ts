@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { runAudit } from "./audit";
 
 // The adapter imports only the engine + catalog (no electron), so it runs as a
-// plain integration test against the factory repo itself — the same thing
-// `factory audit .` does — and proves the scorecard shape the renderer consumes.
+// plain integration test against Rivetari repo itself — the same thing
+// `rivetari audit .` does — and proves the scorecard shape the renderer consumes.
 describe("runAudit (desktop adapter)", () => {
-  it("produces a lane scorecard for the factory repo", async () => {
+  it("produces a lane scorecard for Rivetari repo", async () => {
     const card = await runAudit(process.cwd());
 
     expect(card.totals.total).toBeGreaterThan(0);
@@ -22,7 +22,7 @@ describe("runAudit (desktop adapter)", () => {
     // Every lane returned has at least one control, in catalog order.
     expect(card.lanes.every((lane) => lane.controls.length > 0)).toBe(true);
 
-    // The adapter evaluates applicability against the real repo: the factory has
+    // The adapter evaluates applicability against the real repo: Rivetari has
     // no datastore and doesn't handle PII, so data.migrations-versioned is n/a.
     const controls = card.lanes.flatMap((lane) => lane.controls);
     const migration = controls.find(

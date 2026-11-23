@@ -15,7 +15,7 @@ afterEach(async () => {
   made.length = 0;
 });
 const tmp = async () => {
-  const dir = await mkdtemp(join(tmpdir(), "factory-findings-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-findings-"));
   made.push(dir);
   return dir;
 };
@@ -45,25 +45,25 @@ describe("finding patterns", () => {
   it("are stable across file names, numbers and quoted names, and differ by kind", () => {
     const a = findingPattern(
       "suggestion",
-      "The sibling `factory.factory.yml` in src/init.ts:505 runs as a live workflow",
+      "The sibling `rivetari.rivetari.yml` in src/init.ts:505 runs as a live workflow",
     );
     const b = findingPattern(
       "suggestion",
-      "The sibling `ci.factory.yml` in packages/cli/src/x.ts:12 runs as a live workflow",
+      "The sibling `ci.rivetari.yml` in packages/cli/src/x.ts:12 runs as a live workflow",
     );
     expect(a).toBe(b);
     expect(a).toMatch(/^[0-9a-f]{12}$/);
     expect(
       findingPattern(
         "defect",
-        "The sibling `ci.factory.yml` in packages/cli/src/x.ts:12 runs as a live workflow",
+        "The sibling `ci.rivetari.yml` in packages/cli/src/x.ts:12 runs as a live workflow",
       ),
     ).not.toBe(a);
   });
 
   it("are read from every judge round of a task, once each", async () => {
     const repo = await tmp();
-    const dir = join(repo, ".factory", "tasks", "T-0004", "judge");
+    const dir = join(repo, ".rivetari", "tasks", "T-0004", "judge");
     await mkdir(dir, { recursive: true });
     const finding = {
       kind: "suggestion",
@@ -142,9 +142,9 @@ describe("findings metrics", () => {
 
   it("reads task rows from the local history file", async () => {
     const repo = await tmp();
-    await mkdir(join(repo, ".factory"), { recursive: true });
+    await mkdir(join(repo, ".rivetari"), { recursive: true });
     await writeFile(
-      join(repo, ".factory", "history.jsonl"),
+      join(repo, ".rivetari", "history.jsonl"),
       [
         JSON.stringify({ date: "2026-11-20", byLane: {} }),
         JSON.stringify(

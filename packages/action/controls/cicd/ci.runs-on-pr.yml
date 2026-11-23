@@ -7,7 +7,7 @@ effort: small
 detect:
   - type: file-yaml-path
     file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-    exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+    exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
     path: "on"
     matches: '\bpull_request\b'
 evidence: none

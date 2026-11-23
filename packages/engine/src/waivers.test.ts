@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Waiver } from "@arynbht/factory-catalog";
+import type { Waiver } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -70,7 +70,7 @@ describe("loadWaivers / addWaiver", () => {
     made.length = 0;
   });
   const tmp = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-waiver-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-waiver-"));
     made.push(d);
     return d;
   };
@@ -87,7 +87,7 @@ describe("loadWaivers / addWaiver", () => {
     expect(loaded).toHaveLength(1);
     expect(loaded[0]?.reason).toBe("second");
     expect(
-      await readFile(join(dir, ".factory", "waivers.yml"), "utf8"),
+      await readFile(join(dir, ".rivetari", "waivers.yml"), "utf8"),
     ).toContain("repo.readme.present");
   });
 
@@ -95,11 +95,11 @@ describe("loadWaivers / addWaiver", () => {
     const dir = await tmp();
     await addWaiver(dir, waiver({}));
     // Corrupt it: write a non-array.
-    await rm(join(dir, ".factory", "waivers.yml"));
+    await rm(join(dir, ".rivetari", "waivers.yml"));
     const { writeFile, mkdir } = await import("node:fs/promises");
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     await writeFile(
-      join(dir, ".factory", "waivers.yml"),
+      join(dir, ".rivetari", "waivers.yml"),
       "control: x\n",
       "utf8",
     );
@@ -109,10 +109,10 @@ describe("loadWaivers / addWaiver", () => {
   it("rejects a waiver whose control is not a control id", async () => {
     const dir = await tmp();
     const { writeFile, mkdir } = await import("node:fs/promises");
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     // A Markdown-injection payload masquerading as a control reference.
     await writeFile(
-      join(dir, ".factory", "waivers.yml"),
+      join(dir, ".rivetari", "waivers.yml"),
       '- control: "x` [pwn](https://evil)"\n  reason: r\n  expires: 2099-01-01\n',
       "utf8",
     );

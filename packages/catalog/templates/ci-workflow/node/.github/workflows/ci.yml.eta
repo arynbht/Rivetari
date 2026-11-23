@@ -15,7 +15,7 @@ concurrency:
 # Setup steps are guarded so this workflow passes before the project has a
 # package.json or a lockfile. The checks run the repo's own scripts, and only
 # the ones it has: a step that skips a missing script would pass with no
-# script at all. Add a lint or test script later and `factory fix` adds its
+# script at all. Add a lint or test script later and `rivetari fix` adds its
 # step; add a typecheck step by hand.
 jobs:
   ci:

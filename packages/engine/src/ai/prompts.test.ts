@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 
-import { bundledPromptsDir } from "@arynbht/factory-catalog";
+import { bundledPromptsDir } from "@arynbht/rivetari-catalog";
 import { describe, expect, it } from "vitest";
 
 import { loadPrompt } from "./generate.js";

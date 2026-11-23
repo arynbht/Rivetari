@@ -33,7 +33,7 @@ notes: >
   thresholds edited down); references/floor-guard.md is a diff-scoped reference checker the judge
   can adopt. Its "--no-verify" mention is a red flag to detect, not an instruction. The interview
   step must not run in autonomous mode (the skill says so); it also wants to add a line to
-  AGENTS.md/CLAUDE.md, which the factory generates itself.
+  AGENTS.md/CLAUDE.md, which Rivetari generates itself.
 scan_allow:
   - rule: disable-checks
     file: SKILL.md

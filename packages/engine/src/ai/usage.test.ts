@@ -19,9 +19,9 @@ afterEach(async () => {
 });
 
 async function repo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-usage-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-usage-"));
   made.push(dir);
-  await mkdir(join(dir, ".factory"), { recursive: true });
+  await mkdir(join(dir, ".rivetari"), { recursive: true });
   return dir;
 }
 
@@ -88,7 +88,7 @@ describe("usage log", () => {
   it("skips a corrupt line rather than failing", async () => {
     const dir = await repo();
     const { appendFile } = await import("node:fs/promises");
-    await appendFile(join(dir, ".factory", "ai-usage.log"), "not json\n");
+    await appendFile(join(dir, ".rivetari", "ai-usage.log"), "not json\n");
     await appendUsage(dir, entry({ task: "ok" }));
     const entries = await loadUsage(dir);
     expect(entries).toHaveLength(1);

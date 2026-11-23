@@ -4,13 +4,13 @@
 // edit to assembly.yml is caught like an edit to the card.
 import { readFile, writeFile } from "node:fs/promises";
 
-import { buildContext } from "@arynbht/factory-engine";
+import { buildContext } from "@arynbht/rivetari-engine";
 import {
   loadManifests,
   lockDigest,
   readLock,
   readState,
-} from "@arynbht/factory-registry";
+} from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { parse, stringify } from "yaml";
 
@@ -57,11 +57,11 @@ export async function routingContext(
   if (lock.skills.length > 0) {
     if (!state)
       throw new TaskError(
-        "skills have never been synced: run `factory skills sync`",
+        "skills have never been synced: run `rivetari skills sync`",
       );
     if (state.lock !== (await lockDigest(repoPath)))
       throw new TaskError(
-        "the skills lock changed since the last sync: run `factory skills sync`",
+        "the skills lock changed since the last sync: run `rivetari skills sync`",
       );
   }
   const profile = await buildContext(repoPath)
@@ -95,18 +95,18 @@ function ready(task: Task): void {
   }
   if (!task.confirmed)
     throw new TaskError(
-      `task ${task.card.id} isn't confirmed yet: \`factory task confirm ${task.card.id}\``,
+      `task ${task.card.id} isn't confirmed yet: \`rivetari task confirm ${task.card.id}\``,
     );
   if (task.approved)
     throw new TaskError(`task ${task.card.id}'s route is already approved`);
 }
 
 const HEADER =
-  "# Proposed by `factory task route`. Edit it if you disagree, then\n" +
-  "# `factory task approve`: approval re-checks it and seals it in the ledger.\n";
+  "# Proposed by `rivetari task route`. Edit it if you disagree, then\n" +
+  "# `rivetari task approve`: approval re-checks it and seals it in the ledger.\n";
 
 /**
- * `factory task route <id>`: route the confirmed card, write assembly.yml, and
+ * `rivetari task route <id>`: route the confirmed card, write assembly.yml, and
  * record why in the ledger. Routing again before approval replaces the proposal.
  */
 export async function routeTask(
@@ -131,7 +131,7 @@ export async function routeTask(
       beat: "route",
       section,
       text,
-      by: `factory router (for ${options.by})`,
+      by: `rivetari router (for ${options.by})`,
       at: options.now,
     });
   await entry(
@@ -158,7 +158,7 @@ export async function routeTask(
 }
 
 /**
- * `factory task approve <id>`: a person agrees the assembly. Re-validates it
+ * `rivetari task approve <id>`: a person agrees the assembly. Re-validates it
  * (it may have been edited), records an edit, and seals its hash.
  */
 export async function approveRoute(
@@ -179,7 +179,7 @@ export async function approveRoute(
   );
   if (text === undefined)
     throw new TaskError(
-      `task ${id} hasn't been routed: \`factory task route ${id}\``,
+      `task ${id} hasn't been routed: \`rivetari task route ${id}\``,
     );
   if (options.shown !== undefined && options.shown !== sha256(text))
     throw new TaskError(

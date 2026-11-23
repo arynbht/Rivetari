@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { type Control, loadBundledCatalog } from "@arynbht/factory-catalog";
+import { type Control, loadBundledCatalog } from "@arynbht/rivetari-catalog";
 import {
   allowlistedEnv,
   buildContext,
@@ -24,7 +24,7 @@ import {
   runTool,
   templateStacks,
   ToolNotFoundError,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { type SimpleGit, simpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
@@ -115,7 +115,7 @@ const LOCKFILES = [
   "npm-shrinkwrap.json",
 ];
 const INSTALL_TIMEOUT_MS = 15 * 60_000;
-const CLONE_PREFIX = "factory-judge-";
+const CLONE_PREFIX = "rivetari-judge-";
 const STALE_MS = 24 * 60 * 60_000;
 
 /** Remove judge clones a crashed run left behind (older than 24 hours). */
@@ -147,7 +147,7 @@ export async function sweepStaleClones(
  * worktree.
  *
  *  1. Diff `merge-base(base, head)..head` and look for protected changes
- *     (`.factory/**`, lint/CI config, package.json scripts, existing tests,
+ *     (`.rivetari/**`, lint/CI config, package.json scripts, existing tests,
  *     added suppressions). Any → `needs-human`.
  *  2. Clone the repo, check out the merge-base, install, run the checks: the
  *     baseline.
@@ -228,7 +228,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       unsafe: { allowUnsafeHooksPath: true },
     });
     // The target repo's hooks never run inside the judge.
-    const noHooks = join(workDir, ".git", "factory-no-hooks");
+    const noHooks = join(workDir, ".git", "rivetari-no-hooks");
     await mkdir(noHooks, { recursive: true });
     await clone.addConfig("core.hooksPath", noHooks);
 
@@ -438,7 +438,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
 
 /**
  * The checks a change is judged on by default: the quality lane's code checks.
- * Repository settings (github-api) are posture, judged by `factory audit`, not
+ * Repository settings (github-api) are posture, judged by `rivetari audit`, not
  * by a change.
  */
 export async function changeChecks(): Promise<Control[]> {

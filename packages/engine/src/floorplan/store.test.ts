@@ -41,10 +41,10 @@ describe("floor-plan store", () => {
     expect(loaded?.nodes[0]?.id).toBe("system:a");
   });
 
-  it("writes to .factory/floorplan.json", async () => {
+  it("writes to .rivetari/floorplan.json", async () => {
     await saveFloorPlan(dir, model("abc"));
     const raw = await readFile(
-      resolve(dir, ".factory", "floorplan.json"),
+      resolve(dir, ".rivetari", "floorplan.json"),
       "utf8",
     );
     expect(raw.endsWith("\n")).toBe(true);
@@ -56,15 +56,15 @@ describe("floor-plan store", () => {
   });
 
   it("returns null for a corrupt / wrong-shape file", async () => {
-    await mkdir(resolve(dir, ".factory"), { recursive: true });
+    await mkdir(resolve(dir, ".rivetari"), { recursive: true });
     await writeFile(
-      resolve(dir, ".factory", "floorplan.json"),
+      resolve(dir, ".rivetari", "floorplan.json"),
       "{ not json",
       "utf8",
     );
     expect(await loadFloorPlan(dir)).toBeNull();
     await writeFile(
-      resolve(dir, ".factory", "floorplan.json"),
+      resolve(dir, ".rivetari", "floorplan.json"),
       JSON.stringify({ version: 2 }),
       "utf8",
     );

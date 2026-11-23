@@ -1,6 +1,6 @@
 ---
 task: explain-gaps
-output: docs/factory-gaps.md
+output: docs/rivetari-gaps.md
 checklist:
   - Is the narrative ordered by impact / severity, not by lane?
   - Does every point map to an actual gap from the audit (nothing invented)?

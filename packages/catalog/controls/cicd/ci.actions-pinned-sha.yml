@@ -7,7 +7,7 @@ effort: medium
 detect:
   - type: file-yaml-path
     file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-    exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+    exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
     path: "jobs.*.steps[*].uses"
     # Every action, not just one: local (./) and docker:// references are exact already.
     matches: '^(\./|docker://|[^@\s]+@[0-9a-f]{40}$)'

@@ -17,7 +17,7 @@ export function AuthControls() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    window.factory.auth.status().then(
+    window.rivetari.auth.status().then(
       (status) =>
         setState(
           status.signedIn
@@ -28,7 +28,7 @@ export function AuthControls() {
     );
 
     // Background sign-in outcome (after the user authorizes in the browser).
-    const unsubscribe = window.factory.auth.onUpdate((update) => {
+    const unsubscribe = window.rivetari.auth.onUpdate((update) => {
       if (update.status === "signed-in") {
         setError(null);
         setState({ kind: "signed-in", login: update.login || null });
@@ -43,7 +43,7 @@ export function AuthControls() {
   async function handleSignIn(): Promise<void> {
     setError(null);
     try {
-      const code = await window.factory.auth.signIn();
+      const code = await window.rivetari.auth.signIn();
       setState({ kind: "pending", code });
     } catch (err) {
       setError(errorMessage(err));
@@ -52,7 +52,7 @@ export function AuthControls() {
   }
 
   async function handleSignOut(): Promise<void> {
-    await window.factory.auth.signOut();
+    await window.rivetari.auth.signOut();
     setState({ kind: "signed-out" });
   }
 

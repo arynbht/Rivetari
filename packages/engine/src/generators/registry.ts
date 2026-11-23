@@ -1,4 +1,4 @@
-import type { FixConfig } from "@arynbht/factory-catalog";
+import type { FixConfig } from "@arynbht/rivetari-catalog";
 
 import { claudeGenerator } from "./claude.js";
 import { commandGenerator } from "./command.js";

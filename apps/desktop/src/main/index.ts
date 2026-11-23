@@ -10,8 +10,8 @@ import {
   PHASES,
   PROJECT_TYPES,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
-import { loadProfile, updateProfile } from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-catalog";
+import { loadProfile, updateProfile } from "@arynbht/rivetari-engine";
 
 import {
   AiApplyRequest,
@@ -90,8 +90,7 @@ function buildProfileMeta(): ProfileMeta {
 }
 
 /** The owner/repo whose releases the manual update check queries (ADR-0010). */
-const UPDATE_REPO =
-  process.env.FACTORY_UPDATE_REPO ?? "arynbht/software-factory";
+const UPDATE_REPO = process.env.RIVETARI_UPDATE_REPO ?? "arynbht/rivetari";
 
 /** Resolve the AI transport options from settings + the stored Anthropic key. */
 async function resolveAiOptions(): Promise<AiOptions> {
@@ -122,7 +121,7 @@ const isDev = Boolean(DEV_RENDERER_URL);
 // End-to-end test mode (Playwright): loosens the CSP enough to inject axe-core and
 // routes sign-in through a canned device flow so the suite runs without the network.
 // Never set in a real session — it gates test-only seams, nothing user-facing.
-const isE2E = process.env.FACTORY_E2E === "1";
+const isE2E = process.env.RIVETARI_E2E === "1";
 
 /** Canned responses for the GitHub device-flow + user endpoints (E2E only). */
 function e2eDeviceFlowFetch(input: unknown): Promise<Response> {
@@ -175,7 +174,7 @@ if (isDev) {
 }
 
 /** GitHub App / OAuth client id for device flow (ADR-0007). Empty → not set up. */
-const GITHUB_CLIENT_ID = process.env.FACTORY_GITHUB_CLIENT_ID ?? "";
+const GITHUB_CLIENT_ID = process.env.RIVETARI_GITHUB_CLIENT_ID ?? "";
 const GITHUB_SCOPE = "repo read:org";
 
 let mainWindow: BrowserWindow | null = null;
@@ -424,7 +423,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.AuthSignIn, async () => {
     if (!GITHUB_CLIENT_ID) {
       throw new Error(
-        "GitHub sign-in isn't configured. Set FACTORY_GITHUB_CLIENT_ID to a " +
+        "GitHub sign-in isn't configured. Set RIVETARI_GITHUB_CLIENT_ID to a " +
           "registered GitHub App/OAuth client id (ADR-0007).",
       );
     }

@@ -5,7 +5,7 @@ import {
   loadBundledCatalog,
   loadBundledGates,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   buildContext,
   type ControlResult,
@@ -20,7 +20,7 @@ import {
   saveState,
   WaiverError,
   waiversExpiringWithin,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import {
   exitCodeFor,
@@ -53,7 +53,7 @@ export interface RunAuditOptions {
   token?: string | null | undefined;
 }
 
-/** Run `factory audit`. Returns the process exit code. */
+/** Run `rivetari audit`. Returns the process exit code. */
 export async function runAudit(
   path: string,
   flags: AuditFlags,
@@ -61,7 +61,7 @@ export async function runAudit(
 ): Promise<number> {
   if (flags.json && flags.format && flags.format !== "json") {
     console.error(
-      `factory audit: --json conflicts with --format ${flags.format}; use one (--json is shorthand for --format json).`,
+      `rivetari audit: --json conflicts with --format ${flags.format}; use one (--json is shorthand for --format json).`,
     );
     return 1;
   }
@@ -69,11 +69,11 @@ export async function runAudit(
   const root = resolve(path);
   try {
     if (!(await stat(root)).isDirectory()) {
-      console.error(`factory audit: not a directory: ${path}`);
+      console.error(`rivetari audit: not a directory: ${path}`);
       return 1;
     }
   } catch {
-    console.error(`factory audit: path not found: ${path}`);
+    console.error(`rivetari audit: path not found: ${path}`);
     return 1;
   }
 
@@ -97,7 +97,7 @@ export async function runAudit(
     waivers = await ctx.waivers();
   } catch (err) {
     if (err instanceof ProfileError || err instanceof WaiverError) {
-      console.error(`factory audit: ${err.message}`);
+      console.error(`rivetari audit: ${err.message}`);
       return 1;
     }
     throw err;
@@ -200,7 +200,7 @@ export async function runAudit(
     (options.now ?? new Date()).toISOString().slice(0, 10),
   ).catch(() => null);
   if (raised !== null) {
-    warn(`\nCoverage baseline set to ${raised}% (.factory/quality.json)\n`);
+    warn(`\nCoverage baseline set to ${raised}% (.rivetari/quality.json)\n`);
   }
 
   if (gateResults) {
@@ -241,7 +241,7 @@ async function writeState(
   repoPath: string,
   results: ControlResult[],
 ): Promise<void> {
-  // Preserve the managed-file hash registry (written by `factory fix`) across audits.
+  // Preserve the managed-file hash registry (written by `rivetari fix`) across audits.
   const state = await loadState(repoPath);
   state.version = 1;
   state.generatedAt = new Date().toISOString();

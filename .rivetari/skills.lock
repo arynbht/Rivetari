@@ -1,4 +1,4 @@
-# Pinned skills for this repo. Edit with `factory skills add|update`.
+# Pinned skills for this repo. Edit with `rivetari skills add|update`.
 version: 1
 skills:
   - name: code-review-and-quality

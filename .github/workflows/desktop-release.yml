@@ -45,7 +45,7 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # The desktop main externalizes @arynbht/factory-{engine,catalog} and loads
+      # The desktop main externalizes @arynbht/rivetari-{engine,catalog} and loads
       # them from dist at runtime; electron-vite does not build them and dist/ is
       # gitignored, so build the graph first (engine project-references catalog).
       - name: Build engine + catalog dist
@@ -54,7 +54,7 @@ jobs:
       # electron-builder packages the app for the host OS. --publish never keeps it
       # from pushing anywhere; we attach artifacts explicitly below.
       - name: Package installers
-        run: pnpm --filter @arynbht/factory-desktop run package -- --publish never
+        run: pnpm --filter @arynbht/rivetari-desktop run package -- --publish never
 
       # Dependency SBOM in CycloneDX (cdxgen understands pnpm-lock.yaml). Generated
       # once, on the Linux leg, since the dependency graph is OS-independent.
@@ -62,7 +62,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          npx --yes @cyclonedx/cdxgen@11 -t pnpm -o apps/desktop/release/factory-desktop.cdx.json apps/desktop
+          npx --yes @cyclonedx/cdxgen@11 -t pnpm -o apps/desktop/release/rivetari-desktop.cdx.json apps/desktop
 
       # Attach the installers (and, on Linux, the SBOM) to the Release. Create it on
       # first write; --clobber makes re-runs idempotent. shell: bash so the globbing

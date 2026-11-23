@@ -24,7 +24,7 @@ tokens: 56000
 tools: [shell]
 tested_on: "2026-11-09"
 notes: >
-  Official skill-authoring workflow; the factory's manifest format derives from its spec and it is
-  the tool for writing in-house skills such as factory-data. The eval loop spawns parallel
+  Official skill-authoring workflow; Rivetari's manifest format derives from its spec and it is
+  the tool for writing in-house skills such as rivetari-data. The eval loop spawns parallel
   subagents, starts a local viewer server and calls "claude -p", so keep it to authoring sessions,
   not task runs. Per-skill LICENSE.txt (Apache-2.0); the repo has no top-level license.

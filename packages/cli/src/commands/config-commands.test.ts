@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadProfile, loadWaivers } from "@arynbht/factory-engine";
+import { loadProfile, loadWaivers } from "@arynbht/rivetari-engine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runEvidenceAdd } from "./evidence.js";
@@ -21,9 +21,9 @@ describe("profile / waive / evidence commands", () => {
     vi.restoreAllMocks();
   });
   const repo = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-cmd-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-cmd-"));
     made.push(d);
-    const { saveProfile } = await import("@arynbht/factory-engine");
+    const { saveProfile } = await import("@arynbht/rivetari-engine");
     await saveProfile(d, { version: 1, name: "x", type: "cli" });
     return d;
   };
@@ -75,7 +75,7 @@ describe("profile / waive / evidence commands", () => {
   });
 
   it("profile show returns 1 when there is no profile", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-cmd-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-cmd-"));
     made.push(dir);
     expect(await runProfileShow(dir)).toBe(1);
   });
@@ -109,7 +109,7 @@ describe("profile / waive / evidence commands", () => {
         "2026-11-01",
       ),
     ).toBe(0);
-    const raw = await readFile(join(dir, ".factory", "evidence.yml"), "utf8");
+    const raw = await readFile(join(dir, ".rivetari", "evidence.yml"), "utf8");
     expect(raw).toContain("sec.threat-model");
     expect(raw).toContain("365d");
   });

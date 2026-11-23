@@ -1,6 +1,6 @@
 ---
-"@arynbht/factory-engine": minor
-"@arynbht/factory-desktop": minor
+"@arynbht/rivetari-engine": minor
+"@arynbht/rivetari-desktop": minor
 ---
 
 Close the deep-audit loop and harden the swarm.
@@ -11,7 +11,7 @@ Close the deep-audit loop and harden the swarm.
 - **Verification pass**: a bounded reviewer agent prunes implausible cross-system
   edges so the inferred connections aren't trusted single-pass.
 - **AI grounding**: the context packer injects a compact architecture summary from
-  `.factory/floorplan.json`, so ADR / C4 / threat-model / explain-gaps are grounded
+  `.rivetari/floorplan.json`, so ADR / C4 / threat-model / explain-gaps are grounded
   in the repo's real systems and connections.
 - **Profile enrichment**: the Profile tab surfaces the swarm's detected
   type/stack/flags/phase as an "Apply suggestions" banner that fills the form for

@@ -6,8 +6,8 @@
 
 ## Context and Problem Statement
 
-The factory ships two things: the `@arynbht/factory` packages (engine, CLI,
-action) and the Electron desktop shell (M5). The factory repo is private, which
+Rivetari ships two things: the `@arynbht/rivetari` packages (engine, CLI,
+action) and the Electron desktop shell (M5). Rivetari repo is private, which
 breaks the usual distribution paths — `electron-updater` cannot read releases from
 a private repo without a token, and `npx`-from-registry needs auth. How should the
 packages publish and the desktop app update?
@@ -25,7 +25,7 @@ Chosen:
 
 - **Packages.** Changesets owns versioning and changelogs. A changeset per PR
   declares the user-facing change and bump type; merging to `main` opens/updates a
-  "Version packages" PR; merging that tags and publishes `@arynbht/factory` to
+  "Version packages" PR; merging that tags and publishes `@arynbht/rivetari` to
   GitHub Packages and moves the `v1` tag. Consumers in the org `uses:` the action
   by major tag.
 - **Desktop updates.** Because `electron-updater` can't read a private repo's
@@ -34,7 +34,7 @@ Chosen:
   the installer, rather than silently auto-updating. Revisit auto-update if the
   repo goes public.
 - **Supply-chain integrity.** Release artifacts are built in CI with SHA-pinned
-  actions, an SBOM, and provenance attestation; the factory audits its own
+  actions, an SBOM, and provenance attestation; Rivetari audits its own
   workflows against `ci.actions-pinned-sha`, so the distribution pipeline is held
   to the same catalog it enforces on others.
 

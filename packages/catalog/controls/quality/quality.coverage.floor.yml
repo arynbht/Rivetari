@@ -11,8 +11,8 @@ applies:
     - stack: go
     - stack: rust
 detect:
-  # Floor: profile `quality.coverage`, else the baseline `factory audit` records
-  # in .factory/quality.json at the first measured run (it only moves up). In the
+  # Floor: profile `quality.coverage`, else the baseline `rivetari audit` records
+  # in .rivetari/quality.json at the first measured run (it only moves up). In the
   # judge, a configured-but-missing summary after the test run fails.
   - type: coverage
 evidence: none

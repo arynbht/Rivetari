@@ -25,7 +25,7 @@ export function Docs({ repoPath }: { repoPath: string }) {
     setSelected(null);
     setHtml("");
     setError(null);
-    window.factory.docs.list(repoPath).then(
+    window.rivetari.docs.list(repoPath).then(
       (list) => {
         setDocs(list);
         setSelected(list[0]?.path ?? null);
@@ -37,7 +37,7 @@ export function Docs({ repoPath }: { repoPath: string }) {
   useEffect(() => {
     if (!selected) return;
     let active = true;
-    window.factory.docs.read(repoPath, selected).then(
+    window.rivetari.docs.read(repoPath, selected).then(
       (doc) => active && setHtml(renderMarkdown(doc.markdown)),
       (err: unknown) => active && setError(errorMessage(err)),
     );
@@ -70,7 +70,7 @@ export function Docs({ repoPath }: { repoPath: string }) {
       <nav className="w-60 shrink-0 space-y-0.5 border-r border-border pr-2">
         {(docs ?? []).length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">
-            No Markdown docs found under docs/ or .factory/.
+            No Markdown docs found under docs/ or .rivetari/.
           </p>
         ) : (
           (docs ?? []).map((doc) => (

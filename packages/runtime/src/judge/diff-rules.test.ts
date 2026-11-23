@@ -67,7 +67,7 @@ describe("diff rules", () => {
       "--- a/packages/cli/src/commands/init.ts",
       "+++ b/packages/cli/src/commands/init.ts",
       "@@ -136,3 +136,3 @@ async function keepBackup(",
-      "- * Write a file the factory owns (`factory.yml`): a missing one is written, and",
+      "- * Write a file Rivetari owns (`rivetari.yml`): a missing one is written, and",
       "- * with --force a different one is replaced, the old one kept as a backup.",
       "- * Returns a note when it replaced one.",
       "+ * Write a generated file under --force: a missing one is written, and a",

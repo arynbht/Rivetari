@@ -13,7 +13,7 @@ applies:
 detect:
   - type: file-yaml-path
     file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-    exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+    exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
     path: "jobs.*.steps[*].run"
     # `--if-present` would pass with no test script at all, so it doesn't count.
     matches: '(?is)^(?!.*--if-present).*\b(vitest|jest|pytest|go test|cargo test|(npm|pnpm|yarn)( run)? test|node --test|tox|nox)\b'

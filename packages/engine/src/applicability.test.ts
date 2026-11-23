@@ -1,4 +1,4 @@
-import type { Control, Predicate, Profile } from "@arynbht/factory-catalog";
+import type { Control, Predicate, Profile } from "@arynbht/rivetari-catalog";
 import { describe, expect, it } from "vitest";
 
 import { appliesTo, evaluatePredicate } from "./applicability.js";

@@ -40,16 +40,16 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Factory runtime (managed, regenerated each run)
-.factory/ai-usage.log
-.factory/state.json
+# Rivetari runtime (managed, regenerated each run)
+.rivetari/ai-usage.log
+.rivetari/state.json
 
 # Desktop end-to-end (Playwright) artifacts
 apps/desktop/test-results/
 apps/desktop/playwright-report/
 
-# Local agent worktrees / Claude Code session state. The factory's hooks and
-# its /factory skill are the repo's contract, so they're committed.
+# Local agent worktrees / Claude Code session state. Rivetari's hooks and
+# its /rivetari skill are the repo's contract, so they're committed.
 .claude/*
 !.claude/settings.json
 !.claude/skills/

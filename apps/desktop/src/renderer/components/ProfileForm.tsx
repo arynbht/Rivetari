@@ -1,4 +1,4 @@
-import type { Profile } from "@arynbht/factory-catalog";
+import type { Profile } from "@arynbht/rivetari-catalog";
 import { Check, Save, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -61,8 +61,8 @@ export function ProfileForm({
     setError(null);
     setSaved(false);
     Promise.all([
-      window.factory.profile.meta(),
-      window.factory.profile.load(repoPath),
+      window.rivetari.profile.meta(),
+      window.rivetari.profile.load(repoPath),
     ]).then(
       ([m, p]) => {
         if (!active) return;
@@ -92,7 +92,7 @@ export function ProfileForm({
   // banner. A missing/failed floor plan just means no suggestion.
   useEffect(() => {
     let active = true;
-    window.factory.floorplan.get(repoPath).then(
+    window.rivetari.floorplan.get(repoPath).then(
       (view) => active && setDetected(view.model?.detected ?? null),
       () => {},
     );
@@ -168,7 +168,7 @@ export function ProfileForm({
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-      const next = await window.factory.profile.save(repoPath, {
+      const next = await window.rivetari.profile.save(repoPath, {
         ...draft,
         stack,
       });

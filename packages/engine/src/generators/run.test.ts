@@ -1,4 +1,4 @@
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildContext } from "../context.js";

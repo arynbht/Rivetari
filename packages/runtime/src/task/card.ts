@@ -1,4 +1,4 @@
-// The task card (`.factory/tasks/<id>/card.yml`): what a task is, and the
+// The task card (`.rivetari/tasks/<id>/card.yml`): what a task is, and the
 // acceptance criteria the judge will verify by id. Intake refuses a card whose
 // acceptance is empty or whose items don't say how they'll be verified.
 import { z } from "zod";

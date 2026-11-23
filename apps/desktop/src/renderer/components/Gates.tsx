@@ -236,7 +236,7 @@ export function Gates({ repoPath }: { repoPath: string }) {
     let active = true;
     setReport(null);
     setError(null);
-    window.factory.gates.status(repoPath).then(
+    window.rivetari.gates.status(repoPath).then(
       (r) => active && setReport(r),
       (err: unknown) => active && setError(errorMessage(err)),
     );
@@ -251,7 +251,7 @@ export function Gates({ repoPath }: { repoPath: string }) {
     expires: string,
   ): Promise<void> {
     setReport(
-      await window.factory.gates.waive({ repoPath, control, reason, expires }),
+      await window.rivetari.gates.waive({ repoPath, control, reason, expires }),
     );
   }
 
@@ -261,7 +261,7 @@ export function Gates({ repoPath }: { repoPath: string }) {
     note: string,
   ): Promise<void> {
     setReport(
-      await window.factory.gates.attachEvidence({
+      await window.rivetari.gates.attachEvidence({
         repoPath,
         control,
         url,

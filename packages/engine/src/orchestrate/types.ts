@@ -1,7 +1,7 @@
 // Types for the orchestration layer: turning a natural-language feature/fix request
 // into a gated pull request. A read-only planner produces a BuildPlan (what the user
 // approves); a write-capable agent then implements it in an isolated worktree, which
-// is verified against the repo's checks + the factory gate before a PR is opened.
+// is verified against the repo's checks + Rivetari gate before a PR is opened.
 
 /** One unit of work in a build plan. */
 export interface BuildTask {
@@ -29,7 +29,7 @@ export interface BuildPlan {
 
 /** One acceptance check run against the built worktree. */
 export interface VerifyCheck {
-  /** e.g. "test", "lint", "typecheck", "factory-gate". */
+  /** e.g. "test", "lint", "typecheck", "rivetari-gate". */
   name: string;
   passed: boolean;
   /** Whether the check was actually run (false → not present / skipped). */

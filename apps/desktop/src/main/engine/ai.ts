@@ -5,7 +5,7 @@
 // others call the model / git).
 import { readdir } from "node:fs/promises";
 
-import { bundledPromptsDir } from "@arynbht/factory-catalog";
+import { bundledPromptsDir } from "@arynbht/rivetari-catalog";
 import {
   applyChanges,
   buildContext,
@@ -14,7 +14,7 @@ import {
   generateArtifact,
   loadPrompt,
   openFixPr,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import type { AiRunResult, AiTaskInfo, FixPrOutcome } from "../../shared/ipc";
 

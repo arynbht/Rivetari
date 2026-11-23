@@ -1,6 +1,6 @@
 // The audit adapter: the main process calls the headless engine directly (not the
 // CLI) and shapes a lane-grouped scorecard for the renderer. This mirrors what
-// `factory audit <path>` does — load the bundled catalog, apply the profile's
+// `rivetari audit <path>` does — load the bundled catalog, apply the profile's
 // severity-floor, evaluate every applicable control — and joins each result with
 // its control so the UI can show rationale + references on expand.
 import {
@@ -8,12 +8,12 @@ import {
   loadBundledCatalog,
   SEVERITIES,
   type Control,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   buildContext,
   type ControlResult,
   evaluateControls,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import {
   type Scorecard,

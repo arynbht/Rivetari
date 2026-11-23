@@ -7,7 +7,7 @@ import {
   loadBundledGates,
   PHASES,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   buildContext,
   type ControlResult,
@@ -18,7 +18,7 @@ import {
   ProfileError,
   resolveToken,
   WaiverError,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import { renderStatus, type StatusReport } from "../report.js";
 
@@ -34,7 +34,7 @@ export interface RunStatusOptions {
 }
 
 /**
- * `factory status` — infer the project phase (the lowest phase whose gate is not
+ * `rivetari status` — infer the project phase (the lowest phase whose gate is not
  * green) and list what blocks progress, in severity then effort order.
  */
 export async function runStatus(
@@ -45,11 +45,11 @@ export async function runStatus(
   const root = resolve(path);
   try {
     if (!(await stat(root)).isDirectory()) {
-      console.error(`factory status: not a directory: ${path}`);
+      console.error(`rivetari status: not a directory: ${path}`);
       return 1;
     }
   } catch {
-    console.error(`factory status: path not found: ${path}`);
+    console.error(`rivetari status: path not found: ${path}`);
     return 1;
   }
 
@@ -78,7 +78,7 @@ export async function runStatus(
       err instanceof WaiverError ||
       err instanceof EvidenceError
     ) {
-      console.error(`factory status: ${err.message}`);
+      console.error(`rivetari status: ${err.message}`);
       return 1;
     }
     throw err;

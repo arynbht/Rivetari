@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { AiClient, CompleteParams } from "@arynbht/factory-engine";
+import type { AiClient, CompleteParams } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -21,7 +21,7 @@ async function repoWithChange(
   base: Record<string, string>,
   change: Record<string, string>,
 ): Promise<{ dir: string; base: string; head: string }> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-tier2-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-tier2-"));
   made.push(dir);
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);
@@ -199,7 +199,7 @@ describe("judge tier 2", { timeout: 30_000 }, () => {
       decisions: [
         {
           asked: "schema_change: touches migrations/001.sql",
-          by: "factory runtime (for dev@example.com)",
+          by: "rivetari runtime (for dev@example.com)",
           at: "2026-11-21T18:00:00.000Z",
           note: "",
           flagged: true,
@@ -230,7 +230,7 @@ describe("judge tier 2", { timeout: 30_000 }, () => {
       ],
     });
     const r = await repoWithChange(
-      { ...BASE, ".factory/banned.json": banned },
+      { ...BASE, ".rivetari/banned.json": banned },
       CHANGE,
     );
     const { ai, calls } = scripted(

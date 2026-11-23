@@ -24,7 +24,7 @@ const FileExistsSchema = z.strictObject({
   exclude: glob
     .optional()
     .describe(
-      "Glob (may be `a|b|c`) of paths that do NOT count as a match, e.g. the factory's own workflow. Files matching `exclude` are removed before the pass/fail decision.",
+      "Glob (may be `a|b|c`) of paths that do NOT count as a match, e.g. Rivetari's own workflow. Files matching `exclude` are removed before the pass/fail decision.",
     ),
 });
 
@@ -70,7 +70,7 @@ const FileJsonPathSchema = z.strictObject({
   exclude: glob
     .optional()
     .describe(
-      "Glob (may be `a|b|c`) of files that never count, e.g. the factory's own workflow.",
+      "Glob (may be `a|b|c`) of files that never count, e.g. Rivetari's own workflow.",
     ),
   equals: z
     .unknown()
@@ -103,7 +103,7 @@ const FileYamlPathSchema = z.strictObject({
   exclude: glob
     .optional()
     .describe(
-      "Glob (may be `a|b|c`) of files that never count, e.g. the factory's own workflow.",
+      "Glob (may be `a|b|c`) of files that never count, e.g. Rivetari's own workflow.",
     ),
 
   equals: z.unknown().optional(),
@@ -206,7 +206,7 @@ const ReviewedSchema = z.strictObject({
     .min(1)
     .optional()
     .describe(
-      "Only drafts from this `factory ai` task (the header's `task:`); default every draft. Passes when every such draft carries a filled `reviewed-by:` line.",
+      "Only drafts from this `rivetari ai` task (the header's `task:`); default every draft. Passes when every such draft carries a filled `reviewed-by:` line.",
     ),
 });
 
@@ -410,7 +410,7 @@ export const ControlObjectSchema = z.strictObject({
     .boolean()
     .optional()
     .describe(
-      "The factory owns the files this control's fix writes and may rewrite them even after a human edit (only for factory state, never project files).",
+      "Rivetari owns the files this control's fix writes and may rewrite them even after a human edit (only for rivetari state, never project files).",
     ),
 });
 

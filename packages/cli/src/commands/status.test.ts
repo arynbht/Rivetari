@@ -14,7 +14,7 @@ describe("runStatus", () => {
     vi.restoreAllMocks();
   });
   async function tmp(): Promise<string> {
-    const d = await mkdtemp(join(tmpdir(), "factory-status-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-status-"));
     made.push(d);
     return d;
   }
@@ -59,7 +59,7 @@ describe("runStatus", () => {
   it("fails fast on a nonexistent path", async () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const code = await runStatus(
-      join(tmpdir(), "factory-status-missing-xyz"),
+      join(tmpdir(), "rivetari-status-missing-xyz"),
       {},
       { token: null },
     );

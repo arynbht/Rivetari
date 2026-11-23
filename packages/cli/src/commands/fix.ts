@@ -7,7 +7,7 @@ import {
   loadBundledCatalog,
   loadBundledGates,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   applyChanges,
   buildContext,
@@ -22,7 +22,7 @@ import {
   resolveToken,
   selectForGate,
   WaiverError,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import { today as isoToday } from "../dates.js";
 import { renderFixPlan } from "../report.js";
@@ -49,7 +49,7 @@ export interface RunFixOptions {
 /** Non-passing statuses that a fix should try to remediate. */
 const FIXABLE = new Set(["fail", "needs-evidence", "skip"]);
 
-/** `factory fix` — turn non-passing controls into file/setting changes. */
+/** `rivetari fix` — turn non-passing controls into file/setting changes. */
 export async function runFix(
   path: string,
   flags: FixFlags,
@@ -58,11 +58,11 @@ export async function runFix(
   const root = resolve(path);
   try {
     if (!(await stat(root)).isDirectory()) {
-      console.error(`factory fix: not a directory: ${path}`);
+      console.error(`rivetari fix: not a directory: ${path}`);
       return 1;
     }
   } catch {
-    console.error(`factory fix: path not found: ${path}`);
+    console.error(`rivetari fix: path not found: ${path}`);
     return 1;
   }
 
@@ -90,7 +90,7 @@ export async function runFix(
       err instanceof WaiverError ||
       err instanceof EvidenceError
     ) {
-      console.error(`factory fix: ${err.message}`);
+      console.error(`rivetari fix: ${err.message}`);
       return 1;
     }
     throw err;
@@ -101,7 +101,7 @@ export async function runFix(
   if (flags.control) {
     candidates = controls.filter((c) => c.id === flags.control);
     if (candidates.length === 0) {
-      console.error(`factory fix: unknown control "${flags.control}".`);
+      console.error(`rivetari fix: unknown control "${flags.control}".`);
       return 1;
     }
   } else {
@@ -118,13 +118,13 @@ export async function runFix(
     const { gates } = await loadBundledGates();
     gate = gates.find((g) => g.phase === flags.gate);
     if (!gate) {
-      console.error(`factory fix: unknown gate "${flags.gate}".`);
+      console.error(`rivetari fix: unknown gate "${flags.gate}".`);
       return 1;
     }
   }
 
   // Evaluate and plan against whatever is checked out. `--pr` calls this again
-  // after switching to the factory branch, so a reused branch is planned from its
+  // after switching to Rivetari branch, so a reused branch is planned from its
   // own tip.
   let controlsToFix: Control[] = [];
   const plan = async () => {
@@ -147,7 +147,7 @@ export async function runFix(
     // Surface generator failures instead of silently reporting "nothing to fix".
     for (const e of planned.errors) {
       console.error(
-        `factory fix: generator for ${e.controlId} (${e.fixType}) failed: ${e.message}`,
+        `rivetari fix: generator for ${e.controlId} (${e.fixType}) failed: ${e.message}`,
       );
     }
     return planned.changes;
@@ -208,7 +208,7 @@ async function runFixPr(
     return 0;
   } catch (err) {
     if (err instanceof FixPrError) {
-      console.error(`factory fix --pr: ${err.message}`);
+      console.error(`rivetari fix --pr: ${err.message}`);
       return 1;
     }
     throw err;

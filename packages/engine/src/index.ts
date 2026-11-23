@@ -1,7 +1,7 @@
-// @arynbht/factory-engine
+// @arynbht/rivetari-engine
 // Headless engine. Catalog loading, context building, detectors, gates,
 // generators, GitHub client, AI, inference, and metrics land here from M1 on.
-export const PACKAGE = "@arynbht/factory-engine" as const;
+export const PACKAGE = "@arynbht/rivetari-engine" as const;
 
 export { buildContext, QUIET_LOG, resolveRepoSlug } from "./context.js";
 export type {
@@ -28,12 +28,12 @@ export {
   normalizeContent,
   sha256,
 } from "./state.js";
-export type { FactoryState } from "./state.js";
+export type { RivetariState } from "./state.js";
 export * from "./generators/index.js";
 export {
   upsertStickyComment,
   upsertStatusIssue,
-  FACTORY_MARKER,
+  RIVETARI_MARKER,
   STATUS_ISSUE_TITLE,
 } from "./ci.js";
 export { Octokit } from "@octokit/rest";
@@ -58,7 +58,7 @@ export {
   appManifest,
   type AppRecord,
   convertManifestCode,
-  factoryConfigDir,
+  rivetariConfigDir,
   installationToken,
   loadApp,
   registrationUrl,

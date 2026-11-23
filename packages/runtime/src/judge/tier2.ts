@@ -17,7 +17,7 @@ import {
   estimateCost,
   isSensitivePath,
   looksLikeSecret,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import picomatch from "picomatch";
 import { type SimpleGit, simpleGit } from "simple-git";
 import { z } from "zod";
@@ -308,7 +308,7 @@ export function newSideLines(fileDiff: string): Set<number> {
   return out;
 }
 
-const RUBRIC = `You are the judge in a software factory, reviewing one change (a diff) before a human merges it.
+const RUBRIC = `You are the judge in a Rivetari, reviewing one change (a diff) before a human merges it.
 
 You may raise exactly three kinds of BLOCKING finding:
 - "defect": a correctness bug, security issue, data loss, race, or unhandled failure path that this diff introduces or leaves reachable.
@@ -570,7 +570,7 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
 }
 
 /** Marker in every review body, so later rounds can be counted. */
-export const REVIEW_MARKER = "<!-- factory-judge-review";
+export const REVIEW_MARKER = "<!-- rivetari-judge-review";
 
 /** The review as Markdown: blocking findings first, then one block of suggestions. */
 export function renderReview(
@@ -582,7 +582,7 @@ export function renderReview(
     f.file ? `\`${f.file}${f.line ? `:${f.line}` : ""}\`` : "";
   const lines = [
     `${REVIEW_MARKER} round=${round} -->`,
-    `### Factory judge · round ${round} · ${verdict === "approve" ? "approve" : verdict === "needs-human" ? "needs a human" : `${result.blocking.length} blocking`}`,
+    `### Rivetari judge · round ${round} · ${verdict === "approve" ? "approve" : verdict === "needs-human" ? "needs a human" : `${result.blocking.length} blocking`}`,
   ];
   if (verdict === "needs-human") {
     lines.push(

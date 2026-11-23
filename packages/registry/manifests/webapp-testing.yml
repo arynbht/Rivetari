@@ -22,6 +22,6 @@ tokens: 5500
 tools: [shell, browser]
 tested_on: "2026-11-09"
 notes: >
-  Python Playwright scripting with a server-lifecycle helper. Overlaps playwright-cli, the factory's
+  Python Playwright scripting with a server-lifecycle helper. Overlaps playwright-cli, Rivetari's
   preferred UI proof tool; use this when a scripted, repeatable Python check is wanted. It tells the
   agent to wait for "networkidle", which playwright-cli's own guidance says never to use.

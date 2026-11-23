@@ -22,7 +22,7 @@ process.exit(1);
 const BROKEN = `console.error("broken"); process.exit(1);\n`;
 
 async function repo(changed: string) {
-  const dir = await mkdtemp(join(tmpdir(), "factory-flaky-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-flaky-test-"));
   made.push(dir);
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);

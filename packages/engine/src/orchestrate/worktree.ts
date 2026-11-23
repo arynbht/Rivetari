@@ -40,7 +40,7 @@ export async function createWorktree(
   const base = await currentBranch(repoPath);
   const path = join(
     tmpdir(),
-    `factory-build-${randomBytes(6).toString("hex")}`,
+    `rivetari-build-${randomBytes(6).toString("hex")}`,
   );
   await git.raw(["worktree", "add", "-b", branch, path, base]);
   return { path, branch, base };
@@ -49,10 +49,10 @@ export async function createWorktree(
 /**
  * Git for the worktree with hooks off. The agent can edit any file in it,
  * including an in-repo hooks dir (`.husky`), and those hooks would run with
- * the factory's full environment on commit or push.
+ * Rivetari's full environment on commit or push.
  */
 async function hooklessGit(worktreePath: string) {
-  const noHooks = join(tmpdir(), "factory-no-hooks");
+  const noHooks = join(tmpdir(), "rivetari-no-hooks");
   await mkdir(noHooks, { recursive: true });
   // simple-git guards core.hooksPath against injection; this points it at an
   // empty directory, the opposite of injection.

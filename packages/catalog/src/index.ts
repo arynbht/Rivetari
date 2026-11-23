@@ -1,8 +1,8 @@
-// @arynbht/factory-catalog
+// @arynbht/rivetari-catalog
 // Control catalog package: the control schema (zod), taxonomy (lanes + phases),
 // and the loader/validator. The YAML controls/gates/templates/prompts land here
 // across M1-M6.
-export const PACKAGE = "@arynbht/factory-catalog" as const;
+export const PACKAGE = "@arynbht/rivetari-catalog" as const;
 
 export * from "./taxonomy.js";
 export * from "./schema.js";

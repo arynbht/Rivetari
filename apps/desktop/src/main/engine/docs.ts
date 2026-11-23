@@ -3,14 +3,14 @@
 // read Markdown inside the repo. Electron-free.
 import { basename } from "node:path";
 
-import { buildContext } from "@arynbht/factory-engine";
+import { buildContext } from "@arynbht/rivetari-engine";
 
 import type { DocContent, DocEntry } from "../../shared/ipc";
 
 const DOC_GLOBS = [
   "*.md",
   "docs/**/*.md",
-  ".factory/**/*.md",
+  ".rivetari/**/*.md",
   ".github/**/*.md",
 ];
 

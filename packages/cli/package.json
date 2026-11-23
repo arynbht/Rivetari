@@ -1,11 +1,11 @@
 {
-  "name": "@arynbht/factory",
+  "name": "@arynbht/rivetari",
   "version": "1.0.0",
-  "description": "The factory CLI: init, audit, fix, ai, status, metrics, waive, evidence, profile.",
+  "description": "Rivetari CLI: init, audit, fix, ai, status, metrics, waive, evidence, profile.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "factory": "./dist/bin.js"
+    "rivetari": "./dist/bin.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,10 +20,10 @@
   ],
   "scripts": {},
   "dependencies": {
-    "@arynbht/factory-catalog": "workspace:*",
-    "@arynbht/factory-engine": "workspace:*",
-    "@arynbht/factory-registry": "workspace:*",
-    "@arynbht/factory-runtime": "workspace:*",
+    "@arynbht/rivetari-catalog": "workspace:*",
+    "@arynbht/rivetari-engine": "workspace:*",
+    "@arynbht/rivetari-registry": "workspace:*",
+    "@arynbht/rivetari-runtime": "workspace:*",
     "@clack/prompts": "^1.8.1",
     "commander": "^15.0.0",
     "picocolors": "^1.1.1",

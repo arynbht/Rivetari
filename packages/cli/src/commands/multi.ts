@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 
-import { loadBundledCatalog, SEVERITIES } from "@arynbht/factory-catalog";
+import { loadBundledCatalog, SEVERITIES } from "@arynbht/rivetari-catalog";
 import {
   buildContext,
   evaluateControls,
@@ -10,7 +10,7 @@ import {
   ProfileError,
   resolveToken,
   WaiverError,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { parse as parseYaml } from "yaml";
 
 import { summarize } from "../report.js";
@@ -40,7 +40,7 @@ interface RepoRow {
 }
 
 function defaultReposFile(): string {
-  return resolve(homedir(), ".config", "factory", "repos.yml");
+  return resolve(homedir(), ".config", "rivetari", "repos.yml");
 }
 
 /** Parse a repos list file: a YAML list of paths (or `{ path }` objects). */
@@ -60,7 +60,7 @@ function parseRepos(raw: string): string[] {
     .filter((p): p is string => !!p);
 }
 
-/** `factory audit --all` — audit every repo in the list and print one table. */
+/** `rivetari audit --all` — audit every repo in the list and print one table. */
 export async function runAuditAll(
   flags: MultiFlags,
   options: RunMultiOptions = {},
@@ -71,13 +71,13 @@ export async function runAuditAll(
     raw = await readFile(file, "utf8");
   } catch {
     console.error(
-      `factory audit --all: no repo list at ${file}. Create it (a YAML list of repo paths) or pass --repos <file>.`,
+      `rivetari audit --all: no repo list at ${file}. Create it (a YAML list of repo paths) or pass --repos <file>.`,
     );
     return 1;
   }
   const repos = parseRepos(raw);
   if (repos.length === 0) {
-    console.error(`factory audit --all: ${file} has no repo paths.`);
+    console.error(`rivetari audit --all: ${file} has no repo paths.`);
     return 1;
   }
 

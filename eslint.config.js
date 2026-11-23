@@ -7,10 +7,10 @@ import tseslint from "typescript-eslint";
 
 import { existsSync, readFileSync } from "node:fs";
 
-import factory from "./packages/eslint-rules/index.js";
+import rivetari from "./packages/eslint-rules/index.js";
 
-const banned = existsSync(".factory/banned.json")
-  ? JSON.parse(readFileSync(".factory/banned.json", "utf8")).patterns.filter(
+const banned = existsSync(".rivetari/banned.json")
+  ? JSON.parse(readFileSync(".rivetari/banned.json", "utf8")).patterns.filter(
       (p) => !p.covered_by,
     )
   : [];
@@ -71,14 +71,14 @@ export default tseslint.config(
   {
     files: ["packages/*/src/**/*.ts", "apps/*/src/**/*.{ts,tsx}"],
     ignores: ["**/*.{test,spec}.{ts,tsx}"],
-    plugins: { factory },
+    plugins: { rivetari },
     rules: {
-      "factory/no-spec-section-refs": "error",
-      "factory/no-writes-to-workflows": [
+      "rivetari/no-spec-section-refs": "error",
+      "rivetari/no-writes-to-workflows": [
         "error",
         { allow: ["packages/cli/src/commands/init.ts"] },
       ],
-      "factory/no-banned": ["error", { patterns: banned }],
+      "rivetari/no-banned": ["error", { patterns: banned }],
     },
   },
 );
