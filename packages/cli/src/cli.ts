@@ -196,7 +196,10 @@ export function buildProgram(): Command {
       collect,
       [],
     )
-    .option("--risk <risk>", "low | medium | high")
+    .option(
+      "--risk <risk>",
+      "raise the risk derived from --touches: low | medium | high (never lowers it)",
+    )
     .option("--source <source>", "issue#88, or prompt")
     .option("--from <file>", "start from a card YAML file")
     .option("--path <path>", "path to the repo", ".")

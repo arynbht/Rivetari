@@ -15,6 +15,12 @@ import {
   Ledger,
   type LedgerEntry,
 } from "./ledger.js";
+import {
+  deriveRisk,
+  higherRisk,
+  intakeRiskNote,
+  touchedPaths,
+} from "./risk.js";
 import { checkTouches } from "./touches.js";
 
 export const TASKS_DIR = ".rivetari/tasks";
@@ -175,7 +181,8 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
 /**
  * `rivetari task new`: validate a draft card (acceptance items with a `verify`
  * each, or it is refused), write it, and open the ledger. Nothing runs on the
- * card until a human confirms it.
+ * card until a human confirms it. Its risk is derived from its touches; a
+ * declared risk can raise that, never lower it.
  */
 export async function newTask(
   repoPath: string,
@@ -191,13 +198,21 @@ export async function newTask(
 ): Promise<Task> {
   const now = options.now ?? new Date();
   const id = options.id ?? (await nextTaskId(repoPath));
-  const card = parseCard({
+  const drafted = parseCard({
     ...input,
     id,
     owner: input.owner ?? options.by,
     created: now.toISOString().slice(0, 10),
   });
-  await checkTouches(repoPath, card.touches);
+  await checkTouches(repoPath, drafted.touches);
+  const declared = input.risk === undefined ? undefined : drafted.risk;
+  const derived = deriveRisk({
+    paths: await touchedPaths(repoPath, drafted.touches),
+  });
+  const card = {
+    ...drafted,
+    risk: declared ? higherRisk(derived.risk, declared) : derived.risk,
+  };
   await ignoreTasks(repoPath);
   await mkdir(taskDir(repoPath, id), { recursive: true });
   await writeFile(cardPath(repoPath, id), stringify(card), "utf8");
@@ -209,6 +224,13 @@ export async function newTask(
     beat: "intake",
     section: "timeline",
     text: `card drafted with ${card.acceptance.length} acceptance criteria; awaiting confirmation`,
+    by: options.by,
+    at: now,
+  });
+  await ledger.append({
+    beat: "intake",
+    section: "decision",
+    text: intakeRiskNote(derived, declared),
     by: options.by,
     at: now,
   });
