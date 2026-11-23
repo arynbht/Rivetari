@@ -1,6 +1,6 @@
 # T-0014 · Verify the autonomy ledger before the trust ladder reads it
 
-<!-- Written by the factory runtime from ledger.jsonl. Don't edit: changes are detected. -->
+<!-- Written by Rivetari runtime from ledger.jsonl. Don't edit: changes are detected. -->
 
 ## Timeline
 
