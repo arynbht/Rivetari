@@ -10,6 +10,7 @@ import {
   autonomyFor,
   buildTask,
   CardError,
+  checkTouches,
   closeTask,
   commitTask,
   enforceFallback,
@@ -217,7 +218,13 @@ export function runTaskNew(
     } as Parameters<typeof newTask>[1];
     const by = await whoami(repo);
     // Refuse a bad card before an id is reserved for it on the branch.
-    parseCard({ ...input, id: "T-0000", owner: by, created: "2000-01-01" });
+    const card = parseCard({
+      ...input,
+      id: "T-0000",
+      owner: by,
+      created: "2000-01-01",
+    });
+    await checkTouches(repo, card.touches);
     const holder = holderName(by);
     const id = await reserveTaskId(repo, { holder });
     const task = await newTask(repo, input, { by, id });

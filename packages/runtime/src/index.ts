@@ -57,6 +57,7 @@ export {
   TASKS_DIR,
   whoami,
 } from "./task/tasks.js";
+export { checkTouches, TOUCHES_CAP } from "./task/touches.js";
 export {
   commitTask,
   type CommitOptions,

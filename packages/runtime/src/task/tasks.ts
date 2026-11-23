@@ -15,6 +15,7 @@ import {
   Ledger,
   type LedgerEntry,
 } from "./ledger.js";
+import { checkTouches } from "./touches.js";
 
 export const TASKS_DIR = ".rivetari/tasks";
 
@@ -196,6 +197,7 @@ export async function newTask(
     owner: input.owner ?? options.by,
     created: now.toISOString().slice(0, 10),
   });
+  await checkTouches(repoPath, card.touches);
   await ignoreTasks(repoPath);
   await mkdir(taskDir(repoPath, id), { recursive: true });
   await writeFile(cardPath(repoPath, id), stringify(card), "utf8");
