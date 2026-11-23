@@ -42,6 +42,9 @@ import {
   Scorecard,
   SettingsSaveRequest,
   SettingsView,
+  MapBlocked,
+  MapGetRequest,
+  MapView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskOpenPrRequest,
@@ -331,6 +334,28 @@ const api = {
       ipcRenderer.on(IpcChannel.TasksUpdate, listener);
       return () => {
         ipcRenderer.removeListener(IpcChannel.TasksUpdate, listener);
+      };
+    },
+  },
+
+  map: {
+    /** The repo's floorplan map (or why there's none); fences the map's session to it. */
+    async get(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.MapGet,
+        MapGetRequest.parse({ repoPath }),
+      );
+      return MapView.parse(raw);
+    },
+    /** Subscribe to the requests the map's session cancelled; returns an unsubscribe fn. */
+    onBlocked(callback: (blocked: MapBlocked) => void) {
+      const listener = (_event: unknown, payload: unknown): void => {
+        const parsed = MapBlocked.safeParse(payload);
+        if (parsed.success) callback(parsed.data);
+      };
+      ipcRenderer.on(IpcChannel.MapBlocked, listener);
+      return () => {
+        ipcRenderer.removeListener(IpcChannel.MapBlocked, listener);
       };
     },
   },
