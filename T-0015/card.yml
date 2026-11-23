@@ -1,0 +1,48 @@
+id: T-0015
+title: Stop git-heavy tests failing tier 1 under load
+type: fix
+source: prompt
+description: "Tests that drive real git repos (store.test.ts, task.test.ts and
+  similar) pass alone but time out under the full suite on Windows, in the
+  judge's run on the change; T-0010, T-0012 and T-0014 all lost rounds to it,
+  and a red tests.pass also wipes out coverage, which reads the same run. Two
+  changes. In vitest.config.ts, run the git-heavy test files without contending
+  with the rest of the suite, and write the coverage summary even when a test
+  fails. In tier 1, when tests fail on the change, re-run only the failing test
+  files, serially and alone, before marking them failed: a file that passes
+  alone is recorded in the verdict as flaky under load and doesn't fail the
+  round; one that also fails alone is a real failure. This replaces the
+  whole-suite retry. No existing test changes."
+acceptance:
+  - id: A1
+    text: tier 1, given a test run on the change where one file fails and then
+      passes when re-run alone, passes tests.pass and records that file as flaky
+      under load in the verdict notes
+    verify: unit
+  - id: A2
+    text: tier 1, given a file that fails both in the suite and alone, fails
+      tests.pass and keeps the failing output
+    verify: unit
+  - id: A3
+    text: only the failing test files are re-run, one at a time, not the whole suite
+    verify: unit
+  - id: A4
+    text: with a failing test, the full run still writes
+      coverage/coverage-summary.json, so the coverage floor is checked against
+      it
+    verify: unit
+  - id: A5
+    text: no test file that existed at base is modified
+    verify: review
+out_of_scope: []
+touches:
+  - vitest.config.ts
+  - packages/runtime/src/judge/tier1.ts
+  - packages/runtime/src/judge/flaky-under-load.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-23
