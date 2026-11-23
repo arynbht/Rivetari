@@ -22,6 +22,7 @@ import {
   detectStacks,
   evaluateControls,
   runTool,
+  splitArgs,
   templateStacks,
   ToolNotFoundError,
 } from "@arynbht/factory-engine";
@@ -334,16 +335,64 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     };
     let headResults = await runChecks(workDir, selected, options, keepLog);
 
-    // Tests green at base but red on the change get one more run, as the
-    // proof used to give them: a pass on the retry is a flake, not the change.
+    // Tests green at base but red on the change run again: each failing file
+    // alone, where a pass is load, not the change; else the suite, once more.
     const tests = selected.find(runsTests);
     const sideOf = (results: ControlResult[]) =>
       side(results.find((r) => r.controlId === tests?.id));
-    if (
-      tests &&
-      sideOf(baseResults) === "green" &&
-      sideOf(headResults) === "red"
-    ) {
+    const redOnChange =
+      sideOf(baseResults) === "green" && sideOf(headResults) === "red";
+    const fullRun: Tier1Result["testRun"] = testRun;
+    const files = failingTestFiles(fullRun?.output ?? "");
+    if (tests && fullRun && files.length > 0 && redOnChange) {
+      const unexplained = unexplainedFailure(fullRun.output, files);
+      if (unexplained) {
+        notes.push(
+          `tests failed on the change, and ${unexplained}, so re-running the failing files alone can't clear it`,
+        );
+      } else {
+        const alone: { file: string; ok: boolean; output: string }[] = [];
+        for (const file of files) {
+          log(`${file} failed in the full suite: running it again, alone`);
+          alone.push({
+            file,
+            ...(await rerunAlone(
+              workDir,
+              fullRun.command,
+              file,
+              tests,
+              options,
+            )),
+          });
+        }
+        testRun = {
+          ...fullRun,
+          output: [
+            fullRun.output,
+            ...alone.map(
+              (r) =>
+                `\n--- ${r.file}, run alone: ${r.ok ? "passed" : "failed"} ---\n${r.output}`,
+            ),
+          ].join("\n"),
+        };
+        const real = alone.filter((r) => !r.ok).map((r) => r.file);
+        if (real.length === 0) {
+          headResults = headResults.map((r) =>
+            r.controlId === tests.id ? passedAlone(r, files) : r,
+          );
+          notes.push(
+            ...files.map(
+              (f) =>
+                `${f}: failed in the full suite, passed alone: flaky under load, not blamed on this change`,
+            ),
+          );
+        } else {
+          notes.push(
+            `${real.join(", ")}: failed in the full suite and again alone: a real failure`,
+          );
+        }
+      }
+    } else if (tests && redOnChange) {
       log(
         "tests failed on the change but pass at base: running them once more",
       );
@@ -495,6 +544,98 @@ function runsTests(control: Control): boolean {
 }
 
 const COVERAGE = "quality.coverage.floor";
+
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+const TEST_FILE = String.raw`(\S+\.(?:test|spec)\.[cm]?[jt]sx?)`;
+const PROJECT = String.raw`(?:\|[^|]*\|\s+)?`;
+const FAIL_LINE = new RegExp(
+  String.raw`^\s*FAIL\s+${PROJECT}${TEST_FILE}(?:\s|$)`,
+);
+const SUMMARY_LINE = new RegExp(
+  String.raw`^\s*❯\s+${PROJECT}${TEST_FILE}\s+\(.*\bfailed\b`,
+);
+const FAILED_FILES = /^\s*Test Files\s+(\d+)\s+failed/m;
+const UNATTRIBUTED: readonly [RegExp, string][] = [
+  [/\bUnhandled (?:Errors?|Rejections?)\b/i, "the run had unhandled errors"],
+  [
+    /\bdoes not meet (?:the )?(?:global )?threshold\b/i,
+    "coverage missed a threshold",
+  ],
+];
+
+export function failingTestFiles(output: string): string[] {
+  const files = new Set<string>();
+  for (const raw of output.split(/\r?\n/)) {
+    const line = raw.replace(ANSI, "");
+    const match = FAIL_LINE.exec(line) ?? SUMMARY_LINE.exec(line);
+    if (match?.[1]) files.add(match[1].replaceAll("\\", "/"));
+  }
+  return [...files];
+}
+
+function unexplainedFailure(
+  output: string,
+  files: readonly string[],
+): string | null {
+  const text = output.replace(ANSI, "");
+  for (const [pattern, why] of UNATTRIBUTED)
+    if (pattern.test(text)) return why;
+  const counted = FAILED_FILES.exec(text)?.[1];
+  if (counted !== undefined && Number(counted) !== files.length)
+    return `the run counted ${counted} failed files but named ${files.length}`;
+  return null;
+}
+
+async function rerunAlone(
+  dir: string,
+  command: string,
+  file: string,
+  tests: Control,
+  options: Tier1Options,
+): Promise<{ ok: boolean; output: string }> {
+  const [binary, ...args] = splitArgs(command);
+  if (!binary) return { ok: false, output: "no test command to re-run" };
+  const timeout =
+    tests.detect.flatMap((d) =>
+      d.type === "command" && d.timeout ? [d.timeout] : [],
+    )[0] ?? 60;
+  try {
+    const result = await runTool(
+      binary,
+      [...args, "--", "--coverage.enabled=false", file],
+      dir,
+      {
+        timeoutMs: timeout * 1000,
+        env: allowlistedEnv(options.env),
+      },
+    );
+    return {
+      ok: result.exitCode === 0,
+      output: `${result.stdout}\n${result.stderr}`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      output: `could not re-run ${file}: ${(err as Error).message}`,
+    };
+  }
+}
+
+function passedAlone(
+  result: ControlResult,
+  files: readonly string[],
+): ControlResult {
+  return {
+    ...result,
+    status: "pass",
+    detectors: [
+      {
+        status: "pass",
+        message: `${files.join(", ")} failed in the full suite and passed alone: flaky under load`,
+      },
+    ],
+  };
+}
 
 function side(result: ControlResult | undefined): Side {
   if (!result || result.status === "n/a") return "n/a";

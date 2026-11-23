@@ -1,4 +1,20 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
+
+const ROOT = fileURLToPath(new URL(".", import.meta.url))
+  .replaceAll("\\", "/")
+  .replace(/[()[\]{}*?!+@]/g, "\\$&");
+
+export const GIT_HEAVY_TESTS = [
+  "packages/runtime/src/task/{store,tasks,run,run-deferred,fast-path,autonomy,ladder}.test.ts",
+  "packages/runtime/src/judge/{tier1,tier1-flaky,flaky-under-load,base-cache,workspace,tier2,banned}.test.ts",
+  "packages/runtime/src/agent/{agent,stops,rules}.test.ts",
+  "packages/runtime/src/{proof/proof,ship/ship}.test.ts",
+  "packages/engine/src/{fix-pr,github/token,orchestrate/worktree}.test.ts",
+  "packages/registry/src/skills.test.ts",
+  "packages/cli/src/commands/{task,fix,hook}.test.ts",
+];
 
 export default defineConfig({
   test: {
@@ -10,10 +26,17 @@ export default defineConfig({
     // Windows), the 5s default timed them out; nothing about them was wrong.
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    pool: "forks",
+    poolMatchGlobs: GIT_HEAVY_TESTS.map((glob): [string, "threads"] => [
+      `${ROOT}${glob}`,
+      "threads",
+    ]),
+    poolOptions: { threads: { singleThread: true } },
     coverage: {
       // On for every run, so `pnpm test` always writes coverage-summary.json
       // (the judge's coverage floor reads it after its test run).
       enabled: true,
+      reportOnFailure: true,
       provider: "v8",
       reporter: ["json-summary", "text-summary"],
       include: ["packages/*/src/**/*.ts", "apps/desktop/src/**/*.{ts,tsx}"],
