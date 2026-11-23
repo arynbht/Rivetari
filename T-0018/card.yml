@@ -1,0 +1,41 @@
+id: T-0018
+title: Reject a touches glob that matches more than 20 files at intake
+type: fix
+source: prompt
+description: "A card's touches feed the build prompt's slice, the router and the
+  fast path, but intake only checks that each entry is a non-empty string, so a
+  glob such as packages/**/*.test.ts (T-0011's card) can name hundreds of files.
+  Intake expands each touches entry against the repo's tracked files and refuses
+  a card whose glob matches more than 20, before an id is reserved, naming the
+  glob, how many files it matches and a few of them, and asking for the files by
+  name or a narrower glob. A plain path, a glob matching 20 files or fewer, and
+  a glob matching nothing yet (new files) are accepted. Second of three
+  context-cap cards; the build prompt's own cap is #189."
+acceptance:
+  - id: A1
+    text: rivetari task new with --touches 'packages/**/*.test.ts' in this repo
+      exits non-zero without reserving an id, and its message names the glob,
+      the number of files it matches and asks to name the files or narrow the
+      glob
+    verify: unit
+  - id: A2
+    text: a plain path, a glob matching 20 or fewer tracked files, and a glob
+      matching no tracked file are all accepted
+    verify: unit
+  - id: A3
+    text: a card given with --from YAML gets the same check
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/task/tasks.ts
+  - packages/runtime/src/task/touches.ts
+  - packages/runtime/src/task/touches-cap.test.ts
+  - packages/cli/src/commands/task.ts
+  - packages/cli/src/commands/task-touches-cap.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
