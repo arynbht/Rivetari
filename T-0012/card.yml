@@ -1,0 +1,33 @@
+id: T-0012
+title: Keep the lease test in store.test.ts inside its timeout
+type: fix
+source: prompt
+description: store.test.ts's 'keeps a second machine off a task until the lease
+  expires or is released' runs about eight commits, pushes and pulls across two
+  temp clones in one test. On Windows under the full suite it exceeds the 30 s
+  test timeout, in the judge's workspace on base and change alike, so tests.pass
+  reads pre-existing for every task and a regression anywhere else in the suite
+  goes unseen by tier 1. Make it reliably fit, by splitting it into separate
+  tests or sharing one setup, while checking exactly the same lease behaviour.
+  The lease code in store.ts doesn't change.
+acceptance:
+  - id: A1
+    text: every assertion the lease test makes today is still made, in one or more
+      tests in store.test.ts
+    verify: unit
+  - id: A2
+    text: no single test in store.test.ts takes more than 10 s in a full pnpm run
+      test on Windows, measured from the vitest report
+    verify: unit
+  - id: A3
+    text: packages/runtime/src/task/store.ts is unchanged
+    verify: review
+out_of_scope: []
+touches:
+  - packages/runtime/src/task/store.test.ts
+  - packages/action/dist/**
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
