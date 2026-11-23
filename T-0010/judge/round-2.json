@@ -1,0 +1,149 @@
+{
+  "task": "T-0010",
+  "round": 2,
+  "verdict": "passed",
+  "head": "6127477a7ab96aa19468b1bb5a27bc30c31f44a9",
+  "base": "03bb3e56dc76c88be885e39a2562a0cf0e0303e1",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "red",
+        "head": "red",
+        "outcome": "pre-existing",
+        "message": "`npm test` exited 1 (expected 0)\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/runtime/src/task/store.test.ts\u001b[2m > \u001b[22mthe task store\u001b[2m > \u001b[22mkeeps a second machine off a task until the lease expires or is released\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 30000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/runtime/src/task/store.test.ts\u001b[2m > \u001b[22mthe task store\u001b[2m > \u001b[22mkeeps a second machine off a task until the lease expires or is released\n\u001b[31m\u001b[1mError\u001b[22m: EBUSY: resource busy or locked, rmdir 'C:\\Users\\arynb\\AppData\\Local\\Temp\\factory-clone-RpKzcy'\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯\u001b[22m\u001b[39m"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "red",
+        "head": "red",
+        "outcome": "pre-existing",
+        "message": "coverage is configured, but the test run wrote no coverage/coverage-summary.json"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- factory-judge-review round=2 -->\n### Factory judge · round 2 · approve\n\n#### Acceptance\n- A1: met — amend.test.ts checks the exact 'intake amended; card sha256 <new> (was <old>)' text, by=lead@example.com, and empty problems after reload.\n- A2: met — The test checks approved=false and that nextStep is route after the amend, then reroutes, gets review, approves, and nextStep is isolate. loadTask only counts approvals after the latest seal and treats the earlier assembly as stale.\n- A3: met — The test isolates, edits the card, and checks that confirm rejects with 'card is fixed after isolate', that CARD_CHANGED is still a problem, and that no ledger entry was appended.\n\n<details><summary>3 suggestion(s), non-blocking</summary>\n\n- Other readers of the exported APPROVED regex may still take the first approval `packages/runtime/src/task/tasks.ts:93` — Export a helper, such as `approvalSeal(entries)`, built on cardSeal and the since-seal slice, and have every caller use it instead of the raw regex.\n- isolated() depends on BEATS order, and any later-beat entry counts `packages/runtime/src/task/tasks.ts:110` — Add a comment explaining why any entry at or after isolate freezes the card, and confirm the BEATS import.\n- Multi-line throws without braces `packages/runtime/src/task/tasks.ts:227` — Wrap both bodies in braces.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/tasks.ts",
+        "line": 93,
+        "acceptance_id": null,
+        "title": "Other readers of the exported APPROVED regex may still take the first approval",
+        "detail": "loadTask now uses only the latest approval after the latest card seal. APPROVED is exported, though, and any other module that scans the ledger with `.find` (isolate, judge, ship) would pick up the pre-amendment approval hash. That hash won't match the re-approved assembly.yml. None of those callers are in this diff, so this is unverified.",
+        "repro": "Not reproducible from this diff. It would need a caller that scans entries for the first APPROVED match after an amend and re-approve cycle.",
+        "fix": "Export a helper, such as `approvalSeal(entries)`, built on cardSeal and the since-seal slice, and have every caller use it instead of the raw regex.",
+        "pattern": "7a64caae533e"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/tasks.ts",
+        "line": 110,
+        "acceptance_id": null,
+        "title": "isolated() depends on BEATS order, and any later-beat entry counts",
+        "detail": "The card is frozen as soon as any entry has a beat at or after isolate. That includes an isolate attempt that failed partway, or an abandon entry with a later beat. This fails closed, which is right. A one-line comment would help, and so would a check that BEATS is imported in this file, since the hunk doesn't show the import.",
+        "repro": "An isolate that appends an isolate-beat entry and then fails worktree creation leaves the card unamendable.",
+        "fix": "Add a comment explaining why any entry at or after isolate freezes the card, and confirm the BEATS import.",
+        "pattern": "01b7bcf7eeaf"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/tasks.ts",
+        "line": 227,
+        "acceptance_id": null,
+        "title": "Multi-line throws without braces",
+        "detail": "The two new `if (...) throw new TaskError(...)` statements wrap over two or three lines without braces. That is easy to misread and doesn't match the single-line guard style used elsewhere in the function.",
+        "repro": "Readability only.",
+        "fix": "Wrap both bodies in braces.",
+        "pattern": "e2bf1a4fc3ef"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "amend.test.ts checks the exact 'intake amended; card sha256 <new> (was <old>)' text, by=lead@example.com, and empty problems after reload."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The test checks approved=false and that nextStep is route after the amend, then reroutes, gets review, approves, and nextStep is isolate. loadTask only counts approvals after the latest seal and treats the earlier assembly as stale."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The test isolates, edits the card, and checks that confirm rejects with 'card is fixed after isolate', that CARD_CHANGED is still a problem, and that no ledger entry was appended."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 3644,
+      "costUsd": 0.1507836
+    }
+  }
+}
