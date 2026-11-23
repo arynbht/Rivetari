@@ -41,12 +41,11 @@ function truncate(s: string, max = 2000): string {
 }
 
 /**
- * The worktree's package manager, read the way init and the templates read it.
- * A repo that names no manager anywhere still gets pnpm here, as verify and
- * proof always gave it; init and the templates give such a repo npm.
+ * The worktree's package manager, read the way init and the templates read it,
+ * so a repo that names no manager anywhere gets npm here too.
  */
 export function packageManager(dir: string): Promise<PackageManager> {
-  return packageManagerAt(dir, "pnpm");
+  return packageManagerAt(dir);
 }
 
 async function readScripts(dir: string): Promise<Record<string, string>> {
