@@ -53,6 +53,7 @@ describe("affectedScope", () => {
         "packages/cli",
         "packages/runtime",
       ],
+      filters: ["@r/registry", "@r/action", "@r/cli", "@r/runtime"],
       touched: ["packages/registry"],
       dependents: ["packages/action", "packages/cli", "packages/runtime"],
     });
@@ -109,6 +110,11 @@ describe("narrowScript", () => {
     expect(narrowScript("npm run lint", "pnpm -r run lint", dirs)).toBe(
       "pnpm --filter=./packages/registry --filter=./packages/cli run --if-present lint",
     );
+    // Named packages are filtered by name: a path filter misses on a short
+    // Windows temp path.
+    expect(
+      narrowScript("npm test", "pnpm -r test", dirs, ["@r/registry", "@r/cli"]),
+    ).toBe("pnpm --filter=@r/registry --filter=@r/cli run --if-present test");
   });
 
   it("leaves a script it can't narrow alone", () => {
@@ -235,7 +241,7 @@ describe("tier 1 in a pnpm workspace", () => {
       "quality.coverage.floor",
     ]);
     expect(result.testRun?.command).toBe(
-      "pnpm --filter=./packages/a --filter=./packages/b run --if-present test",
+      "pnpm --filter=a --filter=b run --if-present test",
     );
     expect(result.testRun?.output).toContain("tested a");
     expect(result.testRun?.output).toContain("tested b");

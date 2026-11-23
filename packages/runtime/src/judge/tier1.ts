@@ -565,7 +565,7 @@ export function scopeChecks(
     const script = scripts[name];
     const scopedLine =
       typeof script === "string"
-        ? narrowScript(line, script, scope.dirs)
+        ? narrowScript(line, script, scope.dirs, scope.filters)
         : null;
     if (scopedLine) narrowed.set(control.id, scopedLine);
     else full.push(control.id);
@@ -637,15 +637,17 @@ export function narrowScript(
   line: string,
   script: string,
   dirs: readonly string[],
+  filters: readonly string[] = dirs.map((d) => `./${d}`),
 ): string | null {
   // Commands are split on whitespace, so a directory with a space can't pass.
-  if (dirs.length === 0 || dirs.some((d) => /\s/.test(d))) return null;
+  if (dirs.length === 0 || [...dirs, ...filters].some((d) => /\s/.test(d)))
+    return null;
   const text = script.trim();
   const recursive =
     /^pnpm\s+(?:-r|--recursive)\s+(?:run\s+([\w:.-]+)|(test))$/.exec(text);
   if (recursive) {
     const name = recursive[1] ?? recursive[2] ?? "";
-    return `pnpm ${dirs.map((d) => `--filter=./${d}`).join(" ")} run --if-present ${name}`;
+    return `pnpm ${filters.map((f) => `--filter=${f}`).join(" ")} run --if-present ${name}`;
   }
   // Only plain `a && b` chains: anything else may not pass the args to the end.
   if (/[|;<>`&]|\$\(/.test(text.replace(/&&/g, " "))) return null;

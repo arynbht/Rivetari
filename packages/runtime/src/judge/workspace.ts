@@ -315,6 +315,8 @@ export type CheckScope =
       kind: "packages";
       /** The packages' directories: the touched ones, then their dependents. */
       dirs: string[];
+      /** pnpm `--filter`s for the same packages, in the same order. */
+      filters: string[];
       touched: string[];
       dependents: string[];
     };
@@ -365,9 +367,17 @@ export function affectedScope(
   const dirsOf = (list: Iterable<WorkspacePackage>) =>
     [...list].map((p) => p.dir).sort();
   const dependents = dirsOf([...affected].filter((p) => !touched.has(p)));
+  const dirs = [...dirsOf(touched), ...dependents];
+  // pnpm matches a path filter against the real path, which a short (8.3)
+  // Windows temp path isn't, so a named package is filtered by its name.
+  const filters = dirs.map((dir) => {
+    const name = [...affected].find((p) => p.dir === dir)?.name;
+    return name ?? `./${dir}`;
+  });
   return {
     kind: "packages",
-    dirs: [...dirsOf(touched), ...dependents],
+    dirs,
+    filters,
     touched: dirsOf(touched),
     dependents,
   };
