@@ -44,6 +44,10 @@ Thumbs.db
 .rivetari/ai-usage.log
 .rivetari/state.json
 
+# The floorplan skill's map (it can only write to floorplan/ at the root).
+# Anchored: packages/engine/src/floorplan/ is source.
+/floorplan/
+
 # Desktop end-to-end (Playwright) artifacts
 apps/desktop/test-results/
 apps/desktop/playwright-report/

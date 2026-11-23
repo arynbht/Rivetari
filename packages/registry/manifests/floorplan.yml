@@ -1,0 +1,35 @@
+name: floorplan
+source: haydenschmitty/floorplan/skills/floorplan
+pin: 94f81b463b7617e06d873ac71323ce71644c8399
+hash: "sha256:fb7d3dc5732816cb3b12c2ff853588c719a20d366e6920b9be2ac52ac2763f28"
+license: MIT
+scope: task
+sectors: [docs, workflow]
+phases: [intake, brief]
+triggers:
+  paths: []
+  keywords: [floorplan, architecture map, codebase map]
+  flags: []
+provides: [architecture-map, architecture-json, file-descriptions]
+conflicts: []
+requires: []
+commands:
+  - "node scripts/status.mjs <root> --json --unattended"
+  - "node scripts/scan.mjs <root> --json --unattended"
+  - "node scripts/build.mjs <root> --json --unattended"
+  - "node scripts/describe.mjs <root> --json --unattended"
+  - "node scripts/refresh.mjs <root> --json --unattended"
+  - "node scripts/recent.mjs <root> --json --unattended"
+tokens: 7000
+tools: [shell]
+tested_on: "2026-11-23"
+notes: >
+  An interactive map of the codebase (floorplan/index.html, architecture.json, descriptions/),
+  drawn at init and updated when a task merges, behind the profile's `floorplan` flag. The Node
+  scripts have no dependencies and make no network calls; the model only writes architecture.json,
+  descriptions/*.json and recent-work.json. Rivetari runs them in unattended mode, which writes
+  nothing outside floorplan/. Never run open.mjs or floorplan/serve.mjs from Rivetari: the server is
+  the only code that reaches the network (the Floorplan Cloud waitlist, on a click, and the Ask
+  bar's claude or codex). The scripts can't move the map out of floorplan/ at the repo root
+  (describe.mjs, refresh.mjs and recent.mjs ignore --out), so it stays there, ignored by its own
+  .gitignore and the repo's. Unrelated to the engine's deep-audit "Floor Plan".

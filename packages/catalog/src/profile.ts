@@ -66,6 +66,12 @@ export const ProfileSchema = z.strictObject({
   autonomy: z.enum(AUTONOMY_LEVELS).default("supervised"),
   project: ProjectSchema,
   generated: z.array(z.string().min(1)).optional(),
+  /**
+   * Keep a floorplan, the floorplan skill's map of the codebase in
+   * floorplan/: drawn at init, updated when a task merges. `rivetari init`
+   * writes true; absent (every profile from before it) is off.
+   */
+  floorplan: z.boolean().optional(),
   ai: z
     .strictObject({
       /** Model for drafting and agent work. */

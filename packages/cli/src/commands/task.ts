@@ -14,6 +14,7 @@ import {
   closeTask,
   commitTask,
   enforceFallback,
+  floorplanOnMerge,
   type CommitOptions,
   holderName,
   isolateTask,
@@ -583,6 +584,8 @@ export function runTaskClose(
               : flags.abandon
                 ? ""
                 : undefined,
+          // "Update the floorplan" when the profile keeps one.
+          floorplan: () => floorplanOnMerge(repo),
         }),
       // A closed task's lease is given up, and its row joins the history.
       ({ row }) => ({ release: true, history: [JSON.stringify(row)] }),
