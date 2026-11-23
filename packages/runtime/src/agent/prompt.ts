@@ -17,6 +17,7 @@ import { PROTECTED } from "../judge/protected.js";
 import type { Assembly } from "../router/route.js";
 import type { Card } from "../task/card.js";
 import type { Isolation } from "./isolate.js";
+import { tier1Rules } from "./rules.js";
 
 export interface AssembledPrompt {
   system: string;
@@ -123,6 +124,7 @@ export async function assemblePrompt(options: {
       ? s.replace(/_/g, " ")
       : `touching ${s.touches.join(", ")}`,
   );
+  const rules = await tier1Rules(options.repoPath, isolation.base, card);
   parts.push(
     [
       "# Operating rules",
@@ -131,6 +133,12 @@ export async function assemblePrompt(options: {
       `- Protected paths (never edit): ${[...PROTECTED.factoryState, ...PROTECTED.ciConfig, ...PROTECTED.lintConfig].join(", ")}.`,
       `- Proof: this task's proof is \`${assembly.proof}\`, produced by a tool after you finish; make sure it can be.`,
       `- Checks the judge runs: ${assembly.checks.join(", ")}.`,
+      ...(rules.length > 0
+        ? [
+            "- Rules the judge checks on your diff before anything else; one breach fails the round:",
+            ...rules.map((r) => `  - ${r}`),
+          ]
+        : []),
       `- This worktree's port is ${isolation.port} and its database is ${isolation.database}; use nothing else.`,
       ...(options.plan?.length
         ? [
