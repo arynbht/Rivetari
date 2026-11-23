@@ -7,6 +7,7 @@
 - 2026-11-23 02:41 intake: card drafted with 4 acceptance criteria; awaiting confirmation (arynbht@gmail.com)
 - 2026-11-23 02:42 intake: intake confirmed; card sha256 74ecbde6a4af44b8193e7991062584af648ab538cb2888dfd1b6a30a3b7c6fa6 (factory runtime (autonomy review-at-pr, for arynbht@gmail.com))
 - 2026-11-23 02:42 route: assembly proposed; sha256 411820b3cb7e81dcabd27474606b8dd9dba9e5692d3328633066f175c79e1b1c; skills none; proof test-run; awaiting approval (factory router (for arynbht@gmail.com))
+- 2026-11-23 02:42 route: route approved; assembly sha256 411820b3cb7e81dcabd27474606b8dd9dba9e5692d3328633066f175c79e1b1c (arynbht@gmail.com (--yes))
 
 ## Decisions
 
