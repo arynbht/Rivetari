@@ -21,7 +21,7 @@ import {
   packageManager,
   ProfileError,
   resolveRepoSlug,
-  resolveToken,
+  githubToken,
   saveProfile,
 } from "@arynbht/rivetari-engine";
 import { initLock } from "@arynbht/rivetari-registry";
@@ -418,6 +418,7 @@ export interface InitOptions extends RunAuditOptions {
  * comes back as the reason instead.
  */
 async function actionPin(
+  root: string,
   flags: InitFlags,
   options: InitOptions,
 ): Promise<{ pin: ActionPin } | { reason: string }> {
@@ -428,7 +429,10 @@ async function actionPin(
       return { pin: await options.resolveActionPin() };
     if (options.token === null) return { reason: "init ran offline" };
     return {
-      pin: await resolveReleasePin({ token: options.token ?? resolveToken() }),
+      pin: await resolveReleasePin({
+        token:
+          options.token ?? (await githubToken(root).catch(() => null))?.token,
+      }),
     };
   } catch (err) {
     return { reason: (err as Error).message };
@@ -582,7 +586,7 @@ export async function runInit(
   ).catch((err: NodeJS.ErrnoException) => {
     if (err.code !== "EEXIST") throw err;
   });
-  const pinned = await actionPin(flags, options);
+  const pinned = await actionPin(root, flags, options);
   const pin = "pin" in pinned ? pinned.pin : null;
   const workflowRel = ".github/workflows/rivetari.yml";
   const workflowText = renderRivetariWorkflow(draft.phase ?? "build", pin);
