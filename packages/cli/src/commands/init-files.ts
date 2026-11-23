@@ -19,6 +19,8 @@ export interface RepoFacts {
     typecheck?: string | undefined;
     test?: string | undefined;
   };
+  /** Rules moved here from the repo's own CLAUDE.md, headings already nested. */
+  houseRules?: string | undefined;
 }
 
 const BEAT_LINES: Record<(typeof BEATS)[number], string> = {
@@ -122,7 +124,15 @@ ${facts.flags.length > 0 ? `- Flags: ${facts.flags.join(", ")}\n` : ""}${
       : "- Commands: none declared yet; the judge fails closed on a check it can't run.\n"
   }
 <!-- House patterns, naming, where things live: add them here. The judge holds changes to them. -->
-`;
+${
+  facts.houseRules
+    ? `
+<!-- Moved here from CLAUDE.md by \`rivetari init\`, so every agent reads them. -->
+
+${facts.houseRules}
+`
+    : ""
+}`;
 }
 
 export const CLAUDE_MD = `# CLAUDE.md
@@ -131,6 +141,40 @@ export const CLAUDE_MD = `# CLAUDE.md
 
 Start every task with \`/rivetari\`. The contract above applies to Claude Code too.
 `;
+
+/**
+ * The rules in a repo's own CLAUDE.md, for AGENTS.md's "This repo" section:
+ * everything but the title and the lines that only point at AGENTS.md (any
+ * init's), with headings nested two levels down so they sit under "## This
+ * repo". Null when nothing is left.
+ */
+export function houseRulesFrom(claudeMd: string): string | null {
+  const kept: string[] = [];
+  let fence: string | null = null;
+  for (const line of claudeMd.replace(/\r\n?/g, "\n").split("\n")) {
+    const marker = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
+    if (marker && (fence === null || marker.startsWith(fence))) {
+      fence = fence === null ? marker : null;
+      kept.push(line);
+      continue;
+    }
+    if (fence === null) {
+      if (/^#\s+CLAUDE\.md\s*$/i.test(line)) continue;
+      if (/^\s*@AGENTS\.md\s*$/.test(line)) continue;
+      if (line.startsWith("Start every task with `/rivetari`")) continue;
+      const heading = /^(#{1,6})(\s.*)$/.exec(line);
+      if (heading) {
+        kept.push(
+          `${"#".repeat(Math.min(6, heading[1]!.length + 2))}${heading[2]}`,
+        );
+        continue;
+      }
+    }
+    kept.push(line);
+  }
+  const text = kept.join("\n").trim();
+  return text || null;
+}
 
 /** Claude Code hooks: the beats at session start, and the edit guard. */
 // The hooks fail closed. A hook that can't run exits non-blocking, so
