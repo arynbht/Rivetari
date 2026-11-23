@@ -120,7 +120,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
       GUARD_COMMAND,
     );
     expect(await read(".rivetari", ".gitignore")).toBe(
-      "tasks/\nai-usage.log\ncache/\n*.bak\n*.bak.*\n",
+      "tasks/\nai-usage.log\ncache/\nhistory.jsonl\n*.bak\n*.bak.*\n",
     );
     // The spine skills are locked; task-scope skills aren't.
     const lock = await read(".rivetari", "skills.lock");

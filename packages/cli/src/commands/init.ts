@@ -587,6 +587,7 @@ export async function runInit(
     "tasks/",
     "ai-usage.log",
     "cache/",
+    "history.jsonl",
     "*.bak",
     "*.bak.*",
   ]);
