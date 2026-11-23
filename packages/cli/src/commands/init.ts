@@ -1,4 +1,11 @@
-import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  lstat,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 
 import {
@@ -15,6 +22,7 @@ import {
   packageManagerAt,
   ProfileError,
   resolveRepoSlug,
+  githubToken,
   saveProfile,
 } from "@arynbht/rivetari-engine";
 import { initLock } from "@arynbht/rivetari-registry";
@@ -42,8 +50,18 @@ import { parse as parseYaml } from "yaml";
 import { runAudit, type RunAuditOptions } from "./audit.js";
 import { type CiPlan, planCi } from "./init-ci.js";
 import {
+  ACTION_REPO,
+  type ActionPin,
+  isUnpinnedWorkflow,
+  parseActionRef,
+  renderRivetariWorkflow,
+  resolveReleasePin,
+} from "./init-action.js";
+import {
   CLAUDE_MD,
+  houseRulesFrom,
   mergeRivetariHooks,
+  movedRulesIn,
   PR_TEMPLATE,
   renderAgentsMd,
   renderConstraintsMd,
@@ -63,60 +81,16 @@ export interface InitFlags {
   securityContact?: string;
   yes?: boolean;
   force?: boolean;
+  /** Pin the Rivetari action to this commit: `<sha>` or `<sha>:<tag>`. */
+  actionRef?: string;
 }
 
-/** The rivetari.yml workflow written into the target repo. */
-function buildWorkflow(phase: string): string {
-  return `name: rivetari
-on:
-  pull_request:
-  push:
-    branches: [main]
-  schedule:
-    - cron: "17 6 * * 1" # Mondays 06:17 UTC
-  workflow_dispatch:
-
-# Least privilege by default; each job widens only what it needs.
-permissions:
-  contents: read
-
-# One run per ref so a newer push/PR update supersedes an in-flight run and the two
-# can't race on the sticky comment or the status issue.
-concurrency:
-  group: rivetari-\${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  # PR runs post a sticky review comment — pull-requests:write only.
-  audit-pr:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      # Pin to a commit SHA for supply-chain safety; @v1 shown for readability.
-      - uses: arynbht/rivetari/packages/action@v1
-        with:
-          gate: ${phase}
-          token: \${{ secrets.GITHUB_TOKEN }}
-
-  # Scheduled / push / manual runs maintain the pinned status issue — issues:write only.
-  audit-status:
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: arynbht/rivetari/packages/action@v1
-        with:
-          gate: ${phase}
-          token: \${{ secrets.GITHUB_TOKEN }}
-`;
-}
+/** A file's text, or null when there's no such file. */
+const readIfThere = (path: string): Promise<string | null> =>
+  readFile(path, "utf8").catch((err: NodeJS.ErrnoException) => {
+    if (err.code === "ENOENT") return null;
+    throw err;
+  });
 
 /**
  * Keep `existing` as `rel.bak` (or `rel.bak.1`, …): a backup is never
@@ -452,23 +426,57 @@ export interface InitOptions extends RunAuditOptions {
    * is given, since it fetches the pinned skill and calls the model.
    */
   floorplan?: FloorplanOptions | undefined;
+  /** Find the commit to pin the Rivetari action to (tests). Default: the GitHub API. */
+  resolveActionPin?: (() => Promise<ActionPin>) | undefined;
   /** Find the repo's CI plan (tests). Default: the GitHub API. */
   detectCiPlan?: (() => Promise<CiPlan>) | undefined;
 }
 
-/** Add `line` to the repo's .gitignore unless it's there. */
-async function ignoreInRepo(root: string, line: string): Promise<void> {
-  const path = resolve(root, ".gitignore");
+/**
+ * The commit rivetari.yml pins the Rivetari action to: --action-ref, else the
+ * release this CLI belongs to. Offline there's no way to know it, so that
+ * comes back as the reason instead.
+ */
+async function actionPin(
+  root: string,
+  flags: InitFlags,
+  options: InitOptions,
+): Promise<{ pin: ActionPin } | { reason: string }> {
+  const given = flags.actionRef ? parseActionRef(flags.actionRef) : null;
+  if (given) return { pin: given };
+  try {
+    if (options.resolveActionPin)
+      return { pin: await options.resolveActionPin() };
+    if (options.token === null) return { reason: "init ran offline" };
+    return {
+      pin: await resolveReleasePin({
+        token:
+          options.token ?? (await githubToken(root).catch(() => null))?.token,
+      }),
+    };
+  } catch (err) {
+    return { reason: (err as Error).message };
+  }
+}
+
+/** Add `line` to the repo's `rel` (.gitignore, .gitattributes) unless it's there. */
+async function ensureLine(
+  root: string,
+  rel: string,
+  line: string,
+): Promise<void> {
+  const path = resolve(root, rel);
   const text = await readFile(path, "utf8").catch(
     (err: NodeJS.ErrnoException) => {
       if (err.code === "ENOENT") return "";
       throw err;
     },
   );
-  if (text.split(/\r?\n/).includes(line)) return;
+  if (text.split(/\r?\n/).some((l) => l.trim() === line)) return;
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
   await writeFile(
     path,
-    `${text}${text && !text.endsWith("\n") ? "\n" : ""}${line}\n`,
+    `${text}${text && !text.endsWith("\n") ? eol : ""}${line}${eol}`,
     "utf8",
   );
 }
@@ -490,7 +498,7 @@ async function initFloorplan(
     return `${FLOORPLAN_DIR}/ is part of the project, so no floorplan was drawn; set \`floorplan: false\` in the profile`;
   try {
     // The skill can't put the map anywhere else, so git is told to leave it.
-    await ignoreInRepo(root, FLOORPLAN_IGNORE);
+    await ensureLine(root, ".gitignore", FLOORPLAN_IGNORE);
     process.stdout.write("Drawing the floorplan (a few minutes)…\n");
     const r = await drawFloorplan(root, options.floorplan);
     return `drew the floorplan: ${FLOORPLAN_DIR}/index.html${floorplanUsage(r)}${r.notes.length > 0 ? ` (${r.notes.join("; ")})` : ""}`;
@@ -517,6 +525,13 @@ export async function runInit(
   if (profileExists && !flags.force) {
     console.error(
       "rivetari init: .rivetari/profile.yml already exists. Use --force to overwrite, or `rivetari profile set`.",
+    );
+    return 1;
+  }
+
+  if (flags.actionRef !== undefined && !parseActionRef(flags.actionRef)) {
+    console.error(
+      `rivetari init: --action-ref takes a 40-hex commit SHA of ${ACTION_REPO}, optionally followed by :<tag>, not "${flags.actionRef}".`,
     );
     return 1;
   }
@@ -591,12 +606,22 @@ export async function runInit(
   ).catch((err: NodeJS.ErrnoException) => {
     if (err.code !== "EEXIST") throw err;
   });
-  const workflow = await writeBeside(
-    root,
-    ".github/workflows/rivetari.yml",
-    buildWorkflow(draft.phase ?? "build"),
-    false,
-  );
+  const pinned = await actionPin(root, flags, options);
+  const pin = "pin" in pinned ? pinned.pin : null;
+  const workflowRel = ".github/workflows/rivetari.yml";
+  const workflowText = renderRivetariWorkflow(draft.phase ?? "build", pin);
+  const oldWorkflow = await readIfThere(resolve(root, workflowRel));
+  // An unpinned rivetari.yml is init's own placeholder: a pin replaces it.
+  const workflow =
+    pin && oldWorkflow !== null && isUnpinnedWorkflow(oldWorkflow)
+      ? await writeFile(resolve(root, workflowRel), workflowText, "utf8").then(
+          () => null,
+        )
+      : await writeBeside(root, workflowRel, workflowText, false);
+  if ("reason" in pinned)
+    beside.push(
+      `couldn't pin the Rivetari action to a commit (${pinned.reason}), so ${workflowRel} fails until it's pinned: run \`rivetari init --force --action-ref <sha>\` with the commit of a ${ACTION_REPO} release, or set the step as the file says`,
+    );
   if (workflow)
     beside.push(
       `${workflow}, then delete it (every file in .github/workflows runs on GitHub, so don't commit it)`,
@@ -612,25 +637,53 @@ export async function runInit(
   }
   if (ci.note) beside.push(ci.note);
 
+  // Rivetari's state is hashed and diffed byte for byte; a Windows checkout
+  // with autocrlf would otherwise rewrite it with CRLF.
+  await ensureLine(root, ".gitattributes", ".rivetari/** text eol=lf");
+
   // Backups init leaves under .rivetari/ are for the person to look at, not commit.
   await ignoreInRivetari(root, [
     "tasks/",
     "ai-usage.log",
     "cache/",
+    "history.jsonl",
     "*.bak",
     "*.bak.*",
   ]);
 
   // The contract, the /rivetari skill, the hooks, the PR template.
   const facts = await repoFacts(root, draft);
+  // A CLAUDE.md that's a link (often to AGENTS.md itself) already does what
+  // the pointer does, and writing it would write through the link.
+  const claudeLinked = await lstat(resolve(root, "CLAUDE.md")).then(
+    (s) => s.isSymbolicLink(),
+    () => false,
+  );
+  const oldClaude = claudeLinked
+    ? null
+    : await readIfThere(resolve(root, "CLAUDE.md"));
+  // Rules an earlier init moved stay in AGENTS.md when --force renders it
+  // again, with anything added to CLAUDE.md since after them.
+  const fromClaude =
+    oldClaude === null || oldClaude === CLAUDE_MD
+      ? null
+      : houseRulesFrom(oldClaude);
+  const moved = movedRulesIn(
+    (await readIfThere(resolve(root, "AGENTS.md"))) ?? "",
+  );
+  const houseRules =
+    moved && fromClaude && !moved.includes(fromClaude)
+      ? `${moved}\n\n${fromClaude}`
+      : (moved ?? fromClaude);
+  facts.houseRules = houseRules ?? undefined;
+  const agents = renderAgentsMd(facts);
   // The skill ships with the CLI; a broken install shouldn't stop init.
   const skill = await readFile(
     join(bundledSkillDir(), "SKILL.md"),
     "utf8",
   ).catch(() => null);
   const files: [string, string][] = [
-    ["AGENTS.md", renderAgentsMd(facts)],
-    ["CLAUDE.md", CLAUDE_MD],
+    ["AGENTS.md", agents],
     ["CONSTRAINTS.md", renderConstraintsMd(facts)],
     [".github/PULL_REQUEST_TEMPLATE.md", PR_TEMPLATE],
     ...(skill
@@ -643,6 +696,25 @@ export async function runInit(
     );
   for (const [rel, content] of files) {
     const note = await writeBeside(root, rel, content, flags.force);
+    if (note) beside.push(note);
+  }
+  // A CLAUDE.md of the repo's own is replaced by the pointer once its rules
+  // are in the AGENTS.md init wrote; one beside theirs is theirs to merge.
+  const agentsWritten =
+    (await readIfThere(resolve(root, "AGENTS.md"))) === agents;
+  if (claudeLinked) {
+    // Left as it is: see above.
+  } else if (oldClaude !== null && oldClaude !== CLAUDE_MD && agentsWritten) {
+    // An earlier init's pointer has nothing to keep; anything else is backed up.
+    if (fromClaude) {
+      const bak = await keepBackup(root, "CLAUDE.md", oldClaude);
+      beside.push(
+        `moved the rules in CLAUDE.md into AGENTS.md's "This repo" section, where every agent reads them; CLAUDE.md now points at AGENTS.md (the old one is ${bak}; delete it once you've checked the move)`,
+      );
+    }
+    await writeFile(resolve(root, "CLAUDE.md"), CLAUDE_MD, "utf8");
+  } else {
+    const note = await writeBeside(root, "CLAUDE.md", CLAUDE_MD, flags.force);
     if (note) beside.push(note);
   }
   const settings = await writeSettings(root);
@@ -663,7 +735,7 @@ export async function runInit(
     if (floorplan) beside.push(floorplan);
   }
 
-  const wrote = `Wrote .rivetari/, AGENTS.md, CLAUDE.md, CONSTRAINTS.md, the /rivetari skill and hooks under .claude/, and .github/ (rivetari.yml, the PR template).${locked} Commit them to the default branch before the first task: the agent and the judge read the contract from there.`;
+  const wrote = `Wrote .rivetari/, AGENTS.md, CLAUDE.md, CONSTRAINTS.md, the /rivetari skill and hooks under .claude/, .github/ (rivetari.yml, the PR template) and a .gitattributes line keeping .rivetari/ LF.${locked} Commit them to the default branch before the first task: the agent and the judge read the contract from there.`;
   const notes = beside.map((b) => `  - ${b}`).join("\n");
   if (interactive) {
     outro(`${wrote}${notes ? `\n${notes}` : ""} Running first audit…`);

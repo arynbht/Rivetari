@@ -98,6 +98,10 @@ export function buildProgram(): Command {
       "--force",
       "overwrite existing .rivetari config and generated files",
     )
+    .option(
+      "--action-ref <sha>",
+      "pin rivetari.yml's Rivetari action to this commit (<sha> or <sha>:<tag>); default: this CLI's release, from the GitHub API",
+    )
     .action(async (path: string, flags: InitFlags) => {
       process.exitCode = await runInit(path, flags);
     });

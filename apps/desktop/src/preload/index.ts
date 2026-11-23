@@ -42,6 +42,13 @@ import {
   Scorecard,
   SettingsSaveRequest,
   SettingsView,
+  MapBlocked,
+  MapGetRequest,
+  MapView,
+  TaskAnswerIpcRequest,
+  TaskAnswerResult,
+  TaskOpenPrRequest,
+  TaskOpenPrResult,
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
@@ -301,6 +308,22 @@ const api = {
     async unwatch() {
       await ipcRenderer.invoke(IpcChannel.TasksUnwatch);
     },
+    /** Allow or deny a task's open stops; the answer is recorded under your name. */
+    async answer(repoPath: string, id: string, allow: boolean, note: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.TasksAnswer,
+        TaskAnswerIpcRequest.parse({ repoPath, id, allow, note }),
+      );
+      return TaskAnswerResult.parse(raw);
+    },
+    /** Open a task's PR in the OS browser (the URL comes from its ledger). */
+    async openPr(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.TasksOpenPr,
+        TaskOpenPrRequest.parse({ repoPath, id }),
+      );
+      return TaskOpenPrResult.parse(raw);
+    },
     /** Subscribe to task changes; returns an unsubscribe fn. */
     onUpdate(callback: (state: TasksState) => void) {
       const listener = (_event: unknown, payload: unknown): void => {
@@ -311,6 +334,28 @@ const api = {
       ipcRenderer.on(IpcChannel.TasksUpdate, listener);
       return () => {
         ipcRenderer.removeListener(IpcChannel.TasksUpdate, listener);
+      };
+    },
+  },
+
+  map: {
+    /** The repo's floorplan map (or why there's none); fences the map's session to it. */
+    async get(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.MapGet,
+        MapGetRequest.parse({ repoPath }),
+      );
+      return MapView.parse(raw);
+    },
+    /** Subscribe to the requests the map's session cancelled; returns an unsubscribe fn. */
+    onBlocked(callback: (blocked: MapBlocked) => void) {
+      const listener = (_event: unknown, payload: unknown): void => {
+        const parsed = MapBlocked.safeParse(payload);
+        if (parsed.success) callback(parsed.data);
+      };
+      ipcRenderer.on(IpcChannel.MapBlocked, listener);
+      return () => {
+        ipcRenderer.removeListener(IpcChannel.MapBlocked, listener);
       };
     },
   },
