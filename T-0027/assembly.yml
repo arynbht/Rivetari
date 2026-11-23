@@ -1,0 +1,43 @@
+# Proposed by `rivetari task route`. Edit it if you disagree, then
+# `rivetari task approve`: approval re-checks it and seals it in the ledger.
+task: T-0027
+sectors:
+  - docs
+  - workflow
+phases:
+  - build
+  - prove
+  - review
+skills: []
+spine:
+  - code-review-and-quality
+  - constraint-driven-development
+  - incremental-implementation
+  - planning-and-task-breakdown
+  - shipping-and-launch
+  - skill-creator
+  - spec-driven-development
+  - test-driven-development
+budget:
+  skill_tokens: 0
+  context_tokens: 60000
+  steps: 8
+checks:
+  - quality.boundaries.clean
+  - quality.coverage.floor
+  - quality.lint.clean
+  - quality.tests.pass
+  - quality.typecheck.clean
+proof: test-run
+review:
+  rubric: default
+  design_pass: false
+  security: false
+stop_and_ask:
+  - new_dependency
+  - schema_change
+  - touches:
+      - "**/auth/**"
+      - "**/billing/**"
+      - "**/payments/**"
+gaps: []
