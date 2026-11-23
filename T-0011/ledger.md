@@ -15,6 +15,8 @@
 - 2026-11-23 01:44 prove: proof passed · test-run (the judge's tier 1 run) (factory runtime (for arynbht@gmail.com))
 - 2026-11-23 01:44 judge: judge passed · round 1 · head d324295d87a9 · record sha256 35e97a7f1608956ba63e14a4ff4e32bad3f5a933be05f95cb360eaaee4b24d2a (factory judge (for arynbht@gmail.com))
 - 2026-11-23 01:44 ship: draft PR opened: #182 https://github.com/arynbht/software-factory/pull/182 · fix/t-0011 at d324295d87a9 → main (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 01:52 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0011 kept: it couldn't be removed; remove it by hand · branch fix/t-0011 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 01:52 close: ledger sealed · merged (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -56,3 +58,7 @@
 - 2026-11-23 01:44 acceptance A2: met — diff-rules.test.ts passes docs/catalog/x.md (generated glob) and .changeset/y.md, and still fails an unnamed README.md.
 - 2026-11-23 01:44 acceptance A3: met — rules.test.ts checks that the rule line names .changeset/ alone, and .changeset/ plus the profile's generated globs.
 - 2026-11-23 01:44 judge review posted: https://github.com/arynbht/software-factory/pull/182#pullrequestreview-6015707817
+
+## Outcome
+
+- 2026-11-23 01:52 PR #182 merged by arynbht 2026-11-23 01:52 · 18m · 4259k tokens · $3.15
