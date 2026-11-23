@@ -127,7 +127,7 @@ export function renderPrBody(input: PrBodyInput): string {
   if (judge.risk && judge.risk.effective !== judge.risk.card)
     out.push(
       "",
-      `Risk raised from ${judge.risk.card} at the judge, by the change: ${judge.risk.reasons.join("; ")}.`,
+      `Risk raised from ${judge.risk.card} at the judge: ${judge.risk.reasons.join("; ")}.`,
     );
   if (card.out_of_scope.length > 0)
     out.push("", `Out of scope: ${card.out_of_scope.join("; ")}.`);

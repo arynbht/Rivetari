@@ -191,6 +191,11 @@ describe("judgeRisk", { timeout: 60_000 }, () => {
       "+++ /dev/null",
       "@@ -1 +0,0 @@",
       "-takeLease()",
+      "diff --git a/my notes.js b/my notes.js",
+      "--- a/my notes.js\t",
+      "+++ b/my notes.js\t",
+      "@@ -1 +1 @@",
+      "+x",
     ].join("\n");
     expect(changedLines(diff)).toEqual(
       new Map([
@@ -203,6 +208,7 @@ describe("judgeRisk", { timeout: 60_000 }, () => {
           ],
         ],
         ["gone.js", ["takeLease()"]],
+        ["my notes.js", ["x"]],
       ]),
     );
   });
@@ -308,11 +314,11 @@ describe("the judge raises the risk", { timeout: 180_000 }, () => {
     expect(models).not.toContain(FAST_REVIEW_MODEL);
     expect(outcome.ran.at(-1)).toBe("ship");
     expect(outcome.task.entries.map((e) => e.text)).toContain(
-      "risk raised to high from the card's low by the change: high: lease, signing or key code (src/total.js)",
+      "risk raised to high from the card's low at the judge: high: lease, signing or key code (src/total.js)",
     );
     expect(bodies[0]).toContain(`Task ${id} · fix · risk high`);
     expect(bodies[0]).toContain(
-      "Risk raised from low at the judge, by the change: high: lease, signing or key code (src/total.js).",
+      "Risk raised from low at the judge: high: lease, signing or key code (src/total.js).",
     );
   });
 });

@@ -230,7 +230,7 @@ export async function judgeTask(
   if (risk.effective !== risk.card)
     await append(
       "judge",
-      `risk raised to ${risk.effective} from the card's ${risk.card} by the change: ${risk.reasons.join("; ")}`,
+      `risk raised to ${risk.effective} from the card's ${risk.card} at the judge: ${risk.reasons.join("; ")}`,
     );
 
   const record: JudgeRecord = {

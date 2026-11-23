@@ -37,7 +37,8 @@ export function changedLines(diff: string): Map<string, string[]> {
     }
     if (header) {
       // The new path names the file; a deleted file only has the old one.
-      const path = /^(?:---|\+\+\+) (?:[ab]\/)?(.*)$/.exec(line)?.[1];
+      // git ends the header with a tab when the path has a space in it.
+      const path = /^(?:---|\+\+\+) (?:[ab]\/)?(.*?)\t?$/.exec(line)?.[1];
       if (path !== undefined && path !== "/dev/null") file = path;
       if (line.startsWith("@@")) header = false;
       continue;
