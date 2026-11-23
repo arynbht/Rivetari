@@ -69,17 +69,27 @@ export function routeConcerns(
 }
 
 const BORDERLINE = /^under the threshold, for the approver: (.+)$/;
+const DECIDED_OUT = /^decided not in: (\S+) \(/;
 
 function borderlineOf(task: Task): string[] {
-  const line = [...task.entries]
-    .reverse()
-    .find((e) => e.beat === "route" && BORDERLINE.test(e.text));
+  const entries = [...task.entries].reverse();
+  const at = entries.findIndex(
+    (e) => e.beat === "route" && BORDERLINE.test(e.text),
+  );
+  if (at === -1) return [];
+  const decided = new Set(
+    entries
+      .slice(0, at)
+      .filter((e) => e.beat === "route")
+      .map((e) => DECIDED_OUT.exec(e.text)?.[1])
+      .filter((s): s is string => s !== undefined),
+  );
   return (
-    line?.text
+    entries[at]?.text
       .match(BORDERLINE)?.[1]
       ?.split(",")
       .map((s) => s.trim())
-      .filter(Boolean) ?? []
+      .filter((s) => s && !decided.has(s)) ?? []
   );
 }
 
@@ -118,7 +128,10 @@ export async function advanceTask(
         context: options.context,
       });
       task = routed.task;
-      borderline = routed.routing.borderline;
+      const { decidedOut } = routed.routing;
+      borderline = routed.routing.borderline.filter(
+        (s) => !decidedOut.includes(s),
+      );
     } else borderline = borderlineOf(task);
     const assembly = AssemblySchema.parse(parse(task.assemblyText ?? ""));
     const concerns = routeConcerns(task.card, assembly, borderline);

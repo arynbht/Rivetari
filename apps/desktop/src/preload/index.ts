@@ -20,11 +20,6 @@ import {
   DocList,
   DocsListRequest,
   DocsReadRequest,
-  BuildPlanRequest,
-  BuildPlanView,
-  BuildProgress,
-  BuildResult,
-  BuildRunRequest,
   EvidenceRequest,
   FloorPlanGetRequest,
   FloorPlanProgress,
@@ -47,6 +42,8 @@ import {
   Scorecard,
   SettingsSaveRequest,
   SettingsView,
+  TasksState,
+  TasksWatchRequest,
   UpdateInfo,
   WaiveRequest,
 } from "../shared/ipc";
@@ -289,34 +286,31 @@ const api = {
     },
   },
 
-  build: {
-    /** Draft a plan for a feature/fix (read-only) for the user to approve. */
-    async plan(repoPath: string, description: string) {
-      const request = BuildPlanRequest.parse({ repoPath, description });
+  tasks: {
+    /**
+     * Watch a repo's tasks (read-only), replacing any earlier watch; resolves with
+     * the current state, and `onUpdate` hears every change after it.
+     */
+    async watch(repoPath: string) {
       const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.BuildPlan,
-        request,
+        IpcChannel.TasksWatch,
+        TasksWatchRequest.parse({ repoPath }),
       );
-      return BuildPlanView.parse(raw);
+      return TasksState.parse(raw);
     },
-    /** Run an approved plan to a gated PR (write-agents in an isolated worktree). */
-    async run(repoPath: string, plan: BuildPlanView["plan"]) {
-      const request = BuildRunRequest.parse({ repoPath, plan });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.BuildRun,
-        request,
-      );
-      return BuildResult.parse(raw);
+    async unwatch() {
+      await ipcRenderer.invoke(IpcChannel.TasksUnwatch);
     },
-    /** Subscribe to build progress; returns an unsubscribe fn. */
-    onProgress(callback: (progress: BuildProgress) => void) {
+    /** Subscribe to task changes; returns an unsubscribe fn. */
+    onUpdate(callback: (state: TasksState) => void) {
       const listener = (_event: unknown, payload: unknown): void => {
-        const parsed = BuildProgress.safeParse(payload);
+        // A malformed push is dropped rather than thrown into the IPC event loop.
+        const parsed = TasksState.safeParse(payload);
         if (parsed.success) callback(parsed.data);
       };
-      ipcRenderer.on(IpcChannel.BuildProgress, listener);
+      ipcRenderer.on(IpcChannel.TasksUpdate, listener);
       return () => {
-        ipcRenderer.removeListener(IpcChannel.BuildProgress, listener);
+        ipcRenderer.removeListener(IpcChannel.TasksUpdate, listener);
       };
     },
   },

@@ -13,6 +13,7 @@ import { runCi } from "./commands/ci.js";
 import { type EvidenceFlags, runEvidenceAdd } from "./commands/evidence.js";
 import { type FixFlags, runFix } from "./commands/fix.js";
 import { runDoctor } from "./commands/doctor.js";
+import { runEject } from "./commands/eject.js";
 import { runHookGuard, runHookSessionStart } from "./commands/hook.js";
 import { type InitFlags, runInit } from "./commands/init.js";
 import { type JudgeFlags, runJudge } from "./commands/judge.js";
@@ -111,6 +112,16 @@ export function buildProgram(): Command {
       process.exitCode = await runDoctor(path);
     });
 
+  program
+    .command("eject")
+    .description(
+      "Remove the local output Rivetari generated and git ignores (the floorplan map)",
+    )
+    .argument("[path]", "path to the repo", ".")
+    .action(async (path: string) => {
+      process.exitCode = await runEject(path);
+    });
+
   const hook = program
     .command("hook")
     .description("Claude Code hooks that `rivetari init` installs");
@@ -197,7 +208,10 @@ export function buildProgram(): Command {
       collect,
       [],
     )
-    .option("--risk <risk>", "low | medium | high")
+    .option(
+      "--risk <risk>",
+      "raise the risk derived from --touches: low | medium | high (never lowers it)",
+    )
     .option("--source <source>", "issue#88, or prompt")
     .option("--from <file>", "start from a card YAML file")
     .option("--path <path>", "path to the repo", ".")

@@ -29,7 +29,8 @@ export type StopTrigger =
   | "agent_question"
   | "secret"
   | "database_url"
-  | "history_rewritten";
+  | "history_rewritten"
+  | "timeout";
 
 export interface Stop {
   trigger: StopTrigger;

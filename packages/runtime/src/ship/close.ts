@@ -35,6 +35,13 @@ export interface CloseOptions {
   abandon?: string | undefined;
   /** The PR's state (default: asked of the repo's GitHub). */
   prState?: ((pr: number) => Promise<PrState>) | undefined;
+  /**
+   * Updates the floorplan once a merged task is recorded, resolving its
+   * ledger line or null (`floorplanOnMerge`). Passed in by the caller: the
+   * floorplan calls the build agent's transport, which close can't import
+   * without a cycle.
+   */
+  floorplan?: (() => Promise<string | null>) | undefined;
 }
 
 /** A task's row in `.rivetari/history.jsonl` (posture snapshots share the file). */
@@ -302,6 +309,24 @@ export async function closeTask(
       "timeline",
       `${removed ? "worktree removed" : `worktree ${isolation.worktree} kept: ${edited ? "it has uncommitted edits" : "it couldn't be removed"}; remove it by hand`} · branch ${isolation.branch} ${deleted ? "deleted" : "kept"}`,
     );
+  }
+
+  // A merged change belongs on the map. Its failure is a line in the ledger,
+  // never a reason not to close; a close that stopped part-way doesn't redo it.
+  if (
+    options.floorplan &&
+    outcome === "merged" &&
+    !task.entries.some(
+      (e) => e.beat === "close" && e.text.startsWith("floorplan "),
+    )
+  ) {
+    const line = await options
+      .floorplan()
+      .catch(
+        (err: Error) =>
+          `floorplan update failed (close goes on): ${err.message.replace(/\s+/g, " ").slice(0, 300)}`,
+      );
+    if (line) await append("timeline", line);
   }
 
   const assembly = task.assemblyText

@@ -7,7 +7,7 @@ export const TOUCHES_CAP = 20;
 
 const SHOWN = 5;
 
-async function trackedFiles(repoPath: string): Promise<string[]> {
+export async function trackedFiles(repoPath: string): Promise<string[]> {
   const git = simpleGit(repoPath);
   if (!(await git.checkIsRepo())) return [];
   let out: string;

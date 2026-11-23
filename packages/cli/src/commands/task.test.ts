@@ -193,7 +193,16 @@ describe("rivetari task, shared through the rivetari/tasks branch", () => {
       join(ann, ".rivetari", "profile.yml"),
       "version: 1\nname: demo\ntype: library\nautonomy: review-at-pr\n",
     );
-    expect(await draft(ann), err.join(" | ")).toBe(0);
+    expect(
+      await runTaskNew("Fix the login redirect", {
+        type: "fix",
+        description: "After login the app shows nothing.",
+        accept: ["Redirects to /home after login::e2e"],
+        touches: ["src/styles/**"],
+        path: ann,
+      }),
+      err.join(" | "),
+    ).toBe(0);
     const text = out.join("");
     expect(text).toContain(
       "card confirmed without asking (autonomy review-at-pr)",

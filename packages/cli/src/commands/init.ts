@@ -17,7 +17,16 @@ import {
   saveProfile,
 } from "@arynbht/rivetari-engine";
 import { initLock } from "@arynbht/rivetari-registry";
-import { BANNED_PATH, defaultsFor } from "@arynbht/rivetari-runtime";
+import {
+  BANNED_PATH,
+  defaultsFor,
+  drawFloorplan,
+  FLOORPLAN_DIR,
+  FLOORPLAN_IGNORE,
+  type FloorplanOptions,
+  floorplanUsage,
+  isFloorplanMap,
+} from "@arynbht/rivetari-runtime";
 import {
   cancel,
   intro,
@@ -27,6 +36,7 @@ import {
   select,
   text,
 } from "@clack/prompts";
+import { parse as parseYaml } from "yaml";
 
 import { runAudit, type RunAuditOptions } from "./audit.js";
 import {
@@ -271,6 +281,7 @@ interface ProfileDraft {
   flags: Record<string, boolean>;
   "severity-floor": string;
   project?: ProjectDraft;
+  floorplan?: boolean;
 }
 
 interface ProjectDraft {
@@ -417,15 +428,66 @@ async function draftInteractive(root: string): Promise<ProfileDraft | null> {
   return draft;
 }
 
+export interface InitOptions extends RunAuditOptions {
+  /**
+   * How the floorplan is drawn. Offline (`token: null`) skips it unless this
+   * is given, since it fetches the pinned skill and calls the model.
+   */
+  floorplan?: FloorplanOptions | undefined;
+}
+
+/** Add `line` to the repo's .gitignore unless it's there. */
+async function ignoreInRepo(root: string, line: string): Promise<void> {
+  const path = resolve(root, ".gitignore");
+  const text = await readFile(path, "utf8").catch(
+    (err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") return "";
+      throw err;
+    },
+  );
+  if (text.split(/\r?\n/).includes(line)) return;
+  await writeFile(
+    path,
+    `${text}${text && !text.endsWith("\n") ? "\n" : ""}${line}\n`,
+    "utf8",
+  );
+}
+
+/**
+ * "Make me a floorplan": the floorplan skill's map in floorplan/, kept out of
+ * git. Never fails init; returns a note for the summary, or null.
+ */
+async function initFloorplan(
+  root: string,
+  options: InitOptions,
+): Promise<string | null> {
+  if (options.token === null && !options.floorplan) return null;
+  const dir = resolve(root, FLOORPLAN_DIR);
+  const there = await access(dir)
+    .then(() => true)
+    .catch(() => false);
+  if (there && !(await isFloorplanMap(dir)))
+    return `${FLOORPLAN_DIR}/ is part of the project, so no floorplan was drawn; set \`floorplan: false\` in the profile`;
+  try {
+    // The skill can't put the map anywhere else, so git is told to leave it.
+    await ignoreInRepo(root, FLOORPLAN_IGNORE);
+    process.stdout.write("Drawing the floorplan (a few minutes)…\n");
+    const r = await drawFloorplan(root, options.floorplan);
+    return `drew the floorplan: ${FLOORPLAN_DIR}/index.html${floorplanUsage(r)}${r.notes.length > 0 ? ` (${r.notes.join("; ")})` : ""}`;
+  } catch (err) {
+    return `couldn't draw the floorplan: ${(err as Error).message}. The next merged task's close tries again`;
+  }
+}
+
 /**
  * `rivetari init`: the profile, Rivetari workflow, and the contract files (the
- * AGENTS.md contract, the /rivetari skill and its hooks, the PR template), then
- * the first audit.
+ * AGENTS.md contract, the /rivetari skill and its hooks, the PR template), the
+ * floorplan, then the first audit.
  */
 export async function runInit(
   path: string,
   flags: InitFlags,
-  options: RunAuditOptions = {},
+  options: InitOptions = {},
 ): Promise<number> {
   const root = resolve(path);
 
@@ -465,6 +527,19 @@ export async function runInit(
   const oldProfile = profileExists
     ? await readFile(resolve(root, profileRel), "utf8")
     : null;
+  // New inits keep a floorplan; a re-init keeps what the profile said.
+  if (oldProfile === null) draft.floorplan = true;
+  else {
+    const old = (() => {
+      try {
+        return (parseYaml(oldProfile) as { floorplan?: unknown } | null)
+          ?.floorplan;
+      } catch {
+        return undefined;
+      }
+    })();
+    if (typeof old === "boolean") draft.floorplan = old;
+  }
   // Backed up before it's overwritten, so a failed save can't lose it; a
   // backup of a profile that came out identical is removed again.
   const bak =
@@ -551,6 +626,11 @@ export async function runInit(
       locked = ` Locked the spine skills (${added.map((e) => e.name).join(", ")}); run \`rivetari skills sync\`.`;
   } catch (err) {
     locked = ` Couldn't lock the spine skills: ${(err as Error).message}`;
+  }
+
+  if (draft.floorplan) {
+    const floorplan = await initFloorplan(root, options);
+    if (floorplan) beside.push(floorplan);
   }
 
   const wrote = `Wrote .rivetari/, AGENTS.md, CLAUDE.md, CONSTRAINTS.md, the /rivetari skill and hooks under .claude/, and .github/ (rivetari.yml, the PR template).${locked} Commit them to the default branch before the first task: the agent and the judge read the contract from there.`;

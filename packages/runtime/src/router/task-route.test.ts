@@ -65,6 +65,7 @@ async function confirmedTask(): Promise<string> {
       description: "Rebuild settings on the design system.",
       acceptance: [{ id: "A1", text: "Every setting works", verify: "e2e" }],
       touches: ["src/components/settings/**"],
+      risk: "medium",
     },
     by,
   );

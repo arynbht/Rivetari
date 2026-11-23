@@ -18,6 +18,7 @@ import type { Assembly } from "../router/route.js";
 import type { Card } from "../task/card.js";
 import type { Isolation } from "./isolate.js";
 import { tier1Rules } from "./rules.js";
+import { capSlice, escapeGlob, sliceSources } from "./slice.js";
 
 export interface AssembledPrompt {
   system: string;
@@ -26,6 +27,7 @@ export interface AssembledPrompt {
   files: string[];
   /** Skills whose bodies went in. */
   skills: string[];
+  approxTokens: number;
 }
 
 /** SKILL.md without its frontmatter. */
@@ -36,15 +38,9 @@ function body(skillMd: string): string {
 /** The contract docs, read from the base so a change can't rewrite its rules. */
 const CONTRACT_DOCS = ["AGENTS.md", "CONSTRAINTS.md", "DESIGN.md"] as const;
 
-/** The files a task's slice starts from: the README, touches, their tests. */
+/** The globs a task's slice starts from: its source touches, never a test glob. */
 export function sliceGlobs(card: Card): string[] {
-  const tests = card.touches.flatMap((t) =>
-    /\*\*?$/.test(t) ? [] : [t.replace(/\.([a-z0-9]+)$/i, ".test.$1")],
-  );
-  const contract = new Set<string>(CONTRACT_DOCS);
-  return ["README.md", ...card.touches, ...tests].filter(
-    (g) => !contract.has(g),
-  );
+  return sliceSources(card, CONTRACT_DOCS);
 }
 
 export const STOP_MARKER = "RIVETARI_STOP:";
@@ -109,9 +105,10 @@ export async function assemblePrompt(options: {
     }
 
     // 4. The repo slice, from the worktree, secret-guarded and size-capped.
+    const slice = await capSlice(isolation.worktree, card, CONTRACT_DOCS);
     const packed = await packContext(buildContext(isolation.worktree), {
       task: card.title,
-      globs: sliceGlobs(card),
+      globs: slice.map(escapeGlob),
       maxBytes: assembly.budget.context_tokens * 4,
     });
     parts.push(packed.text);
@@ -154,10 +151,12 @@ export async function assemblePrompt(options: {
     ].join("\n"),
   );
 
+  const prompt = parts.join("\n\n");
   return {
     system: SYSTEM,
-    prompt: parts.join("\n\n"),
+    prompt,
     files,
     skills,
+    approxTokens: Math.ceil(prompt.length / 4),
   };
 }

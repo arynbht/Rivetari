@@ -122,8 +122,13 @@ export function renderPrBody(input: PrBodyInput): string {
     "",
     card.description.trim(),
     "",
-    `Task ${card.id} · ${card.type} · risk ${card.risk}${card.source !== "prompt" ? ` · ${card.source}` : ""}`,
+    `Task ${card.id} · ${card.type} · risk ${judge.risk?.effective ?? card.risk}${card.source !== "prompt" ? ` · ${card.source}` : ""}`,
   ];
+  if (judge.risk && judge.risk.effective !== judge.risk.card)
+    out.push(
+      "",
+      `Risk raised from ${judge.risk.card} at the judge: ${judge.risk.reasons.join("; ")}.`,
+    );
   if (card.out_of_scope.length > 0)
     out.push("", `Out of scope: ${card.out_of_scope.join("; ")}.`);
 

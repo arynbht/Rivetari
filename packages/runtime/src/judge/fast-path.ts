@@ -15,9 +15,16 @@ export function sourceTouches(card: Card): string[] {
   );
 }
 
-export function isFastPath(card: Card): boolean {
+/**
+ * `risk` is the effective one: the card's, or at the judge the higher of the
+ * card's and the one the diff carries.
+ */
+export function isFastPath(
+  card: Card,
+  risk: Card["risk"] = card.risk,
+): boolean {
   const files = sourceTouches(card).length;
-  return card.risk === "low" && files > 0 && files <= 2;
+  return risk === "low" && files > 0 && files <= 2;
 }
 
 /** The plan a fast-path card gets instead of a plan call: its criteria. */
