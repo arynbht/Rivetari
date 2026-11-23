@@ -356,10 +356,12 @@ jobs:
   # It always runs, so a job skipped by its path filter never leaves a PR
   # waiting, and it treats skipped as fine but anything else that isn't a pass
   # as a failure (GitHub counts a skipped required check as passing).
-  # Windows, desktop-e2e and the full-history scan aren't in it.
+  # Windows, desktop-e2e and the full-history scan aren't in it. It runs on drafts
+  # too: there `changes` is skipped, so it fails until the PR is ready for review,
+  # instead of being skipped (which GitHub would count as passing).
   ci:
     name: ci
-    if: always() && github.event_name == 'pull_request' && !github.event.pull_request.draft
+    if: always() && github.event_name == 'pull_request'
     needs:
       [changes, lint, typecheck, test, validate, action-bundle, secret-scan]
     runs-on: ubuntu-latest
