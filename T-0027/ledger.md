@@ -15,6 +15,8 @@
 - 2026-11-23 17:42 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 17:42 judge: judge passed · round 1 · head b937886bbdab · record sha256 db4009ef21100b336b097c8b568072d234268bb9d809bc0d4b359f5f0053ed99 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 17:42 ship: draft PR opened: #197 https://github.com/arynbht/Rivetari/pull/197 · chore/t-0027 at b937886bbdab → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 17:58 close: worktree removed · branch chore/t-0027 deleted (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 17:58 close: ledger sealed · merged (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -39,3 +41,7 @@
 - 2026-11-23 17:42 acceptance A1: met — The old action:build/committed dist rule is replaced. The new bullet says task PRs don't commit packages/action/dist or the copied assets (controls, gates, templates, prompts, skill), CI builds the bu…
 - 2026-11-23 17:42 acceptance A2: met — The diff touches only AGENTS.md and has no changes under packages/action. The rest of AGENTS.md is unchanged.
 - 2026-11-23 17:42 judge review posted: https://github.com/arynbht/Rivetari/pull/197#pullrequestreview-6026518454
+
+## Outcome
+
+- 2026-11-23 17:58 PR #197 merged by arynbht 2026-11-23 17:58 · 35m · 169k tokens · $0.20
