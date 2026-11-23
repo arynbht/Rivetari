@@ -168,6 +168,7 @@ describe("scopeChecks", () => {
     expect(scopeChecks(checks, null, SCRIPTS)).toEqual({
       controls: checks,
       notes: [],
+      skipped: [],
     });
   });
 });
@@ -239,9 +240,16 @@ describe("tier 1 in a pnpm workspace", () => {
     expect(result.testRun?.output).toContain("tested a");
     expect(result.testRun?.output).toContain("tested b");
     expect(result.testRun?.output).not.toContain("tested c");
-    expect(result.checks.map((c) => c.id)).not.toContain(
-      "quality.coverage.floor",
+    // Shown as not run, with the reason, rather than dropped from the list.
+    const coverage = result.checks.find(
+      (c) => c.id === "quality.coverage.floor",
     );
+    expect(coverage).toMatchObject({
+      base: "n/a",
+      head: "n/a",
+      outcome: "n/a",
+    });
+    expect(coverage?.message).toContain("not checked");
     expect(result.notes).toContain(
       "checked packages/a, packages/b only: the change touches packages/a, and packages/b depends on it",
     );

@@ -435,7 +435,18 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       notes.push(`dependency install failed: ${headInstall.message}`);
     }
 
-    const catalogChecks = compare(baseResults, headResults);
+    // A check the scope left out is shown as not run, never dropped silently.
+    const catalogChecks = [
+      ...compare(baseResults, headResults),
+      ...scoped.skipped.map((c): CheckOutcome => ({
+        id: c.id,
+        title: c.title,
+        base: "n/a",
+        head: "n/a",
+        outcome: "n/a",
+        message: COVERAGE_SKIPPED,
+      })),
+    ];
     const checks = [
       ...catalogChecks,
       bannedCheck(await loadBanned(options.repoPath, mergeBase), added),
@@ -537,12 +548,13 @@ export function scopeChecks(
   selected: readonly Control[],
   scope: CheckScope | null,
   scripts: Record<string, unknown>,
-): { controls: Control[]; notes: string[] } {
-  if (!scope) return { controls: [...selected], notes: [] };
+): { controls: Control[]; notes: string[]; skipped: Control[] } {
+  if (!scope) return { controls: [...selected], notes: [], skipped: [] };
   if (scope.kind === "all")
     return {
       controls: [...selected],
       notes: [`checked every workspace package: ${scope.why}`],
+      skipped: [],
     };
   const narrowed = new Map<string, string>();
   const full: string[] = [];
@@ -564,12 +576,14 @@ export function scopeChecks(
       notes: [
         `checked every workspace package: the change touches ${scope.dirs.join(", ")} only, but no check's script can be narrowed to packages`,
       ],
+      skipped: [],
     };
   const testsNarrowed = selected.some(
     (c) => runsTests(c) && narrowed.has(c.id),
   );
+  const skipped = selected.filter((c) => testsNarrowed && c.id === COVERAGE);
   const controls = selected
-    .filter((c) => !(testsNarrowed && c.id === COVERAGE))
+    .filter((c) => !skipped.includes(c))
     .map((c) => {
       const scopedLine = narrowed.get(c.id);
       return scopedLine ? withNodeLine(c, scopedLine) : c;
@@ -581,12 +595,12 @@ export function scopeChecks(
     notes.push(
       `${full.join(", ")} ran on every package: ${full.length === 1 ? "its script" : "their scripts"} can't be narrowed to packages`,
     );
-  if (testsNarrowed && selected.some((c) => c.id === COVERAGE))
-    notes.push(
-      `${COVERAGE} not checked: the tests ran for these packages only, and part of the suite can't be held to the whole repo's floor`,
-    );
-  return { controls, notes };
+  if (skipped.length > 0) notes.push(`${COVERAGE} ${COVERAGE_SKIPPED}`);
+  return { controls, notes, skipped };
 }
+
+const COVERAGE_SKIPPED =
+  "not checked: the tests ran for the affected packages only, and part of the suite can't be held to the whole repo's floor; it runs with the full suite";
 
 function nodeLine(control: Control): string | undefined {
   for (const d of control.detect)
