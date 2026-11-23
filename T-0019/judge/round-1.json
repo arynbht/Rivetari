@@ -1,0 +1,138 @@
+{
+  "task": "T-0019",
+  "round": 1,
+  "verdict": "passed",
+  "head": "1ca8c566aecb1cc01a7b05db33af9aeee9bb416f",
+  "base": "9ac4aca420d03af0979b0d7828846900466d1f95",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "70.58% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — close.ts sets `risk` from the card and spreads `prompt_tokens` only when `promptTokens` finds a figure. history-cost.test.ts checks the largest figure (18,400 over 9,200), that the field is left out when no line has a figure, and that only build-started timeline lines are read.\n- A2: met — `renderCost` lists id, cost and prompt tokens for low-risk rows over $1, and prints 'no low-risk task cost over $1' when there are none. Both cases are tested through `runMetrics`.\n- A3: met — `costFlags` requires `risk === \"low\"`. A row with no risk and cost 12 is tested and not flagged.\n\n<details><summary>2 suggestion(s), non-blocking</summary>\n\n- Cost just over $1 prints as $1.00 `packages/cli/src/commands/metrics.ts:93` — Round before comparing, e.g. `Math.round(r.cost_usd * 100) > 100`, or print more digits when the rounded value is 1.00.\n- history.jsonl is read twice on the non-findings path `packages/cli/src/commands/metrics.ts:120` — Derive one from the other, or read the file once and pass it to both.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/metrics.ts",
+        "line": 93,
+        "acceptance_id": null,
+        "title": "Cost just over $1 prints as $1.00",
+        "detail": "`costFlags` uses `cost_usd > 1`, but `toFixed(2)` rounds. A flagged row can show `$1.00` under a header that says 'over $1', which reads as a false flag.",
+        "repro": "A history row with risk 'low' and cost_usd 1.004 is listed as `T-xxxx  $1.00  prompt tokens n/a`.",
+        "fix": "Round before comparing, e.g. `Math.round(r.cost_usd * 100) > 100`, or print more digits when the rounded value is 1.00.",
+        "pattern": "a45490e6606d"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/metrics.ts",
+        "line": 120,
+        "acceptance_id": null,
+        "title": "history.jsonl is read twice on the non-findings path",
+        "detail": "`historyRows(root)` is now read up front, and `loadHistory(root)` reads the same file again later. The two reads can disagree if a close lands in between, so `cost` and `history` would describe different snapshots.",
+        "repro": "Run `rivetari metrics` (without --findings) while a task close appends to history.jsonl.",
+        "fix": "Derive one from the other, or read the file once and pass it to both.",
+        "pattern": "00c1fb377d55"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "close.ts sets `risk` from the card and spreads `prompt_tokens` only when `promptTokens` finds a figure. history-cost.test.ts checks the largest figure (18,400 over 9,200), that the field is left out when no line has a figure, and that only build-started timeline lines are read."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "`renderCost` lists id, cost and prompt tokens for low-risk rows over $1, and prints 'no low-risk task cost over $1' when there are none. Both cases are tested through `runMetrics`."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "`costFlags` requires `risk === \"low\"`. A row with no risk and cost 12 is tested and not flagged."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 2370,
+      "costUsd": 0.13412000000000002
+    }
+  }
+}
