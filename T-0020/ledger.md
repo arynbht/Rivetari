@@ -15,6 +15,8 @@
 - 2026-11-23 08:10 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 08:10 judge: judge passed · round 1 · head 5d18b4f22787 · record sha256 d6c5ae00eca79a05ec9272f142edd022c7faec6908aee14977f67efb6d1d3846 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 08:10 ship: draft PR opened: #192 https://github.com/arynbht/Rivetari/pull/192 · feature/t-0020 at 5d18b4f22787 → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 08:24 close: worktree removed · branch feature/t-0020 deleted (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 08:24 close: ledger sealed · merged (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -46,3 +48,7 @@
 - 2026-11-23 08:10 acceptance A2: met — renderCost lists low-risk rows with cost_usd > 1 by id, cost and prompt_tokens, and prints a 'none:' line when there are none. metrics-cost.test.ts covers both through runMetrics and directly.
 - 2026-11-23 08:10 acceptance A3: met — costFlags requires risk === 'low', so rows without risk are never flagged. Tested with T-0009 at $5 and T-0004 at $9.
 - 2026-11-23 08:10 judge review posted: https://github.com/arynbht/Rivetari/pull/192#pullrequestreview-6018320583
+
+## Outcome
+
+- 2026-11-23 08:24 PR #192 merged by arynbht 2026-11-23 08:24 · 36m · 1642k tokens · $1.44
