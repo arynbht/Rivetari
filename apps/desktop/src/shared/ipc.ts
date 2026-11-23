@@ -44,6 +44,7 @@ export const IpcChannel = {
   TasksUnwatch: "tasks:unwatch",
   TasksAnswer: "tasks:answer",
   TasksOpenPr: "tasks:openPr",
+  TasksLedger: "tasks:ledger",
   /** Push channel (main → renderer): the watched repo's tasks after a change. */
   TasksUpdate: "tasks:update",
   MapGet: "map:get",
@@ -478,9 +479,25 @@ export const TaskSummary = z.object({
   pr: z.object({ number: z.number().int(), url: z.string() }).nullable(),
   needsYou: TaskNeedsYou.nullable(),
   problems: z.array(z.string()),
-  entries: z.array(TaskEntry),
+  /**
+   * The seq of the ledger's last entry. The ledger itself isn't in the list:
+   * it's fetched (tasks:ledger) for the task that's open, again when this moves.
+   */
+  ledgerSeq: z.number().int(),
+  /** The beat running now, from its progress file; null when none is. */
+  progress: z
+    .object({
+      beat: z.string(),
+      startedAt: z.string(),
+      lastActivityAt: z.string(),
+      turns: z.number().int().optional(),
+      tokens: z.number().optional(),
+      lastTool: z.string().optional(),
+    })
+    .nullable(),
 });
 export type TaskSummary = z.infer<typeof TaskSummary>;
+export type TaskProgress = NonNullable<TaskSummary["progress"]>;
 
 /** The watched repo's tasks, as a whole each time, plus the latest read error. */
 export const TasksState = z.object({
@@ -547,6 +564,13 @@ export const TaskOpenPrRequest = z.object({
 });
 export const TaskOpenPrResult = z.object({ url: z.string() });
 export type TaskOpenPrResult = z.infer<typeof TaskOpenPrResult>;
+
+/** tasks:ledger — the open task's ledger entries, as the watcher last read them. */
+export const TaskLedgerRequest = z.object({
+  repoPath: z.string().min(1),
+  id: z.string().regex(/^T-\d{4,}$/),
+});
+export const TaskLedger = z.array(TaskEntry);
 
 // Settings — personal preferences in `userData` (never the repo). The Anthropic
 // API key is NOT in this object: like the GitHub token it lives in safeStorage and

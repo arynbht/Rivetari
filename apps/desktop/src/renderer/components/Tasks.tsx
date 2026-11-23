@@ -7,7 +7,9 @@ import { errorMessage } from "@/lib/errors";
 
 import type {
   TaskAnswerResult,
+  TaskEntry,
   TaskNeedsYou,
+  TaskProgress,
   TasksState,
   TaskSummary,
 } from "../../shared/ipc";
@@ -54,6 +56,57 @@ const answerable = (task: TaskSummary) =>
 
 const cost = (task: TaskSummary) => `$${task.costUsd.toFixed(2)}`;
 const beat = (task: TaskSummary) => (task.done ? "closed" : task.beat);
+
+/** A running beat this long without an event, a step or a ledger entry looks stuck. */
+const QUIET_MS = 5 * 60_000;
+
+/** "40 s" under a minute, "12 min" after. */
+const span = (ms: number) =>
+  ms < 60_000
+    ? `${Math.max(0, Math.floor(ms / 1000))} s`
+    : `${Math.floor(ms / 60_000)} min`;
+
+/** The clock, ticking each second while something is running, so the times stay live. */
+function useNow(ticking: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!ticking) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [ticking]);
+  return now;
+}
+
+/**
+ * "Running: build · 12 min · turn 18 · last activity 20 s ago", or, once the
+ * beat has been quiet for five minutes, the same with "No activity for N min"
+ * in amber. Not a live region: it changes every second.
+ */
+function RunningLine({
+  progress,
+  now,
+}: {
+  progress: TaskProgress;
+  now: number;
+}) {
+  const quiet = now - Date.parse(progress.lastActivityAt);
+  const parts = [
+    progress.beat,
+    span(now - Date.parse(progress.startedAt)),
+    ...(progress.turns === undefined ? [] : [`turn ${progress.turns}`]),
+  ];
+  return quiet >= QUIET_MS ? (
+    <span className="text-amber-400">
+      Running: {parts.join(" · ")} · No activity for{" "}
+      {Math.floor(quiet / 60_000)} min
+    </span>
+  ) : (
+    <span className="text-sky-400">
+      Running: {parts.join(" · ")} · last activity {span(quiet)} ago
+    </span>
+  );
+}
 
 function NeedsYou({
   tasks,
@@ -119,10 +172,12 @@ function TaskTable({
   tasks,
   selected,
   onSelect,
+  now,
 }: {
   tasks: TaskSummary[];
   selected: string | null;
   onSelect: (id: string) => void;
+  now: number;
 }) {
   return (
     <section aria-labelledby="tasks-all" className="space-y-2">
@@ -170,6 +225,11 @@ function TaskTable({
                     </span>
                     <span className="truncate">{t.title}</span>
                   </button>
+                  {t.progress && (
+                    <p className="mt-0.5 truncate text-xs">
+                      <RunningLine progress={t.progress} now={now} />
+                    </p>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-2 py-2 text-xs">
                   {beat(t)}
@@ -290,12 +350,32 @@ function AnswerForm({
 function TaskDetail({
   task,
   repoPath,
+  now,
 }: {
   task: TaskSummary;
   repoPath: string;
+  now: number;
 }) {
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // The list carries no ledgers; the open task's is fetched, and again each
+  // time its last entry moves.
+  const [entries, setEntries] = useState<TaskEntry[]>([]);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    window.rivetari.tasks.ledger(repoPath, task.id).then(
+      (next) => {
+        if (!live) return;
+        setEntries(next);
+        setLedgerError(null);
+      },
+      (err: unknown) => live && setLedgerError(errorMessage(err)),
+    );
+    return () => {
+      live = false;
+    };
+  }, [repoPath, task.id, task.ledgerSeq]);
   // State lands after the click, so a second click in the same tick would get
   // past `busy`; the ref closes that gap.
   const inFlight = useRef(false);
@@ -348,10 +428,31 @@ function TaskDetail({
             {task.source === "branch" ? "tasks branch" : "copy on this machine"}
           </p>
         </div>
-        <p className="text-sm">
-          <span className="text-muted-foreground">Next: </span>
-          {task.next}
-        </p>
+        {task.progress ? (
+          <div className="space-y-0.5 text-sm">
+            <p>
+              <RunningLine progress={task.progress} now={now} />
+            </p>
+            {(task.progress.lastTool !== undefined ||
+              task.progress.tokens !== undefined) && (
+              <p className="text-xs text-muted-foreground">
+                {[
+                  task.progress.lastTool &&
+                    `last tool ${task.progress.lastTool}`,
+                  task.progress.tokens !== undefined &&
+                    `${task.progress.tokens.toLocaleString()} tokens this call`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm">
+            <span className="text-muted-foreground">Next: </span>
+            {task.next}
+          </p>
+        )}
         {task.pr && (
           <p className="flex items-center gap-1.5 text-sm">
             <GitPullRequest className="h-4 w-4 text-sky-400" aria-hidden />
@@ -395,12 +496,17 @@ function TaskDetail({
 
       <div className="space-y-2">
         <h4 className="text-xs font-medium text-muted-foreground">Ledger</h4>
+        {ledgerError && (
+          <p className="text-xs text-rose-300" role="alert">
+            {ledgerError}
+          </p>
+        )}
         <ol
           aria-label={`${task.id} ledger`}
           aria-live="polite"
           className="space-y-1.5"
         >
-          {task.entries.map((e) => (
+          {entries.map((e) => (
             <li key={e.seq} className="flex gap-3 text-xs">
               <span className="w-28 shrink-0 tabular-nums text-muted-foreground">
                 {when(e.at)}
@@ -446,6 +552,7 @@ export function Tasks({ repoPath }: { repoPath: string }) {
 
   const tasks = state?.tasks ?? [];
   const current = tasks.find((t) => t.id === selected) ?? null;
+  const now = useNow(tasks.some((t) => t.progress));
 
   return (
     <div className="space-y-5">
@@ -478,10 +585,20 @@ export function Tasks({ repoPath }: { repoPath: string }) {
       ) : (
         <>
           <NeedsYou tasks={tasks} onSelect={setSelected} />
-          <TaskTable tasks={tasks} selected={selected} onSelect={setSelected} />
+          <TaskTable
+            tasks={tasks}
+            selected={selected}
+            onSelect={setSelected}
+            now={now}
+          />
           {current && (
             // key keeps one task's answer and outcome off another's detail.
-            <TaskDetail key={current.id} task={current} repoPath={repoPath} />
+            <TaskDetail
+              key={current.id}
+              task={current}
+              repoPath={repoPath}
+              now={now}
+            />
           )}
         </>
       )}

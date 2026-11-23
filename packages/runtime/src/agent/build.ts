@@ -38,6 +38,7 @@ import { autonomyFor, isSoftStop } from "../task/autonomy.js";
 import { type Isolation, loadIsolation } from "./isolate.js";
 import { assemblePrompt, STOP_MARKER } from "./prompt.js";
 import { findStops, type Stop, withLicenses } from "./stops.js";
+import { type AgentProgress, resultLine, StreamProgress } from "./stream.js";
 
 export interface AgentCall {
   mode: "plan" | "build";
@@ -48,6 +49,8 @@ export interface AgentCall {
   env: NodeJS.ProcessEnv;
   /** The most model replies the call may take (`claude --max-turns`). */
   maxTurns?: number | undefined;
+  /** Hears the call's turns, tokens and last tool while it runs, when the runner can tell. */
+  onProgress?: ((progress: AgentProgress) => void) | undefined;
 }
 
 /** An agent call's final text, with what it cost when the runner knows. */
@@ -92,7 +95,10 @@ const MAX_TURNS = "error_max_turns";
 
 const hitTurnLimit = (stdout: string): boolean => {
   try {
-    return (JSON.parse(stdout) as { subtype?: unknown }).subtype === MAX_TURNS;
+    return (
+      (JSON.parse(resultLine(stdout) ?? stdout) as { subtype?: unknown })
+        .subtype === MAX_TURNS
+    );
   } catch {
     return false;
   }
@@ -101,8 +107,11 @@ const hitTurnLimit = (stdout: string): boolean => {
 export function agentArgs(call: AgentCall): string[] {
   return [
     "-p",
+    // Streamed, so the Tasks tab can show a long call's turns as they happen;
+    // the CLI only streams with --verbose.
     "--output-format",
-    "json",
+    "stream-json",
+    "--verbose",
     ...(call.model ? ["--model", call.model] : []),
     ...ISOLATED_AGENT_ARGS,
     "--append-system-prompt",
@@ -131,17 +140,27 @@ export function agentArgs(call: AgentCall): string[] {
 
 export const claudeAgent: AgentRunner = async (call) => {
   const { command, argv } = await claudeCommand(agentArgs(call));
+  const stream = new StreamProgress();
+  const onProgress = call.onProgress;
   const stdout = await spawnWithLimit(command, argv, {
     input: call.prompt,
     cwd: call.cwd,
     env: call.env,
     accept: hitTurnLimit,
+    onLine: onProgress
+      ? (line) => {
+          if (stream.feed(line)) onProgress(stream.progress());
+        }
+      : undefined,
   });
+  // The stream ends with the object the json format prints; anything else
+  // fails the parse below as it always did.
+  const result = resultLine(stdout) ?? stdout;
   // A call stopped at its turn limit has no reply, only what it cost.
-  const limited = hitTurnLimit(stdout);
-  const text = limited ? "" : parseClaudeJson(stdout, call.model ?? "").text;
+  const limited = hitTurnLimit(result);
+  const text = limited ? "" : parseClaudeJson(result, call.model ?? "").text;
   // The CLI's own totals: cache reads and writes included, cost as it reports it.
-  const data = JSON.parse(stdout) as {
+  const data = JSON.parse(result) as {
     total_cost_usd?: number;
     usage?: Record<string, number | undefined>;
     num_turns?: number;
@@ -330,6 +349,8 @@ export async function buildTask(
     agent?: AgentRunner | undefined;
     model?: string | undefined;
     now?: Date | undefined;
+    /** Hears each agent call's progress while it runs (the Tasks tab's live line). */
+    onProgress?: ((progress: AgentProgress) => void) | undefined;
   },
 ): Promise<BuildOutcome> {
   const agent = options.agent ?? claudeAgent;
@@ -395,6 +416,7 @@ export async function buildTask(
         model: options.model,
         env,
         maxTurns: outOfTurns && answer.allowed ? PLAN_TURNS * 2 : PLAN_TURNS,
+        onProgress: options.onProgress,
       }),
     );
     const started = `build started · skills ${planning.skills.join(", ") || "spine only"} · budget ${assembly.budget.steps} steps / ${assembly.budget.context_tokens / 1000}k ctx · ~${planning.approxTokens} prompt tokens · ${planning.files.length} repo file(s) in context${usageNote(reply)}`;
@@ -454,6 +476,7 @@ export async function buildTask(
     cwd: isolation.worktree,
     model: options.model,
     env,
+    onProgress: options.onProgress,
   };
   const reply = asReply(await agent({ ...call, prompt: building.prompt }));
 
