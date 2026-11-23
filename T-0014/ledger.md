@@ -19,6 +19,7 @@
 - 2026-11-23 03:02 prove: proof failed · test-run (the judge's tier 1 run) (factory runtime (for arynbht@gmail.com))
 - 2026-11-23 03:02 judge: judge failed · round 2 · head 55ae1628d2eb · tier 1 failed · record sha256 61556addd9a9549207ce20335c043bcd13ed678aa5cbf826bc403e273a9a5826 (factory judge (for arynbht@gmail.com))
 - 2026-11-23 03:06 build: build paused: 1 thing(s) to ask about · commit 55ae1628d2eb · 595923 tokens · $0.64 · 13 turns · retry (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 05:44 close: ledger sealed · abandoned (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -62,3 +63,7 @@
 - 2026-11-23 03:02 tier 1 round 2: fail · 7/9 pass · 2 fail
 - 2026-11-23 03:02 tier 1 fail: quality.tests.pass — `npm test` exited 1 (expected 0) [31m[1m[7m FAIL [27m[22m[39m packages/cli/src/commands/task.test.ts[2m > [22mfactory task, shared through the factory/tasks branch[2m > [22mdrafts on one machine, and the other sees it but can't take it while it's held [31m[1mError[22m: Test timed out in…
 - 2026-11-23 03:02 tier 1 fail: quality.coverage.floor — coverage is configured, but the test run wrote no coverage/coverage-summary.json
+
+## Outcome
+
+- 2026-11-23 05:44 abandoned: branched before the rename; redrafted after T-0015 · 3h03m · 3373k tokens · $3.12
