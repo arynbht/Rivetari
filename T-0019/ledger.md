@@ -15,6 +15,8 @@
 - 2026-11-23 07:46 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 07:46 judge: judge passed · round 1 · head 1ca8c566aecb · record sha256 7948aa33577fdd576b0bf4a04ac2868924a49900a87f001b16f9ce7ae7af49e7 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 07:47 ship: draft PR opened: #191 https://github.com/arynbht/Rivetari/pull/191 · feature/t-0019 at 1ca8c566aecb → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 07:47 close: worktree removed · branch feature/t-0019 kept (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 07:47 close: ledger sealed · abandoned (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -46,3 +48,7 @@
 - 2026-11-23 07:46 acceptance A2: met — `renderCost` lists id, cost and prompt tokens for low-risk rows over $1, and prints 'no low-risk task cost over $1' when there are none. Both cases are tested through `runMetrics`.
 - 2026-11-23 07:46 acceptance A3: met — `costFlags` requires `risk === "low"`. A row with no risk and cost 12 is tested and not flagged.
 - 2026-11-23 07:47 judge review posted: https://github.com/arynbht/Rivetari/pull/191#pullrequestreview-6018042139
+
+## Outcome
+
+- 2026-11-23 07:47 abandoned: base moved: #190 (PR #191 is left as it is) · 15m · 2657k tokens · $1.97
