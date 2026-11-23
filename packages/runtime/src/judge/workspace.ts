@@ -237,6 +237,9 @@ export interface WorkspaceGraph {
   rootDeps: string[];
 }
 
+/** Changesets, docs/ and Markdown at the repo root: read by people, not by checks. */
+const DOCS_ONLY = /^(\.changeset\/|docs\/|[^/]+\.md$)/;
+
 const DEP_FIELDS = [
   "dependencies",
   "devDependencies",
@@ -329,10 +332,14 @@ export type CheckScope =
  * one (tests at the root may import it).
  */
 export function affectedScope(
-  paths: readonly string[],
+  changed: readonly string[],
   graph: WorkspaceGraph,
 ): CheckScope {
-  if (paths.length === 0) return { kind: "all", why: "the diff is empty" };
+  if (changed.length === 0) return { kind: "all", why: "the diff is empty" };
+  // Changesets and root docs feed no package's checks, so they don't widen the
+  // scope; a change made only of them still checks everything.
+  const code = changed.filter((p) => !DOCS_ONLY.test(p));
+  const paths = code.length > 0 ? code : changed;
   // The deepest directory owns a path, so a nested package isn't its parent's.
   const byDepth = [...graph.packages].sort(
     (a, b) => b.dir.length - a.dir.length,
