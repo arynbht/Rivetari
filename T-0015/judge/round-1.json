@@ -1,0 +1,86 @@
+{
+  "task": "T-0015",
+  "round": 1,
+  "verdict": "failed",
+  "head": "83f4a13290d58901818dbaaf9f65dc6e3e870173",
+  "base": "cf4293abf9db8155d2ea303a8c5795e5a7d6ec6f",
+  "tier1": {
+    "verdict": "fail",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "red",
+        "outcome": "fail",
+        "message": "`npm test` exited 4294967295 (expected 0)\n\u001b[90mstderr\u001b[2m | packages/cli/src/commands/metrics.test.ts\u001b[2m > \u001b[22m\u001b[2mrunMetrics\u001b[2m > \u001b[22m\u001b[2mfails fast on a nonexistent path\n\u001b[22m\u001b[39mfactory metrics: path not found: C:\\Users\\arynb\\AppData\\Local\\Temp\\factory-metrics-missing-xyz\n\n\u001b[90mstderr\u001b[2m | packages/cli/src/commands/init.test.ts\u001b[2m > \u001b[22m\u001b[2mrunInit (integration)\u001b[2m > \u001b[22m\u001b[2mrefuses to overwrite an existing config without --force\n\u001b[22m\u001b[39mfactory init: .factory/profile.yml already exists. Use --force to overwrite, or `factory profile set`.\n\n\u001b[90mstderr\u001b[2m | packages/cli/src/commands/init.test.ts\u001b[2m > \u001b[22m\u001b[2mrunInit (integration)\u001b[2m > \u001b[22m\u001b[2mrequires --type in non-interactive mode\n\u001b[22m\u001b[39mfactory init: --type is required in non-interactive mode (one of: web-app, api, cli, library, mobile, desktop, data-pipeline, monorepo)."
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "red",
+        "outcome": "fail",
+        "message": "coverage is configured, but the test run wrote no coverage/coverage-summary.json"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  }
+}
