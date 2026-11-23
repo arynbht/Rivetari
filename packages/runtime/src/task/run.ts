@@ -44,6 +44,11 @@ export interface RunTaskOptions {
   base?: string | undefined;
   /** Other tasks' ids, so isolate picks a free port. */
   otherTasks?: string[] | undefined;
+  /**
+   * Runs the isolate beat; a parallel run passes every task the same lock, so
+   * two of them never pick a port at the same time.
+   */
+  isolating?: (<T>(beat: () => Promise<T>) => Promise<T>) | undefined;
   /** Called with each ledger entry as it lands. */
   onEntry?: ((entry: LedgerEntry) => void) | undefined;
   /** Replaceable in tests. */
@@ -91,7 +96,7 @@ async function stopForTime(
 }
 
 /** The beat a next step can be run by the driver, or null when a person acts. */
-function runnable(
+export function runnable(
   next: string,
 ): "isolate" | "build" | "prove" | "judge" | "ship" | null {
   if (next.startsWith("isolate:")) return "isolate";
@@ -155,13 +160,15 @@ export async function runTask(
         ran.push(beat);
         let stopped = false;
         try {
-          if (beat === "isolate")
-            await isolateTask(repoPath, id, {
-              ...common,
-              base: options.base,
-              otherTasks: options.otherTasks,
-            });
-          else if (beat === "build")
+          if (beat === "isolate") {
+            const isolate = () =>
+              isolateTask(repoPath, id, {
+                ...common,
+                base: options.base,
+                otherTasks: options.otherTasks,
+              });
+            await (options.isolating ? options.isolating(isolate) : isolate());
+          } else if (beat === "build")
             await buildTask(repoPath, id, {
               ...common,
               model: options.model,
