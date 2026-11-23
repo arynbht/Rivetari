@@ -1,0 +1,47 @@
+id: T-0013
+title: Record time per beat in history and show card-to-PR time in metrics
+type: feature
+source: prompt
+description: history.jsonl has one row per closed task with total minutes, but
+  not where the time went, so a slow task can't be traced to its beat and
+  nothing shows the 10-minute target for small cards. Each row should carry the
+  task's risk, its card-to-PR minutes (first intake entry to the draft PR), and
+  minutes per beat (plan, build, prove, judge, ship), each beat's time being the
+  time between ledger timeline entries that its own entries close, with time
+  spent waiting for a person's answer left out. factory metrics then shows the
+  median card-to-PR time for low-risk tasks against the 10-minute target, lists
+  low-risk tasks over it, and flags any beat in a task closed in the last day
+  that was more than 50% slower than that beat's median over the 7 days before
+  it.
+acceptance:
+  - id: A1
+    text: closing a task appends a history row with risk, card_to_pr_minutes and
+      beats {plan, build, prove, judge, ship} in minutes, computed from the
+      ledger's timestamps, leaving out time waiting on a person's answer
+    verify: unit
+  - id: A2
+    text: factory metrics prints the median card-to-PR minutes for low-risk tasks
+      against a 10-minute target, and names each low-risk task over it
+    verify: unit
+  - id: A3
+    text: factory metrics flags a beat of a recently closed task that took more than
+      1.5 times that beat's 7-day median, naming the task, beat, minutes and
+      median
+    verify: unit
+  - id: A4
+    text: history rows written before this change, without beats, still load and are
+      left out of the beat medians
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/ship/close.ts
+  - packages/runtime/src/judge/findings.ts
+  - packages/cli/src/commands/metrics.ts
+  - packages/**/*.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
