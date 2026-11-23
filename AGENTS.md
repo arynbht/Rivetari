@@ -101,6 +101,21 @@ Rivetari opens draft PRs. It never merges, and neither does any agent.
 
 ## This repo
 
+- **Exemption (owner, 2026-11-23):** changes to Rivetari's own code ship as plain PRs
+  from a branch or worktree, not through `/rivetari`; cards run on the BreathBand repos.
+  Each PR needs CI green on Ubuntu and Windows and `rivetari review --pr <n>` with no
+  blocking findings, and it's rebased on main before it merges. An agent may then merge
+  it, unless it changes any of these, which wait for the owner to merge:
+  - AGENTS.md, CONSTRAINTS.md or DESIGN.md;
+  - a protected path (the list under "Protected paths");
+  - signing: `packages/runtime/src/task/ledger.ts` (entries, seals, keys);
+  - leases: `packages/runtime/src/task/store.ts`;
+  - the autonomy ledger: `packages/runtime/src/task/ladder.ts` and `.rivetari/autonomy/**`;
+  - or anything a `rivetari review --pr` round flagged as blocking.
+
+  This exemption is the owner's policy for this repo; it doesn't change "People merge"
+  for Rivetari itself, which still never merges.
+
 - **rivetari**: monorepo, phase scaffold
 - Stack: node, typescript, pnpm, electron
 - Flags: open-source, distributes-binaries, uses-ai

@@ -3,6 +3,31 @@
 Where Rivetari stands against the gates it has to clear before it runs its own
 repo unattended. Each phase records the date it was met and the tasks that show it.
 
+## Status
+
+Updated after each merge. Rivetari's own changes ship as plain PRs under the exemption
+in AGENTS.md (2026-11-23); cards run on breathband-console.
+
+| Item                                                             | Track | PR        | State                               |
+| ---------------------------------------------------------------- | ----- | --------- | ----------------------------------- |
+| Rebuild the action bundle once per release                       | —     | #196      | merged 2026-11-23                   |
+| Task PRs don't commit the action bundle (AGENTS.md)              | —     | #197      | merged 2026-11-23                   |
+| Bug 20: per-call and per-task timeouts                           | A     | #201      | merged 2026-11-23                   |
+| Risk derived at intake, recomputed at the judge                  | A     | #207      | merged 2026-11-23                   |
+| Findings per PR counts blocking findings only                    | A     | #209      | merged 2026-11-23                   |
+| Affected-only tier 1                                             | B     | #202      | merged 2026-11-23                   |
+| Context cap redone: slice, enforced plan turns, 15k for low risk | B     | #208      | merged 2026-11-23 (replaces #189)   |
+| Bug 21: a null repro doesn't crash the review                    | B     | #206      | merged 2026-11-23                   |
+| `watchTasks` runtime API                                         | C     | #199      | merged 2026-11-23                   |
+| Read-only Tasks tab in the shell                                 | C     | #203      | merged 2026-11-23                   |
+| `task run --parallel N` with overlap checks                      | D     | #200      | merged 2026-11-23                   |
+| Bug 9 + 19: keyword-only sectors don't hold the route            | D     | #204      | merged 2026-11-23 (replaces #193)   |
+| Floorplan stage 1                                                | E     | #205      | merged 2026-11-23                   |
+| Regression card through `/rivetari` on this repo                 | —     | —         | next                                |
+| breathband-console: F2 + hygiene                                 | cards | console#6 | merged 2026-11-23                   |
+| breathband-console: DESIGN.md                                    | cards | —         | built; proof waits on `proof.start` |
+| breathband-console: three card proposals                         | cards | —         | drafted, for the owner to pick      |
+
 ## Phase A: a real task runs at review-at-pr without asking
 
 **Gate:** a real change to this repo goes through `/rivetari` at `review-at-pr` with
