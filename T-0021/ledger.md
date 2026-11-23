@@ -1,0 +1,7 @@
+# T-0021 · Decide keyword-only borderline sectors as not in, without holding the route
+
+<!-- Written by Rivetari runtime from ledger.jsonl. Don't edit: changes are detected. -->
+
+## Timeline
+
+- 2026-11-23 08:25 intake: card drafted with 4 acceptance criteria; awaiting confirmation (arynbht@gmail.com)

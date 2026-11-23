@@ -1,0 +1,45 @@
+id: T-0021
+title: Decide keyword-only borderline sectors as not in, without holding the route
+type: fix
+source: prompt
+description: "Bug 9. At review-at-pr a sector that scores only from description
+  keywords (score 1, such as observability from the word 'metrics') lands in the
+  route's borderline list, and routeConcerns turns any borderline sector into a
+  concern that holds the route for a person; it held T-0009, T-0011, T-0013,
+  T-0014 and T-0017 on words like CI, perf, observability, secret and metrics.
+  The router decides a sector whose whole score comes from description keywords
+  as not in: the route records it as decided not-in for that reason, the
+  ledger's route line says so, and it doesn't hold the route at review-at-pr. A
+  borderline sector that also scores from a path, a title keyword, a manifest
+  trigger or IaC still holds the route as it does now. No existing test changes;
+  keyword-only sectors may stay in the borderline list for display."
+acceptance:
+  - id: A1
+    text: route() for a card whose only match for observability is 'metrics' in the
+      description marks observability as decided not-in because it scored only
+      on description keywords
+    verify: unit
+  - id: A2
+    text: at review-at-pr, a route whose only borderline sectors are keyword-only is
+      approved without asking, and the ledger says each was decided not-in
+    verify: unit
+  - id: A3
+    text: at review-at-pr, a borderline sector that scores from a manifest trigger
+      or IaC still holds the route for a person
+    verify: unit
+  - id: A4
+    text: no test file that existed at base is modified
+    verify: review
+out_of_scope: []
+touches:
+  - packages/runtime/src/router/route.ts
+  - packages/runtime/src/router/task-route.ts
+  - packages/runtime/src/task/autonomy.ts
+  - packages/runtime/src/task/keyword-borderline.test.ts
+  - packages/action/dist/**
+  - .changeset/keyword-borderline.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-23
