@@ -16,6 +16,7 @@ import { type Control, loadBundledCatalog } from "@arynbht/factory-catalog";
 import {
   allowlistedEnv,
   buildContext,
+  type CommandListener,
   type ControlResult,
   deepEqual,
   detectStacks,
@@ -62,6 +63,8 @@ export interface Tier1Result {
   /** Why the verdict is `fail` when no individual check explains it. */
   notes: string[];
   workDir: string;
+  /** The test suite's run on the change, in full: the test-run proof. */
+  testRun?: { command: string; exitCode: number; output: string } | undefined;
 }
 
 export interface Tier1Options {
@@ -320,7 +323,19 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
         ? await installDeps(workDir, log, options.env)
         : baseInstall;
     log("running checks on the change");
-    const headResults = await runChecks(workDir, selected, options);
+    let testRun: Tier1Result["testRun"];
+    const headResults = await runChecks(
+      workDir,
+      selected,
+      options,
+      (line, result) => {
+        testRun = {
+          command: line,
+          exitCode: result.exitCode,
+          output: `${result.stdout}\n${result.stderr}`,
+        };
+      },
+    );
 
     if (headInstall && !headInstall.ok) {
       notes.push(`dependency install failed: ${headInstall.message}`);
@@ -383,6 +398,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       checks,
       notes,
       workDir,
+      testRun,
     };
   } finally {
     if (workspace) await workspace.release();
@@ -419,26 +435,33 @@ async function runChecks(
   dir: string,
   selected: readonly Control[],
   options: Tier1Options,
+  onTests?: CommandListener,
 ): Promise<ControlResult[]> {
   // One at a time, test runs first: coverage is read from what *this* side's
   // test run wrote, so the previous side's report is removed before it starts.
-  const ordered = [...selected].sort(
-    (a, b) => Number(!runsTests(a)) - Number(!runsTests(b)),
-  );
   await rm(join(dir, "coverage"), { recursive: true, force: true });
-  const ctx = buildContext(dir, {
-    runCommands: true,
-    commandEnv: allowlistedEnv(options.env),
-    now: options.now,
-  });
-  const profile = await ctx.profile().catch(() => null);
+  const context = (onCommand?: CommandListener) =>
+    buildContext(dir, {
+      runCommands: true,
+      commandEnv: allowlistedEnv(options.env),
+      now: options.now,
+      onCommand,
+    });
+  const profile = await context()
+    .profile()
+    .catch(() => null);
   // Waivers are posture decisions; the judge holds every check to its result.
-  return evaluateControls(ordered, ctx, {
-    profile,
-    waivers: [],
-    now: options.now,
-    concurrency: 1,
-  });
+  const evaluate = (controls: Control[], ctx = context()) =>
+    evaluateControls(controls, ctx, {
+      profile,
+      waivers: [],
+      now: options.now,
+      concurrency: 1,
+    });
+  return [
+    ...(await evaluate(selected.filter(runsTests), context(onTests))),
+    ...(await evaluate(selected.filter((c) => !runsTests(c)))),
+  ];
 }
 
 function runsTests(control: Control): boolean {

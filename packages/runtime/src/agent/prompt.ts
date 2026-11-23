@@ -133,6 +133,7 @@ export async function assemblePrompt(options: {
       `- Protected paths (never edit): ${[...PROTECTED.factoryState, ...PROTECTED.ciConfig, ...PROTECTED.lintConfig].join(", ")}.`,
       `- Proof: this task's proof is \`${assembly.proof}\`, produced by a tool after you finish; make sure it can be.`,
       `- Checks the judge runs: ${assembly.checks.join(", ")}.`,
+      "- Run only the tests related to the files you touched (for vitest, `npx vitest related --run <files>`; otherwise the runner's equivalent), never the whole suite: the judge runs everything, once, on a clean copy.",
       ...(rules.length > 0
         ? [
             "- Rules the judge checks on your diff before anything else; one breach fails the round:",

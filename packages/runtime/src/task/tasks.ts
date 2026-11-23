@@ -366,7 +366,9 @@ export function nextStep(task: Task): string {
     const proved = [...task.entries]
       .reverse()
       .find((e) => e.beat === "prove" && e.section === "timeline");
-    return proved?.text.startsWith("proof passed")
+    // A deferred test-run proof is the judge's tier 1 run, so the judge is next.
+    return proved?.text.startsWith("proof passed") ||
+      proved?.text.startsWith("proof deferred")
       ? "judge"
       : `build: \`factory task build ${task.card.id}\` (the proof failed)`;
   }

@@ -615,6 +615,7 @@ export function runTaskRun(
           process.stdout.write(
             `${e.at.slice(11, 16)} ${e.beat}${e.section === "timeline" ? "" : ` (${e.section})`}: ${e.text}\n`,
           ),
+        prove: { deferTestRun: true },
         judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
       }),
     );
@@ -659,6 +660,7 @@ export function runTaskRunAll(flags: {
               process.stdout.write(
                 `${e.at.slice(11, 16)} ${e.beat}${e.section === "timeline" ? "" : ` (${e.section})`}: ${e.text}\n`,
               ),
+            prove: { deferTestRun: true },
             judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
           }),
         );

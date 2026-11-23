@@ -16,6 +16,7 @@ import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
 import { loadIsolation } from "../agent/isolate.js";
+import { DEFERRED, proofFromJudge, type Publish } from "../proof/prove.js";
 import { AssemblySchema } from "../router/route.js";
 import {
   allowedDecisions,
@@ -67,6 +68,8 @@ export interface JudgeTaskOptions {
   tier1?: ((options: Tier1Options) => Promise<Tier1Result>) | undefined;
   review?: typeof reviewLocal | undefined;
   log?: ((line: string) => void) | undefined;
+  /** Where a deferred test-run proof's evidence goes (default: GitHub). */
+  publish?: Publish | undefined;
 }
 
 const recordPath = (repoPath: string, id: string, round: number) =>
@@ -170,6 +173,21 @@ export async function judgeTask(
     persistent: true,
     log,
   });
+  const proved = [...task.entries]
+    .reverse()
+    .find((e) => e.beat === "prove" && e.section === "timeline");
+  if (proved?.text === DEFERRED)
+    await proofFromJudge(
+      repoPath,
+      task,
+      isolation,
+      {
+        testRun: tier1.testRun,
+        outcome: tier1.checks.find((c) => c.id === "quality.tests.pass")
+          ?.outcome,
+      },
+      { by: options.by, now: options.now, publish: options.publish },
+    );
   const ran = tier1.checks.filter((c) => c.outcome !== "n/a");
   const count = (o: string) => ran.filter((c) => c.outcome === o).length;
   await append(
