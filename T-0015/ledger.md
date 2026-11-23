@@ -1,6 +1,6 @@
 # T-0015 · Stop git-heavy tests failing tier 1 under load
 
-<!-- Written by the factory runtime from ledger.jsonl. Don't edit: changes are detected. -->
+<!-- Written by Rivetari runtime from ledger.jsonl. Don't edit: changes are detected. -->
 
 ## Timeline
 
