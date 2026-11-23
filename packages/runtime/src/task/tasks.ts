@@ -75,7 +75,7 @@ export interface Task {
   ledger: Ledger;
   entries: LedgerEntry[];
   confirmed: boolean;
-  /** assembly.yml as written (unvalidated), once the task has been routed. */
+  /** assembly.yml as written (unvalidated), once the current card has been routed. */
   assemblyText?: string | undefined;
   /** The human approved the assembly; its hash is sealed in the ledger. */
   approved: boolean;
@@ -87,8 +87,26 @@ export interface Task {
 
 /** The confirmation entry seals the card: its text carries the card's hash. */
 const CONFIRMED = /^intake confirmed; card sha256 ([0-9a-f]{64})$/;
+const AMENDED =
+  /^intake amended; card sha256 ([0-9a-f]{64}) \(was ([0-9a-f]{64})\)$/;
 /** Likewise the route approval seals the assembly. */
 export const APPROVED = /^route approved; assembly sha256 ([0-9a-f]{64})$/;
+const PROPOSED = /^assembly proposed; sha256 ([0-9a-f]{64})/;
+const CARD_CHANGED = "card.yml changed after intake was confirmed";
+
+function cardSeal(
+  entries: LedgerEntry[],
+): { hash: string; index: number } | undefined {
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const text = entries[index]!.text;
+    const hash = (CONFIRMED.exec(text) ?? AMENDED.exec(text))?.[1];
+    if (hash !== undefined) return { hash, index };
+  }
+  return undefined;
+}
+
+const isolated = (entries: LedgerEntry[]) =>
+  entries.some((e) => BEATS.indexOf(e.beat) >= BEATS.indexOf("isolate"));
 
 export async function loadTask(repoPath: string, id: string): Promise<Task> {
   let text: string;
@@ -106,11 +124,9 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
   );
   const entries = await ledger.entries();
   const { problems } = await ledger.verify();
-  const sealed = entries
-    .map((e) => CONFIRMED.exec(e.text)?.[1])
-    .find((hash) => hash !== undefined);
-  if (sealed && sealed !== sha256(text)) {
-    problems.push("card.yml changed after intake was confirmed");
+  const seal = cardSeal(entries);
+  if (seal && seal.hash !== sha256(text)) {
+    problems.push(CARD_CHANGED);
   }
   // Missing means not routed yet; any other read error is a real failure.
   const assemblyText = await readFile(assemblyPath(repoPath, id), "utf8").catch(
@@ -119,9 +135,16 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
       throw err;
     },
   );
-  const approved = entries
+  const sinceSeal = entries.slice((seal?.index ?? -1) + 1);
+  const amended = seal !== undefined && AMENDED.test(entries[seal.index]!.text);
+  const approved = sinceSeal
     .map((e) => APPROVED.exec(e.text)?.[1])
-    .find((hash) => hash !== undefined);
+    .filter((hash) => hash !== undefined)
+    .pop();
+  const stale =
+    amended &&
+    approved === undefined &&
+    !sinceSeal.some((e) => PROPOSED.test(e.text));
   if (approved && approved !== sha256(assemblyText ?? "")) {
     problems.push(
       assemblyText === undefined
@@ -133,8 +156,8 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
     card,
     ledger,
     entries,
-    confirmed: sealed !== undefined,
-    assemblyText,
+    confirmed: seal !== undefined,
+    assemblyText: stale ? undefined : assemblyText,
     approved: approved !== undefined,
     beat: entries[entries.length - 1]?.beat ?? "intake",
     problems,
@@ -184,9 +207,9 @@ export async function newTask(
 }
 
 /**
- * `factory task confirm`: the human agrees the card. Re-validates it (it may
- * have been edited as a draft) and seals its hash into the ledger, so a later
- * edit to the card is detected.
+ * `factory task confirm`: the human agrees the card and its hash is sealed in
+ * the ledger. Until the task is isolated, confirming an edited card records an
+ * amendment with the new hash, and the route has to be proposed again.
  */
 export async function confirmTask(
   repoPath: string,
@@ -194,17 +217,26 @@ export async function confirmTask(
   options: { by: string; now?: Date | undefined },
 ): Promise<Task> {
   const task = await loadTask(repoPath, id);
-  if (task.problems.length > 0) {
+  const changed = task.problems.includes(CARD_CHANGED);
+  if (task.problems.some((p) => p !== CARD_CHANGED)) {
     throw new TaskError(
       `task ${id} fails verification:\n${task.problems.map((p) => `  - ${p}`).join("\n")}`,
     );
   }
-  if (task.confirmed) throw new TaskError(`task ${id} is already confirmed`);
+  if (task.confirmed && !changed)
+    throw new TaskError(`task ${id} is already confirmed`);
+  if (changed && isolated(task.entries))
+    throw new TaskError(
+      `task ${id}'s card is fixed after isolate; abandon the task and draft a new card to change it`,
+    );
   const text = await readFile(cardPath(repoPath, id), "utf8");
+  const was = cardSeal(task.entries)?.hash;
   await task.ledger.append({
     beat: "intake",
     section: "timeline",
-    text: `intake confirmed; card sha256 ${sha256(text)}`,
+    text: was
+      ? `intake amended; card sha256 ${sha256(text)} (was ${was})`
+      : `intake confirmed; card sha256 ${sha256(text)}`,
     by: options.by,
     at: options.now,
   });
