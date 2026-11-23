@@ -77,7 +77,7 @@ import {
   attachMapWebview,
   getMap,
   guardMapSession,
-  keepBlocked,
+  MapFence,
   MAP_PARTITION,
   mapRequestAllowed,
 } from "./engine/map";
@@ -197,11 +197,8 @@ let signInAbort: AbortController | null = null;
 /** Cancels an in-flight deep-audit swarm when a newer run supersedes it. */
 let floorPlanAbort: AbortController | null = null;
 
-/**
- * The map on show: its repo and floorplan/ directory (the only place its
- * session may load from) and the requests cancelled since it was opened.
- */
-let map: { repoPath: string; dir: string; blocked: string[] } | null = null;
+/** The map on show, whose floorplan/ is the only place its session may load from. */
+const mapFence = new MapFence();
 
 function sendAuthUpdate(update: AuthUpdate): void {
   mainWindow?.webContents.send(IpcChannel.AuthUpdate, update);
@@ -317,7 +314,7 @@ function createWindow(): void {
   window.webContents.on(
     "will-attach-webview",
     (event, webPreferences, params) => {
-      if (!attachMapWebview({ params, webPreferences }, map?.dir ?? null))
+      if (!attachMapWebview({ params, webPreferences }, mapFence.dir))
         event.preventDefault();
     },
   );
@@ -325,8 +322,7 @@ function createWindow(): void {
   window.webContents.on("did-attach-webview", (_event, guest) => {
     guest.setWindowOpenHandler(() => ({ action: "deny" }));
     guest.on("will-navigate", (navigation, url) => {
-      if (!mapRequestAllowed(url, map?.dir ?? null))
-        navigation.preventDefault();
+      if (!mapRequestAllowed(url, mapFence.dir)) navigation.preventDefault();
     });
   });
 
@@ -432,10 +428,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannel.MapGet, async (_event, raw: unknown) => {
     const { repoPath } = MapGetRequest.parse(raw);
-    const view = MapView.parse(await getMap(repoPath));
-    // Fence the map's session to this repo's floorplan/ from now on.
-    map = { repoPath, dir: view.dir, blocked: [] };
-    return view;
+    return MapView.parse(await mapFence.open(repoPath, getMap));
   });
 
   ipcMain.handle(IpcChannel.AuthStatus, async () => {
@@ -671,14 +664,11 @@ app.whenReady().then(
 
     guardMapSession(
       session.fromPartition(MAP_PARTITION),
-      () => map?.dir ?? null,
+      () => mapFence.dir,
       (url) => {
-        if (!map) return;
-        map.blocked = keepBlocked(map.blocked, url);
-        mainWindow?.webContents.send(IpcChannel.MapBlocked, {
-          repoPath: map.repoPath,
-          urls: map.blocked,
-        });
+        const blocked = mapFence.block(url);
+        if (blocked)
+          mainWindow?.webContents.send(IpcChannel.MapBlocked, blocked);
       },
     );
 

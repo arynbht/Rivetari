@@ -5,11 +5,14 @@ import { pathToFileURL } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import type { MapView } from "../../shared/ipc";
+
 import {
   attachMapWebview,
   getMap,
   guardMapSession,
   keepBlocked,
+  MapFence,
   MAP_PARTITION,
   type MapSession,
   mapRequestAllowed,
@@ -132,6 +135,40 @@ describe("the map's session guard", () => {
     fake.request?.(null, "notifications", (g) => (granted = g));
     expect(granted).toBe(false);
     expect(fake.check?.()).toBe(false);
+  });
+
+  it("moves the fence only for the latest map opened, whichever read finishes last", async () => {
+    const fence = new MapFence();
+    expect(fence.dir).toBeNull();
+    expect(fence.block("https://x/")).toBeNull();
+
+    const reads = new Map<string, (view: MapView) => void>();
+    const read = (repoPath: string) =>
+      new Promise<MapView>((done) => reads.set(repoPath, done));
+    const viewOf = (repoPath: string): MapView => ({
+      repoPath,
+      dir: join(repoPath, "floorplan"),
+      url: null,
+      floorplanOn: false,
+    });
+    // B is picked, then A before B's read is back; B's read finishes last.
+    const b = fence.open("/b", read);
+    const a = fence.open("/a", read);
+    reads.get("/a")?.(viewOf("/a"));
+    await a;
+    reads.get("/b")?.(viewOf("/b"));
+    await b;
+    expect(fence.dir).toBe(join("/a", "floorplan"));
+
+    expect(fence.block("https://x/1")).toEqual({
+      repoPath: "/a",
+      urls: ["https://x/1"],
+    });
+    // Opening again starts a fresh list.
+    const again = fence.open("/a", read);
+    reads.get("/a")?.(viewOf("/a"));
+    await again;
+    expect(fence.block("https://x/2")?.urls).toEqual(["https://x/2"]);
   });
 
   it("keeps the last fifty blocked requests", () => {

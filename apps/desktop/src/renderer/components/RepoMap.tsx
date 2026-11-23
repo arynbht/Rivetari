@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { errorMessage } from "@/lib/errors";
 
-import type { MapView } from "../../shared/ipc";
+import { MAP_PARTITION, type MapView } from "../../shared/ipc";
 
 // The floorplan skill's map of the repo, as the static page it draws in
 // floorplan/. It runs in a webview on its own session, which the main process
@@ -17,7 +17,7 @@ import type { MapView } from "../../shared/ipc";
  * webview attach to. Spread on, since React's lint rule doesn't know webview's
  * attributes.
  */
-const MAP_GUEST = { partition: "rivetari-map" };
+const MAP_GUEST = { partition: MAP_PARTITION };
 
 export function RepoMap({ repoPath }: { repoPath: string }) {
   const [view, setView] = useState<MapView | null>(null);

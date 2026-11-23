@@ -12,10 +12,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadProfile } from "@arynbht/rivetari-engine";
 import { FLOORPLAN_DIR, isFloorplanMap } from "@arynbht/rivetari-runtime";
 
-import type { MapView } from "../../shared/ipc";
+import { MAP_PARTITION, type MapView } from "../../shared/ipc";
 
-/** The map's session: in memory only, shared by nothing else in the app. */
-export const MAP_PARTITION = "rivetari-map";
+// The map's session (in memory only, shared by nothing else in the app) is named in
+// the IPC contract so the renderer's webview names the same one.
+export { MAP_PARTITION };
 /** How many blocked requests are kept to show; a chatty page can't grow it without end. */
 const BLOCKED_KEPT = 50;
 
@@ -149,4 +150,38 @@ export function attachMapWebview(
 /** The blocked requests to show, newest last, at most BLOCKED_KEPT of them. */
 export function keepBlocked(blocked: string[], url: string): string[] {
   return [...blocked, url].slice(-BLOCKED_KEPT);
+}
+
+/**
+ * Which repo's floorplan/ the map's session is fenced to, and what it has
+ * blocked since. Opening a map moves the fence, but only the latest open does:
+ * picking repos quickly can't leave it on one whose read finished last.
+ */
+export class MapFence {
+  private shown: { repoPath: string; dir: string; blocked: string[] } | null =
+    null;
+  private opens = 0;
+
+  /** The floorplan/ the session may load from, or null before any map is open. */
+  get dir(): string | null {
+    return this.shown?.dir ?? null;
+  }
+
+  async open(
+    repoPath: string,
+    read: (repoPath: string) => Promise<MapView>,
+  ): Promise<MapView> {
+    const open = ++this.opens;
+    const view = await read(repoPath);
+    if (open === this.opens)
+      this.shown = { repoPath, dir: view.dir, blocked: [] };
+    return view;
+  }
+
+  /** Note a blocked request; returns what to tell the renderer, or null with no map open. */
+  block(url: string): { repoPath: string; urls: string[] } | null {
+    if (!this.shown) return null;
+    this.shown.blocked = keepBlocked(this.shown.blocked, url);
+    return { repoPath: this.shown.repoPath, urls: this.shown.blocked };
+  }
 }

@@ -492,6 +492,10 @@ export const TasksWatchRequest = z.object({ repoPath: z.string().min(1) });
 
 // Map — the floorplan skill's static map (floorplan/index.html), shown in a
 // webview whose session cancels every request outside floorplan/.
+
+/** The map webview's session, which main guards; the renderer's webview names it. */
+export const MAP_PARTITION = "rivetari-map";
+
 export const MapGetRequest = z.object({ repoPath: z.string().min(1) });
 
 export const MapView = z.object({
