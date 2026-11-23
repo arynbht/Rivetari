@@ -8,6 +8,7 @@ export {
   type Tier1Options,
   type Tier1Result,
 } from "./judge/tier1.js";
+export { compare as compareResults } from "./judge/outcome.js";
 export {
   type DiffEntry,
   findProtected,
