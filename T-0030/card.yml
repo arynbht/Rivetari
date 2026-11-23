@@ -1,0 +1,37 @@
+id: T-0030
+title: Don't route a docs-only card to ui on design words
+type: fix
+source: prompt
+description: The router puts the ui sector in, and so asks for a ui-screenshots
+  proof, when a card's title or description uses words like design, css,
+  component or layout, even if the card only changes Markdown.
+  breathband-console's T-0002 (write DESIGN.md, touching only DESIGN.md) was
+  routed to ui and a11y with a screenshot proof for a docs-only change. When
+  every one of a card's touches is documentation (a .md file anywhere, or a path
+  under docs/), title and description words, and skill triggers matched by those
+  words, don't count towards ui, so ui and a11y aren't in on words alone and the
+  proof isn't ui-screenshots. A card with any non-docs touch, or with no
+  touches, routes as now.
+acceptance:
+  - id: A1
+    text: route() for a card whose only touch is DESIGN.md and whose title and
+      description say design, css and component doesn't put ui or a11y in, and
+      its proof isn't ui-screenshots
+    verify: unit
+  - id: A2
+    text: a card touching docs/guide.md and src/app/page.tsx with the same words
+      still routes to ui as now
+    verify: unit
+  - id: A3
+    text: a card with no touches and the same words routes as now
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/router/route.ts
+  - packages/runtime/src/router/docs-only-ui.test.ts
+  - .changeset/docs-only-ui.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
