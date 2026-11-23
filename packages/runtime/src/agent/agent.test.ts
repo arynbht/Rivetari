@@ -89,6 +89,7 @@ async function approvedTask(): Promise<string> {
       description: "total should sum the order lines.",
       acceptance: [{ id: "A1", text: "total sums lines", verify: "unit" }],
       touches: ["src/total.ts"],
+      risk: "medium",
     },
     by,
   );

@@ -229,7 +229,7 @@ describe("autonomy levels", () => {
     );
   });
 
-  it("stops at the route, with the evidence, when it touches a sensitive path", async () => {
+  it("leaves a task that touches a sensitive path supervised: its derived risk is high", async () => {
     const { repo, context } = await repoWith("review-at-pr");
     const draft = await newTask(
       repo,
@@ -237,11 +237,9 @@ describe("autonomy levels", () => {
       by,
     );
     const advance = await advanceTask(repo, draft.card.id, { ...by, context });
-    expect(advance.task.confirmed).toBe(true);
+    expect(advance.level).toBe("supervised");
+    expect(advance.task.confirmed).toBe(false);
     expect(advance.task.approved).toBe(false);
-    expect(advance.waiting).toContain(
-      "touches sensitive paths: src/billing/invoice.js",
-    );
   });
 
   it("leaves a supervised task, and a high-risk one, for a person", async () => {

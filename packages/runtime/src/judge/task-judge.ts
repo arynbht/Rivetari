@@ -39,6 +39,7 @@ import {
 } from "./fast-path.js";
 import { type ProtectedFinding, protectedDetail } from "./protected.js";
 import { MAX_ROUNDS, type ReviewOutcome, reviewLocal } from "./review.js";
+import { type JudgedRisk, judgeRisk } from "./risk-check.js";
 import { runTier1, type Tier1Options, type Tier1Result } from "./tier1.js";
 import { JUDGE_DEFAULT_MODEL } from "./tier2.js";
 
@@ -63,6 +64,8 @@ export interface JudgeRecord {
         usage: ReviewOutcome["result"]["usage"];
       }
     | undefined;
+  /** The risk derived again from the change; absent in older records. */
+  risk?: JudgedRisk | undefined;
 }
 
 export interface JudgeTaskOptions {
@@ -217,6 +220,20 @@ export async function judgeTask(
       "judge",
       `protected: ${protectedDetail(p)}${wasAllowed(p) ? " (allowed at build)" : ""}`,
     );
+  const risk = await judgeRisk({
+    repoPath,
+    base: tier1.mergeBase,
+    head,
+    card: task.card,
+    sensitive: assembly.stop_and_ask.flatMap((s) =>
+      typeof s === "string" ? [] : s.touches,
+    ),
+  });
+  if (risk.effective !== risk.card)
+    await append(
+      "judge",
+      `risk raised to ${risk.effective} from the card's ${risk.card} at the judge: ${risk.reasons.join("; ")}`,
+    );
 
   const record: JudgeRecord = {
     task: id,
@@ -230,6 +247,7 @@ export async function judgeTask(
       protected: tier1.protected,
       notes: tier1.notes,
     },
+    risk,
   };
   let why = "";
 
@@ -267,7 +285,7 @@ export async function judgeTask(
         options.model ?? profile?.ai?.judge_model ?? JUDGE_DEFAULT_MODEL,
       );
     let outcome: ReviewOutcome;
-    if (isFastPath(task.card)) {
+    if (isFastPath(task.card, risk.effective)) {
       try {
         outcome = await review(
           options.fastAi ??
