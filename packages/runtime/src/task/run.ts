@@ -25,8 +25,10 @@ import { loadTask, nextStep, type Task, TaskError } from "./tasks.js";
 export const MAX_BUILDS_PER_RUN = 4;
 
 /**
- * The wall-clock budget of one run, so a hung proof server or a looping agent
- * can't run all night. RIVETARI_TASK_BUDGET_MINUTES overrides it.
+ * The wall-clock budget of one run, so a hung call or a looping agent can't
+ * run all night: it kills the claude call in flight, and stops the run before
+ * a build or judge beat once it's spent. RIVETARI_TASK_BUDGET_MINUTES
+ * overrides it.
  */
 export const DEFAULT_TASK_BUDGET_MINUTES = 90;
 export const TASK_BUDGET_ENV = "RIVETARI_TASK_BUDGET_MINUTES";
