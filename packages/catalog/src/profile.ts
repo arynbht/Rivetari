@@ -65,6 +65,7 @@ export const ProfileSchema = z.strictObject({
   "severity-floor": z.enum(SEVERITIES).default("low"),
   autonomy: z.enum(AUTONOMY_LEVELS).default("supervised"),
   project: ProjectSchema,
+  generated: z.array(z.string().min(1)).optional(),
   ai: z
     .strictObject({
       /** Model for drafting and agent work. */

@@ -53,6 +53,30 @@ describe("ProfileSchema", () => {
   });
 });
 
+describe("ProfileSchema generated", () => {
+  it("accepts an optional list of generated globs and keeps it", () => {
+    expect(
+      ProfileSchema.parse({ ...base, generated: ["docs/catalog/**"] })
+        .generated,
+    ).toEqual(["docs/catalog/**"]);
+  });
+
+  it("still loads a profile without it", () => {
+    const result = ProfileSchema.safeParse(base);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.generated).toBeUndefined();
+  });
+
+  it("rejects a list that isn't one, or an empty glob", () => {
+    expect(
+      ProfileSchema.safeParse({ ...base, generated: "docs/**" }).success,
+    ).toBe(false);
+    expect(ProfileSchema.safeParse({ ...base, generated: [""] }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe("ProfileSchema autonomy", () => {
   it("defaults to supervised and accepts the three levels", () => {
     expect(ProfileSchema.parse(base).autonomy).toBe("supervised");
