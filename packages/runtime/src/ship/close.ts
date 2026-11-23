@@ -54,6 +54,8 @@ export interface TaskHistoryRow {
   judge_rounds: number;
   findings?: TaskFinding[] | undefined;
   rounds?: RoundUsage[] | undefined;
+  risk?: string | undefined;
+  prompt_tokens?: number | undefined;
 }
 
 export interface TaskFinding {
@@ -130,6 +132,19 @@ export function roundUsage(task: Task): RoundUsage[] {
       },
     ];
   });
+}
+
+export function promptTokens(task: Task): number | undefined {
+  const figures = task.entries.flatMap((e) =>
+    e.beat === "build" &&
+    e.section === "timeline" &&
+    e.text.startsWith("build started")
+      ? [...e.text.matchAll(/~(\d[\d,]*) prompt tokens/g)].map((m) =>
+          Number((m[1] ?? "").replace(/,/g, "")),
+        )
+      : [],
+  );
+  return figures.length > 0 ? Math.max(...figures) : undefined;
 }
 
 /** Tokens and cost the ledger recorded for the agent and the judge. */
@@ -290,6 +305,7 @@ export async function closeTask(
   const assembly = task.assemblyText
     ? AssemblySchema.safeParse(parse(task.assemblyText))
     : null;
+  const prompt = promptTokens(task);
   const row: TaskHistoryRow = {
     kind: "task",
     date: now.toISOString().slice(0, 10),
@@ -311,6 +327,8 @@ export async function closeTask(
     judge_rounds: judgeVerdicts(task).length,
     findings: await taskFindings(repoPath, id),
     rounds: roundUsage(task),
+    risk: task.card.risk,
+    ...(prompt === undefined ? {} : { prompt_tokens: prompt }),
   };
   const historyPath = join(repoPath, ".rivetari", "history.jsonl");
   const written = (await readFile(historyPath, "utf8").catch(() => ""))
