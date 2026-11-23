@@ -128,6 +128,13 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
   if (seal && seal.hash !== sha256(text)) {
     problems.push(CARD_CHANGED);
   }
+  // Missing means not routed yet; any other read error is a real failure.
+  const assemblyText = await readFile(assemblyPath(repoPath, id), "utf8").catch(
+    (err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") return undefined;
+      throw err;
+    },
+  );
   const sinceSeal = entries.slice((seal?.index ?? -1) + 1);
   const amended = seal !== undefined && AMENDED.test(entries[seal.index]!.text);
   const approved = sinceSeal
@@ -138,15 +145,6 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
     amended &&
     approved === undefined &&
     !sinceSeal.some((e) => PROPOSED.test(e.text));
-  // Missing means not routed yet; any other read error is a real failure.
-  const assemblyText = stale
-    ? undefined
-    : await readFile(assemblyPath(repoPath, id), "utf8").catch(
-        (err: NodeJS.ErrnoException) => {
-          if (err.code === "ENOENT") return undefined;
-          throw err;
-        },
-      );
   if (approved && approved !== sha256(assemblyText ?? "")) {
     problems.push(
       assemblyText === undefined
@@ -159,7 +157,7 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
     ledger,
     entries,
     confirmed: seal !== undefined,
-    assemblyText,
+    assemblyText: stale ? undefined : assemblyText,
     approved: approved !== undefined,
     beat: entries[entries.length - 1]?.beat ?? "intake",
     problems,
