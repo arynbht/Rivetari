@@ -1,0 +1,504 @@
+npm test · exit 0 · the judge's tier 1 run on the change
+new tests:
+  packages/runtime/src/agent/slice-cap.test.ts: is the touched source, its relative imports and its own tests, never a test glob's matches
+  packages/runtime/src/agent/slice-cap.test.ts: follows relative imports one level and never a bare package
+  packages/runtime/src/agent/slice-cap.test.ts: reads import, export, dynamic import and require specifiers, relative only
+  packages/runtime/src/agent/slice-cap.test.ts: resolves an extension-less import and a directory index
+  packages/runtime/src/agent/slice-cap.test.ts: plans on the same capped slice as the build, within the turn limit, and logs the prompt's size
+  packages/runtime/src/agent/slice-cap.test.ts: runs the plan call in plan mode with --max-turns, and the build without a turn limit
+
+
+> rivetari@0.0.0 test
+> tsc --build && vitest run
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/arynb/.cache/rivetari/judge/899a7445181f3741[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m packages/engine/src/paths.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 20[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/auth/device-flow.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/app.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 34[2mms[22m[39m
+ [32m✓[39m packages/engine/src/floorplan/swarm.test.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 30[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/client.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 104[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/apply.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 142[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/schema.test.ts [2m([22m[2m15 tests[22m[2m)[22m[90m 24[2mms[22m[39m
+ [32m✓[39m packages/engine/src/evidence.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 40[2mms[22m[39m
+ [32m✓[39m packages/engine/src/profile.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 82[2mms[22m[39m
+ [32m✓[39m packages/engine/src/waivers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 57[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/generate.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 36[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/context.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 76[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/claude-cli.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 16[2mms[22m[39m
+ [32m✓[39m packages/engine/src/state.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 66[2mms[22m[39m
+ [32m✓[39m packages/engine/src/floorplan/store.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 42[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/usage.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 42[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/claude.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 50[2mms[22m[39m
+ [32m✓[39m packages/cli/src/report.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m packages/engine/src/evaluate.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 40[2mms[22m[39m
+ [32m✓[39m packages/engine/src/metrics.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 161[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/merge.test.ts [2m([22m[2m14 tests[22m[2m)[22m[90m 226[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/github-setting.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 211[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/real-repo.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 198[2mms[22m[39m
+ [32m✓[39m packages/engine/src/stack.test.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 164[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/github-api.test.ts [2m([22m[2m12 tests[22m[2m)[22m[90m 234[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/template.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 393[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/git-context.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-exists.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 44[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/update/check.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m packages/engine/src/gates.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m packages/engine/src/floorplan/doc.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m packages/engine/src/quality.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 127[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/path.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m packages/engine/src/fs-atomic.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 46[2mms[22m[39m
+ [32m✓[39m packages/engine/src/history.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 22[2mms[22m[39m
+ [32m✓[39m packages/engine/src/dates.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/profile.test.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 12[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ci.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 130[2mms[22m[39m
+ [32m✓[39m packages/engine/src/applicability.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/slug.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m packages/eslint-rules/rules.test.ts [2m([22m[2m17 tests[22m[2m)[22m[90m 87[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/pr.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 107[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-yaml-path.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 35[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/redact.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/validate.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 28[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-json-path.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 26[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/file-matches.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 19[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/run.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/gate.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m packages/engine/src/ai/prompts.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 30[2mms[22m[39m
+ [32m✓[39m packages/engine/src/generators/command.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 419[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/scorecard.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 80[2mms[22m[39m
+ [32m✓[39m packages/catalog/src/index.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 2[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/catalog-regex.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 263[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/docs.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 18[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/ai.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 27[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/workflow-checks.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 2056[2mms[22m[39m
+   [33m[2m✓[22m[39m CI controls read workflow structure[2m > [22mwrite-all fails workflow permissions; every workflow must declare them [33m498[2mms[22m[39m
+   [33m[2m✓[22m[39m the Node CI Rivetari writes[2m > [22madds real steps beside ones that can't fail, so one fix run passes [33m393[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/audit.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 497[2mms[22m[39m
+   [33m[2m✓[22m[39m runAudit (desktop adapter)[2m > [22mproduces a lane scorecard for Rivetari repo [33m496[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/command.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 765[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/gates.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 512[2mms[22m[39m
+   [33m[2m✓[22m[39m computeGates (desktop adapter)[2m > [22mcomputes phase gates and an inferred phase for Rivetari repo [33m511[2mms[22m[39m
+ [32m✓[39m packages/cli/src/cli.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m apps/desktop/src/main/engine/fix.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 507[2mms[22m[39m
+   [33m[2m✓[22m[39m planFix (desktop adapter)[2m > [22mreturns a dry-run plan for Rivetari repo [33m506[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/ship/ship.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 42825[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma passing judge ships a draft PR, and close seals the ledger once it's merged [33m3476[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mtells the reviewer what a person allowed at build, so an allowed test change passes in round 1 [33m3305[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mblocking findings go back to the agent twice, then to a person [33m8111[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma protected change skips the review and asks a person; a denial rebuilds [33m3680[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mtier 1 failing goes back to build without paying for a review [33m3623[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma send-back tells the agent never to delete what existed at base to clear tier 1 [33m3865[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mwon't ship a branch that moved after the verdict, or a tampered judge record [33m3286[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22mthe judge won't run on a commit the last build round didn't make [33m4309[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma task can be abandoned before it ships; the unmerged branch is kept [33m3097[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22man unmerged worktree with uncommitted edits is kept, not forced away [33m2679[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma draft card can be abandoned, and then reads as done [33m441[2mms[22m[39m
+   [33m[2m✓[22m[39m judge, ship, close[2m > [22ma close that stopped part-way finishes without recording twice [33m2878[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/agent/agent.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 44477[2mms[22m[39m
+   [33m[2m✓[22m[39m isolate[2m > [22mcuts a worktree per task with its own branch, port and no hooks [33m965[2mms[22m[39m
+   [33m[2m✓[22m[39m isolate[2m > [22mwon't isolate before the route is approved [33m427[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mplans first, gives the agent the contract and rules, and commits its change [33m1971[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mpauses on a new dependency until a person answers [33m3211[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22man allowed stop isn't asked again, and the task moves on [33m2170[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mstops before building when the plan is over budget [33m1173[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22masks about edits to protected paths and existing tests [33m2106[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22masks a person when the agent changed nothing, with what it said [33m2082[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22man answered RIVETARI_STOP question goes back to the agent, with the answer [33m2620[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mgives a retry round its change so far and the failure, not the repo slice again [33m3673[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mdoesn't stop on a test file that names a secret as data, but does on a real key shape in one [33m5238[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mdoesn't stop on a rebuilt bundle, but does on a real key shape in source [33m6039[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mreplans, never runs, a plan whose budget stop was denied [33m1918[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mpasses a denial to the next round only [33m3800[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22masks when a workspace package's scripts change [33m2010[2mms[22m[39m
+   [33m[2m✓[22m[39m build[2m > [22mwon't build on an env.json edited after isolation [33m1138[2mms[22m[39m
+   [33m[2m✓[22m[39m isolate runs no hooks[2m > [22mnot even post-checkout during worktree add [33m1455[2mms[22m[39m
+   [33m[2m✓[22m[39m the contract comes from the base[2m > [22man edit to CONSTRAINTS.md in the worktree doesn't reach the prompt [33m2481[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/tier2.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 13110[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22ma nit labelled as a defect, with no reproduction, never requests changes [33m1052[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the review and the gate every decision a person allowed, and says not to block on it [33m700[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mcounts the cost the transport reports, and prices the default model otherwise [33m815[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mtells the reviewer what autonomy flagged instead of asking, apart from what a person allowed [33m662[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the review and a contract finding's gate the base's banned patterns [33m560[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22msays nothing about decisions when nobody was asked [33m660[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22ma confirmed defect blocks, carrying the gate's reproduction [33m647[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mnever shows the model a secret-shaped file, and says what it left out [33m689[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mjudges by the base's AGENTS.md even when the change rewrites it [33m758[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mdowngrades a blocking finding about a file the reviewer wasn't shown [33m652[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mfails the review when a gate call fails, instead of approving [33m662[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mcaps gate calls, not just confirmed findings [33m727[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mkeeps a review whose finding has a bad line or no title [33m642[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mleaves out a file whose removed lines hold a secret [33m754[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mwon't approve a change with files the reviewer wasn't shown [33m737[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mshows the gate the contract a contract finding cites [33m734[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mblocks on a criterion the reviewer marked unmet, through the gate [33m834[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 2[2m > [22mhands blocking findings to a person after two rounds [33m821[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/proof/proof.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 72667[2mms[22m[39m
+   [33m[2m✓[22m[39m server[2m > [22mwaits for the URL, and says why when the command dies first [33m1118[2mms[22m[39m
+   [33m[2m✓[22m[39m server[2m > [22mrefuses a port something else already answers on [33m661[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22mruns the tests and names the ones the change added [33m5205[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that fails once and passes on the retry is flaky, not a failed proof [33m3024[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that also fails on the base is pre-existing, not a failed proof [33m3979[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma test that fails on the change but passes on the base still fails the proof [33m4151[2mms[22m[39m
+   [33m[2m✓[22m[39m test-run proof[2m > [22ma failing test fails the proof and goes back to build, told why [33m5640[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22mshoots before and after at three breakpoints, and axe passes a clean page [33m7331[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22ma change that won't serve fails the proof and goes back to build [33m5467[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22mruns axe on an app whose CSP blocks inline scripts [33m7497[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22ma page the change serves as an error fails the proof [33m7614[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22mkeeps pages that look alike in separate images [33m11831[2mms[22m[39m
+   [33m[2m✓[22m[39m UI proof[2m > [22man image without alt text fails the proof [33m8983[2mms[22m[39m
+ [32m✓[39m packages/registry/src/skills.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 21069[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mfetches the pinned commit, verifies the hash, and installs the spine [33m1599[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mfails the hash on a tampered cache, and status catches a tampered install [33m1559[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mrefuses a lock whose hash doesn't match the pinned content [33m1007[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mblocks a skill whose body tries to switch off checks [33m1212[2mms[22m[39m
+   [33m[2m✓[22m[39m skills sync[2m > [22mremoves a skill an earlier sync installed once it leaves the lock [33m1066[2mms[22m[39m
+   [33m[2m✓[22m[39m manifest validation[2m > [22mrejects a conflict with an unknown skill and one-sided conflicts [33m453[2mms[22m[39m
+   [33m[2m✓[22m[39m manifest validation[2m > [22msync refuses to run on an invalid manifest set [33m562[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22madds a skill with no shipped manifest from flags, pinned to HEAD [33m1108[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mrefuses to add a skill without a manifest unless the fields are given [33m1105[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mshows the upstream diff, and moves the lock only when applied [33m2827[2mms[22m[39m
+   [33m[2m✓[22m[39m skills add, update and vendor[2m > [22mvendors verified copies that sync then prefers [33m1560[2mms[22m[39m
+   [33m[2m✓[22m[39m scan[2m > [22man allow covers exactly the reviewed line [33m1047[2mms[22m[39m
+   [33m[2m✓[22m[39m scan[2m > [22ma new bad line in an allowed file is a new finding [33m467[2mms[22m[39m
+   [33m[2m✓[22m[39m scan[2m > [22mignores another tool's ~/.rivetari, flags this repo's .rivetari/ [33m461[2mms[22m[39m
+   [33m[2m✓[22m[39m registry rules[2m > [22mdrops every reviewed allow once the lock pins a different commit [33m1234[2mms[22m[39m
+   [33m[2m✓[22m[39m registry rules[2m > [22mrefuses a non-OSI license until a human signs a license_review [33m968[2mms[22m[39m
+   [33m[2m✓[22m[39m registry rules[2m > [22mrequires a legal-sector skill to name the controls it serves [33m452[2mms[22m[39m
+   [33m[2m✓[22m[39m secret scanning fails closed[2m > [22mreports an unavailable scanner as a finding, never a clean pass [33m561[2mms[22m[39m
+   [33m[2m✓[22m[39m mirror fallback[2m > [22mfetches from the mirror when the source commit is gone, still verifying the hash [33m1816[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/hook.test.ts [2m([22m[2m22 tests[22m[2m)[22m[33m 8347[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard[2m > [22mrefuses edits in the primary checkout on main, new files included [33m473[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard[2m > [22mallows edits in a task's worktree, but never to .rivetari/** [33m419[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard[2m > [22mstill guards .rivetari/** when the checkout is reached through a symlink [33m369[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard[2m > [22mallows edits on another branch, and in repos without a rivetari profile [33m491[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22mrefuses writes through Bash to anything the edit guard protects [33m990[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22mrefuses wiping the checkout, whichever way it's spelled [33m709[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22mdoesn't let a cd that may not have moved the shell hide a write [33m528[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22monly sees sed -i and perl -i as in-place [33m546[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22mchecks command lines run through sh -c and eval [33m386[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22mrefuses Bash writes to .rivetari/** from a task's worktree too [33m329[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22mlets reads, scratch writes and a task's worktree through [33m483[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari hook guard, for Bash[2m > [22mrefuses git commands that destroy work, in a rivetari repo only [33m613[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari doctor[2m > [22mpasses a set-up repo whose hooks are live and skills match the lock [33m417[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari doctor[2m > [22mfails while the guard can't run: not installed, or rivetari off PATH [33m634[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/autonomy.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 16599[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mreads the repo's level, and keeps a high-risk task supervised [33m1576[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22masks about a route with a borderline sector or a sensitive path [33m637[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mconfirms the card and approves the route without asking at review-at-pr [33m952[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mstops at the route, with the evidence, when it touches a sensitive path [33m1062[2mms[22m[39m
+   [33m[2m✓[22m[39m autonomy levels[2m > [22mleaves a supervised task, and a high-risk one, for a person [33m803[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mgoes from a draft card to a draft PR with no prompts, and the PR shows the card, the route and the soft stops [33m4132[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mstill stops on a hard stop: a secret in the change [33m1981[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mflags a new dependency whose installed license is on the OSI list, and asks about one it can't check [33m2088[2mms[22m[39m
+   [33m[2m✓[22m[39m a review-at-pr run[2m > [22mflags a new dependency when every installed license is on the OSI list [33m3230[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/tier1.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 52794[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mpasses a change that keeps the checks green [33m3050[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change a diff rule catches, even when every check is green [33m3165[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change that adds a pattern the base bans, even when the change empties the list [33m4708[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails a change that breaks a check [33m2973[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns the base's scripts and marks a scripts edit needs-human [33m3105[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mdoesn't ask again about a protected change a person allowed [33m5986[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns an allowed change to an existing test as changed, not as it was at base [33m4795[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mswitches to the change even when the base's checks wrote into the clone [33m4295[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mmarks a change to .rivetari/waivers.yml needs-human [33m2998[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mreports a check red on base and change as pre-existing, not a failure [33m3334[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mdisables the target repo's hooks inside the clone [33m3716[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mwon't pass a non-Node repo on checks that are red at base too [33m3240[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mruns the repo's scripts without the caller's secrets [33m5955[2mms[22m[39m
+   [33m[2m✓[22m[39m judge tier 1[2m > [22mfails closed when a check can't run [33m1471[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/init.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 2917[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mseeds the banned list from the stack, and keeps one that's there [33m469[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mnever overwrites a file the repo already has: Rivetari's version goes beside it [33m494[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mmerges its hooks into an existing settings.json, keeping everything else [33m320[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22m--force backs up what it replaces, and never resets waivers or evidence [33m326[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22m--force keeps a customised rivetari.yml and writes the template beside it [33m475[2mms[22m[39m
+   [33m[2m✓[22m[39m runInit (integration)[2m > [22mwrites rivetari.yml from the template when there's none, with or without --force [33m320[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/ladder.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 9733[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mcounts the tier 1 rules: checks, diff rules, boundary rules and the repo's own lint rules [33m354[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mrefuses to raise a level the numbers don't support, and says why [33m536[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mraises with an override, writing the reason and the rule count in the ledger [33m628[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mlogs an override for the level a repo is already at, so the setting has a record [33m839[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22malways lets a person lower the level, and logs it [33m588[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mraises without an override once the numbers support it, counting the rules doubled since entry [33m877[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mdrops review-at-pr to supervised when blocking findings pass 1 per PR over the first five, and logs it once [33m2422[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mdrops a level when a PR merged since entering it is reverted within 7 days [33m897[2mms[22m[39m
+   [33m[2m✓[22m[39m the trust ladder[2m > [22mcan't earn unattended yet: smell counts and sampled reads aren't measured [33m441[2mms[22m[39m
+   [33m[2m✓[22m[39m the rule count with banned patterns[2m > [22mcounts each banned pattern once, not ones a lint rule already covers, and not the lint rule that carries them [33m474[2mms[22m[39m
+   [33m[2m✓[22m[39m where the rules come from[2m > [22mtells rules from findings and stack defaults apart, and keeps defaults from earning unattended [33m520[2mms[22m[39m
+   [33m[2m✓[22m[39m the autonomy ledger's view[2m > [22mre-renders a view a formatter changed, but never repairs a changed record [33m1158[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/store.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 28892[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mputs a task on the branch, where another machine picks it up [33m2284[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[2m > [22mrefuses the second machine, pulled as the CLI does, while the lease holds [33m1341[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[2m > [22mlets the second machine take the task over past the lease [33m1330[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[2m > [22mand carry on with it, holding the lease [33m1827[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[2m > [22mthen refuses the first machine, which pulls the new entries over its stale copy [33m753[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[2m > [22mlets the holder release the task [33m680[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps a second machine off a task until the lease expires or is released[2m > [22mlets a released task be taken at once [33m811[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps this machine's copy of a task it holds when pulling [33m1096[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mnever deletes a record no push has carried, even after its lease expired[2m > [22mkeeps the unpushed copy past the lease on a pull, and says so [33m369[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mnever deletes a record no push has carried, even after its lease expired[2m > [22mcarries the kept copy on the next write [33m1573[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mwon't let a kept copy overwrite what someone else pushed since[2m > [22mkeeps an offline copy that was never pushed, but can't push it over the taker's [33m782[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mrenews only the lease on a heartbeat [33m1531[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mgives an id back when the push that would reserve it fails [33m2052[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mgives two machines different ids, and refuses to reuse one[2m > [22mgives the first machine an id [33m918[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mgives two machines different ids, and refuses to reuse one[2m > [22mgives the second machine a different one [33m960[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mgives two machines different ids, and refuses to reuse one[2m > [22mrefuses to reuse one [33m318[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mappends history rows once each, beside the tasks[2m > [22mdoesn't add a row twice when a close is resumed after a failure [33m885[2mms[22m[39m
+   [33m[2m✓[22m[39m the task store[2m > [22mkeeps the branch local in a repo with no origin [33m844[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/router/route.test.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 71[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/tasks.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 813[2mms[22m[39m
+   [33m[2m✓[22m[39m the ledger can't be rewritten outside the runtime[2m > [22mlives outside every task worktree, where the agent works [33m619[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/run.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 27990[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mtakes an approved task to a draft PR and reports every ledger entry [33m3173[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mstops at a stop-and-ask question [33m2593[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mhands the task back after too many build rounds [33m14487[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22ma round that changes nothing after a failed proof ends the run with the agent's question [33m6180[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22man agent that ends with RIVETARI_STOP stops the run before anything is committed or proved [33m1242[2mms[22m[39m
+   [33m[2m✓[22m[39m runTask[2m > [22mwon't start before a person has approved the route [33m314[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/flaky-under-load.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 19650[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1 re-runs a change's failing test files alone[2m > [22mpasses tests.pass and records each file that passes alone as flaky under load [33m3449[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1 re-runs a change's failing test files alone[2m > [22mfails tests.pass and keeps the failing output when a file also fails alone [33m3531[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1 re-runs a change's failing test files alone[2m > [22mre-runs only the failing files, one at a time, never the whole suite [33m4178[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1 re-runs a change's failing test files alone[2m > [22mjudges coverage on the summary the failing full run wrote [33m3357[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1 re-runs a change's failing test files alone[2m > [22mre-runs nothing and keeps tests.pass failed when the run also reports unhandled errors [33m2393[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1 re-runs a change's failing test files alone[2m > [22mre-runs nothing when the run also misses a coverage threshold [33m2598[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/diff-rules.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/task.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 39588[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari task, shared through the rivetari/tasks branch[2m > [22mdrafts on one machine, and the other sees it but can't take it while it's held [33m13219[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari task, shared through the rivetari/tasks branch[2m > [22msays a beat is done when only the push of its record failed, and exits 1 [33m8183[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari task, shared through the rivetari/tasks branch[2m > [22mruns --all only when the repo is unattended [33m897[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari task, shared through the rivetari/tasks branch[2m > [22mat review-at-pr, drafts, confirms and routes in one command and says to run next [33m6784[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari task, shared through the rivetari/tasks branch[2m > [22mat review-at-pr, stops once at the route with the reason when a sector is borderline [33m4402[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari task, shared through the rivetari/tasks branch[2m > [22mlists a closed task as closed, even one closed before it was confirmed [33m5547[2mms[22m[39m
+   [33m[2m✓[22m[39m rivetari task, shared through the rivetari/tasks branch[2m > [22mrefuses a card with no verify before reserving an id [33m554[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/agent/slice-cap.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 4292[2mms[22m[39m
+   [33m[2m✓[22m[39m the capped slice[2m > [22mis the touched source, its relative imports and its own tests, never a test glob's matches [33m437[2mms[22m[39m
+   [33m[2m✓[22m[39m the capped slice[2m > [22mfollows relative imports one level and never a bare package [33m525[2mms[22m[39m
+   [33m[2m✓[22m[39m the capped slice[2m > [22mreads import, export, dynamic import and require specifiers, relative only [33m420[2mms[22m[39m
+   [33m[2m✓[22m[39m the capped slice[2m > [22mresolves an extension-less import and a directory index [33m444[2mms[22m[39m
+   [33m[2m✓[22m[39m the plan and build calls[2m > [22mplans on the same capped slice as the build, within the turn limit, and logs the prompt's size [33m2034[2mms[22m[39m
+   [33m[2m✓[22m[39m the plan and build calls[2m > [22mruns the plan call in plan mode with --max-turns, and the build without a turn limit [33m431[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/router/task-route.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 641[2mms[22m[39m
+ [32m✓[39m packages/engine/src/fix-pr.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 9289[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mbranches, commits per control, pushes, opens a PR, returns to base [33m1416[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mopens no PR and leaves no branch when nothing changed [33m1010[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mreturns to the base branch when opening the PR fails [33m1293[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mrefuses to run on detached HEAD [33m858[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mrefuses to run on a dirty working tree [33m810[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mreuses the branch and updates the PR on a second run [33m2409[2mms[22m[39m
+   [33m[2m✓[22m[39m openFixPr[2m > [22mdoes not push or touch a PR when a reused branch has no new changes [33m1493[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/run-deferred.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 4850[2mms[22m[39m
+   [33m[2m✓[22m[39m a deferred test-run proof[2m > [22mruns no suite of its own: the judge's tier 1 run is the proof, its log the evidence [33m2072[2mms[22m[39m
+   [33m[2m✓[22m[39m a deferred test-run proof[2m > [22mfails with the judge's run when the suite fails, and goes back to build [33m2777[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/fast-path.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 8358[2mms[22m[39m
+   [33m[2m✓[22m[39m the fast path[2m > [22mplans a small low-risk card from its criteria without a plan call, and reviews it with the smaller model [33m2708[2mms[22m[39m
+   [33m[2m✓[22m[39m the fast path[2m > [22mescalates to the full review when the fast one doesn't finish [33m2764[2mms[22m[39m
+   [33m[2m✓[22m[39m the fast path[2m > [22mleaves a medium-risk card on the full path [33m2860[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/fix.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 8673[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22mdry-run previews file creates without touching disk [33m879[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--write materialises files on disk [33m770[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22mrunning twice is idempotent (second run makes no file changes) [33m1250[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mopens a PR and reports it [33m2385[2mms[22m[39m
+   [33m[2m✓[22m[39m runFix (integration)[2m > [22m--pr[2m > [22mexits 1 when no token/slug is available to open a PR [33m2996[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/workspace.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 18092[2mms[22m[39m
+   [33m[2m✓[22m[39m the judge's persistent workspace[2m > [22mis reused across rounds: installed once, ignored leftovers cleaned, node_modules kept [33m6790[2mms[22m[39m
+   [33m[2m✓[22m[39m the judge's persistent workspace[2m > [22mforgets the installed dependencies when the change touches a manifest [33m4123[2mms[22m[39m
+   [33m[2m✓[22m[39m the judge's persistent workspace[2m > [22mkeys the dependencies on the manifests, not on source files [33m1893[2mms[22m[39m
+   [33m[2m✓[22m[39m the judge's persistent workspace[2m > [22mfalls back to a fresh clone of its own while another judge holds the workspace [33m4260[2mms[22m[39m
+   [33m[2m✓[22m[39m the judge's persistent workspace[2m > [22mtakes over a lock a crashed judge left behind [33m1025[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/amend.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1857[2mms[22m[39m
+   [33m[2m✓[22m[39m amending a confirmed card before isolate[2m > [22mrecords the amendment, who made it and both hashes, and verifies [33m460[2mms[22m[39m
+   [33m[2m✓[22m[39m amending a confirmed card before isolate[2m > [22mdrops the earlier route approval: route is next, and the new assembly can be approved [33m600[2mms[22m[39m
+   [33m[2m✓[22m[39m after isolate the card is fixed[2m > [22mrefuses to confirm an edited card and still reports the edit [33m796[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/ci.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 551[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/ai.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1359[2mms[22m[39m
+   [33m[2m✓[22m[39m runAi[2m > [22mopens a PR for the generated artifact [33m902[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/build.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m packages/engine/src/detectors/exec.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 468[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/findings.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 288[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/base-cache.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 17087[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1's base results[2m > [22mrun once per base commit and are reused by the next round, which still fails a broken check [33m5475[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1's base results[2m > [22mkeep only the green ones: a check red at base runs again next round, the green ones don't [33m5151[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1's base results[2m > [22mrun again for a new base commit [33m6460[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/config-commands.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 543[2mms[22m[39m
+   [33m[2m✓[22m[39m profile / waive / evidence commands[2m > [22mprofile set changes the autonomy level, and refuses one that doesn't exist [33m491[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/metrics.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 996[2mms[22m[39m
+   [33m[2m✓[22m[39m runMetrics[2m > [22merrors when no GitHub client is available (no token/remote) [33m317[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/app.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 81[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/audit.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 466[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/verify.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 357[2mms[22m[39m
+   [33m[2m✓[22m[39m verify runs repo code without the caller's secrets[2m > [22ma script can't read a variable outside the allowlist [33m342[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/banned.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 339[2mms[22m[39m
+   [33m[2m✓[22m[39m banned patterns[2m > [22mreads the list from the working copy or from a commit [33m337[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/agent/rules.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1007[2mms[22m[39m
+   [33m[2m✓[22m[39m the tier 1 rules in the build prompt[2m > [22mlists every enabled diff rule and banned pattern, one line each, from the profile and banned.json [33m317[2mms[22m[39m
+   [33m[2m✓[22m[39m the tier 1 rules in the build prompt[2m > [22mleaves out no-new-comments when the profile doesn't turn it on, and reads banned.json from the base [33m389[2mms[22m[39m
+   [33m[2m✓[22m[39m the tier 1 rules in the build prompt[2m > [22mnames the paths diff.markdown-in-card skips: .changeset/ and the profile's generated globs [33m301[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/protected.test.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 1[2mms[22m[39m
+ [32m✓[39m packages/engine/src/github/token.test.ts [2m([22m[2m4 tests[22m[2m)[22m[90m 106[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/agent/stops.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1697[2mms[22m[39m
+   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mdoesn't stop for a suppression-shaped line in the action's bundle [33m585[2mms[22m[39m
+   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mdoesn't stop for one in a file .gitattributes marks linguist-generated [33m492[2mms[22m[39m
+   [33m[2m✓[22m[39m findStops on suppressions[2m > [22mstill stops for an eslint-disable added in a source file [33m619[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/banned.test.ts [2m([22m[2m2 tests[22m[2m)[22m[90m 35[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/tier1-flaky.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 5307[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1's test run on the change[2m > [22mgets one more run when it fails on the change but passes at base, and a pass then is a flake [33m2551[2mms[22m[39m
+   [33m[2m✓[22m[39m tier 1's test run on the change[2m > [22mstill fails a change whose tests fail twice [33m2755[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/task/view-rerender.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 186[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/build.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 1[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/multi.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 259[2mms[22m[39m
+ [32m✓[39m packages/cli/src/commands/status.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 214[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/worktree.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 846[2mms[22m[39m
+   [33m[2m✓[22m[39m worktree git[2m > [22mcommits without running an in-repo hook the agent could edit [33m846[2mms[22m[39m
+ [32m✓[39m packages/engine/src/orchestrate/plan.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 2[2mms[22m[39m
+ [32m✓[39m packages/runtime/src/judge/generated-suppressions.test.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m112 passed[39m[22m[90m (112)[39m
+[2m      Tests [22m [1m[32m803 passed[39m[22m[90m (803)[39m
+[2m   Start at [22m 02:08:38
+[2m   Duration [22m 500.74s[2m (transform 4.18s, setup 0ms, collect 41.57s, tests 498.22s, environment 13ms, prepare 24.39s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+
+=============================== Coverage summary ===============================
+Statements   : 70.72% ( 16584/23450 )
+Branches     : 81.08% ( 4510/5562 )
+Functions    : 81.99% ( 706/861 )
+Lines        : 70.72% ( 16584/23450 )
+================================================================================
+
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+Switched to a new branch 'by-hand'
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+Switched to a new branch 'by-hand'
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+warning: in the working copy of '.rivetari/profile.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (new branch 'fix/t-0001')
+[90mstderr[2m | packages/cli/src/commands/init.test.ts[2m > [22m[2mrunInit (integration)[2m > [22m[2mrefuses to overwrite an existing config without --force
+[22m[39mrivetari init: .rivetari/profile.yml already exists. Use --force to overwrite, or `rivetari profile set`.
+
+[90mstderr[2m | packages/cli/src/commands/init.test.ts[2m > [22m[2mrunInit (integration)[2m > [22m[2mrequires --type in non-interactive mode
+[22m[39mrivetari init: --type is required in non-interactive mode (one of: web-app, api, cli, library, mobile, desktop, data-pipeline, monorepo).
+
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+[90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2merrors on an unknown control
+[22m[39mrivetari fix: unknown control "nope.not-real".
+
+[90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2merrors on an unknown gate
+[22m[39mrivetari fix: unknown gate "nope".
+
+[90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2mfails fast on a nonexistent path
+[22m[39mrivetari fix: path not found: C:\Users\arynb\AppData\Local\Temp\rivetari-fix-definitely-missing-xyz
+
+[90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2m--pr[2m > [22m[2mmaps a FixPrError to exit 1 (dirty working tree)
+[22m[39mrivetari fix --pr: working tree has uncommitted changes; commit or stash them before --pr
+
+[90mstderr[2m | packages/cli/src/commands/fix.test.ts[2m > [22m[2mrunFix (integration)[2m > [22m[2m--pr[2m > [22m[2mexits 1 when no token/slug is available to open a PR
+[22m[39mrivetari fix --pr: no GitHub token or repository slug; cannot open a pull request
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile set changes the autonomy level, and refuses one that doesn't exist
+[22m[39mreview-at-pr isn't earned yet: tier 1 rules 8: needs 20, or double the count at entry; 0 of 10 reviewed PRs needed for findings per PR; 0 of 10 merged PRs needed for first-pass merge rate. Raise it anyway with --override "<why>"; the reason goes in .rivetari/autonomy/ledger.md
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile set changes the autonomy level, and refuses one that doesn't exist
+[22m[39mautonomy must be one of supervised, review-at-pr, unattended (got "yolo").
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile set turns the no-new-comments rule on, and keeps it through another edit
+[22m[39mquality.no-new-comments must be "true" or "false" (got "maybe").
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile set rejects an unknown key and an invalid value
+[22m[39mUnknown profile key "bogus". Try: name, type, phase, severity-floor, autonomy, stack, flags.<flag>, lanes.<lane>, quality.no-new-comments.
+invalid profile: type: Invalid option: expected one of "web-app"|"api"|"cli"|"library"|"mobile"|"desktop"|"data-pipeline"|"monorepo"
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile set rejects a non-boolean flag value instead of coercing it
+[22m[39mflags.handles-pii must be "true" or "false" (got "yes").
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mprofile show returns 1 when there is no profile
+[22m[39mNo .rivetari/profile.yml found. Run `rivetari init` to create one.
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mwaive requires reason and expires, then writes a waiver
+[22m[39mrivetari waive: --reason is required
+rivetari waive: --expires <YYYY-MM-DD> is required
+
+[90mstderr[2m | packages/cli/src/commands/config-commands.test.ts[2m > [22m[2mprofile / waive / evidence commands[2m > [22m[2mevidence add requires a url or file, then writes an entry
+[22m[39mrivetari evidence add: provide --url or --file
+
+[90mstderr[2m | packages/cli/src/commands/metrics.test.ts[2m > [22m[2mrunMetrics[2m > [22m[2merrors when no GitHub client is available (no token/remote)
+[22m[39mrivetari metrics: a GitHub token and an origin remote are required (set GITHUB_TOKEN or run `gh auth login`).
+
+[90mstderr[2m | packages/cli/src/commands/metrics.test.ts[2m > [22m[2mrunMetrics[2m > [22m[2mrejects an invalid --window
+[22m[39mrivetari metrics: a GitHub token and an origin remote are required (set GITHUB_TOKEN or run `gh auth login`).
+
+[90mstderr[2m | packages/cli/src/commands/metrics.test.ts[2m > [22m[2mrunMetrics[2m > [22m[2mfails fast on a nonexistent path
+[22m[39mrivetari metrics: path not found: C:\Users\arynb\AppData\Local\Temp\rivetari-metrics-missing-xyz
+
+[90mstderr[2m | packages/cli/src/commands/audit.test.ts[2m > [22m[2mrunAudit (integration)[2m > [22m[2mfails fast on a nonexistent path
+[22m[39mrivetari audit: path not found: C:\Users\arynb\AppData\Local\Temp\rivetari-definitely-missing-xyz
+
+[90mstderr[2m | packages/cli/src/commands/audit.test.ts[2m > [22m[2mrunAudit (integration)[2m > [22m[2merrors when --json and a conflicting --format are both given
+[22m[39mrivetari audit: --json conflicts with --format markdown; use one (--json is shorthand for --format json).
+
+[90mstderr[2m | packages/cli/src/commands/audit.test.ts[2m > [22m[2mrunAudit (integration)[2m > [22m[2merrors on an unknown gate
+[22m[39mUnknown gate "nope". Defined gates: architecture, build, design, discovery, harden, launch, operate, requirements, scaffold.
+
+[90mstderr[2m | packages/cli/src/commands/multi.test.ts[2m > [22m[2mrunAuditAll[2m > [22m[2merrors when the repo list file is missing
+[22m[39mrivetari audit --all: no repo list at C:\Users\arynb\AppData\Local\Temp\rivetari-no-such-list.yml. Create it (a YAML list of repo paths) or pass --repos <file>.
+
+[90mstderr[2m | packages/cli/src/commands/status.test.ts[2m > [22m[2mrunStatus[2m > [22m[2mfails fast on a nonexistent path
+[22m[39mrivetari status: path not found: C:\Users\arynb\AppData\Local\Temp\rivetari-status-missing-xyz
+
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 unpipe listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 error listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 close listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 finish listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 unpipe listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 error listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 close listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
+(node:40108) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 24 finish listeners added to [Socket]. MaxListeners is 12. Use emitter.setMaxListeners() to increase limit
