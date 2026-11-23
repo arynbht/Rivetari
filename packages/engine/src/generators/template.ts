@@ -8,6 +8,10 @@ import { simpleGit } from "simple-git";
 
 import type { AuditContext } from "../context.js";
 import {
+  inferPackageManager,
+  type PackageManager,
+} from "../package-manager.js";
+import {
   declaredStacks,
   detectStacks,
   TEMPLATE_STACKS,
@@ -36,7 +40,7 @@ export interface TemplateVars {
   /** Vulnerability report channel from `project.security-contact`. */
   securityContact: string | undefined;
   flags: Record<string, boolean>;
-  packageManager: "npm" | "pnpm" | "yarn";
+  packageManager: PackageManager;
   defaultBranch: string;
   /** Script names in package.json; CI runs only the checks the repo has. */
   scripts: string[];
@@ -92,15 +96,8 @@ async function detectScripts(ctx: AuditContext): Promise<string[]> {
   }
 }
 
-async function detectPackageManager(
-  ctx: AuditContext,
-): Promise<TemplateVars["packageManager"]> {
-  const pkg = (await ctx.readFile("package.json")) ?? "";
-  const declared = /"packageManager"\s*:\s*"(pnpm|yarn|npm)@/.exec(pkg)?.[1];
-  if (declared) return declared as TemplateVars["packageManager"];
-  if ((await ctx.readFile("pnpm-lock.yaml")) !== null) return "pnpm";
-  if ((await ctx.readFile("yarn.lock")) !== null) return "yarn";
-  return "npm";
+function detectPackageManager(ctx: AuditContext): Promise<PackageManager> {
+  return inferPackageManager((rel) => ctx.readFile(rel));
 }
 
 async function detectDefaultBranch(repoPath: string): Promise<string> {

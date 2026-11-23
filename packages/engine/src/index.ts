@@ -198,6 +198,12 @@ export type { PlanOptions } from "./orchestrate/plan.js";
 export { runBuild, BuildError } from "./orchestrate/build.js";
 export type { BuildOptions, GitOps } from "./orchestrate/build.js";
 export {
+  inferPackageManager,
+  type PackageManager,
+  packageManagerAt,
+  type RepoReader,
+} from "./package-manager.js";
+export {
   installDeps,
   packageManager,
   verify as verifyBuild,
