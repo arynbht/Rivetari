@@ -19,6 +19,8 @@
 - 2026-11-23 01:33 prove: proof passed · test-run (the judge's tier 1 run) (factory runtime (for arynbht@gmail.com))
 - 2026-11-23 01:33 judge: judge passed · round 2 · head 6127477a7ab9 · record sha256 1be2dc9d744795ad2f86abe43c6030626f160be085242c39ca6db3cf4eb0b51d (factory judge (for arynbht@gmail.com))
 - 2026-11-23 01:34 ship: draft PR opened: #181 https://github.com/arynbht/software-factory/pull/181 · fix/t-0010 at 6127477a7ab9 → main (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 03:53 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0010 kept: it couldn't be removed; remove it by hand · branch fix/t-0010 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 03:53 close: ledger sealed · merged (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -59,3 +61,7 @@
 - 2026-11-23 01:33 acceptance A2: met — The test checks approved=false and that nextStep is route after the amend, then reroutes, gets review, approves, and nextStep is isolate. loadTask only counts approvals after the latest seal and treat…
 - 2026-11-23 01:33 acceptance A3: met — The test isolates, edits the card, and checks that confirm rejects with 'card is fixed after isolate', that CARD_CHANGED is still a problem, and that no ledger entry was appended.
 - 2026-11-23 01:34 judge review posted: https://github.com/arynbht/software-factory/pull/181#pullrequestreview-6015658682
+
+## Outcome
+
+- 2026-11-23 03:53 PR #181 merged by arynbht 2026-11-23 03:53 · 2h38m · 2584k tokens · $2.26
