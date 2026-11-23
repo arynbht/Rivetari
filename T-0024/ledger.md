@@ -16,6 +16,8 @@
 - 2026-11-23 11:07 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 11:08 judge: judge passed · round 1 · head acbdc7e7b8a4 · record sha256 8cef540079ea97450bcf36c645121ad4f13b830bc27f99adca1493435a7bfe33 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 11:08 ship: draft PR opened: #195 https://github.com/arynbht/Rivetari/pull/195 · fix/t-0024 at acbdc7e7b8a4 → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 22:10 close: worktree removed · branch fix/t-0024 deleted (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 22:10 close: ledger sealed · merged (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -56,3 +58,7 @@
 - 2026-11-23 11:08 acceptance A4: met — The CLI test checks renderLadder and sessionStartText for the failure line, the entry problem and 'runs supervised'. It checks none of it appears for intact or absent ledgers.
 - 2026-11-23 11:08 acceptance A5: met — Only new test files are added.
 - 2026-11-23 11:08 judge review posted: https://github.com/arynbht/Rivetari/pull/195#pullrequestreview-6020605420
+
+## Outcome
+
+- 2026-11-23 22:10 PR #195 merged by arynbht 2026-11-23 17:12 · 12h28m · 3012k tokens · $2.67
