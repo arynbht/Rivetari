@@ -44,6 +44,9 @@ export const IpcChannel = {
   TasksUnwatch: "tasks:unwatch",
   /** Push channel (main → renderer): the watched repo's tasks after a change. */
   TasksUpdate: "tasks:update",
+  MapGet: "map:get",
+  /** Push channel (main → renderer): requests the map's session cancelled. */
+  MapBlocked: "map:blocked",
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -486,6 +489,28 @@ export const TasksState = z.object({
 export type TasksState = z.infer<typeof TasksState>;
 
 export const TasksWatchRequest = z.object({ repoPath: z.string().min(1) });
+
+// Map — the floorplan skill's static map (floorplan/index.html), shown in a
+// webview whose session cancels every request outside floorplan/.
+export const MapGetRequest = z.object({ repoPath: z.string().min(1) });
+
+export const MapView = z.object({
+  repoPath: z.string(),
+  /** The repo's floorplan/ directory, whether or not a map is in it. */
+  dir: z.string(),
+  /** file:// URL of floorplan/index.html, or null when there's no map yet. */
+  url: z.string().nullable(),
+  /** The profile's `floorplan` switch. */
+  floorplanOn: z.boolean(),
+});
+export type MapView = z.infer<typeof MapView>;
+
+/** map:blocked push payload — every request cancelled since the map was opened. */
+export const MapBlocked = z.object({
+  repoPath: z.string(),
+  urls: z.array(z.string()),
+});
+export type MapBlocked = z.infer<typeof MapBlocked>;
 
 // Settings — personal preferences in `userData` (never the repo). The Anthropic
 // API key is NOT in this object: like the GitHub token it lives in safeStorage and

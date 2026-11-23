@@ -42,6 +42,8 @@ import {
   Scorecard,
   SettingsSaveRequest,
   SettingsView,
+  MapGetRequest,
+  MapView,
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
@@ -71,6 +73,14 @@ import { getFloorPlan, runFloorPlan } from "./engine/floorplan";
 import { listDocs, readDoc } from "./engine/docs";
 import { applyFix, openFixPrForRepo, planFix } from "./engine/fix";
 import { attachEvidence, computeGates, waiveControl } from "./engine/gates";
+import {
+  attachMapWebview,
+  getMap,
+  guardMapSession,
+  keepBlocked,
+  MAP_PARTITION,
+  mapRequestAllowed,
+} from "./engine/map";
 import { unwatchTasks, watchRepoTasks } from "./engine/tasks";
 import { addRepo, listRepos, removeRepo } from "./store/repos";
 import { loadSettings, saveSettings } from "./store/settings";
@@ -187,6 +197,12 @@ let signInAbort: AbortController | null = null;
 /** Cancels an in-flight deep-audit swarm when a newer run supersedes it. */
 let floorPlanAbort: AbortController | null = null;
 
+/**
+ * The map on show: its repo and floorplan/ directory (the only place its
+ * session may load from) and the requests cancelled since it was opened.
+ */
+let map: { repoPath: string; dir: string; blocked: string[] } | null = null;
+
 function sendAuthUpdate(update: AuthUpdate): void {
   mainWindow?.webContents.send(IpcChannel.AuthUpdate, update);
 }
@@ -259,6 +275,9 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // For the Map tab's one webview; will-attach-webview below refuses any
+      // other and locks the map's down.
+      webviewTag: true,
     },
   });
 
@@ -293,6 +312,23 @@ function createWindow(): void {
       );
     });
   }
+
+  // Only the map's webview attaches, on the map's session, loading the map.
+  window.webContents.on(
+    "will-attach-webview",
+    (event, webPreferences, params) => {
+      if (!attachMapWebview({ params, webPreferences }, map?.dir ?? null))
+        event.preventDefault();
+    },
+  );
+  // The map opens no windows and navigates nowhere outside floorplan/.
+  window.webContents.on("did-attach-webview", (_event, guest) => {
+    guest.setWindowOpenHandler(() => ({ action: "deny" }));
+    guest.on("will-navigate", (navigation, url) => {
+      if (!mapRequestAllowed(url, map?.dir ?? null))
+        navigation.preventDefault();
+    });
+  });
 
   // Never open a second window in-app; route an allow-listed link to the browser.
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -392,6 +428,14 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannel.TasksUnwatch, async () => {
     await unwatchTasks();
+  });
+
+  ipcMain.handle(IpcChannel.MapGet, async (_event, raw: unknown) => {
+    const { repoPath } = MapGetRequest.parse(raw);
+    const view = MapView.parse(await getMap(repoPath));
+    // Fence the map's session to this repo's floorplan/ from now on.
+    map = { repoPath, dir: view.dir, blocked: [] };
+    return view;
   });
 
   ipcMain.handle(IpcChannel.AuthStatus, async () => {
@@ -624,6 +668,19 @@ app.whenReady().then(
         },
       });
     });
+
+    guardMapSession(
+      session.fromPartition(MAP_PARTITION),
+      () => map?.dir ?? null,
+      (url) => {
+        if (!map) return;
+        map.blocked = keepBlocked(map.blocked, url);
+        mainWindow?.webContents.send(IpcChannel.MapBlocked, {
+          repoPath: map.repoPath,
+          urls: map.blocked,
+        });
+      },
+    );
 
     registerIpcHandlers();
     createWindow();
