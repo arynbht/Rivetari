@@ -99,7 +99,7 @@ const scratches = async () =>
 beforeEach(async () => {
   // A private ledger key per test run, never the developer's real one.
   process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
-  repo = await tmp("rivetari-watch-repo-");
+  repo = await tmp("rivetari-repo-");
   git(repo, "init", "-q", "-b", "main");
   git(repo, "config", "user.email", "t@t");
   git(repo, "config", "user.name", "t");
@@ -352,6 +352,20 @@ describe("watching tasks", { timeout: 30_000 }, () => {
     await expect(watcher.ready).rejects.toThrow(
       /stopped before its first read/,
     );
+  });
+
+  it("keeps going, and stops cleanly, when the listener throws", async () => {
+    const idle = await scratches();
+    const watcher = watchTasks(
+      repo,
+      () => {
+        throw new Error("listener broke");
+      },
+      { intervalMs: 50 },
+    );
+    expect((await watcher.ready).length).toBe(3);
+    await watcher.stop();
+    expect(await scratches()).toEqual(idle);
   });
 
   it("reads this machine's copies in a folder that isn't a repo", async () => {

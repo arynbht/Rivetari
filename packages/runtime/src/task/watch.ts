@@ -146,6 +146,23 @@ function viewOf(
   };
 }
 
+/**
+ * What a read gives, or null when the file isn't there. Any other failure (a
+ * Windows indexer holding the file, a permission) is passed on, so the task
+ * keeps its last view and is read again, rather than looking gone.
+ */
+const ifThere = <T>(read: Promise<T>): Promise<T | null> =>
+  read.catch((err: NodeJS.ErrnoException) => {
+    if (err.code === "ENOENT") return null;
+    throw err;
+  });
+
+const isLease = (value: unknown): value is Lease =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Lease).holder === "string" &&
+  typeof (value as Lease).expires === "string";
+
 const byNumber = (a: string, b: string) =>
   Number(a.slice(2)) - Number(b.slice(2));
 
@@ -232,7 +249,7 @@ class TaskReader {
       const data =
         source === "branch" && tip
           ? await readBlob(this.repo, tip, `${id}/${f}`)
-          : await readFile(join(this.repo, TASKS_DIR, id, f)).catch(() => null);
+          : await ifThere(readFile(join(this.repo, TASKS_DIR, id, f)));
       if (data) await writeFile(join(dir, f), data);
     }
     // A reserved id with no card yet isn't a task to show.
@@ -243,14 +260,20 @@ class TaskReader {
       ))
     )
       return null;
-    const leaseText = await readFile(join(dir, "lease.json"), "utf8").catch(
-      () => null,
-    );
+    const leaseText = await ifThere(readFile(join(dir, "lease.json"), "utf8"));
     let lease: Lease | null = null;
-    try {
-      lease = leaseText === null ? null : (JSON.parse(leaseText) as Lease);
-    } catch {
-      this.onError(`${id}: lease.json isn't valid JSON; showing no lease`);
+    if (leaseText !== null) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(leaseText);
+      } catch {
+        // reported below
+      }
+      if (isLease(parsed)) lease = parsed;
+      else
+        this.onError(
+          `${id}: lease.json isn't a lease (a holder and an expiry); showing no lease`,
+        );
     }
     return viewOf(await loadTask(this.scratch, id), source, lease);
   }
@@ -260,7 +283,7 @@ class TaskReader {
     const tip = await this.tip();
     const trees = await this.branchTrees(tip);
     const local = (
-      await readdir(join(this.repo, TASKS_DIR)).catch(() => [] as string[])
+      (await ifThere(readdir(join(this.repo, TASKS_DIR)))) ?? []
     ).filter((n) => TASK_ID.test(n));
     const ids = [...new Set([...trees.keys(), ...local])].sort(byNumber);
     const views: TaskView[] = [];
@@ -343,7 +366,13 @@ export function watchTasks(
   let current = new Map<string, TaskView>();
   let snapshotted = false;
   const emit = (event: TaskEvent) => {
-    if (!stopped) onEvent(event);
+    if (stopped) return;
+    try {
+      onEvent(event);
+    } catch {
+      // A listener's own failure is its to handle: it mustn't stop the polling
+      // or leave `ready` unsettled.
+    }
   };
   const reader = new TaskReader(repo, (message) =>
     emit({ kind: "error", message }),
@@ -373,8 +402,8 @@ export function watchTasks(
     if (!snapshotted) {
       snapshotted = true;
       current = next;
-      emit({ kind: "snapshot", tasks: views });
       settle.resolve(views);
+      emit({ kind: "snapshot", tasks: views });
       return;
     }
     for (const view of views) {
@@ -409,11 +438,14 @@ export function watchTasks(
     async stop() {
       stopped = true;
       if (timer) clearTimeout(timer);
-      await running;
-      // Stopped before the first read landed: whoever awaits `ready` hears so.
-      if (!snapshotted)
-        settle.reject(new Error("the watcher stopped before its first read"));
-      await reader.close();
+      try {
+        await running;
+      } finally {
+        // Stopped before the first read landed: whoever awaits `ready` hears so.
+        if (!snapshotted)
+          settle.reject(new Error("the watcher stopped before its first read"));
+        await reader.close();
+      }
     },
   };
 }
