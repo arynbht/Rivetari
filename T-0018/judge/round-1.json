@@ -1,0 +1,160 @@
+{
+  "task": "T-0018",
+  "round": 1,
+  "verdict": "passed",
+  "head": "150fcefcf1dc1591ee13331b8888b4cd88d35354",
+  "base": "9ac4aca420d03af0979b0d7828846900466d1f95",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "70.58% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — The CLI test seeds 25 matching files and checks for exit 1, the glob in the message, the count, the narrow/name request, and no rivetari/tasks branch. The check runs before reserveTaskId.\n- A2: met — The CLI test drafts a card with a plain path, one with a 10-file glob and one with a glob matching nothing. The runtime test also accepts a glob matching exactly 20 files.\n- A3: met — The CLI test with --from YAML refuses the over-cap glob and reserves no id.\n\n<details><summary>4 suggestion(s), non-blocking</summary>\n\n- Confirm picomatch is already a declared dependency of the runtime package `packages/runtime/src/task/touches.ts:1` — If it isn't listed, ask first, then add picomatch and @types/picomatch to the runtime's package.json.\n- The guard passes every glob when the path isn't a git repo `packages/runtime/src/task/touches.ts:12` — Either throw a CardError saying the touches can't be checked outside a git repo, or note in a comment why a non-repo is treated as having no tracked files.\n- ls-files output is relative to repoPath, not the repo root `packages/runtime/src/task/touches.ts:15` — Run ls-files from the repo top level (resolve it with `rev-parse --show-toplevel`), or pass --full-name and list from the root.\n- The CLI expands touches twice `packages/cli/src/commands/task.ts:229` — Leave as is for safety, or let newTask take an option to skip the check when the caller has already run it.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/touches.ts",
+        "line": 1,
+        "acceptance_id": null,
+        "title": "Confirm picomatch is already a declared dependency of the runtime package",
+        "detail": "touches.ts imports picomatch, and the diff doesn't change packages/runtime/package.json. If picomatch (and @types/picomatch) is only reachable transitively, pnpm's strict layout breaks typecheck and the build. If it has to be added, CONSTRAINTS.md says to ask before adding a dependency.",
+        "repro": "Check that packages/runtime/package.json lists picomatch in dependencies.",
+        "fix": "If it isn't listed, ask first, then add picomatch and @types/picomatch to the runtime's package.json.",
+        "pattern": "d67f65661e74"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/touches.ts",
+        "line": 12,
+        "acceptance_id": null,
+        "title": "The guard passes every glob when the path isn't a git repo",
+        "detail": "When checkIsRepo() is false the check treats the repo as having no tracked files, so any glob passes. CONSTRAINTS.md says a guard that can't run reports red. The CLI path fails later at reserveTaskId anyway, so this only matters for direct newTask callers, which is why it isn't blocking.",
+        "repro": "newTask('/tmp/not-a-repo', {...card, touches: ['**']}, by) drafts the card.",
+        "fix": "Either throw a CardError saying the touches can't be checked outside a git repo, or note in a comment why a non-repo is treated as having no tracked files.",
+        "pattern": "24e15f716e16"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/touches.ts",
+        "line": 15,
+        "acceptance_id": null,
+        "title": "ls-files output is relative to repoPath, not the repo root",
+        "detail": "Touches are repo-root-relative, but `git ls-files` run from a subdirectory lists paths relative to that directory and only for files under it. If repoPath is ever a subdirectory, a root-relative glob would undercount.",
+        "repro": "Call checkTouches('<repo>/packages', ['packages/**/*.test.ts']).",
+        "fix": "Run ls-files from the repo top level (resolve it with `rev-parse --show-toplevel`), or pass --full-name and list from the root.",
+        "pattern": "772dae897ebe"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/task.ts",
+        "line": 229,
+        "acceptance_id": null,
+        "title": "The CLI expands touches twice",
+        "detail": "runTaskNew calls checkTouches before reserving an id, and newTask runs the same check again. That means two git ls-files runs per draft. It's harmless, but it's redundant.",
+        "repro": "Run rivetari task new with a glob in --touches.",
+        "fix": "Leave as is for safety, or let newTask take an option to skip the check when the caller has already run it.",
+        "pattern": "a370b46060b1"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The CLI test seeds 25 matching files and checks for exit 1, the glob in the message, the count, the narrow/name request, and no rivetari/tasks branch. The check runs before reserveTaskId."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The CLI test drafts a card with a plain path, one with a 10-file glob and one with a glob matching nothing. The runtime test also accepts a glob matching exactly 20 files."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The CLI test with --from YAML refuses the over-cap glob and reserves no id."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 3975,
+      "costUsd": 0.16614
+    }
+  }
+}
