@@ -8,6 +8,7 @@ import {
 } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 
+import type { ReviewProof } from "./tier2.js";
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
 import {
@@ -38,6 +39,8 @@ export interface ReviewOptions {
   model?: string | undefined;
   card?: Card | undefined;
   decisions?: readonly AllowedDecision[] | undefined;
+  /** The task's proof, so criteria are checked against it as well as the diff. */
+  proof?: ReviewProof | undefined;
   usageDate?: string | undefined;
   log?: ((line: string) => void) | undefined;
 }

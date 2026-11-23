@@ -1,7 +1,9 @@
 // The judge beat for a task: tier 1 on a clean clone of base plus
 // the task's branch, then tier 2 on the same change against the card. Never
 // the worktree. A protected change, or blocking findings past the round limit,
-// stop and ask a person; anything else blocking goes back to the agent. The
+// stop and ask a person; anything else blocking goes back to the agent. At
+// review-at-pr and above, so does a criterion the reviewer couldn't verify
+// (at supervised it's recorded for the person reviewing the PR). The
 // round's record is written to `.rivetari/tasks/<id>/judge/round-<n>.json` and
 // its hash sealed in the verdict entry, so ship can trust what it reads.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -18,8 +20,15 @@ import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
 import { loadIsolation } from "../agent/isolate.js";
-import { DEFERRED, proofFromJudge, type Publish } from "../proof/prove.js";
+import {
+  DEFERRED,
+  proofFromJudge,
+  type ProofRecord,
+  type Publish,
+} from "../proof/prove.js";
 import { AssemblySchema } from "../router/route.js";
+import { autonomyFor } from "../task/autonomy.js";
+import type { Card } from "../task/card.js";
 import {
   allowedDecisions,
   allowedStops,
@@ -41,7 +50,24 @@ import { type ProtectedFinding, protectedDetail } from "./protected.js";
 import { MAX_ROUNDS, type ReviewOutcome, reviewLocal } from "./review.js";
 import { type JudgedRisk, judgeRisk } from "./risk-check.js";
 import { runTier1, type Tier1Options, type Tier1Result } from "./tier1.js";
-import { JUDGE_DEFAULT_MODEL } from "./tier2.js";
+import { JUDGE_DEFAULT_MODEL, type Tier2Result } from "./tier2.js";
+
+/**
+ * The card's criteria the reviewer didn't confirm: marked unverified, or not
+ * reported at all (silence isn't a verification).
+ */
+export function unverifiedCriteria(
+  card: Card,
+  acceptance: Tier2Result["acceptance"],
+): { id: string; note: string }[] {
+  return card.acceptance.flatMap((c) => {
+    const a = acceptance.find((r) => r.id === c.id);
+    if (!a) return [{ id: c.id, note: "the reviewer didn't report on it" }];
+    return a.status === "unverified"
+      ? [{ id: c.id, note: a.note || "no reason given" }]
+      : [];
+  });
+}
 
 /** What a judge round decided, as written to its record. */
 export interface JudgeRecord {
@@ -250,6 +276,7 @@ export async function judgeTask(
     risk,
   };
   let why = "";
+  const asks: string[] = [];
 
   if (tier1.verdict === "needs-human") {
     // A change to what judges it goes to a person; tier 2 doesn't run.
@@ -263,6 +290,31 @@ export async function judgeTask(
     const profile = await buildContext(repoPath)
       .profile()
       .catch(() => null);
+    // The prove beat (or the deferred run above) wrote it; the runtime only.
+    // A missing one is reviewed as a failed proof of the assembly's kind, so
+    // the before check still runs and fails closed; an unreadable one stops.
+    const proofFile = `${TASKS_DIR}/${id}/proof/proof.json`;
+    let proof: ProofRecord;
+    try {
+      proof = JSON.parse(
+        await readFile(join(repoPath, proofFile), "utf8"),
+      ) as ProofRecord;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT")
+        throw new TaskError(
+          `can't read ${proofFile}: ${(err as Error).message}`,
+        );
+      await append(
+        "judge",
+        `no proof record at ${proofFile}; the review sees no proof`,
+      );
+      proof = {
+        task: id,
+        kind: assembly.proof,
+        passed: false,
+        lines: [`no proof record was found at ${proofFile}`],
+      };
+    }
     const review = (ai: AiClient, model: string) =>
       (options.review ?? reviewLocal)({
         repoPath,
@@ -270,6 +322,7 @@ export async function judgeTask(
         model,
         card: task.card,
         decisions: allowedDecisions(task),
+        proof,
         base: tier1.mergeBase,
         head,
         round,
@@ -330,6 +383,16 @@ export async function judgeTask(
         "judge",
         `acceptance ${a.id}: ${a.status}${a.note ? ` — ${oneLine(a.note, 200)}` : ""}`,
       );
+    if (r.before)
+      await append(
+        "judge",
+        `before proof: ${r.before.shows_defect ? "shows the defect" : "doesn't show the defect"}${r.before.note ? ` — ${oneLine(r.before.note, 200)}` : ""}`,
+      );
+    const unverified = unverifiedCriteria(task.card, r.acceptance);
+    for (const u of unverified.filter(
+      (u) => !r.acceptance.some((a) => a.id === u.id),
+    ))
+      await append("judge", `acceptance ${u.id}: unverified — ${u.note}`);
     if (outcome.verdict === "approve") record.verdict = "passed";
     else if (outcome.verdict === "request-changes") {
       record.verdict = "failed";
@@ -341,13 +404,35 @@ export async function judgeTask(
           ? `${r.blocking.length} blocking after ${MAX_ROUNDS} rounds`
           : `the reviewer wasn't shown ${r.unreviewed.join(", ")}`;
     }
+    // A round sent back to build is judged again; any other never passes an
+    // unverified criterion without a person, above supervised.
+    if (unverified.length > 0 && record.verdict !== "failed") {
+      const detail = unverified
+        .map((u) => `${u.id} (${oneLine(u.note, 200)})`)
+        .join("; ");
+      const level = await autonomyFor(repoPath, task.card);
+      if (level === "supervised")
+        await append(
+          "judge",
+          `unverified acceptance, left to the person reviewing the PR (autonomy supervised): ${detail}`,
+        );
+      else if (!allowed.has(`unverified_acceptance: ${detail}`)) {
+        if (record.verdict === "needs a human")
+          asks.push(`judge: ${why}; look at the change`);
+        asks.push(`unverified_acceptance: ${detail}`);
+        const reason = `${unverified.length} acceptance item(s) unverified at autonomy ${level}`;
+        why = record.verdict === "needs a human" ? `${why}; ${reason}` : reason;
+        record.verdict = "needs a human";
+      }
+    }
   }
 
   const text = `${JSON.stringify(record, null, 2)}\n`;
   await mkdir(join(repoPath, TASKS_DIR, id, "judge"), { recursive: true });
   await writeFile(recordPath(repoPath, id, round), text, "utf8");
-  if (record.verdict === "needs a human")
-    await append("stop", `asked: judge: ${why}; look at the change`);
+  if (record.verdict === "needs a human" && asks.length === 0)
+    asks.push(`judge: ${why}; look at the change`);
+  for (const ask of asks) await append("stop", `asked: ${ask}`);
   await append(
     "timeline",
     `judge ${record.verdict} · round ${round} · head ${head.slice(0, 12)}${why ? ` · ${why}` : ""} · record sha256 ${sha256(text)}`,

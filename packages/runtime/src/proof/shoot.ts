@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
-import type { Browser } from "playwright-core";
+import { looksLikeSecret } from "@arynbht/rivetari-engine";
+import type { Browser, Page } from "playwright-core";
 
 export const BREAKPOINTS = [
   { name: "sm", width: 375, height: 812 },
@@ -19,6 +20,51 @@ export interface Shot {
   file: string;
   /** The page's HTTP status (0 when there was no response). */
   status: number;
+  /** What was measured on the page, so a text-only reviewer can judge the shot. */
+  layout?: Layout | undefined;
+}
+
+export interface Layout {
+  /** The viewport's width and the page's scroll width, in CSS pixels. */
+  viewport: number;
+  scrollWidth: number;
+  /** Up to five visible elements that reach past the viewport's edge. */
+  overflowing: string[];
+  /** The start of the page's visible text. */
+  text?: string | undefined;
+}
+
+// Runs in the page; a string, so this package needs no DOM types.
+const MEASURE = String.raw`(() => {
+  const vw = document.documentElement.clientWidth;
+  const name = (el) => el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") +
+    (typeof el.className === "string" && el.className.trim()
+      ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".")
+      : "");
+  const overflowing = [];
+  for (const el of document.body ? document.body.querySelectorAll("*") : []) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    if (r.right > vw + 1 || r.left < -1) {
+      overflowing.push(name(el) + " (" + Math.round(r.left) + "px to " + Math.round(r.right) + "px)");
+      if (overflowing.length >= 5) break;
+    }
+  }
+  const text = (document.body ? document.body.innerText : "")
+    .replace(/\s+/g, " ").trim().slice(0, 200);
+  return { viewport: vw, scrollWidth: document.documentElement.scrollWidth, overflowing, text };
+})()`;
+
+/** Measure the page; one that can't be measured just has no layout. */
+async function measure(page: Page): Promise<Layout | undefined> {
+  try {
+    const layout = (await page.evaluate(MEASURE)) as Layout;
+    return looksLikeSecret(layout.text ?? "")
+      ? { ...layout, text: undefined }
+      : layout;
+  } catch {
+    return undefined;
+  }
 }
 
 export interface AxeViolation {
@@ -125,6 +171,7 @@ export async function shoot(options: {
           breakpoint: bp.name,
           file,
           status: res?.status() ?? 0,
+          layout: await measure(page),
         });
         if (options.axe && bp.name === "lg") {
           await page.addScriptTag({ content: source });
