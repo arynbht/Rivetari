@@ -30,6 +30,11 @@ import {
   TaskError,
   TASKS_DIR,
 } from "../task/tasks.js";
+import {
+  FAST_REVIEW_MODEL,
+  FAST_REVIEW_TIMEOUT_MS,
+  isFastPath,
+} from "./fast-path.js";
 import { type ProtectedFinding, protectedDetail } from "./protected.js";
 import { MAX_ROUNDS, type ReviewOutcome, reviewLocal } from "./review.js";
 import { runTier1, type Tier1Options, type Tier1Result } from "./tier1.js";
@@ -70,6 +75,8 @@ export interface JudgeTaskOptions {
   log?: ((line: string) => void) | undefined;
   /** Where a deferred test-run proof's evidence goes (default: GitHub). */
   publish?: Publish | undefined;
+  /** The fast-path review's client (default: the short-timeout one). */
+  fastAi?: AiClient | undefined;
 }
 
 const recordPath = (repoPath: string, id: string, round: number) =>
@@ -235,18 +242,43 @@ export async function judgeTask(
     const profile = await buildContext(repoPath)
       .profile()
       .catch(() => null);
-    const outcome = await (options.review ?? reviewLocal)({
-      repoPath,
-      ai: options.ai ?? createAiClient({ timeoutMs: 900_000 }),
-      model: options.model ?? profile?.ai?.judge_model ?? JUDGE_DEFAULT_MODEL,
-      card: task.card,
-      decisions: allowedDecisions(task),
-      base: tier1.mergeBase,
-      head,
-      round,
-      usageDate: (options.now ?? new Date()).toISOString().slice(0, 10),
-      log,
-    });
+    const review = (ai: AiClient, model: string) =>
+      (options.review ?? reviewLocal)({
+        repoPath,
+        ai,
+        model,
+        card: task.card,
+        decisions: allowedDecisions(task),
+        base: tier1.mergeBase,
+        head,
+        round,
+        usageDate: (options.now ?? new Date()).toISOString().slice(0, 10),
+        log,
+      });
+    const full = () =>
+      review(
+        options.ai ?? createAiClient({ timeoutMs: 900_000 }),
+        options.model ?? profile?.ai?.judge_model ?? JUDGE_DEFAULT_MODEL,
+      );
+    let outcome: ReviewOutcome;
+    if (isFastPath(task.card)) {
+      try {
+        outcome = await review(
+          options.fastAi ??
+            createAiClient({
+              timeoutMs: FAST_REVIEW_TIMEOUT_MS,
+              maxRetries: 0,
+            }),
+          FAST_REVIEW_MODEL,
+        );
+      } catch (err) {
+        await append(
+          "judge",
+          `fast review (${FAST_REVIEW_MODEL}, ${FAST_REVIEW_TIMEOUT_MS / 60_000} min) didn't finish: ${oneLine((err as Error).message, 120)}; escalating to the full review`,
+        );
+        outcome = await full();
+      }
+    } else outcome = await full();
     const r = outcome.result;
     record.review = {
       verdict: outcome.verdict,
