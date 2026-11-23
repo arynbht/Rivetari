@@ -228,6 +228,9 @@ jobs:
       - *pnpm
       - *node
       - *install
+      # The registry and catalog CLIs load the workspace packages from dist/.
+      - name: Build
+        run: pnpm build
       - name: Validate catalog
         if: needs.changes.outputs.catalog == 'true'
         run: pnpm catalog:validate
