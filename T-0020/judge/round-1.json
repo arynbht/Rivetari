@@ -1,0 +1,138 @@
+{
+  "task": "T-0020",
+  "round": 1,
+  "verdict": "passed",
+  "head": "5d18b4f227876bc60ef8b17d8406b8134c267b31",
+  "base": "c9312b59748cdfdbd631c02c0e56351c20403159",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "70.63% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — closeTask writes risk from task.card.risk and prompt_tokens from the largest '~N prompt tokens' figure on build-started timeline lines, and omits prompt_tokens when no line has one. history-cost.test.ts covers both cases end to end through closeTask.\n- A2: met — renderCost lists low-risk rows with cost_usd > 1 by id, cost and prompt_tokens, and prints a 'none:' line when there are none. metrics-cost.test.ts covers both through runMetrics and directly.\n- A3: met — costFlags requires risk === 'low', so rows without risk are never flagged. Tested with T-0009 at $5 and T-0004 at $9.\n\n<details><summary>2 suggestion(s), non-blocking</summary>\n\n- history.jsonl is read twice on the full metrics path `packages/cli/src/commands/metrics.ts:122` — Read history once and derive both the count and the cost rows from that single read, or reuse rows where loadHistory's result is only counted.\n- 'n/a prompt tokens' reads awkwardly `packages/cli/src/commands/metrics.ts:93` — Render 'prompt size unknown' when prompt_tokens is undefined, and update the new test to match.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/metrics.ts",
+        "line": 122,
+        "acceptance_id": null,
+        "title": "history.jsonl is read twice on the full metrics path",
+        "detail": "runMetrics now calls historyRows(root) for the cost section, and later calls loadHistory(root) for the history count. Both read the same file. Two reads can see different contents if a close lands between them, and the history logic is split across two call sites.",
+        "repro": "Run `rivetari metrics` without --findings. Both historyRows and loadHistory read .rivetari/history.jsonl.",
+        "fix": "Read history once and derive both the count and the cost rows from that single read, or reuse rows where loadHistory's result is only counted.",
+        "pattern": "a24125d07749"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/metrics.ts",
+        "line": 93,
+        "acceptance_id": null,
+        "title": "'n/a prompt tokens' reads awkwardly",
+        "detail": "When a flagged row has no prompt_tokens, the line ends with 'n/a prompt tokens'. Something like 'prompt size unknown' would read more plainly.",
+        "repro": "Run renderCost([row('T-0001', 1.01, { risk: 'low' })]). The output ends with 'n/a prompt tokens'.",
+        "fix": "Render 'prompt size unknown' when prompt_tokens is undefined, and update the new test to match.",
+        "pattern": "c129fee1bdda"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "closeTask writes risk from task.card.risk and prompt_tokens from the largest '~N prompt tokens' figure on build-started timeline lines, and omits prompt_tokens when no line has one. history-cost.test.ts covers both cases end to end through closeTask."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "renderCost lists low-risk rows with cost_usd > 1 by id, cost and prompt_tokens, and prints a 'none:' line when there are none. metrics-cost.test.ts covers both through runMetrics and directly."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "costFlags requires risk === 'low', so rows without risk are never flagged. Tested with T-0009 at $5 and T-0004 at $9."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 2202,
+      "costUsd": 0.131408
+    }
+  }
+}
