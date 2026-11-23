@@ -1,0 +1,9 @@
+{
+  "task": "T-0029",
+  "kind": "api-contract",
+  "passed": false,
+  "lines": [
+    "api-contract has no proof runner yet; the test run stands in, and a person attaches the api-contract proof",
+    "tests couldn't run: \"pnpm\" did not finish within 600s"
+  ]
+}
