@@ -127,7 +127,7 @@ ${facts.flags.length > 0 ? `- Flags: ${facts.flags.join(", ")}\n` : ""}${
 ${
   facts.houseRules
     ? `
-<!-- Moved here from CLAUDE.md by \`rivetari init\`, so every agent reads them. -->
+${MOVED_MARKER}
 
 ${facts.houseRules}
 `
@@ -141,6 +141,16 @@ export const CLAUDE_MD = `# CLAUDE.md
 
 Start every task with \`/rivetari\`. The contract above applies to Claude Code too.
 `;
+
+const MOVED_MARKER =
+  "<!-- Moved here from CLAUDE.md by `rivetari init`, so every agent reads them. -->";
+
+/** The rules an earlier init moved into this AGENTS.md, or null. */
+export function movedRulesIn(agentsMd: string): string | null {
+  const at = agentsMd.indexOf(MOVED_MARKER);
+  if (at < 0) return null;
+  return agentsMd.slice(at + MOVED_MARKER.length).trim() || null;
+}
 
 /**
  * The rules in a repo's own CLAUDE.md, for AGENTS.md's "This repo" section:

@@ -1,4 +1,11 @@
-import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  lstat,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 
 import {
@@ -52,6 +59,7 @@ import {
   CLAUDE_MD,
   houseRulesFrom,
   mergeRivetariHooks,
+  movedRulesIn,
   PR_TEMPLATE,
   renderAgentsMd,
   renderConstraintsMd,
@@ -74,6 +82,13 @@ export interface InitFlags {
   /** Pin the Rivetari action to this commit: `<sha>` or `<sha>:<tag>`. */
   actionRef?: string;
 }
+
+/** A file's text, or null when there's no such file. */
+const readIfThere = (path: string): Promise<string | null> =>
+  readFile(path, "utf8").catch((err: NodeJS.ErrnoException) => {
+    if (err.code === "ENOENT") return null;
+    throw err;
+  });
 
 /**
  * Keep `existing` as `rel.bak` (or `rel.bak.1`, …): a backup is never
@@ -571,9 +586,7 @@ export async function runInit(
   const pin = "pin" in pinned ? pinned.pin : null;
   const workflowRel = ".github/workflows/rivetari.yml";
   const workflowText = renderRivetariWorkflow(draft.phase ?? "build", pin);
-  const oldWorkflow = await readFile(resolve(root, workflowRel), "utf8").catch(
-    () => null,
-  );
+  const oldWorkflow = await readIfThere(resolve(root, workflowRel));
   // An unpinned rivetari.yml is init's own placeholder: a pin replaces it.
   const workflow =
     pin && oldWorkflow !== null && isUnpinnedWorkflow(oldWorkflow)
@@ -606,13 +619,21 @@ export async function runInit(
 
   // The contract, the /rivetari skill, the hooks, the PR template.
   const facts = await repoFacts(root, draft);
-  const oldClaude = await readFile(resolve(root, "CLAUDE.md"), "utf8").catch(
-    () => null,
+  // A CLAUDE.md that's a link (often to AGENTS.md itself) already does what
+  // the pointer does, and writing it would write through the link.
+  const claudeLinked = await lstat(resolve(root, "CLAUDE.md")).then(
+    (s) => s.isSymbolicLink(),
+    () => false,
   );
+  const oldClaude = claudeLinked
+    ? null
+    : await readIfThere(resolve(root, "CLAUDE.md"));
+  // Rules an earlier init moved stay in AGENTS.md when --force renders it again.
   const houseRules =
-    oldClaude === null || oldClaude === CLAUDE_MD
+    (oldClaude === null || oldClaude === CLAUDE_MD
       ? null
-      : houseRulesFrom(oldClaude);
+      : houseRulesFrom(oldClaude)) ??
+    movedRulesIn((await readIfThere(resolve(root, "AGENTS.md"))) ?? "");
   facts.houseRules = houseRules ?? undefined;
   const agents = renderAgentsMd(facts);
   // The skill ships with the CLI; a broken install shouldn't stop init.
@@ -639,9 +660,10 @@ export async function runInit(
   // A CLAUDE.md of the repo's own is replaced by the pointer once its rules
   // are in the AGENTS.md init wrote; one beside theirs is theirs to merge.
   const agentsWritten =
-    (await readFile(resolve(root, "AGENTS.md"), "utf8").catch(() => null)) ===
-    agents;
-  if (oldClaude !== null && oldClaude !== CLAUDE_MD && agentsWritten) {
+    (await readIfThere(resolve(root, "AGENTS.md"))) === agents;
+  if (claudeLinked) {
+    // Left as it is: see above.
+  } else if (oldClaude !== null && oldClaude !== CLAUDE_MD && agentsWritten) {
     await writeFile(resolve(root, "CLAUDE.md"), CLAUDE_MD, "utf8");
     if (houseRules)
       beside.push(

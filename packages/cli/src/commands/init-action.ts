@@ -26,7 +26,8 @@ export function parseActionRef(ref: string): ActionPin | null {
   const at = ref.indexOf(":");
   const sha = (at < 0 ? ref : ref.slice(0, at)).trim().toLowerCase();
   const tag = at < 0 ? "" : ref.slice(at + 1).trim();
-  if (!/^[0-9a-f]{40}$/.test(sha)) return null;
+  // The tag lands in a YAML comment: nothing that could end the line.
+  if (!/^[0-9a-f]{40}$/.test(sha) || !/^[\w.+@/-]*$/.test(tag)) return null;
   return { sha, tag: tag || "pinned with --action-ref" };
 }
 

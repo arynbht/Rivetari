@@ -1,4 +1,11 @@
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -152,6 +159,31 @@ describe(
       ).rejects.toThrow();
     });
 
+    it("keeps moved rules on a --force re-init, and never writes through a linked CLAUDE.md", async () => {
+      const dir = await tmp();
+      quiet();
+      await writeFile(join(dir, "CLAUDE.md"), "- Money is integer cents.\n");
+      await runInit(dir, { type: "cli", yes: true }, pinned);
+      await runInit(dir, { type: "cli", yes: true, force: true }, pinned);
+      expect(await read(dir, "AGENTS.md")).toContain(
+        "- Money is integer cents.",
+      );
+      expect(await read(dir, "CLAUDE.md")).toBe(CLAUDE_MD);
+
+      const linked = await tmp();
+      await writeFile(join(linked, "AGENTS.md"), "# Ours\n");
+      const made = await symlink("AGENTS.md", join(linked, "CLAUDE.md")).then(
+        () => true,
+        () => false, // Windows without symlink rights
+      );
+      if (!made) return;
+      await runInit(linked, { type: "cli", yes: true, force: true }, pinned);
+      const agents = await read(linked, "AGENTS.md");
+      expect(agents).toContain("## This repo");
+      expect(agents).not.toContain("Ours");
+      expect(await read(linked, "CLAUDE.md")).toBe(agents);
+    });
+
     it("refuses an --action-ref that isn't a commit SHA, before writing anything", async () => {
       const dir = await tmp();
       const err = vi
@@ -193,6 +225,7 @@ describe("the action pin", () => {
       tag: "v1.2.0",
     });
     expect(parseActionRef("v1")).toBeNull();
+    expect(parseActionRef(`${SHA}:v1\n  evil: true`)).toBeNull();
     expect(parseActionRef(SHA.slice(1))).toBeNull();
   });
 
