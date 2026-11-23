@@ -45,6 +45,7 @@ export interface AgentCall {
   cwd: string;
   model?: string | undefined;
   env: NodeJS.ProcessEnv;
+  maxTurns?: number | undefined;
 }
 
 /** An agent call's final text, with what it cost when the runner knows. */
@@ -66,8 +67,10 @@ export function usageNote(reply: AgentReply, retry = false): string {
 const asReply = (r: string | AgentReply): AgentReply =>
   typeof r === "string" ? { text: r } : r;
 
-export const claudeAgent: AgentRunner = async (call) => {
-  const args = [
+export const PLAN_TURNS = 4;
+
+export function agentArgs(call: AgentCall): string[] {
+  return [
     "-p",
     "--output-format",
     "json",
@@ -84,9 +87,18 @@ export const claudeAgent: AgentRunner = async (call) => {
           "--disallowedTools",
           DENIED_BUILD_TOOLS.join(","),
         ]
-      : ["--allowedTools", READ_ONLY_TOOLS.join(",")]),
+      : [
+          "--permission-mode",
+          "plan",
+          "--allowedTools",
+          READ_ONLY_TOOLS.join(","),
+        ]),
+    ...(call.maxTurns ? ["--max-turns", String(call.maxTurns)] : []),
   ];
-  const { command, argv } = await claudeCommand(args);
+}
+
+export const claudeAgent: AgentRunner = async (call) => {
+  const { command, argv } = await claudeCommand(agentArgs(call));
   const stdout = await new Promise<string>((resolve, reject) => {
     const child = spawn(command, argv, {
       cwd: call.cwd,
@@ -354,12 +366,13 @@ export async function buildTask(
         cwd: isolation.worktree,
         model: options.model,
         env,
+        maxTurns: PLAN_TURNS,
       }),
     );
     steps = PlanSchema.parse(extractJson(reply.text)).steps;
     await log(
       "timeline",
-      `build started · skills ${planning.skills.join(", ") || "spine only"} · budget ${assembly.budget.steps} steps / ${assembly.budget.context_tokens / 1000}k ctx · ${planning.files.length} repo file(s) in context${usageNote(reply)}`,
+      `build started · skills ${planning.skills.join(", ") || "spine only"} · budget ${assembly.budget.steps} steps / ${assembly.budget.context_tokens / 1000}k ctx · ~${planning.approxTokens} prompt tokens · ${planning.files.length} repo file(s) in context${usageNote(reply)}`,
     );
     for (const [i, step] of steps.entries())
       await log("plan", `${i + 1}. ${step}`);
