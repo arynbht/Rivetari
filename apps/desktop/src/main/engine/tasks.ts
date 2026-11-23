@@ -4,6 +4,9 @@
 // window, stops the last watcher. The watcher writes nothing; the two actions
 // here are the person's own: answering a stop, which goes through the same
 // runtime calls as `rivetari task answer`, and opening a task's PR.
+// The list the renderer gets leaves each ledger out: a running task's progress
+// changes every couple of seconds, and sending every task's whole ledger each
+// time would be most of the payload. The open task's ledger is asked for alone.
 // Electron-free except the push callback and the open function passed in.
 import { resolve } from "node:path";
 
@@ -23,7 +26,9 @@ import {
 import type {
   TaskAnswerRequest,
   TaskAnswerResult,
+  TaskEntry,
   TasksState,
+  TaskSummary,
 } from "../../shared/ipc";
 
 /** The list after one watcher event; a read error leaves the list as it was. */
@@ -47,9 +52,33 @@ export function applyTaskEvent(
   }
 }
 
+/** A task as the tab lists it: no ledger, only where it ends. */
+export function taskSummary(view: TaskView): TaskSummary {
+  const { entries, progress, ...rest } = view;
+  return {
+    ...rest,
+    ledgerSeq: entries.at(-1)?.seq ?? 0,
+    progress: progress
+      ? {
+          beat: progress.beat,
+          startedAt: progress.startedAt,
+          lastActivityAt: progress.lastActivityAt,
+          ...(progress.turns === undefined ? {} : { turns: progress.turns }),
+          ...(progress.tokens === undefined ? {} : { tokens: progress.tokens }),
+          ...(progress.lastTool === undefined
+            ? {}
+            : { lastTool: progress.lastTool }),
+        }
+      : null,
+  };
+}
+
 let active: TaskWatcher | null = null;
-/** What the Tasks tab was last sent, so opening a PR goes by the record, not the renderer. */
-let shown: TasksState | null = null;
+/**
+ * The tasks the tab was last sent, whole: opening a PR goes by the record, not
+ * the renderer, and the open task's ledger comes from here.
+ */
+let shown: { repoPath: string; tasks: TaskView[] } | null = null;
 
 /**
  * Watch `repoPath`'s tasks, replacing any earlier watch. Resolves with the first
@@ -62,7 +91,11 @@ export async function watchRepoTasks(
 ): Promise<TasksState> {
   let tasks: TaskView[] = [];
   let error: string | null = null;
-  const state = (): TasksState => ({ repoPath, tasks, error });
+  const state = (): TasksState => ({
+    repoPath,
+    tasks: tasks.map(taskSummary),
+    error,
+  });
   let settled = false;
   const watcher = watchTasks(
     repoPath,
@@ -70,11 +103,12 @@ export async function watchRepoTasks(
       tasks = applyTaskEvent(tasks, event);
       // An error stays on show until the next read that changes something.
       error = event.kind === "error" ? event.message : null;
-      if (active === watcher) shown = state();
+      if (active === watcher) shown = { repoPath, tasks };
       // The first snapshot is the reply to the watch call itself.
       if (settled) onState(state());
     },
-    intervalMs === undefined ? {} : { intervalMs },
+    // This machine's copies list at once; the branch's view follows as changes.
+    { localFirst: true, ...(intervalMs === undefined ? {} : { intervalMs }) },
   );
   // Swap first, then stop the one replaced: two watch calls racing each other
   // can't both see no watcher and leave one running.
@@ -87,8 +121,18 @@ export async function watchRepoTasks(
     error = err instanceof Error ? err.message : String(err);
   }
   settled = true;
-  if (active === watcher) shown = state();
+  if (active === watcher) shown = { repoPath, tasks };
   return state();
+}
+
+/** Task `id`'s ledger as the watcher last read it, for the task the tab has open. */
+export function taskLedger(repoPath: string, id: string): TaskEntry[] {
+  const task =
+    shown && resolve(shown.repoPath) === resolve(repoPath)
+      ? shown.tasks.find((t) => t.id === id)
+      : undefined;
+  if (!task) throw new Error(`${id} isn't one of the tasks on show`);
+  return task.entries;
 }
 
 export async function unwatchTasks(): Promise<void> {

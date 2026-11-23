@@ -116,6 +116,11 @@ export function spawnWithLimit(
     signal?: AbortSignal | undefined;
     /** A non-zero exit whose output this accepts still resolves (a call stopped at its turn limit). */
     accept?: ((stdout: string) => boolean) | undefined;
+    /**
+     * Hears each line of stdout as it arrives, for a call that streams events
+     * (`--output-format stream-json`). The whole stdout still resolves.
+     */
+    onLine?: ((line: string) => void) | undefined;
   },
 ): Promise<string> {
   const callMinutes = callTimeoutMinutes();
@@ -162,18 +167,36 @@ export function spawnWithLimit(
     else options.signal?.addEventListener("abort", onAbort, { once: true });
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+    let partial = "";
+    // A listener that throws mustn't end the call: it only watches it.
+    const hear = (line: string) => {
+      try {
+        options.onLine?.(line.replace(/\r$/, ""));
+      } catch {
+        // ignored
+      }
+    };
+    child.stdout.on("data", (d: Buffer) => {
+      const text = d.toString();
+      stdout += text;
+      if (!options.onLine) return;
+      const lines = (partial + text).split("\n");
+      partial = lines.pop() ?? "";
+      for (const line of lines) hear(line);
+    });
     child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
     child.on("error", (err) => finish(() => reject(err)));
-    child.on("close", (code) =>
+    child.on("close", (code) => {
+      if (partial && !settled) hear(partial);
+      partial = "";
       finish(() =>
         code === 0 || options.accept?.(stdout)
           ? resolve(stdout)
           : reject(
               new Error(stderr.trim() || `claude exited with code ${code}`),
             ),
-      ),
-    );
+      );
+    });
     // A child that exits early closes stdin; its exit code says why, not EPIPE.
     child.stdin.on("error", () => undefined);
     child.stdin.end(options.input);

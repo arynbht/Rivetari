@@ -19,6 +19,7 @@ import type { RouteContext } from "../router/task-route.js";
 import { shipTask, type ShipOptions } from "../ship/ship.js";
 import { advanceTask } from "./autonomy.js";
 import type { LedgerEntry } from "./ledger.js";
+import { trackBeat } from "./progress.js";
 import { loadTask, nextStep, type Task, TaskError } from "./tasks.js";
 
 /** Build rounds one run may start before it hands the task back to a person. */
@@ -160,27 +161,42 @@ export async function runTask(
         ran.push(beat);
         let stopped = false;
         try {
-          if (beat === "isolate") {
-            const isolate = () =>
-              isolateTask(repoPath, id, {
+          // The beat's live progress, for the Tasks tab: the build reports its
+          // agent's turns as they happen, the judge each step it logs.
+          await trackBeat(repoPath, id, beat, async (progress) => {
+            if (beat === "isolate") {
+              const isolate = () =>
+                isolateTask(repoPath, id, {
+                  ...common,
+                  base: options.base,
+                  otherTasks: options.otherTasks,
+                });
+              await (options.isolating
+                ? options.isolating(isolate)
+                : isolate());
+            } else if (beat === "build")
+              await buildTask(repoPath, id, {
                 ...common,
-                base: options.base,
-                otherTasks: options.otherTasks,
+                model: options.model,
+                agent: options.agent,
+                onProgress: (p) => progress.update(p),
               });
-            await (options.isolating ? options.isolating(isolate) : isolate());
-          } else if (beat === "build")
-            await buildTask(repoPath, id, {
-              ...common,
-              model: options.model,
-              agent: options.agent,
-            });
-          else if (beat === "prove")
-            await proveTask(repoPath, id, { ...options.prove, ...common });
-          else if (beat === "judge")
-            await judgeTask(repoPath, id, { ...options.judge, ...common });
-          else {
-            await shipTask(repoPath, id, { ...options.ship, ...common });
-          }
+            else if (beat === "prove")
+              await proveTask(repoPath, id, { ...options.prove, ...common });
+            else if (beat === "judge") {
+              const log = options.judge?.log;
+              await judgeTask(repoPath, id, {
+                ...options.judge,
+                ...common,
+                log: (line) => {
+                  progress.update();
+                  log?.(line);
+                },
+              });
+            } else {
+              await shipTask(repoPath, id, { ...options.ship, ...common });
+            }
+          });
         } catch (err) {
           if (!(err instanceof CallTimeoutError) || !calls) throw err;
           await stopForTime(task, beat, err, common);

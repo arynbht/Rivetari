@@ -47,6 +47,8 @@ import {
   MapView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
+  TaskLedger,
+  TaskLedgerRequest,
   TaskOpenPrRequest,
   TaskOpenPrResult,
   TasksState,
@@ -323,6 +325,14 @@ const api = {
         TaskOpenPrRequest.parse({ repoPath, id }),
       );
       return TaskOpenPrResult.parse(raw);
+    },
+    /** A watched task's ledger entries; the list leaves them out. */
+    async ledger(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.TasksLedger,
+        TaskLedgerRequest.parse({ repoPath, id }),
+      );
+      return TaskLedger.parse(raw);
     },
     /** Subscribe to task changes; returns an unsubscribe fn. */
     onUpdate(callback: (state: TasksState) => void) {

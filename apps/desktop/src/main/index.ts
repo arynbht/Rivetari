@@ -46,6 +46,8 @@ import {
   MapView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
+  TaskLedger,
+  TaskLedgerRequest,
   TaskOpenPrRequest,
   TaskOpenPrResult,
   TasksState,
@@ -89,6 +91,7 @@ import {
 import {
   answerTask,
   openTaskPr,
+  taskLedger,
   unwatchTasks,
   watchRepoTasks,
 } from "./engine/tasks";
@@ -442,6 +445,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.TasksAnswer, async (_event, raw: unknown) => {
     const { repoPath, ...request } = TaskAnswerIpcRequest.parse(raw);
     return TaskAnswerResult.parse(await answerTask(repoPath, request));
+  });
+
+  ipcMain.handle(IpcChannel.TasksLedger, (_event, raw: unknown) => {
+    const { repoPath, id } = TaskLedgerRequest.parse(raw);
+    return TaskLedger.parse(taskLedger(repoPath, id));
   });
 
   ipcMain.handle(IpcChannel.TasksOpenPr, async (_event, raw: unknown) => {

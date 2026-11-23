@@ -82,6 +82,19 @@ export {
   watchTasks,
 } from "./task/watch.js";
 export {
+  PROGRESS_THROTTLE_MS,
+  progressPath,
+  ProgressWriter,
+  readProgress,
+  type TaskProgress,
+  trackBeat,
+} from "./task/progress.js";
+export {
+  type AgentProgress,
+  resultLine,
+  StreamProgress,
+} from "./agent/stream.js";
+export {
   BLOCKING_KINDS,
   extractJson,
   type Finding,

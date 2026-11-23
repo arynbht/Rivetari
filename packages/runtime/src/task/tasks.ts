@@ -117,7 +117,17 @@ function cardSeal(
 const isolated = (entries: LedgerEntry[]) =>
   entries.some((e) => BEATS.indexOf(e.beat) >= BEATS.indexOf("isolate"));
 
-export async function loadTask(repoPath: string, id: string): Promise<Task> {
+export async function loadTask(
+  repoPath: string,
+  id: string,
+  options: {
+    /**
+     * Write nothing: a ledger.md that only needs rendering again is left as it
+     * is and isn't reported, as if it had been rendered (the task watcher).
+     */
+    readOnly?: boolean;
+  } = {},
+): Promise<Task> {
   let text: string;
   try {
     text = await readFile(cardPath(repoPath, id), "utf8");
@@ -135,8 +145,12 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
   // ledger.md is rendered, not sealed: when every seal holds and only the view
   // differs (the renderer's wording changed, a formatter touched it), it's
   // rendered again from the signed record. A broken seal still fails.
-  const viewRerendered = await ledger.rerenderView();
-  const { problems } = await ledger.verify();
+  const viewRerendered = options.readOnly ? false : await ledger.rerenderView();
+  // verify only compares the view once every seal holds, so dropping its
+  // complaint is what rendering it again would have done.
+  const problems = (await ledger.verify()).problems.filter(
+    (p) => !options.readOnly || !p.startsWith("ledger.md was"),
+  );
   const seal = cardSeal(entries);
   if (seal && seal.hash !== sha256(text)) {
     problems.push(CARD_CHANGED);
