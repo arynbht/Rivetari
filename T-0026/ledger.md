@@ -11,6 +11,8 @@
 - 2026-11-23 17:18 isolate: worktree .worktrees/T-0026 · branch chore/t-0026 from origin/main (29f786decd08) · port 5177 · db rivetari_t0026 · env sha256 e39f66ef4e6989d1e50d89d328b88e40ee3399b611efac8d8a3e515deb3a03a0 (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 17:18 build: build started · skills spine only · budget 12 steps / 60k ctx · 4 repo file(s) in context · 70151 tokens · $0.20 · 3 turns (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 17:19 build: build paused: 1 thing(s) to ask about · commit 29f786decd08 · 243798 tokens · $0.28 · 8 turns (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 17:20 close: worktree C:\Users\arynb\Documents\Projects\Rivetari\.worktrees\T-0026 kept: it has uncommitted edits; remove it by hand · branch chore/t-0026 kept (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 17:20 close: ledger sealed · abandoned (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -33,3 +35,7 @@
 ## Stop-and-ask
 
 - 2026-11-23 17:19 asked: agent_question: Edits under .github/workflows/ are denied in this worktree, though the card says the owner ordered them. Can you allow those edits for the next round, or apply the ci.yml, release.yml and rivetari.yml changes above yourself?
+
+## Outcome
+
+- 2026-11-23 17:20 abandoned: workflow edits are denied to the build agent by design; split into an AGENTS.md task and a plain workflow PR (owner's choice) · 3m · 314k tokens · $0.48
