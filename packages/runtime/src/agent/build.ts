@@ -22,6 +22,7 @@ import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 import { z } from "zod";
 
+import { fastPlan, isFastPath, sourceTouches } from "../judge/fast-path.js";
 import { isGeneratedPath } from "../judge/tier2.js";
 import { AssemblySchema } from "../router/route.js";
 import {
@@ -326,6 +327,15 @@ export async function buildTask(
 
   // Plan first, recorded before any edit.
   let steps = replan ? [] : plan(task);
+  if (steps.length === 0 && !replan && isFastPath(task.card)) {
+    steps = fastPlan(task.card);
+    await log(
+      "timeline",
+      `build started · fast path (low risk, ${sourceTouches(task.card).length} source file(s)): planned from the card's criteria, no plan call · budget ${assembly.budget.steps} steps / ${assembly.budget.context_tokens / 1000}k ctx`,
+    );
+    for (const [i, step] of steps.entries())
+      await log("plan", `${i + 1}. ${step}`);
+  }
   if (steps.length === 0) {
     const planning = await assemblePrompt({
       repoPath,
