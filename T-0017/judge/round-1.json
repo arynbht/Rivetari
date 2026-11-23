@@ -1,0 +1,176 @@
+{
+  "task": "T-0017",
+  "round": 1,
+  "verdict": "passed",
+  "head": "2f98aff3d5a1988785a211dea8647615b3987dab",
+  "base": "9ac4aca420d03af0979b0d7828846900466d1f95",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "70.72% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — slice-cap.test.ts asserts capSlice for diff-rules.ts plus packages/**/*.test.ts equals diff-rules.ts, its two relative imports and diff-rules.test.ts, with other.test.ts and the engine tests excluded.\n- A2: met — The test asserts diff-helpers.ts and card.ts are in, deeper.ts is out and nothing from zod is in. relativeImports skips bare and node: specifiers.\n- A3: met — The buildTask test checks that the plan and build prompts carry the same SLICE headers and that plan maxTurns is PLAN_TURNS (4). The agentArgs test checks for --max-turns 4.\n- A4: met — The build-started line includes '~N prompt tokens · M repo file(s) in context'. The test checks N equals ceil(prompt.length/4) and M equals the slice length in the ledger.\n\n<details><summary>5 suggestion(s), non-blocking</summary>\n\n- --permission-mode plan goes beyond the card and may change what the planner returns `packages/runtime/src/agent/build.ts:91` — Check this against the real CLI before merging, or drop the permission-mode flag and keep only --max-turns for the plan call.\n- No test covers a plan that runs out of turns `packages/runtime/src/agent/build.ts:372` — Turn a max-turns result into a Stop or an error that names the turn limit, and add a test for it.\n- sliceGlobs is no longer used by assemblePrompt but its meaning changed `packages/runtime/src/agent/prompt.ts:43` — Remove sliceGlobs if nothing else uses it. Otherwise document the narrower set it now returns for its callers.\n- One glob walk per import `packages/runtime/src/agent/slice.ts:98` — Gather all candidates first, run one ctx.glob over them, then pick the first hit for each import.\n- Comment density doesn't match the neighbouring modules `packages/runtime/src/agent/slice.ts:1` — Add one-line doc comments to capSlice, sliceSources, relativeImports and approxTokens.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/agent/build.ts",
+        "line": 91,
+        "acceptance_id": null,
+        "title": "--permission-mode plan goes beyond the card and may change what the planner returns",
+        "detail": "The card asks for a 4-turn limit on the plan call. The diff also moves the call into Claude Code's plan permission mode. In that mode the CLI tells the model to finish by calling ExitPlanMode. That tool isn't in READ_ONLY_TOOLS, so the call is denied and costs one of the 4 turns, and the final `result` text may be a summary rather than the JSON that PlanSchema.parse(extractJson(...)) expects. The fake agent in the tests can't show this.",
+        "repro": "Run a real `claude -p --output-format json --permission-mode plan --allowedTools <READ_ONLY_TOOLS> --max-turns 4` with PLAN_SYSTEM and check that the result text still parses as the plan JSON.",
+        "fix": "Check this against the real CLI before merging, or drop the permission-mode flag and keep only --max-turns for the plan call.",
+        "pattern": "b7e11bc60308"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/agent/build.ts",
+        "line": 372,
+        "acceptance_id": null,
+        "title": "No test covers a plan that runs out of turns",
+        "detail": "With --max-turns 4, a planner that reads several files ends with an error_max_turns result and no plan text. This diff makes that path reachable. How claudeAgent and PlanSchema.parse surface it isn't shown or tested, so a person may see a bare parse error instead of 'the planner hit its 4-turn limit'.",
+        "repro": "Use an agent stub that returns `{ text: \"\" }`, or a runner result with subtype error_max_turns, for the plan call.",
+        "fix": "Turn a max-turns result into a Stop or an error that names the turn limit, and add a test for it.",
+        "pattern": "4c329a4955a6"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/agent/prompt.ts",
+        "line": 43,
+        "acceptance_id": null,
+        "title": "sliceGlobs is no longer used by assemblePrompt but its meaning changed",
+        "detail": "assemblePrompt now uses capSlice. sliceGlobs still exists, but it now returns source touches only, without README.md or sibling test globs. Any other caller silently gets a narrower set.",
+        "repro": "grep for sliceGlobs outside prompt.ts.",
+        "fix": "Remove sliceGlobs if nothing else uses it. Otherwise document the narrower set it now returns for its callers.",
+        "pattern": "d3934f1fa3fa"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/agent/slice.ts",
+        "line": 98,
+        "acceptance_id": null,
+        "title": "One glob walk per import",
+        "detail": "ctx.glob runs once for every relative import of every source file. A broad source touch such as packages/runtime/src/** makes this hundreds of globs.",
+        "repro": "Use a card touching packages/runtime/src/**.",
+        "fix": "Gather all candidates first, run one ctx.glob over them, then pick the first hit for each import.",
+        "pattern": "f659773f53fd"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/agent/slice.ts",
+        "line": 1,
+        "acceptance_id": null,
+        "title": "Comment density doesn't match the neighbouring modules",
+        "detail": "prompt.ts and build.ts give exported functions and fields a short doc comment that says why. slice.ts has none, and the new AssembledPrompt.approxTokens field has none either, unlike its siblings. AGENTS.md says to match the file's comment density.",
+        "repro": "Read slice.ts next to prompt.ts.",
+        "fix": "Add one-line doc comments to capSlice, sliceSources, relativeImports and approxTokens.",
+        "pattern": "361ac3db5599"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "slice-cap.test.ts asserts capSlice for diff-rules.ts plus packages/**/*.test.ts equals diff-rules.ts, its two relative imports and diff-rules.test.ts, with other.test.ts and the engine tests excluded."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The test asserts diff-helpers.ts and card.ts are in, deeper.ts is out and nothing from zod is in. relativeImports skips bare and node: specifiers."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The buildTask test checks that the plan and build prompts carry the same SLICE headers and that plan maxTurns is PLAN_TURNS (4). The agentArgs test checks for --max-turns 4."
+      },
+      {
+        "id": "A4",
+        "status": "met",
+        "note": "The build-started line includes '~N prompt tokens · M repo file(s) in context'. The test checks N equals ceil(prompt.length/4) and M equals the slice length in the ledger."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 8572,
+      "costUsd": 0.27824
+    }
+  }
+}
