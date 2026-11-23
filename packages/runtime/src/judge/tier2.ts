@@ -471,13 +471,17 @@ function shotLine(shot: NonNullable<ReviewProof["shots"]>[number]): string {
   return `- ${where} · ${overflow} · ${past}${l.text ? ` · text starts: ${JSON.stringify(l.text)}` : ""}`;
 }
 
+/** Proof text goes to the model like the diff does: never secret-shaped. */
+const unlessSecret = (text: string) =>
+  looksLikeSecret(text) ? "(left out: looks like it holds a secret)" : text;
+
 function proofSection(proof: ReviewProof, card?: Card): string[] {
   const parts = [
-    `## The proof\nProduced by a tool on the change, never written by the agent. Kind: ${proof.kind} · ${proof.passed ? "passed" : "failed"}.\n${proof.lines.map((l) => `- ${l}`).join("\n")}`,
+    `## The proof\nProduced by a tool on the change, never written by the agent. Kind: ${proof.kind} · ${proof.passed ? "passed" : "failed"}.\n${proof.lines.map((l) => `- ${unlessSecret(l)}`).join("\n")}`,
   ];
   if (proof.tests) {
     parts.push(
-      `### Test run\nExit ${proof.tests.exitCode} · new tests: ${proof.tests.added.join("; ") || "none"}\n\`\`\`\n${proof.tests.output.slice(-3000)}\n\`\`\``,
+      `### Test run\nExit ${proof.tests.exitCode} · new tests: ${proof.tests.added.join("; ") || "none"}\n\`\`\`\n${unlessSecret(proof.tests.output.slice(-3000))}\n\`\`\``,
     );
   }
   if (proof.shots?.length) {

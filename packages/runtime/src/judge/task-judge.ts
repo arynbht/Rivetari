@@ -291,12 +291,30 @@ export async function judgeTask(
       .profile()
       .catch(() => null);
     // The prove beat (or the deferred run above) wrote it; the runtime only.
-    const proof = await readFile(
-      join(repoPath, TASKS_DIR, id, "proof", "proof.json"),
-      "utf8",
-    )
-      .then((t) => JSON.parse(t) as ProofRecord)
-      .catch(() => undefined);
+    // A missing one is reviewed as a failed proof of the assembly's kind, so
+    // the before check still runs and fails closed; an unreadable one stops.
+    const proofFile = `${TASKS_DIR}/${id}/proof/proof.json`;
+    let proof: ProofRecord;
+    try {
+      proof = JSON.parse(
+        await readFile(join(repoPath, proofFile), "utf8"),
+      ) as ProofRecord;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT")
+        throw new TaskError(
+          `can't read ${proofFile}: ${(err as Error).message}`,
+        );
+      await append(
+        "judge",
+        `no proof record at ${proofFile}; the review sees no proof`,
+      );
+      proof = {
+        task: id,
+        kind: assembly.proof,
+        passed: false,
+        lines: [`no proof record was found at ${proofFile}`],
+      };
+    }
     const review = (ai: AiClient, model: string) =>
       (options.review ?? reviewLocal)({
         repoPath,

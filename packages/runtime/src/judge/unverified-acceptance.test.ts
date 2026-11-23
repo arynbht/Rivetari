@@ -263,6 +263,42 @@ describe("unverified acceptance", { timeout: 180_000 }, () => {
     expect(texts.some((t) => t.startsWith("asked: "))).toBe(false);
   });
 
+  it("stops on a proof record it can't read, and says so when there is none", async () => {
+    const { repo, id } = await approvedTask("review-at-pr");
+    const proofFile = join(repo, ".rivetari/tasks", id, "proof/proof.json");
+    // Tier 1 runs after prove and before the review reads the record.
+    const corrupt = async (o: Tier1Options) => {
+      await writeFile(proofFile, "{");
+      return tier1(o);
+    };
+    const run = options(approving(UNVERIFIED));
+    await expect(
+      runTask(repo, id, { ...run, judge: { ...run.judge, tier1: corrupt } }),
+    ).rejects.toThrow(/can't read .*proof\.json/);
+
+    const { repo: other, id: next } = await approvedTask("review-at-pr");
+    const seen: (string | undefined)[] = [];
+    const missing = async (o: Tier1Options) => {
+      await rm(join(other, ".rivetari/tasks", next, "proof/proof.json"));
+      return tier1(o);
+    };
+    const review: typeof reviewLocal = async (o) => {
+      seen.push(o.proof?.lines[0]);
+      return approving(UNVERIFIED)(o);
+    };
+    const runOther = options(review);
+    await runTask(other, next, {
+      ...runOther,
+      judge: { ...runOther.judge, tier1: missing },
+    });
+    expect(seen[0]).toMatch(/^no proof record was found/);
+    expect(
+      (await loadTask(other, next)).entries.some((e) =>
+        e.text.startsWith("no proof record at "),
+      ),
+    ).toBe(true);
+  });
+
   it("passes at review-at-pr when every criterion is met", async () => {
     const { repo, id } = await approvedTask("review-at-pr");
     const outcome = await runTask(
