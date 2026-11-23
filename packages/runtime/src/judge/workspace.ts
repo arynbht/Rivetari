@@ -16,7 +16,9 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { type ControlResult, runTool } from "@arynbht/rivetari-engine";
-import { simpleGit } from "simple-git";
+import picomatch from "picomatch";
+import { type SimpleGit, simpleGit } from "simple-git";
+import { parse as parseYaml } from "yaml";
 
 export function judgeCacheRoot(): string {
   if (process.env.RIVETARI_JUDGE_CACHE) return process.env.RIVETARI_JUDGE_CACHE;
@@ -215,4 +217,194 @@ export async function writeBaseResults(
   const path = await baseResultsPath(repoPath, key, root);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(kept), "utf8");
+}
+
+// The repo's own pnpm workspace, which scopes tier 1 to the packages a change
+// can affect: a full test run is most of a round's time.
+
+/** One package of a pnpm workspace, as a commit has it. */
+export interface WorkspacePackage {
+  /** Its directory from the repo root, with forward slashes. */
+  dir: string;
+  name: string | undefined;
+  /** Every package it depends on, by name, of any kind. */
+  deps: string[];
+}
+
+export interface WorkspaceGraph {
+  packages: WorkspacePackage[];
+  /** What the root package.json depends on. */
+  rootDeps: string[];
+}
+
+const DEP_FIELDS = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
+];
+
+/**
+ * The pnpm workspace's packages at a commit, read from git rather than a
+ * checkout. Null when the repo isn't a pnpm workspace or a manifest can't be
+ * read: the judge then checks everything, as it always has.
+ */
+export async function readWorkspaceGraph(
+  repo: SimpleGit,
+  rev: string,
+): Promise<WorkspaceGraph | null> {
+  const show = (path: string) =>
+    repo.show([`${rev}:${path}`]).catch(() => null);
+  const json = async (path: string) => {
+    const text = await show(path);
+    if (text === null) return null;
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  };
+  const depsOf = (pkg: Record<string, unknown>) =>
+    DEP_FIELDS.flatMap((field) => {
+      const deps = pkg[field];
+      return deps && typeof deps === "object" ? Object.keys(deps) : [];
+    });
+
+  const manifest = await show("pnpm-workspace.yaml");
+  if (manifest === null) return null;
+  let globs: string[];
+  try {
+    const listed = (parseYaml(manifest) as { packages?: unknown } | null)
+      ?.packages;
+    if (!Array.isArray(listed) || listed.length === 0) return null;
+    if (!listed.every((g): g is string => typeof g === "string")) return null;
+    globs = listed.map((g) => g.replace(/^(!?)\.\//, "$1").replace(/\/$/, ""));
+  } catch {
+    return null;
+  }
+  const include = picomatch(globs.filter((g) => !g.startsWith("!")));
+  const negated = globs.filter((g) => g.startsWith("!")).map((g) => g.slice(1));
+  const exclude = negated.length > 0 ? picomatch(negated) : () => false;
+  const dirs = (await repo.raw(["ls-tree", "-r", "-z", "--name-only", rev]))
+    .split("\0")
+    .filter((f) => f.endsWith("/package.json"))
+    .map((f) => f.slice(0, -"/package.json".length))
+    .filter(
+      (d) =>
+        !d.split("/").includes("node_modules") && include(d) && !exclude(d),
+    );
+  const packages: WorkspacePackage[] = [];
+  for (const dir of dirs) {
+    const pkg = await json(`${dir}/package.json`);
+    // A manifest we can't read hides who depends on what.
+    if (pkg === null) return null;
+    packages.push({
+      dir,
+      name: typeof pkg["name"] === "string" ? pkg["name"] : undefined,
+      deps: depsOf(pkg),
+    });
+  }
+  const root = await json("package.json");
+  return { packages, rootDeps: root ? depsOf(root) : [] };
+}
+
+/** What tier 1 checks: every package, or some of them, and why. */
+export type CheckScope =
+  | { kind: "all"; why: string }
+  | {
+      kind: "packages";
+      /** The packages' directories: the touched ones, then their dependents. */
+      dirs: string[];
+      touched: string[];
+      dependents: string[];
+    };
+
+/**
+ * The packages a change can affect: the ones its paths sit in, plus every
+ * package that depends on one of them, transitively. A path outside every
+ * package (root config, the lockfile, shared scripts) can affect anything, so
+ * it scopes to everything, as does a root package that depends on an affected
+ * one (tests at the root may import it).
+ */
+export function affectedScope(
+  paths: readonly string[],
+  graph: WorkspaceGraph,
+): CheckScope {
+  if (paths.length === 0) return { kind: "all", why: "the diff is empty" };
+  // The deepest directory owns a path, so a nested package isn't its parent's.
+  const byDepth = [...graph.packages].sort(
+    (a, b) => b.dir.length - a.dir.length,
+  );
+  const touched = new Set<WorkspacePackage>();
+  for (const path of paths) {
+    const owner = byDepth.find((p) => path.startsWith(`${p.dir}/`));
+    if (!owner)
+      return { kind: "all", why: `${path} is outside every workspace package` };
+    touched.add(owner);
+  }
+  const affected = new Set(touched);
+  const nameSet = () =>
+    new Set([...affected].flatMap((p) => (p.name ? [p.name] : [])));
+  for (let grew = true; grew;) {
+    grew = false;
+    const names = nameSet();
+    for (const p of graph.packages) {
+      if (affected.has(p) || !p.deps.some((d) => names.has(d))) continue;
+      affected.add(p);
+      grew = true;
+    }
+  }
+  const rootUses = [...nameSet()].find((n) => graph.rootDeps.includes(n));
+  if (rootUses)
+    return {
+      kind: "all",
+      why: `the root package depends on ${rootUses}, which the change affects`,
+    };
+  if (affected.size === graph.packages.length)
+    return { kind: "all", why: "the change reaches every workspace package" };
+  const dirsOf = (list: Iterable<WorkspacePackage>) =>
+    [...list].map((p) => p.dir).sort();
+  const dependents = dirsOf([...affected].filter((p) => !touched.has(p)));
+  return {
+    kind: "packages",
+    dirs: [...dirsOf(touched), ...dependents],
+    touched: dirsOf(touched),
+    dependents,
+  };
+}
+
+/**
+ * The scope from the graphs at base and on the change together, so a package
+ * either side has, and a dependency either side declares, counts. Null when
+ * either side isn't a readable pnpm workspace.
+ */
+export async function workspaceScope(
+  repo: SimpleGit,
+  revs: readonly string[],
+  paths: readonly string[],
+): Promise<CheckScope | null> {
+  const graphs: WorkspaceGraph[] = [];
+  for (const rev of revs) {
+    const graph = await readWorkspaceGraph(repo, rev).catch(() => null);
+    if (!graph) return null;
+    graphs.push(graph);
+  }
+  const byDir = new Map<string, WorkspacePackage>();
+  for (const p of graphs.flatMap((g) => g.packages)) {
+    const seen = byDir.get(p.dir);
+    byDir.set(
+      p.dir,
+      seen
+        ? {
+            dir: p.dir,
+            name: p.name ?? seen.name,
+            deps: [...new Set([...seen.deps, ...p.deps])],
+          }
+        : p,
+    );
+  }
+  return affectedScope(paths, {
+    packages: [...byDir.values()],
+    rootDeps: [...new Set(graphs.flatMap((g) => g.rootDeps))],
+  });
 }
