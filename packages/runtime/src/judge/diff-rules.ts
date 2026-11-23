@@ -31,7 +31,10 @@ export interface DiffRuleOptions {
   hunks?: ReadonlyMap<string, readonly Hunk[]> | undefined;
   allowedSuppressions?: ReadonlySet<string> | undefined;
   generated?: ReadonlySet<string> | undefined;
+  generatedGlobs?: readonly string[] | undefined;
 }
+
+export const MARKDOWN_ALWAYS_SKIPPED = [".changeset/**"] as const;
 
 const CODE = /\.(?:[cm]?[jt]sx?|py|go|rs|java|kt|rb|sh|cs|swift|php)$/i;
 const HASH_COMMENTS = /\.(?:py|rb|sh)$/i;
@@ -142,10 +145,18 @@ export function diffRules(
         },
       )
     : null;
+  const skipped = picomatch(
+    [...MARKDOWN_ALWAYS_SKIPPED, ...(options.generatedGlobs ?? [])],
+    { dot: true },
+  );
   const markdownHits = named
     ? diff
         .filter(
-          (e) => e.status !== "D" && MARKDOWN.test(e.path) && !named(e.path),
+          (e) =>
+            e.status !== "D" &&
+            MARKDOWN.test(e.path) &&
+            !skipped(e.path) &&
+            !named(e.path),
         )
         .map((e) => e.path)
     : null;

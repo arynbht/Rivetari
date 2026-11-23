@@ -93,6 +93,7 @@ export interface Tier1Options {
   allowed?: ((finding: ProtectedFinding) => boolean) | undefined;
   card?: Card | undefined;
   noNewComments?: boolean | undefined;
+  generatedGlobs?: readonly string[] | undefined;
   /** Install dependencies in the clone before checking (default true). */
   install?: boolean | undefined;
   /**
@@ -372,6 +373,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       ...diffRules(diff, added, {
         card: options.card,
         noNewComments: options.noNewComments,
+        generatedGlobs: options.generatedGlobs,
         hunks: parseHunks(unified),
         allowedSuppressions: new Set(
           allowedFindings
