@@ -32,6 +32,7 @@ import {
   runTaskRoute,
   runTaskRun,
   runTaskRunAll,
+  runTaskRunParallel,
   runTaskShip,
   runTaskStatus,
   type TaskNewFlags,
@@ -273,7 +274,7 @@ export function buildProgram(): Command {
     .description(
       "After route approval: isolate, build, prove, judge and ship, stopping wherever a person is needed",
     )
-    .argument("[id]", "task id")
+    .argument("[ids...]", "task ids")
     .option("--model <model>", "the sector agent's model")
     .option(
       "--base <ref>",
@@ -283,17 +284,34 @@ export function buildProgram(): Command {
       "--all",
       "autonomy unattended: run every routed task in turn, parking any that would ask",
     )
+    .option(
+      "--parallel <n>",
+      "run up to n tasks at once (the ids given, else every approved one); tasks whose touches overlap take turns",
+      Number,
+    )
     .option("--path <path>", "path to the repo", ".")
     .action(
       async (
-        id: string | undefined,
-        flags: { model?: string; base?: string; path?: string; all?: boolean },
+        ids: string[],
+        flags: {
+          model?: string;
+          base?: string;
+          path?: string;
+          all?: boolean;
+          parallel?: number;
+        },
       ) => {
+        const [id] = ids;
         process.exitCode = flags.all
           ? await runTaskRunAll(flags)
-          : id
+          : id && ids.length === 1 && flags.parallel === undefined
             ? await runTaskRun(id, flags)
-            : (console.error("rivetari task run: give a task id, or --all"), 1);
+            : id || flags.parallel !== undefined
+              ? await runTaskRunParallel(ids, flags)
+              : (console.error(
+                  "rivetari task run: give a task id, or --all, or --parallel <n>",
+                ),
+                1);
       },
     );
   task

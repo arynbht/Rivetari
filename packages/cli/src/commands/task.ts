@@ -20,12 +20,15 @@ import {
   judgeTask,
   confirmTask,
   LEASE_MS,
+  type LedgerEntry,
   LedgerError,
   listTasks,
   loadTask,
   localLease,
   newTask,
   nextStep,
+  oneAtATime,
+  parallelExitCode,
   parseAcceptanceFlag,
   parseCard,
   proveTask,
@@ -33,6 +36,8 @@ import {
   repoAutonomy,
   reserveTaskId,
   routeTask,
+  runnable,
+  runParallel,
   runTask,
   sha256,
   shipTask,
@@ -108,7 +113,9 @@ async function pull(
  * take or renew this machine's lease (refused, before anything runs, while
  * someone else holds it), run, and push what the beat wrote, even when it
  * failed part-way, so the record never only lives here. A long beat renews
- * its lease as it goes, so it isn't taken over mid-run.
+ * its lease as it goes, so it isn't taken over mid-run. `pulled` skips the
+ * pull when the caller has just pulled and other tasks are mid-beat, since a
+ * pull rewrites their records under them.
  */
 async function onTask<T>(
   repo: string,
@@ -116,10 +123,11 @@ async function onTask<T>(
   beat: string,
   action: (by: string) => Promise<T>,
   finish: (result: T) => Partial<CommitOptions> = () => ({}),
+  options: { pulled?: boolean } = {},
 ): Promise<T> {
   const by = await whoami(repo);
   const holder = holderName(by);
-  await pull(repo);
+  if (!options.pulled) await pull(repo);
   await commitTask(repo, id, { holder, message: `${id}: ${beat}` });
   // One write at a time: the heartbeat and the final push never overlap.
   let writes: Promise<unknown> = Promise.resolve();
@@ -173,6 +181,10 @@ async function openTaskIds(repo: string, id: string): Promise<string[]> {
     .filter((t) => t.card.id !== id && nextStep(t) !== "done")
     .map((t) => t.card.id);
 }
+
+/** A ledger entry as `task run` reports it. */
+const entryLine = (e: LedgerEntry) =>
+  `${e.at.slice(11, 16)} ${e.beat}${e.section === "timeline" ? "" : ` (${e.section})`}: ${e.text}`;
 
 function describe(task: Task): string {
   const status =
@@ -618,10 +630,7 @@ export function runTaskRun(
         model: flags.model,
         base: flags.base,
         otherTasks: await openTaskIds(repo, id),
-        onEntry: (e) =>
-          process.stdout.write(
-            `${e.at.slice(11, 16)} ${e.beat}${e.section === "timeline" ? "" : ` (${e.section})`}: ${e.text}\n`,
-          ),
+        onEntry: (e) => process.stdout.write(`${entryLine(e)}\n`),
         prove: { deferTestRun: true },
         judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
       }),
@@ -631,14 +640,123 @@ export function runTaskRun(
   });
 }
 
+/** `--parallel`'s value, or null (said why) when it isn't a whole number from 1. */
+function parallelOf(flags: { parallel?: number }): number | null {
+  const n = flags.parallel ?? 1;
+  if (Number.isInteger(n) && n >= 1) return n;
+  console.error(
+    "rivetari task run: --parallel takes a whole number of tasks, 1 or more",
+  );
+  return null;
+}
+
+/**
+ * Run `ids` through `runTask`, up to `parallel` at once, each under its own
+ * lease and in its own worktree as a single run is. The caller has pulled.
+ * Every line starts with the task it's about, and a summary says how each
+ * one ended: exits 0 when all shipped, 2 when any waits on a person (and none
+ * errored), 1 when any errored.
+ */
+async function runMany(
+  repo: string,
+  ids: string[],
+  flags: { model?: string; base?: string; parallel: number },
+): Promise<number> {
+  const tasks = await Promise.all(ids.map((id) => loadTask(repo, id)));
+  const touches = new Map(tasks.map((t) => [t.card.id, t.card.touches]));
+  const say = (line: string) => process.stdout.write(`${line}\n`);
+  const isolating = oneAtATime();
+  const results = await runParallel(
+    tasks.map((t) => ({ id: t.card.id, touches: t.card.touches })),
+    {
+      parallel: flags.parallel,
+      onStart: (id) => say(`${id} started`),
+      onWait: (id, behind) =>
+        say(
+          `${id} waits for ${behind.join(", ")}: ${
+            touches.get(id)?.length
+              ? "their touches could name the same file"
+              : "its card names no touches, so it could change any file"
+          }`,
+        ),
+      run: (id) =>
+        onTask(
+          repo,
+          id,
+          "run",
+          async (by) =>
+            runTask(repo, id, {
+              by,
+              model: flags.model,
+              base: flags.base,
+              otherTasks: await openTaskIds(repo, id),
+              isolating,
+              onEntry: (e) => say(`${id} ${entryLine(e)}`),
+              prove: { deferTestRun: true },
+              judge: {
+                log: (line) => process.stderr.write(`${id} · ${line}\n`),
+              },
+            }),
+          undefined,
+          { pulled: true },
+        ),
+    },
+  );
+  const label = { shipped: "shipped", stopped: "needs you", errored: "failed" };
+  say("summary:");
+  for (const r of results) say(`  ${r.id} ${label[r.status]}: ${r.next}`);
+  return parallelExitCode(results);
+}
+
+/**
+ * `rivetari task run [ids...] --parallel N`: the named tasks, or every
+ * confirmed, route-approved task the driver can move on, up to N at once.
+ * Tasks whose touches could name the same file run one after the other.
+ */
+export function runTaskRunParallel(
+  ids: string[],
+  flags: { model?: string; base?: string; path?: string; parallel?: number },
+): Promise<number> {
+  return guarded(async () => {
+    const parallel = parallelOf(flags);
+    if (parallel === null) return 1;
+    const repo = resolve(flags.path ?? ".");
+    // One pull for the whole run: once tasks are running, a pull would
+    // rewrite their records under them.
+    await pull(repo);
+    const chosen =
+      ids.length > 0
+        ? [...new Set(ids)]
+        : (await listTasks(repo))
+            .filter(
+              (t) =>
+                t.problems.length === 0 &&
+                t.confirmed &&
+                t.approved &&
+                runnable(nextStep(t)) !== null,
+            )
+            .map((t) => t.card.id);
+    if (chosen.length === 0) {
+      process.stdout.write(
+        "nothing to run: no confirmed, route-approved task is waiting on isolate, build, prove, judge or ship\n",
+      );
+      return 0;
+    }
+    return runMany(repo, chosen, { ...flags, parallel });
+  });
+}
+
 const PARKED = /^(stop-and-ask|close|done)/;
 
 export function runTaskRunAll(flags: {
   model?: string;
   base?: string;
   path?: string;
+  parallel?: number;
 }): Promise<number> {
   return guarded(async () => {
+    const parallel = parallelOf(flags);
+    if (parallel === null) return 1;
     const repo = resolve(flags.path ?? ".");
     const level = await repoAutonomy(repo);
     if (level !== "unattended") {
@@ -651,6 +769,8 @@ export function runTaskRunAll(flags: {
     const queue = (await listTasks(repo))
       .filter((t) => !PARKED.test(nextStep(t)))
       .map((t) => t.card.id);
+    if (parallel > 1 && queue.length > 0)
+      return runMany(repo, queue, { ...flags, parallel });
     const shipped: string[] = [];
     const parked: string[] = [];
     let failed = false;
@@ -663,10 +783,7 @@ export function runTaskRunAll(flags: {
             model: flags.model,
             base: flags.base,
             otherTasks: await openTaskIds(repo, id),
-            onEntry: (e) =>
-              process.stdout.write(
-                `${e.at.slice(11, 16)} ${e.beat}${e.section === "timeline" ? "" : ` (${e.section})`}: ${e.text}\n`,
-              ),
+            onEntry: (e) => process.stdout.write(`${entryLine(e)}\n`),
             prove: { deferTestRun: true },
             judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
           }),

@@ -187,9 +187,20 @@ export {
 export {
   MAX_BUILDS_PER_RUN,
   type RunOutcome,
+  runnable,
   runTask,
   type RunTaskOptions,
 } from "./task/run.js";
+export {
+  oneAtATime,
+  parallelExitCode,
+  type ParallelOptions,
+  type ParallelResult,
+  type ParallelStatus,
+  type ParallelTask,
+  runParallel,
+  touchesOverlap,
+} from "./task/parallel.js";
 export {
   type FindingsMetrics,
   findingsMetrics,
