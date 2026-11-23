@@ -170,12 +170,71 @@ describe("runCi on a pull request", () => {
     expect(await git(dir, "worktree", "list")).not.toContain("rivetari-base-");
   });
 
-  it("reads the base from a merge commit's first parent", async () => {
+  it("reads the base from GitHub's merge commit's first parent", async () => {
     const { dir, base } = await prRepo(async () => undefined);
     const head = await git(dir, "rev-parse", "HEAD");
+    // main moved on after the branch, as it does under an open PR.
     await git(dir, "checkout", "-q", "--detach", base);
+    await git(dir, "commit", "-q", "--allow-empty", "-m", "main moves");
+    const mainTip = await git(dir, "rev-parse", "HEAD");
     await git(dir, "merge", "-q", "--no-ff", "-m", "merge", head);
-    expect(await prBaseSha(dir, null)).toBe(base);
+    expect(
+      await prBaseSha(dir, {
+        pull_request: { base: { sha: base }, head: { sha: head } },
+      }),
+    ).toBe(mainTip);
+  });
+
+  it("uses the event's base when the head is a merge of main into the branch", async () => {
+    const { dir, base } = await prRepo(async (d) => {
+      await rm(join(d, "README.md"));
+    });
+    await git(dir, "checkout", "-q", "-b", "side", base);
+    await git(dir, "commit", "-q", "--allow-empty", "-m", "main moves");
+    const mainTip = await git(dir, "rev-parse", "HEAD");
+    await git(dir, "checkout", "-q", "main");
+    await git(dir, "merge", "-q", "--no-ff", "-m", "merge main", "side");
+    const head = await git(dir, "rev-parse", "HEAD");
+    await writeFile(
+      process.env.GITHUB_EVENT_PATH ?? "",
+      JSON.stringify({
+        pull_request: {
+          number: 7,
+          base: { sha: mainTip },
+          head: { sha: head },
+        },
+      }),
+    );
+    expect(
+      await prBaseSha(dir, {
+        pull_request: { base: { sha: mainTip }, head: { sha: head } },
+      }),
+    ).toBe(mainTip);
+    // The README deleted earlier on the branch is still this PR's doing.
+    expect(await runCi()).toBe(1);
+  });
+
+  it("fetches the base into a shallow checkout", async () => {
+    const { dir: origin } = await prRepo(async (d) => {
+      await rm(join(d, "README.md"));
+    });
+    // GitHub serves any reachable commit by sha; a local remote has to opt in.
+    await git(origin, "config", "uploadpack.allowReachableSHA1InWant", "true");
+    const clone = await mkdtemp(join(tmpdir(), "rivetari-ci-shallow-"));
+    made.push(clone);
+    await run("git", [
+      "clone",
+      "-q",
+      "--depth=1",
+      `file://${origin.replace(/\\/g, "/")}`,
+      clone,
+    ]);
+    expect(await git(clone, "rev-parse", "--is-shallow-repository")).toBe(
+      "true",
+    );
+    process.env.GITHUB_WORKSPACE = clone;
+    expect(await runCi()).toBe(1);
+    expect(output).not.toContain("whole repo is judged");
   });
 
   it("falls back to the event's base sha outside a merge commit", async () => {

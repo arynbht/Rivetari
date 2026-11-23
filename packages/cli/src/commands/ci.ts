@@ -39,7 +39,11 @@ import { renderReport } from "../report.js";
 const run = promisify(execFile);
 
 interface EventPayload {
-  pull_request?: { number?: number; base?: { sha?: string } };
+  pull_request?: {
+    number?: number;
+    base?: { sha?: string };
+    head?: { sha?: string };
+  };
   number?: number;
 }
 
@@ -64,7 +68,11 @@ export interface PrComparison {
   regressions: ControlResult[];
   /** Already not passing at base; reported, not blamed on this PR. */
   preExisting: ControlResult[];
-  /** Not evaluated at base at all (a control the catalog gained). */
+  /**
+   * No result at base at all. Both sides are evaluated with one catalog, so
+   * every control has one today; this keeps a control missing from the base
+   * results from being blamed on the PR.
+   */
   added: ControlResult[];
 }
 
@@ -104,21 +112,26 @@ async function git(cwd: string, args: string[]): Promise<string> {
 }
 
 /**
- * The commit the PR is measured against. A PR checkout is GitHub's merge commit,
- * whose first parent is the base it was merged onto; the event's base sha is the
- * fallback when the head was checked out directly.
+ * The commit the PR is measured against. The default PR checkout is GitHub's
+ * merge commit, whose first parent is the base it was merged onto. Any other
+ * checkout (the head itself, which may be a merge of main into the branch) is
+ * measured against the event's base sha.
  */
 export async function prBaseSha(
   workspace: string,
   event: EventPayload | null,
 ): Promise<string | null> {
+  const head = event?.pull_request?.head?.sha;
   try {
     // The raw object still lists both parents in a shallow clone.
     const parents = (await git(workspace, ["cat-file", "-p", "HEAD"]))
       .split("\n")
       .filter((line) => line.startsWith("parent "))
       .map((line) => line.slice("parent ".length).trim());
-    if (parents.length >= 2 && parents[0]) return parents[0];
+    // Only GitHub's merge commit has the PR's head as its second parent.
+    if (parents.length === 2 && parents[0] && head && parents[1] === head) {
+      return parents[0];
+    }
   } catch {
     // Not a git checkout; only the event can say.
   }
@@ -159,7 +172,11 @@ export async function evaluateAtBase(
   } finally {
     if (added) {
       await git(workspace, ["worktree", "remove", "--force", dir]).catch(
-        () => undefined,
+        (err: unknown) => {
+          console.error(
+            `::warning::rivetari ci: could not remove the base worktree: ${(err as Error).message}`,
+          );
+        },
       );
     }
     await rm(dir, { recursive: true, force: true }).catch(() => undefined);
