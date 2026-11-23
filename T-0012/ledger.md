@@ -15,6 +15,8 @@
 - 2026-11-23 02:02 prove: proof passed · test-run (the judge's tier 1 run) (factory runtime (for arynbht@gmail.com))
 - 2026-11-23 02:02 judge: judge passed · round 1 · head fd01f090a953 · record sha256 4eae36c085f21e9388b7cae7aab7d9ad328064ac1ae9bbd219a53300cf8e52fb (factory judge (for arynbht@gmail.com))
 - 2026-11-23 02:03 ship: draft PR opened: #183 https://github.com/arynbht/software-factory/pull/183 · fix/t-0012 at fd01f090a953 → main (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 02:10 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0012 kept: it couldn't be removed; remove it by hand · branch fix/t-0012 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 02:10 close: ledger sealed · merged (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -45,3 +47,7 @@
 - 2026-11-23 02:02 acceptance A2: unverified — There is no vitest report in the diff. The work moved into beforeAll hooks, which are not timed as tests but are subject to the 10 s hookTimeout (see the defect).
 - 2026-11-23 02:02 acceptance A3: met — The diff touches only store.test.ts; store.ts is not in it.
 - 2026-11-23 02:03 judge review posted: https://github.com/arynbht/software-factory/pull/183#pullrequestreview-6015798725
+
+## Outcome
+
+- 2026-11-23 02:10 PR #183 merged by arynbht 2026-11-23 02:10 · 23m · 2211k tokens · $1.87
