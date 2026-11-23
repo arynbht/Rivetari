@@ -390,14 +390,14 @@ async function uiProof(
       url: profile?.proof?.url,
       timeoutMs,
     });
-    // The signed-in state holds a session: keep it out of the proof dir,
-    // which is published, and delete it with the side.
-    const stateDir = auth
-      ? await mkdtemp(join(tmpdir(), "rivetari-proof-auth-"))
-      : null;
+    let stateDir: string | undefined;
     try {
-      const storageState = stateDir ? join(stateDir, "state.json") : undefined;
-      if (auth && storageState)
+      let storageState: string | undefined;
+      if (auth) {
+        // The signed-in state holds a session: keep it out of the proof dir,
+        // which is published, and delete it with the side.
+        stateDir = await mkdtemp(join(tmpdir(), "rivetari-proof-auth-"));
+        storageState = join(stateDir, "state.json");
         await signIn({
           script: auth.script,
           root: repoPath,
@@ -406,6 +406,7 @@ async function uiProof(
           port,
           stateFile: storageState,
         });
+      }
       const result = await shoot({
         baseUrl: server.url,
         pages,

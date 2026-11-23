@@ -52,9 +52,10 @@ try {
 }
 `;
 
-// The start of the output: the error's message, before Playwright's call log.
+// The error's message, before Playwright's call log. Only stderr is read,
+// where the runner writes it: what the script prints stays out of the ledger.
 const head = (s: string, n = 600) => {
-  const t = s.replace(/\s+/g, " ").trim();
+  const t = s.split("Call log:")[0]!.replace(/\s+/g, " ").trim();
   return t.length > n ? `${t.slice(0, n)}…` : t;
 };
 
@@ -119,7 +120,7 @@ export async function signIn(options: {
   }
   if (res.exitCode !== 0)
     throw new AuthError(
-      `${what} failed (exit ${res.exitCode}): ${head(`${res.stdout}\n${res.stderr}`)}`,
+      `${what} failed (exit ${res.exitCode}): ${head(res.stderr)}`,
     );
   const state = await readFile(options.stateFile, "utf8")
     .then(
