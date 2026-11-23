@@ -13,6 +13,8 @@
 - 2026-11-23 02:10 build: build done · commit 95c7ed31dc36 · 9 file(s) this round · 4911125 tokens · $2.74 · 46 turns · I've added the per-beat timing to history rows and a "Card to PR" section to `factory metrics`. The new tests pass, and so do the existing ship and judge tests. Typecheck, lint and prettier are clean. (factory runtime (for arynbht@gmail.com))
 - 2026-11-23 02:10 prove: proof deferred · test-run: the judge's tier 1 run on the change is the proof (factory runtime (for arynbht@gmail.com))
 - 2026-11-23 02:15 prove: proof passed · test-run (the judge's tier 1 run) (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 02:37 judge: judge failed · round 1 · head 95c7ed31dc36 · tier 1 failed · record sha256 151b780215ccc85865eb2bcc933edb5ef2084342e7d6400cda41909f499b91c9 (factory judge (for arynbht@gmail.com))
+- 2026-11-23 02:38 build: build paused: 1 thing(s) to ask about · commit 95c7ed31dc36 · 238597 tokens · $0.32 · 6 turns · retry (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -31,6 +33,10 @@
 - 2026-11-23 02:03 under the threshold, for the approver: perf
 - 2026-11-23 02:03 native-writing matched but isn't available (not locked, not synced, or blocked at sync)
 
+## Stop-and-ask
+
+- 2026-11-23 02:38 asked: agent_question: The judge's suite run timed out on the existing git-heavy test in `packages/runtime/src/task/store.test.ts` (30s limit; it passes in about 8s when run on its own), and nothing in this change touches that code. Should the judge re-run the suite as it is, or do you want me to raise that test's timeout or the shared `testTimeout` in `vitest.config.ts`?
+
 ## Proof
 
 - 2026-11-23 02:15 tests failed on the change and on the base: pre-existing, not blamed on this change (npm test, exit 1, in the judge's tier 1 run on the change) · new tests: packages/cli/src/commands/metrics-timing.test.ts: prints the low-risk median against 10 minutes, the tasks over it, and slow beats; packages/cli/src/commands/metrics-timing.test.ts: still loads history written before beats were recorded, with nothing to show; packages/runtime/src/ship/timing.test.ts: gives each beat the gaps its own entries close, leaving out the wait for a person's answer; packages/runtime/src/ship/timing.test.ts: has no card-to-PR time before a PR is opened; packages/runtime/src/ship/timing.test.ts: closing a task writes risk, card-to-PR minutes and beats into its history row; packages/runtime/src/ship/timing.test.ts: takes the median card-to-PR time of low-risk tasks against 10 minutes, and names those over it; packages/runtime/src/ship/timing.test.ts: flags a recent beat over 1.5 times its median in the 7 days before; packages/runtime/src/ship/timing.test.ts: loads rows written before beats were recorded and leaves them out of the medians
@@ -40,3 +46,6 @@
 ## Judge
 
 - 2026-11-23 02:15 tier 1 round 1: pass · 7/9 pass · 2 pre-existing
+- 2026-11-23 02:37 tier 1 round 1: fail · 7/9 pass · 2 fail
+- 2026-11-23 02:37 tier 1 fail: quality.tests.pass — `npm test` exited 1 (expected 0) [31m[1m[7m FAIL [27m[22m[39m packages/runtime/src/task/store.test.ts[2m > [22mthe task store[2m > [22mkeeps a second machine off a task until the lease expires or is released [31m[1mError[22m: Test timed out in 30000ms. If this is a long-running test, pa…
+- 2026-11-23 02:37 tier 1 fail: quality.coverage.floor — coverage is configured, but the test run wrote no coverage/coverage-summary.json
