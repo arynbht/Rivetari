@@ -73,6 +73,15 @@ export {
   TASKS_BRANCH,
 } from "./task/store.js";
 export {
+  type NeedsYouKind,
+  readTasks,
+  type TaskEvent,
+  type TaskView,
+  type TaskWatcher,
+  WATCH_INTERVAL_MS,
+  watchTasks,
+} from "./task/watch.js";
+export {
   BLOCKING_KINDS,
   extractJson,
   type Finding,
