@@ -38,6 +38,7 @@ export const STOP_TRIGGERS = ["new_dependency", "schema_change"] as const;
 export const MAX_TASK_SKILLS = 4;
 /** A sector is in at this score: one path hit, or one title keyword. */
 export const SECTOR_THRESHOLD = 2;
+export const KEYWORD_ONLY_REASON = "scored only on description keywords";
 /** Critique skills in order of preference: one per task. */
 const CRITIQUE = ["impeccable", "taste-skill"];
 /** Loaded only when no critique skill is in the assembly. */
@@ -106,6 +107,7 @@ export interface Routing {
   scores: SectorScore[];
   /** Sectors that scored under the threshold: the human decides. */
   borderline: Sector[];
+  decidedOut: Sector[];
   /** Decisions made along the way: conflicts, unavailable skills, the cap. */
   notes: string[];
 }
@@ -149,11 +151,18 @@ export function route(input: RouteInput): Routing {
 
   // 1–3. Score each sector: paths, keywords, manifest triggers, profile.
   const scores = new Map<Sector, SectorScore>();
-  const add = (sector: Sector, points: number, reason: string) => {
+  const beyondKeywords = new Set<Sector>();
+  const add = (
+    sector: Sector,
+    points: number,
+    reason: string,
+    keywordOnly = false,
+  ) => {
     const s = scores.get(sector) ?? { sector, score: 0, reasons: [] };
     s.score += points;
     s.reasons.push(reason);
     scores.set(sector, s);
+    if (!keywordOnly) beyondKeywords.add(sector);
   };
   for (const sector of SECTORS) {
     const signals = SECTOR_SIGNALS[sector];
@@ -162,7 +171,7 @@ export function route(input: RouteInput): Routing {
     for (const word of signals.keywords) {
       if (hasWord(title, word)) add(sector, 2, `"${word}" in the title`);
       else if (hasWord(text, word))
-        add(sector, 1, `"${word}" in the description`);
+        add(sector, 1, `"${word}" in the description`, true);
     }
   }
   for (const m of manifests.values()) {
@@ -189,6 +198,7 @@ export function route(input: RouteInput): Routing {
   const join = (sector: Sector, reason: string) => {
     if (inSectors.has(sector)) return;
     inSectors.add(sector);
+    beyondKeywords.add(sector);
     const s = scores.get(sector) ?? { sector, score: 0, reasons: [] };
     s.reasons.push(reason);
     scores.set(sector, s);
@@ -210,6 +220,7 @@ export function route(input: RouteInput): Routing {
   const borderline = ranked
     .filter((s) => !inSectors.has(s.sector) && s.score > 0)
     .map((s) => s.sector);
+  const decidedOut = borderline.filter((s) => !beyondKeywords.has(s));
 
   // 4. Phases from the task's type and wording.
   const phases = new Set<SkillPhase>(
@@ -357,6 +368,7 @@ export function route(input: RouteInput): Routing {
     },
     scores: ranked,
     borderline,
+    decidedOut,
     notes,
   };
 }
