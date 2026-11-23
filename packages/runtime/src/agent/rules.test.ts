@@ -66,7 +66,7 @@ describe("the tier 1 rules in the build prompt", () => {
     });
     expect(await tier1Rules(dir, "HEAD", card)).toEqual([
       "diff.no-new-comments: The change adds no code comments.",
-      "diff.markdown-in-card: Every Markdown file the change adds or edits is named in the card (the card names: src/total.ts, .changeset/*.md).",
+      "diff.markdown-in-card: Every Markdown file the change adds or edits is named in the card (the card names: src/total.ts, .changeset/*.md; Markdown under .changeset/ is skipped).",
       "diff.no-new-suppressions: The change adds no check suppressions or skipped tests.",
       String.raw`no-eval: nothing matching /(?<![\w.$])eval\s*\(/ in **/*.ts (allowed in scripts/**); eval runs a string as code.`,
     ]);
@@ -85,5 +85,15 @@ describe("the tier 1 rules in the build prompt", () => {
       "diff.markdown-in-card",
       "diff.no-new-suppressions",
     ]);
+  }, 60_000);
+
+  it("names the paths diff.markdown-in-card skips: .changeset/ and the profile's generated globs", async () => {
+    const dir = await repo("generated:\n  - docs/catalog/**\n");
+    const line = (await tier1Rules(dir, "HEAD", card)).find((r) =>
+      r.startsWith("diff.markdown-in-card:"),
+    );
+    expect(line).toBe(
+      "diff.markdown-in-card: Every Markdown file the change adds or edits is named in the card (the card names: src/total.ts, .changeset/*.md; Markdown under .changeset/ and the profile's generated paths docs/catalog/** is skipped).",
+    );
   }, 60_000);
 });

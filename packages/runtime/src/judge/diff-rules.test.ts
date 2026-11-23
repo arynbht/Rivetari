@@ -182,11 +182,45 @@ describe("diff rules", () => {
     );
     expect(unnamed["diff.markdown-in-card"]).toMatchObject({
       outcome: "fail",
-      message:
-        "Markdown the card doesn't name: .changeset/fix.md; docs/notes.md",
+      message: "Markdown the card doesn't name: docs/notes.md",
     });
     const noCard = byId(diffRules(diff, new Map(), {}));
     expect(noCard["diff.markdown-in-card"]?.outcome).toBe("n/a");
+  });
+
+  it("skips Markdown under the profile's generated globs and .changeset/, but not an unnamed README.md", () => {
+    const diff = [
+      { status: "M" as const, path: "docs/catalog/x.md" },
+      { status: "A" as const, path: ".changeset/y.md" },
+    ];
+    const options = {
+      card: card(["src/total.ts"]),
+      generatedGlobs: ["docs/catalog/**"],
+    };
+    expect(
+      byId(diffRules(diff, new Map(), options))["diff.markdown-in-card"]
+        ?.outcome,
+    ).toBe("pass");
+    expect(
+      byId(
+        diffRules(
+          [...diff, { status: "M" as const, path: "README.md" }],
+          new Map(),
+          options,
+        ),
+      )["diff.markdown-in-card"],
+    ).toMatchObject({
+      outcome: "fail",
+      message: "Markdown the card doesn't name: README.md",
+    });
+    expect(
+      byId(diffRules(diff, new Map(), { card: card(["src/total.ts"]) }))[
+        "diff.markdown-in-card"
+      ],
+    ).toMatchObject({
+      outcome: "fail",
+      message: "Markdown the card doesn't name: docs/catalog/x.md",
+    });
   });
 
   it("fails new suppressions and skipped or focused tests, except where a person allowed one", () => {

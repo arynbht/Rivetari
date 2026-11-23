@@ -5,7 +5,7 @@
 import { buildContext } from "@arynbht/factory-engine";
 
 import { loadBanned } from "../judge/banned.js";
-import { DIFF_RULES } from "../judge/diff-rules.js";
+import { DIFF_RULES, MARKDOWN_ALWAYS_SKIPPED } from "../judge/diff-rules.js";
 import type { Card } from "../task/card.js";
 
 export async function tier1Rules(
@@ -21,8 +21,15 @@ export async function tier1Rules(
     "diff.markdown-in-card": true,
     "diff.no-new-suppressions": true,
   };
+  const generated = profile?.generated ?? [];
+  const skipped = [
+    MARKDOWN_ALWAYS_SKIPPED.map((g) => g.replace(/\*\*$/, "")).join(", "),
+    ...(generated.length > 0
+      ? [`the profile's generated paths ${generated.join(", ")}`]
+      : []),
+  ].join(" and ");
   const extra: Partial<Record<(typeof DIFF_RULES)[number]["id"], string>> = {
-    "diff.markdown-in-card": ` (the card names: ${card.touches.join(", ") || "nothing"})`,
+    "diff.markdown-in-card": ` (the card names: ${card.touches.join(", ") || "nothing"}; Markdown under ${skipped} is skipped)`,
   };
   const rules = DIFF_RULES.filter((r) => on[r.id]).map(
     (r) => `${r.id}: ${r.title}${extra[r.id] ?? ""}.`,

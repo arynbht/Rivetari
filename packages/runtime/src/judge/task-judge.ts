@@ -177,6 +177,7 @@ export async function judgeTask(
     allowed: wasAllowed,
     card: task.card,
     noNewComments: repoProfile?.quality?.["no-new-comments"] ?? false,
+    generatedGlobs: repoProfile?.generated,
     persistent: true,
     log,
   });
