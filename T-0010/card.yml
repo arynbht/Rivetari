@@ -1,0 +1,38 @@
+id: T-0010
+title: Let a confirmed card be amended before isolate
+type: fix
+source: prompt
+description: "Once a card is confirmed its hash is sealed and any edit to
+  card.yml is reported as tampering, so a card that forgot a path (T-0008 didn't
+  name the generated docs its change had to regenerate) can only be abandoned
+  and redrafted. Until the task is isolated, a person should be able to edit
+  card.yml and run factory task confirm again: the ledger records the amendment,
+  who made it and the new hash, verification checks the latest hash, and the
+  route is proposed again for the amended card. After isolate the card stays
+  fixed."
+acceptance:
+  - id: A1
+    text: before isolate, editing a confirmed card.yml and running confirm again
+      appends 'intake amended; card sha256 <new> (was <old>)' by whoever
+      confirmed, and the task then verifies with no problems
+    verify: unit
+  - id: A2
+    text: "after an amendment the earlier route approval no longer counts: the next
+      step is route, and approving the new assembly works"
+    verify: unit
+  - id: A3
+    text: once the task is isolated, confirm on an edited card is refused with a
+      message saying the card is fixed after isolate, and the edit is still
+      reported as a problem
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/task/tasks.ts
+  - packages/runtime/src/task/amend.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-23
