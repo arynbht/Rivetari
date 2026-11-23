@@ -81,7 +81,14 @@ export interface AuditContext {
   readonly runCommands: boolean;
   /** The environment command detectors run with (default: inherited). */
   readonly commandEnv: NodeJS.ProcessEnv | undefined;
+  /** Told each command a detector ran and what it printed. */
+  readonly onCommand?: CommandListener | undefined;
 }
+
+export type CommandListener = (
+  line: string,
+  result: { exitCode: number; stdout: string; stderr: string },
+) => void;
 
 export interface BuildContextOptions {
   token?: string | undefined;
@@ -95,6 +102,8 @@ export interface BuildContextOptions {
   runCommands?: boolean | undefined;
   /** Environment for command detectors, e.g. `allowlistedEnv()` in the judge. */
   commandEnv?: NodeJS.ProcessEnv | undefined;
+  /** Hears each command a detector runs, e.g. to keep the judge's test log. */
+  onCommand?: CommandListener | undefined;
 }
 
 export function buildContext(
@@ -125,6 +134,7 @@ export function buildContext(
     aiEnabled,
     runCommands: options.runCommands ?? false,
     commandEnv: options.commandEnv,
+    onCommand: options.onCommand,
 
     async glob(pattern) {
       const patterns = Array.isArray(pattern) ? pattern : [pattern];

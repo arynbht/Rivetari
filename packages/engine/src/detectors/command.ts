@@ -84,6 +84,7 @@ async function runOne(
     }
     return skip(`could not run "${line}": ${(err as Error).message}`);
   }
+  ctx.onCommand?.(line, result);
 
   if (config.jsonPath !== undefined) {
     let data: unknown;

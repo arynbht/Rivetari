@@ -69,6 +69,117 @@ export interface ProveOptions {
   now?: Date | undefined;
   /** Upload to the evidence branch; default: GitHub via the token and origin. */
   publish?: Publish | undefined;
+  /**
+   * A test-run proof is the judge's tier 1 run on the change, not a run of
+   * its own: record that here, and the judge publishes its run as the proof.
+   */
+  deferTestRun?: boolean | undefined;
+}
+
+export const DEFERRED =
+  "proof deferred · test-run: the judge's tier 1 run on the change is the proof";
+
+/**
+ * The test-run proof from the judge's tier 1 run on the change: the suite runs
+ * once a round, in the judge's clean workspace, and its log is the evidence.
+ */
+export async function proofFromJudge(
+  repoPath: string,
+  task: Task,
+  isolation: Isolation,
+  run: {
+    testRun?: { command: string; exitCode: number; output: string } | undefined;
+    outcome: "pass" | "fail" | "pre-existing" | "fixed" | "n/a" | undefined;
+  },
+  options: ProveOptions,
+): Promise<ProofRecord> {
+  const id = task.card.id;
+  const git = simpleGit(isolation.worktree);
+  const added = newTestNames(
+    parseNameStatus(
+      await git.raw(["diff", "--name-status", "-M", isolation.base, "HEAD"]),
+    ),
+    parseAddedLines(
+      await git.raw(["diff", "-U0", "--no-color", isolation.base, "HEAD"]),
+    ),
+  );
+  const lines: string[] = [];
+  const outcome = run.outcome === "fixed" ? "pass" : (run.outcome ?? "n/a");
+  const passed = outcome === "pass" || outcome === "pre-existing";
+  const verdict = {
+    pass: "tests passed",
+    fail: "tests failed",
+    "pre-existing":
+      "tests failed on the change and on the base: pre-existing, not blamed on this change",
+    "n/a": "tests: the judge found no test suite to run (fails closed)",
+  }[outcome];
+  const ran = run.testRun;
+  lines.push(
+    `${verdict}${ran ? ` (${ran.command}, exit ${ran.exitCode}, in the judge's tier 1 run on the change)` : ""} · new tests: ${added.join("; ") || "none"}`,
+  );
+  if (ran) lines.push(`output: ${tail(ran.output)}`);
+  const proofDir = join(repoPath, TASKS_DIR, id, "proof");
+  await mkdir(proofDir, { recursive: true });
+  if (ran) {
+    const log = join(proofDir, "test-run.txt");
+    await writeFile(
+      log,
+      `${ran.command} · exit ${ran.exitCode} · the judge's tier 1 run on the change\nnew tests:\n${added.map((a) => `  ${a}`).join("\n") || "  none"}\n\n${ran.output}`,
+      "utf8",
+    );
+    let published: Awaited<ReturnType<Publish>> = null;
+    let notPushed = "no GitHub token or origin remote";
+    try {
+      published = await (options.publish ?? githubPublisher(repoPath, id))([
+        log,
+      ]);
+    } catch (err) {
+      notPushed = `upload failed: ${tail((err as Error).message, 200)}`;
+    }
+    lines.push(
+      published?.[0]
+        ? `evidence: the judge's test run on the evidence branch: ${published[0].url}`
+        : `evidence: the judge's test run in ${TASKS_DIR}/${id}/proof/test-run.txt (not pushed: ${notPushed})`,
+    );
+  }
+  const record: ProofRecord = {
+    task: id,
+    kind: "test-run",
+    passed,
+    lines,
+    ...(ran
+      ? {
+          tests: {
+            exitCode: ran.exitCode,
+            added,
+            output: ran.output.slice(-4000),
+            outcome: outcome === "n/a" ? "fail" : outcome,
+          },
+        }
+      : {}),
+  };
+  await writeFile(
+    join(proofDir, "proof.json"),
+    `${JSON.stringify(record, null, 2)}\n`,
+    "utf8",
+  );
+  const by = `factory runtime (for ${options.by})`;
+  for (const line of lines)
+    await task.ledger.append({
+      beat: "prove",
+      section: "proof",
+      text: line,
+      by,
+      at: options.now,
+    });
+  await task.ledger.append({
+    beat: "prove",
+    section: "timeline",
+    text: `proof ${passed ? "passed" : "failed"} · test-run (the judge's tier 1 run)`,
+    by,
+    at: options.now,
+  });
+  return record;
 }
 
 const tail = (s: string, n = 400) => {
@@ -393,6 +504,20 @@ export async function proveTask(
   const isolation = await loadIsolation(repoPath, id);
   if (!isolation) throw new TaskError(`task ${id} has no worktree`);
   const assembly = AssemblySchema.parse(parse(task.assemblyText ?? ""));
+
+  if (options.deferTestRun && assembly.proof === "test-run") {
+    await task.ledger.append({
+      beat: "prove",
+      section: "timeline",
+      text: DEFERRED,
+      by: `factory runtime (for ${options.by})`,
+      at: options.now,
+    });
+    return {
+      task: await loadTask(repoPath, id),
+      record: { task: id, kind: "test-run", passed: true, lines: [] },
+    };
+  }
 
   const proofDir = join(repoPath, TASKS_DIR, id, "proof");
   const publish = options.publish ?? githubPublisher(repoPath, id);

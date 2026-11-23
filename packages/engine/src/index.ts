@@ -7,6 +7,7 @@ export { buildContext, QUIET_LOG, resolveRepoSlug } from "./context.js";
 export type {
   AuditContext,
   BuildContextOptions,
+  CommandListener,
   GitHubClient,
 } from "./context.js";
 export { evaluateControl } from "./evaluate.js";
