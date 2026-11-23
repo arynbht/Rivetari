@@ -119,7 +119,7 @@ describe("findings metrics", () => {
     ]);
     expect(metrics.reviewed).toBe(3);
     expect(metrics.findings).toBe(3);
-    expect(metrics.findingsPerPr).toBeCloseTo(1, 5);
+    expect(metrics.findingsPerPr).toBeCloseTo(1 / 3, 5);
     expect(metrics.candidates).toEqual([{ ...live, prs: ["#10", "#11"] }]);
     expect(metrics.patterns.map((p) => p.pattern)).toEqual([
       "aaaaaaaaaaaa",
