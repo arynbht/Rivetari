@@ -11,7 +11,7 @@ import {
   buildContext,
   resolveRepoSlug,
   resolveTemplateVars,
-  resolveToken,
+  githubToken,
 } from "@arynbht/rivetari-engine";
 
 const CHECKOUT =
@@ -108,7 +108,7 @@ const AFFECTED_STEP = String.raw`      - name: Affected packages
         if: github.event_name == 'pull_request' && steps.scope.outputs.code == 'true'
         run: |
           root=$(pwd)
-          pkgs=$(pnpm ls -r --depth -1 --parseable | grep -vx "$root" | sed "s|^$root/||")
+          pkgs=$(pnpm ls -r --depth -1 --parseable | { grep -vx "$root" || true; } | sed "s|^$root/||")
           all=false
           for f in $(git diff --name-only HEAD^1 HEAD); do
             # What the path filter calls docs doesn't widen the run either.
@@ -421,7 +421,8 @@ export async function planCi(
     : options.token === null
       ? CHEAP_UNKNOWN
       : await detectCiPlan(await resolveRepoSlug(root), {
-          token: options.token ?? resolveToken(),
+          token:
+            options.token ?? (await githubToken(root).catch(() => null))?.token,
         }).catch(() => CHEAP_UNKNOWN);
   const checked = checks(facts).map((c) => c.script);
   return {
