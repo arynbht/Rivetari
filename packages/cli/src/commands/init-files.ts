@@ -162,8 +162,13 @@ export function houseRulesFrom(claudeMd: string): string | null {
   const kept: string[] = [];
   let fence: string | null = null;
   for (const line of claudeMd.replace(/\r\n?/g, "\n").split("\n")) {
+    // A fence opens with any info string but closes only on a bare marker.
     const marker = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
-    if (marker && (fence === null || marker.startsWith(fence))) {
+    const closes =
+      fence !== null &&
+      marker?.startsWith(fence) === true &&
+      /^\s*(`{3,}|~{3,})\s*$/.test(line);
+    if (marker && (fence === null || closes)) {
       fence = fence === null ? marker : null;
       kept.push(line);
       continue;

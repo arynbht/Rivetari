@@ -169,6 +169,16 @@ describe(
         "- Money is integer cents.",
       );
       expect(await read(dir, "CLAUDE.md")).toBe(CLAUDE_MD);
+      expect(await read(dir, "CLAUDE.md.bak")).toBe(
+        "- Money is integer cents.\n",
+      );
+      // A line added to the pointer since joins the rules already moved.
+      await writeFile(join(dir, "CLAUDE.md"), `${CLAUDE_MD}- Use pnpm.\n`);
+      await runInit(dir, { type: "cli", yes: true, force: true }, pinned);
+      expect(await read(dir, "AGENTS.md")).toContain(
+        "- Money is integer cents.\n\n- Use pnpm.",
+      );
+      expect(await read(dir, "CLAUDE.md")).toBe(CLAUDE_MD);
 
       const linked = await tmp();
       await writeFile(join(linked, "AGENTS.md"), "# Ours\n");
@@ -210,6 +220,10 @@ describe("houseRulesFrom", () => {
     expect(houseRulesFrom("# CLAUDE.md\n\n@AGENTS.md\n")).toBeNull();
     expect(houseRulesFrom("# Project\n\n###### Deep\ntext\n")).toBe(
       "### Project\n\n###### Deep\ntext",
+    );
+    // A fence line with an info string doesn't close the fence it's in.
+    expect(houseRulesFrom("```md\n```sh\n# inside\n```\n# After")).toBe(
+      "```md\n```sh\n# inside\n```\n### After",
     );
   });
 });

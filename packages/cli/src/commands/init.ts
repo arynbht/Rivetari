@@ -628,12 +628,19 @@ export async function runInit(
   const oldClaude = claudeLinked
     ? null
     : await readIfThere(resolve(root, "CLAUDE.md"));
-  // Rules an earlier init moved stay in AGENTS.md when --force renders it again.
-  const houseRules =
-    (oldClaude === null || oldClaude === CLAUDE_MD
+  // Rules an earlier init moved stay in AGENTS.md when --force renders it
+  // again, with anything added to CLAUDE.md since after them.
+  const fromClaude =
+    oldClaude === null || oldClaude === CLAUDE_MD
       ? null
-      : houseRulesFrom(oldClaude)) ??
-    movedRulesIn((await readIfThere(resolve(root, "AGENTS.md"))) ?? "");
+      : houseRulesFrom(oldClaude);
+  const moved = movedRulesIn(
+    (await readIfThere(resolve(root, "AGENTS.md"))) ?? "",
+  );
+  const houseRules =
+    moved && fromClaude && !moved.includes(fromClaude)
+      ? `${moved}\n\n${fromClaude}`
+      : (moved ?? fromClaude);
   facts.houseRules = houseRules ?? undefined;
   const agents = renderAgentsMd(facts);
   // The skill ships with the CLI; a broken install shouldn't stop init.
@@ -664,11 +671,14 @@ export async function runInit(
   if (claudeLinked) {
     // Left as it is: see above.
   } else if (oldClaude !== null && oldClaude !== CLAUDE_MD && agentsWritten) {
-    await writeFile(resolve(root, "CLAUDE.md"), CLAUDE_MD, "utf8");
-    if (houseRules)
+    // An earlier init's pointer has nothing to keep; anything else is backed up.
+    if (fromClaude) {
+      const bak = await keepBackup(root, "CLAUDE.md", oldClaude);
       beside.push(
-        'moved the rules in CLAUDE.md into AGENTS.md\'s "This repo" section, where every agent reads them; CLAUDE.md now points at AGENTS.md',
+        `moved the rules in CLAUDE.md into AGENTS.md's "This repo" section, where every agent reads them; CLAUDE.md now points at AGENTS.md (the old one is ${bak}; delete it once you've checked the move)`,
       );
+    }
+    await writeFile(resolve(root, "CLAUDE.md"), CLAUDE_MD, "utf8");
   } else {
     const note = await writeBeside(root, "CLAUDE.md", CLAUDE_MD, flags.force);
     if (note) beside.push(note);
