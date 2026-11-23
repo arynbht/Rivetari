@@ -1,0 +1,42 @@
+id: T-0014
+title: Verify the autonomy ledger before the trust ladder reads it
+type: fix
+source: prompt
+description: "The trust ladder takes a repo's autonomy from the entries in
+  .factory/autonomy/ without verifying them, so a hand-edited or tampered
+  autonomy ledger is trusted. The ladder should verify that ledger before
+  reading it. When verification fails, the repo is treated as supervised;
+  factory metrics and the session-start hook say why, naming the ledger's
+  problems; and nothing throws: the ladder, metrics and session start still
+  complete."
+acceptance:
+  - id: A1
+    text: a hand-edited autonomy ledger (an entry changed in ledger.jsonl, or
+      ledger.md edited) makes the ladder's effective autonomy supervised even
+      when the profile says review-at-pr
+    verify: unit
+  - id: A2
+    text: factory metrics and the session-start hook say the autonomy ledger failed
+      verification, list its problems, and say the repo runs supervised
+    verify: unit
+  - id: A3
+    text: "a failed verification raises nothing: ladder(), factory metrics and the
+      session-start hook all complete"
+    verify: unit
+  - id: A4
+    text: an intact autonomy ledger is read exactly as before
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/task/ladder.ts
+  - packages/runtime/src/task/ladder-verify.test.ts
+  - packages/cli/src/commands/metrics.ts
+  - packages/cli/src/commands/hook.ts
+  - packages/cli/src/commands/ladder-verify.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-23
