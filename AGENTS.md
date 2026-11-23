@@ -112,9 +112,11 @@ Rivetari opens draft PRs. It never merges, and neither does any agent.
   (detectors, GitHub, AI), `packages/runtime` (the task beats), `packages/registry`
   (skills), `packages/cli` (the `rivetari` command), `packages/action` (the GitHub
   Action, bundled), `apps/desktop` (the Electron shell).
-- `packages/action/dist/` is generated. A change under `packages/engine`, `packages/cli`,
-  `packages/catalog` or `packages/runtime/src` needs `pnpm action:build`, with the
-  rebuilt `dist/` committed, or CI's bundle check fails.
+- The action bundle is generated: `packages/action/dist/` and the assets copied beside it
+  (`packages/action/controls`, `gates`, `templates`, `prompts` and `skill`). Task PRs
+  don't commit any of it, so open PRs don't conflict over it; CI builds the bundle on
+  every PR to prove it still builds, and the release's Version Packages PR rebuilds and
+  commits it. Anyone pinning the action pins a commit from a release.
 - A change to a published package needs a changeset in `.changeset/`
   (`@arynbht/rivetari`, `@arynbht/rivetari-engine`, `@arynbht/rivetari-runtime`, …).
 - Commit and PR titles are conventional commits; the subject starts lowercase and the
