@@ -12,14 +12,14 @@ milestones; anything else goes in the Backlog below and waits for the bug phase.
 
 Updated after each merge.
 
-| Milestone                    | Box      | State                                                          | PRs                 |
-| ---------------------------- | -------- | -------------------------------------------------------------- | ------------------- |
-| M2 Fast CI                   | 1 h      | in progress: measuring, then one shadow-mode PR (owner merges) | —                   |
-| M1 Close out A–E             | 45 min   | after M2 merges                                                | —                   |
-| M5 BreathBand proven         | parallel | in progress: proof auth; cards 1 and 2 running in parallel     | console#6 (hygiene) |
-| M3 Shell steers the work     | 2 h      | not started                                                    | —                   |
-| M4 Clean install on any repo | 3 h      | not started                                                    | —                   |
-| M6 Release 1.0               | 2 h      | not started                                                    | —                   |
+| Milestone                    | Box      | State                                                                                                                                        | PRs                 |
+| ---------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| M2 Fast CI                   | 1 h      | merged in shadow mode (ci-next 2 min 25 s vs 12.3 min); done-check after 3 shadow PRs, then the switch PR                                    | #211, #215          |
+| M1 Close out A–E             | 45 min   | stopped at the ceiling: main green; reviews listed; regression card 0 prompts but 25.5 min/$1.06 (tier 1 scope fix #217); parallel pair left | #213, #216, #217    |
+| M5 BreathBand proven         | parallel | done-check passed: 4 cards merged, 0 prompts, active card-to-PR median ~5 min                                                                | #212, console#6–#10 |
+| M3 Shell steers the work     | 2 h      | in progress                                                                                                                                  | —                   |
+| M4 Clean install on any repo | 3 h      | not started                                                                                                                                  | —                   |
+| M6 Release 1.0               | 2 h      | not started                                                                                                                                  | —                   |
 
 Before 1.0, tracks A–E merged on 2026-11-23: #196, #197 and #199–#209 (timeouts,
 derived risk, blocking-only findings, affected-only tier 1, the context cap, watchTasks
@@ -137,7 +137,13 @@ CONSTRAINTS.md, DESIGN.md, the PR template, CI and evidence, and is tested on no
 python, go and rust fixtures (green, no Rivetari reference left). Publish the CLI with a
 smoke test from a clean path; moving v1 waits for the owner; a README with install and a
 5-minute start. Done when install from the package, init, one card and a PR work on a
-fresh repo, and eject leaves it green.
+fresh repo, and eject leaves it green, and the release blocker below holds.
+
+**Release blocker (owner, 2026-11-23):** at review-at-pr and above, the judge never passes
+a round with an unverified acceptance item; it becomes a stop for a person, with the
+reason. A "before" proof that doesn't show the defect on a fix card counts as
+unverified. The reviewer also gets the files a docs card cites, not only the diff. Built
+as a plain Rivetari PR in M4.
 
 ### Not in 1.0
 
@@ -153,21 +159,33 @@ goes through `rivetari` as a regression check.
 
 ### Backlog
 
-| Id  | Item                                                                                                  | Severity | Found          |
-| --- | ----------------------------------------------------------------------------------------------------- | -------- | -------------- |
-| B1  | The timeout's `killTree` kills only the direct child on POSIX (the whole tree on Windows)             | major    | #201 review    |
-| B2  | The run budget kills claude calls only, not tier 1 checks or a hung proof server                      | major    | #201 report    |
-| B3  | `task build` or `task judge` run on their own exit 1 on a timeout instead of stopping                 | minor    | #201 report    |
-| B4  | close.ts records the card's intake risk in history, not a risk the judge raised                       | minor    | #207 report    |
-| B5  | Workspace deps declared under an alias aren't seen as dependents by affected-only tier 1              | minor    | #202 review    |
-| B6  | Two merged closes at once can race on `floorplan/`, and close maps a checkout that may lack the merge | minor    | #205 review    |
-| B7  | Inside the desktop app, Floorplan's runner uses Electron's `process.execPath`, not node               | major    | #205 review    |
-| B8  | The "decided not in:" ledger text is parsed in autonomy.ts without a shared constant                  | minor    | #204 review    |
-| B9  | A docs card that reads a whole design system costs about $3 (84 turns), outside the slice cap         | major    | console T-0002 |
-| B10 | CI didn't fire when one PR opened (#194); closing and reopening it re-triggered CI                    | minor    | 2026-11-23     |
-| B11 | Renaming or migrating Rivetari state should refuse while tasks are open (bug 13)                      | major    | the rename     |
-| B12 | `closeTask` silently skips a worktree whose recorded absolute path moved (bug 16)                     | minor    | the rename     |
-| B13 | A self-hosted CI runner                                                                               | minor    | the M2 plan    |
+| Id  | Item                                                                                                                                                   | Severity | Found                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------- |
+| B1  | The timeout's `killTree` kills only the direct child on POSIX (the whole tree on Windows)                                                              | major    | #201 review               |
+| B2  | The run budget kills claude calls only, not tier 1 checks or a hung proof server                                                                       | major    | #201 report               |
+| B3  | `task build` or `task judge` run on their own exit 1 on a timeout instead of stopping                                                                  | minor    | #201 report               |
+| B4  | close.ts records the card's intake risk in history, not a risk the judge raised                                                                        | minor    | #207 report               |
+| B5  | Workspace deps declared under an alias aren't seen as dependents by affected-only tier 1                                                               | minor    | #202 review               |
+| B6  | Two merged closes at once can race on `floorplan/`, and close maps a checkout that may lack the merge                                                  | minor    | #205 review               |
+| B7  | Inside the desktop app, Floorplan's runner uses Electron's `process.execPath`, not node                                                                | major    | #205 review               |
+| B8  | The "decided not in:" ledger text is parsed in autonomy.ts without a shared constant                                                                   | minor    | #204 review               |
+| B9  | A docs card that reads a whole design system costs about $3 (84 turns), outside the slice cap                                                          | major    | console T-0002            |
+| B10 | CI didn't fire when one PR opened (#194); closing and reopening it re-triggered CI                                                                     | minor    | 2026-11-23                |
+| B11 | Renaming or migrating Rivetari state should refuse while tasks are open (bug 13)                                                                       | major    | the rename                |
+| B12 | `closeTask` silently skips a worktree whose recorded absolute path moved (bug 16)                                                                      | minor    | the rename                |
+| B13 | A self-hosted CI runner                                                                                                                                | minor    | the M2 plan               |
+| B14 | For a fix card, a "before" proof that doesn't show the defect leaves the acceptance item unverified; it needs a person, and the judge must not pass it | major    | console T-0005            |
+| B15 | Proof waits for a ready signal from the profile (a selector or data-loaded marker), not network idle                                                   | major    | skeleton shots            |
+| B16 | Review of a large docs-only diff uses the fast-path model                                                                                              | minor    | console T-0002 (13.7 min) |
+| B17 | breathband card: the Compare side-by-side table overflows at 375px                                                                                     | minor    | console T-0005 proof      |
+| B18 | A low-risk card with one source file and its test didn't take the fast path (plan call $0.36)                                                          | minor    | T-0028                    |
+| B19 | `rivetari review --pr` run right after a push can review the previous head (GitHub serves it briefly)                                                  | minor    | #213                      |
+| B20 | ci-next: desktop-e2e ran 8+ min once after passing in 87 s                                                                                             | major    | #211                      |
+| B21 | ci-next: test shards split by file, not duration (133–157 s vs 70–90 s)                                                                                | minor    | #211                      |
+| B22 | ci-next: merge per-shard coverage so PRs enforce the floor (today only main and ci:full)                                                               | minor    | #211                      |
+| B23 | ci-scope: package-list parser reads every YAML list item; package dirs flow unquoted into run: lines                                                   | minor    | #211                      |
+| B24 | Larger runners for Windows main runs (~12 min); runtime tests run serially (225 s)                                                                     | minor    | #211                      |
+| B25 | proof.auth: any cookie counts as signed in; 120 s timeout fixed; the browser can linger on timeout                                                     | minor    | #212                      |
 
 ## Phase A: a real task runs at review-at-pr without asking
 
