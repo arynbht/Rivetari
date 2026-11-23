@@ -13,9 +13,14 @@ export default {
       to: { path: "^packages/runtime/(src|dist)/task/ledger\\.[jt]s$" },
     },
     {
+      // The desktop's main process reads tasks through the runtime's watcher;
+      // its renderer and preload stay off it.
       name: "only-cli-imports-runtime",
       severity: "error",
-      from: { path: "^(packages|apps)/", pathNot: "^packages/(runtime|cli)/" },
+      from: {
+        path: "^(packages|apps)/",
+        pathNot: "^(packages/(runtime|cli)/|apps/desktop/src/main/)",
+      },
       to: { path: "^(packages/runtime/|@arynbht/rivetari-runtime$)" },
     },
     {

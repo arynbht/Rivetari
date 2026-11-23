@@ -9,7 +9,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { Ai } from "@/components/Ai";
 import { AuthControls } from "@/components/AuthControls";
-import { Build } from "@/components/Build";
 import { Docs } from "@/components/Docs";
 import { Fix } from "@/components/Fix";
 import { FloorPlan } from "@/components/FloorPlan";
@@ -17,6 +16,7 @@ import { Gates } from "@/components/Gates";
 import { ProfileForm } from "@/components/ProfileForm";
 import { Scorecard } from "@/components/Scorecard";
 import { Settings } from "@/components/Settings";
+import { Tasks } from "@/components/Tasks";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/lib/errors";
 import { applyTheme } from "@/lib/theme";
@@ -28,7 +28,7 @@ type View =
   | "gates"
   | "fix"
   | "ai"
-  | "build"
+  | "tasks"
   | "docs";
 
 const TABS: { id: View; label: string }[] = [
@@ -38,7 +38,7 @@ const TABS: { id: View; label: string }[] = [
   { id: "gates", label: "Gates" },
   { id: "fix", label: "Fix" },
   { id: "ai", label: "AI" },
-  { id: "build", label: "Build" },
+  { id: "tasks", label: "Tasks" },
   { id: "docs", label: "Docs" },
 ];
 
@@ -504,16 +504,16 @@ export function App() {
               </div>
             )}
 
-            {opened.has("build") && (
+            {opened.has("tasks") && (
               <div
-                id="panel-build"
+                id="panel-tasks"
                 role="tabpanel"
-                aria-labelledby="tab-build"
+                aria-labelledby="tab-tasks"
                 tabIndex={0}
-                hidden={view !== "build"}
+                hidden={view !== "tasks"}
               >
-                {/* key resets the describe/plan/build state when the repo changes. */}
-                <Build key={selectedRepo.path} repoPath={selectedRepo.path} />
+                {/* key starts a fresh watch (and selection) when the repo changes. */}
+                <Tasks key={selectedRepo.path} repoPath={selectedRepo.path} />
               </div>
             )}
 

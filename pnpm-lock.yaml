@@ -77,6 +77,9 @@ importers:
       '@arynbht/rivetari-engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@arynbht/rivetari-runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
