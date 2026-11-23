@@ -29,6 +29,7 @@
 ## Stop-and-ask
 
 - 2026-11-23 23:02 asked: agent_question: The full `pnpm test` run went past the proof runner's 600s limit, but this task's tests pass in about 10s. Can you rerun the test proof with a longer limit (or check whether base also goes past 600s), then attach the api-contract proof?
+- 2026-11-23 23:09 answered: allowed — rerun the proof alone: the 600s limit was hit while a parallel card and other agents' test suites loaded the machine; the card's own tests pass in about 10s
 
 ## Proof
 
