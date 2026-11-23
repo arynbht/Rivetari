@@ -155,7 +155,11 @@ const byNumber = (a: string, b: string) =>
  */
 class TaskReader {
   private scratch: string | undefined;
-  private readonly seen = new Map<string, { key: string; view: TaskView }>();
+  /** A null view is a reserved id with no card yet, so it isn't reloaded each poll. */
+  private readonly seen = new Map<
+    string,
+    { key: string; view: TaskView | null }
+  >();
   private readonly failed = new Map<string, string>();
 
   constructor(
@@ -165,14 +169,16 @@ class TaskReader {
 
   /** The branch tip as this machine last saw it: origin's when it's been fetched. */
   private async tip(): Promise<string | null> {
-    const refs = await simpleGit(this.repo)
-      .raw([
-        "for-each-ref",
-        "--format=%(refname) %(objectname)",
-        `refs/remotes/origin/${TASKS_BRANCH}`,
-        `refs/heads/${TASKS_BRANCH}`,
-      ])
-      .catch(() => "");
+    const git = simpleGit(this.repo);
+    // A folder that isn't a repo has no branch, only this machine's copies; any
+    // other git failure is passed on, or the branch's tasks would silently go.
+    if (!(await git.checkIsRepo())) return null;
+    const refs = await git.raw([
+      "for-each-ref",
+      "--format=%(refname) %(objectname)",
+      `refs/remotes/origin/${TASKS_BRANCH}`,
+      `refs/heads/${TASKS_BRANCH}`,
+    ]);
     const shas = new Map(
       refs
         .split("\n")
@@ -237,9 +243,15 @@ class TaskReader {
       ))
     )
       return null;
-    const lease = await readFile(join(dir, "lease.json"), "utf8")
-      .then((t) => JSON.parse(t) as Lease)
-      .catch(() => null);
+    const leaseText = await readFile(join(dir, "lease.json"), "utf8").catch(
+      () => null,
+    );
+    let lease: Lease | null = null;
+    try {
+      lease = leaseText === null ? null : (JSON.parse(leaseText) as Lease);
+    } catch {
+      this.onError(`${id}: lease.json isn't valid JSON; showing no lease`);
+    }
     return viewOf(await loadTask(this.scratch, id), source, lease);
   }
 
@@ -257,7 +269,7 @@ class TaskReader {
       const key = `${tip ? (trees.get(id) ?? "") : ""}|${stamp ?? ""}`;
       const cached = this.seen.get(id);
       if (cached?.key === key) {
-        views.push(cached.view);
+        if (cached.view) views.push(cached.view);
         continue;
       }
       try {
@@ -271,8 +283,7 @@ class TaskReader {
             : "branch";
         const view = await this.load(id, source, tip);
         if (view) views.push(view);
-        if (view) this.seen.set(id, { key, view });
-        else this.seen.delete(id);
+        this.seen.set(id, { key, view });
         this.failed.delete(id);
       } catch (err) {
         // Most often a ledger read half-way through an append: keep the last
@@ -280,7 +291,7 @@ class TaskReader {
         const message = `${id}: ${(err as Error).message}`;
         if (this.failed.get(id) !== message) this.onError(message);
         this.failed.set(id, message);
-        if (cached) views.push(cached.view);
+        if (cached?.view) views.push(cached.view);
       }
     }
     for (const id of this.seen.keys())
@@ -399,6 +410,9 @@ export function watchTasks(
       stopped = true;
       if (timer) clearTimeout(timer);
       await running;
+      // Stopped before the first read landed: whoever awaits `ready` hears so.
+      if (!snapshotted)
+        settle.reject(new Error("the watcher stopped before its first read"));
       await reader.close();
     },
   };

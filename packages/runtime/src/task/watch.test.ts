@@ -345,4 +345,20 @@ describe("watching tasks", { timeout: 30_000 }, () => {
     await new Promise((r) => setTimeout(r, 300));
     expect(events.length).toBe(seen);
   });
+
+  it("tells whoever awaits the first snapshot when it was stopped first", async () => {
+    const watcher = watchTasks(repo, () => undefined);
+    await watcher.stop();
+    await expect(watcher.ready).rejects.toThrow(
+      /stopped before its first read/,
+    );
+  });
+
+  it("reads this machine's copies in a folder that isn't a repo", async () => {
+    await rm(join(repo, ".git"), { recursive: true, force: true });
+    expect((await readTasks(repo)).map((t) => [t.id, t.source])).toEqual([
+      ["T-0001", "local"],
+      ["T-0002", "local"],
+    ]);
+  });
 });
