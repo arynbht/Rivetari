@@ -1,0 +1,46 @@
+id: T-0023
+title: Count cache tokens in the CLI transport's usage
+type: fix
+source: prompt
+description: "Bug 10. parseClaudeJson in packages/engine/src/ai/claude-cli.ts
+  maps only input_tokens and output_tokens from the Claude CLI's usage, dropping
+  cache_creation_input_tokens and cache_read_input_tokens, so the judge's review
+  line reports a few thousand tokens for a call that read tens of thousands
+  (T-0022's review: 3,702 tokens). AiUsage gains optional cacheCreationTokens
+  and cacheReadTokens; the CLI transport fills them; tier2's token total adds
+  them; and estimateCost prices cache creation at 1.25x and cache reads at 0.1x
+  the model's input rate when no reported cost is available. A result without
+  cache fields parses and totals exactly as before. The runtime build runner
+  already sums all four keys (build.ts claudeAgent), which is the pattern to
+  follow. No existing test changes."
+acceptance:
+  - id: A1
+    text: parseClaudeJson given a usage block with cache_creation_input_tokens and
+      cache_read_input_tokens returns both in its usage
+    verify: unit
+  - id: A2
+    text: the judge review's token total includes cache creation and cache read
+      tokens
+    verify: unit
+  - id: A3
+    text: estimateCost prices cache creation tokens at 1.25x and cache read tokens
+      at 0.1x the model's input rate
+    verify: unit
+  - id: A4
+    text: a CLI result with no cache fields gives the same usage and total as
+      before, and no test file that existed at base is modified
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/engine/src/ai/claude-cli.ts
+  - packages/engine/src/ai/types.ts
+  - packages/engine/src/ai/usage.ts
+  - packages/engine/src/ai/cache-usage.test.ts
+  - packages/runtime/src/judge/tier2.ts
+  - packages/action/dist/**
+  - .changeset/cli-cache-usage.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
