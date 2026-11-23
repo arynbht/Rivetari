@@ -258,6 +258,39 @@ interface ProfileDraft {
   "severity-floor": string;
   project?: ProjectDraft;
   floorplan?: boolean;
+  proof?: ProofDraft;
+}
+
+interface ProofDraft {
+  start?: string;
+  ready_timeout?: number;
+}
+
+// A first `next dev` compile on Windows takes longer than the runner's 90s default.
+const PROOF_READY_TIMEOUT = 180;
+
+/**
+ * The profile's `proof:` block for a web app: its dev script, else its start
+ * script, run with the repo's package manager, so a UI card's proof can serve
+ * the app without the profile being edited first. Undefined for anything that
+ * doesn't serve a page or has no script to serve it with. `auth` is left out:
+ * how to sign in is a person's choice.
+ */
+async function proofDefaults(
+  root: string,
+  type: string,
+): Promise<ProofDraft | undefined> {
+  if (type !== "web-app") return undefined;
+  const scripts = await readFile(resolve(root, "package.json"), "utf8")
+    .then((t) => (JSON.parse(t) as { scripts?: unknown }).scripts)
+    .catch(() => undefined);
+  if (!scripts || typeof scripts !== "object") return undefined;
+  const has = (n: string) =>
+    typeof (scripts as Record<string, unknown>)[n] === "string";
+  const name = ["dev", "start"].find(has);
+  if (!name) return undefined;
+  const pm = await packageManagerAt(root);
+  return { start: `${pm} run ${name}`, ready_timeout: PROOF_READY_TIMEOUT };
 }
 
 interface ProjectDraft {
@@ -562,18 +595,26 @@ export async function runInit(
   const oldProfile = profileExists
     ? await readFile(resolve(root, profileRel), "utf8")
     : null;
+  const old = (() => {
+    if (oldProfile === null) return null;
+    try {
+      return parseYaml(oldProfile) as {
+        floorplan?: unknown;
+        proof?: unknown;
+      } | null;
+    } catch {
+      return null;
+    }
+  })();
   // New inits keep a floorplan; a re-init keeps what the profile said.
   if (oldProfile === null) draft.floorplan = true;
+  else if (typeof old?.floorplan === "boolean") draft.floorplan = old.floorplan;
+  // A proof block someone has (or init had) set is kept as it is on a re-init.
+  if (old?.proof && typeof old.proof === "object")
+    draft.proof = old.proof as ProofDraft;
   else {
-    const old = (() => {
-      try {
-        return (parseYaml(oldProfile) as { floorplan?: unknown } | null)
-          ?.floorplan;
-      } catch {
-        return undefined;
-      }
-    })();
-    if (typeof old === "boolean") draft.floorplan = old;
+    const proof = await proofDefaults(root, draft.type);
+    if (proof) draft.proof = proof;
   }
   // Backed up before it's overwritten, so a failed save can't lose it; a
   // backup of a profile that came out identical is removed again.
