@@ -28,6 +28,15 @@ function leaseText(task: TaskSummary): string {
     : `— (${task.lease.holder}'s lease ended)`;
 }
 
+/** The ledger is the repo's text: only an https link is made clickable. */
+function isHttps(url: string): boolean {
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 const cost = (task: TaskSummary) => `$${task.costUsd.toFixed(2)}`;
 const beat = (task: TaskSummary) => (task.done ? "closed" : task.beat);
 
@@ -193,14 +202,20 @@ function TaskDetail({ task }: { task: TaskSummary }) {
         {task.pr && (
           <p className="flex items-center gap-1.5 text-sm">
             <GitPullRequest className="h-4 w-4 text-sky-400" aria-hidden />
-            <a
-              href={task.pr.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sky-400 underline"
-            >
-              PR #{task.pr.number}
-            </a>
+            {isHttps(task.pr.url) ? (
+              <a
+                href={task.pr.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 underline"
+              >
+                PR #{task.pr.number}
+              </a>
+            ) : (
+              <span>
+                PR #{task.pr.number} ({task.pr.url})
+              </span>
+            )}
           </p>
         )}
         {task.problems.length > 0 && (
