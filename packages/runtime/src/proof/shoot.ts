@@ -87,6 +87,8 @@ export async function shoot(options: {
   outDir: string;
   prefix: string;
   axe?: boolean | undefined;
+  /** A Playwright storageState file every page loads (signed in by proof.auth). */
+  storageState?: string | undefined;
 }): Promise<{ shots: Shot[]; violations: AxeViolation[] }> {
   const browser = await launch();
   const shots: Shot[] = [];
@@ -105,6 +107,9 @@ export async function shoot(options: {
         const page = await browser.newPage({
           bypassCSP: true,
           viewport: { width: bp.width, height: bp.height },
+          ...(options.storageState
+            ? { storageState: options.storageState }
+            : {}),
         });
         const res = await page.goto(url, {
           waitUntil: "networkidle",

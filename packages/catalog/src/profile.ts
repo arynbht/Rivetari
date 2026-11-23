@@ -89,6 +89,25 @@ export const ProfileSchema = z.strictObject({
       url: z.string().min(1).optional(),
       /** Seconds to wait for the URL to answer (default 90). */
       ready_timeout: z.number().int().positive().optional(),
+      /**
+       * Signing in, for pages behind it. Once the URL answers and before any
+       * screenshot, the proof runner opens a browser at the app and runs
+       * `script`, then saves the browser's cookies and local storage (a
+       * Playwright storageState, in a temp dir, never committed) and shoots
+       * every page, before and after, with it. The script is a JavaScript
+       * module at a path from the repo root, read from the checkout the
+       * profile is, whose default export is
+       * `async ({ page, context, baseURL }) => {}`: Playwright's page and
+       * context (with `baseURL` set, so `page.goto("/login")` works) from
+       * rivetari's own Playwright, so the repo needn't install it. It runs
+       * with PORT and URL in its environment. A script that throws, or that
+       * leaves no cookies or local storage behind, fails the proof.
+       */
+      auth: z
+        .strictObject({
+          script: z.string().min(1),
+        })
+        .optional(),
     })
     .optional(),
   quality: z

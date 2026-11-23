@@ -37,6 +37,7 @@ import {
   TaskError,
   TASKS_DIR,
 } from "../task/tasks.js";
+import { AuthError, signIn } from "./auth.js";
 import { type EvidenceClient, publishEvidence } from "./evidence.js";
 import { startServer } from "./server.js";
 import { type AxeViolation, shoot, type Shot } from "./shoot.js";
@@ -367,6 +368,7 @@ async function uiProof(
       "the UI proof needs to know how to serve the app: set `proof.start` (and `proof.url` if it isn't http://localhost:{port}) in .rivetari/profile.yml",
     );
   const timeoutMs = (profile?.proof?.ready_timeout ?? 90) * 1000;
+  const auth = profile?.proof?.auth;
   const pages = task.card.pages.length > 0 ? task.card.pages : ["/"];
   const outDir = join(repoPath, TASKS_DIR, task.card.id, "proof");
   await rm(outDir, { recursive: true, force: true });
@@ -379,28 +381,47 @@ async function uiProof(
     const install = await installDeps(dir);
     if (install.ran && !install.passed)
       throw new Error(`install failed: ${tail(install.output, 300)}`);
+    const port =
+      which === "before" ? isolation.port + BEFORE_PORT_OFFSET : isolation.port;
     const server = await startServer({
       command: start,
       cwd: dir,
-      port:
-        which === "before"
-          ? isolation.port + BEFORE_PORT_OFFSET
-          : isolation.port,
+      port,
       url: profile?.proof?.url,
       timeoutMs,
     });
+    // The signed-in state holds a session: keep it out of the proof dir,
+    // which is published, and delete it with the side.
+    const stateDir = auth
+      ? await mkdtemp(join(tmpdir(), "rivetari-proof-auth-"))
+      : null;
     try {
+      const storageState = stateDir ? join(stateDir, "state.json") : undefined;
+      if (auth && storageState)
+        await signIn({
+          script: auth.script,
+          root: repoPath,
+          cwd: dir,
+          baseUrl: server.url,
+          port,
+          stateFile: storageState,
+        });
       const result = await shoot({
         baseUrl: server.url,
         pages,
         outDir,
         prefix: which,
         axe: which === "after",
+        storageState,
       });
       shots.push(...result.shots.map((s) => ({ ...s, side: which })));
       if (which === "after") violations = result.violations;
     } finally {
       await server.stop();
+      if (stateDir)
+        await rm(stateDir, { recursive: true, force: true }).catch(
+          () => undefined,
+        );
     }
   };
 
@@ -409,6 +430,12 @@ async function uiProof(
   const before = await baseCheckout(repoPath, isolation.base);
   try {
     await side("before", before);
+  } catch (err) {
+    if (err instanceof AuthError)
+      throw new TaskError(
+        `signing in on the base failed, so proof.auth in .rivetari/profile.yml needs fixing: ${err.message}`,
+      );
+    throw err;
   } finally {
     await simpleGit(repoPath)
       .raw(["worktree", "remove", "--force", before])
@@ -419,11 +446,16 @@ async function uiProof(
   try {
     await side("after", isolation.worktree);
   } catch (err) {
+    const why = tail((err as Error).message, 600);
     return {
       task: task.card.id,
       kind: "ui-screenshots",
       passed: false,
-      lines: [`the change didn't serve: ${tail((err as Error).message, 600)}`],
+      lines: [
+        err instanceof AuthError
+          ? `the change served, but signing in failed: ${why}`
+          : `the change didn't serve: ${why}`,
+      ],
       shots,
     };
   }
@@ -454,6 +486,9 @@ async function uiProof(
       ? "axe: 0 serious or critical violations"
       : `axe: ${violations.length} serious or critical violation(s): ${violations.map((v) => `${v.id} on ${v.page} (${v.impact}, ${v.nodes})`).join("; ")}`,
     "visual diff: not automated yet; the before/after images are the comparison",
+    ...(auth
+      ? [`signed in: ${auth.script} ran on each side before its shots`]
+      : []),
     ...(broken.length > 0
       ? [
           `pages that answered with an error: ${[...new Set(broken.map((s) => `${s.page} (${s.status})`))].join(", ")}`,
