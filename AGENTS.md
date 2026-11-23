@@ -17,8 +17,7 @@ Run `rivetari doctor`. If it fails, do what it says (often
 In Claude Code: `/rivetari <what you want>` or `/rivetari #<issue>`.
 Anywhere else, use the `rivetari task` commands the skill uses. Don't change
 files in this checkout on the default branch: each task gets its own worktree and
-branch, and the change reaches the default branch only through a reviewed PR. This
-repo has an exemption: see "This repo" below.
+branch, and the change reaches the default branch only through a reviewed PR.
 
 ## The beats
 
@@ -98,8 +97,7 @@ Pause and ask the person before:
 
 ## People merge
 
-Rivetari opens draft PRs. It never merges, and neither does any agent, except under
-this repo's exemption below.
+Rivetari opens draft PRs. It never merges, and neither does any agent.
 
 ## This repo
 
@@ -107,10 +105,17 @@ this repo's exemption below.
   from a branch or worktree, not through `/rivetari`; cards run on the BreathBand repos.
   Each PR needs CI green on Ubuntu and Windows and `rivetari review --pr <n>` with no
   blocking findings, and it's rebased on main before it merges. An agent may then merge
-  it, except a change to signing, leases or the autonomy ledger, which waits for the
-  owner: `packages/runtime/src/task/ledger.ts` (entries, seals, keys),
-  `packages/runtime/src/task/store.ts` (leases), `packages/runtime/src/task/ladder.ts`
-  and `.rivetari/autonomy/**`. Rivetari itself still never merges.
+  it, unless it changes any of these, which wait for the owner to merge:
+  - AGENTS.md, CONSTRAINTS.md or DESIGN.md;
+  - a protected path (the list under "Protected paths");
+  - signing: `packages/runtime/src/task/ledger.ts` (entries, seals, keys);
+  - leases: `packages/runtime/src/task/store.ts`;
+  - the autonomy ledger: `packages/runtime/src/task/ladder.ts` and `.rivetari/autonomy/**`;
+  - or anything a `rivetari review --pr` round flagged as blocking.
+
+  This exemption is the owner's policy for this repo; it doesn't change "People merge"
+  for Rivetari itself, which still never merges.
+
 - **rivetari**: monorepo, phase scaffold
 - Stack: node, typescript, pnpm, electron
 - Flags: open-source, distributes-binaries, uses-ai
