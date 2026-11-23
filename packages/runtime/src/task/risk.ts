@@ -142,8 +142,10 @@ const SIGNAL_LINE =
 
 const ORDER: Record<Risk, number> = { low: 0, medium: 1, high: 2 };
 
+export const isHigher = (a: Risk, b: Risk) => ORDER[a] > ORDER[b];
+
 export function higherRisk(a: Risk, b: Risk): Risk {
-  return ORDER[b] > ORDER[a] ? b : a;
+  return isHigher(b, a) ? b : a;
 }
 
 const SHOWN = 3;
@@ -213,7 +215,7 @@ export function intakeRiskNote(
       ? `derived from the touches: ${derived.reasons.join("; ")}`
       : "no high or medium signal in the touches";
   if (!declared || declared === derived.risk) return `risk ${risk}: ${why}`;
-  return ORDER[declared] > ORDER[derived.risk]
+  return isHigher(declared, derived.risk)
     ? `risk ${risk}: declared ${declared}, raised from ${derived.risk} (${why})`
     : `risk ${risk}: ${why} (the declared ${declared} can't lower it)`;
 }

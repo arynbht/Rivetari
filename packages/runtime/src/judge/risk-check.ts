@@ -9,6 +9,7 @@ import type { Card } from "../task/card.js";
 import {
   deriveRisk,
   higherRisk,
+  isHigher,
   type Risk,
   touchedPaths,
 } from "../task/risk.js";
@@ -47,9 +48,20 @@ export function changedLines(diff: string): Map<string, string[]> {
   return lines;
 }
 
-const ORDER: Record<Risk, number> = { low: 0, medium: 1, high: 2 };
 const above = (reason: string, risk: Risk) =>
-  ORDER[(reason.split(":")[0] ?? "low") as Risk] > ORDER[risk];
+  isHigher((reason.split(":")[0] ?? "low") as Risk, risk);
+
+/**
+ * A diff as git stores it: paths unquoted, and no external diff or textconv
+ * from the user's config hiding the lines the line signal reads.
+ */
+const PLAIN = [
+  "-c",
+  "core.quotePath=false",
+  "diff",
+  "--no-ext-diff",
+  "--no-textconv",
+];
 
 export async function judgeRisk(options: {
   repoPath: string;
@@ -62,7 +74,13 @@ export async function judgeRisk(options: {
   const { card } = options;
   const git = simpleGit(options.repoPath);
   const diff = parseNameStatus(
-    await git.raw(["diff", "--name-status", "-M", options.base, options.head]),
+    await git.raw([
+      ...PLAIN,
+      "--name-status",
+      "-M",
+      options.base,
+      options.head,
+    ]),
   );
   const isNamed =
     card.touches.length > 0
@@ -84,7 +102,13 @@ export async function judgeRisk(options: {
     sensitive: options.sensitive,
     unnamedTests,
     lines: changedLines(
-      await git.raw(["diff", "-U0", "--no-color", options.base, options.head]),
+      await git.raw([
+        ...PLAIN,
+        "-U0",
+        "--no-color",
+        options.base,
+        options.head,
+      ]),
     ),
   });
   // The touches again, so a card edited by hand to a lower risk doesn't count.
