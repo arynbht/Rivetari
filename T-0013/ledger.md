@@ -15,6 +15,8 @@
 - 2026-11-23 02:15 prove: proof passed · test-run (the judge's tier 1 run) (factory runtime (for arynbht@gmail.com))
 - 2026-11-23 02:37 judge: judge failed · round 1 · head 95c7ed31dc36 · tier 1 failed · record sha256 151b780215ccc85865eb2bcc933edb5ef2084342e7d6400cda41909f499b91c9 (factory judge (for arynbht@gmail.com))
 - 2026-11-23 02:38 build: build paused: 1 thing(s) to ask about · commit 95c7ed31dc36 · 238597 tokens · $0.32 · 6 turns · retry (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 02:41 close: worktree C:\Users\arynb\Documents\Projects\Software Factory - Dev\.worktrees\T-0013 kept: it couldn't be removed; remove it by hand · branch feature/t-0013 kept (factory runtime (for arynbht@gmail.com))
+- 2026-11-23 02:41 close: ledger sealed · abandoned (factory runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -49,3 +51,7 @@
 - 2026-11-23 02:37 tier 1 round 1: fail · 7/9 pass · 2 fail
 - 2026-11-23 02:37 tier 1 fail: quality.tests.pass — `npm test` exited 1 (expected 0) [31m[1m[7m FAIL [27m[22m[39m packages/runtime/src/task/store.test.ts[2m > [22mthe task store[2m > [22mkeeps a second machine off a task until the lease expires or is released [31m[1mError[22m: Test timed out in 30000ms. If this is a long-running test, pa…
 - 2026-11-23 02:37 tier 1 fail: quality.coverage.floor — coverage is configured, but the test run wrote no coverage/coverage-summary.json
+
+## Outcome
+
+- 2026-11-23 02:41 abandoned: branch predates the #183 test fix; redrafted on current main · 37m · 5953k tokens · $4.23
