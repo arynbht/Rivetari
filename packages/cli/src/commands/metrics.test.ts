@@ -62,7 +62,7 @@ describe("runMetrics", () => {
       /review-at-pr\s+not earned: tier 1 rules 8: needs 20, or double the count at entry; 2 of 10 reviewed PRs needed/,
     );
     expect(text).toMatch(/Tier 1 rules\s+8 \(5 checks, 3 diff rules\)/);
-    expect(text).toMatch(/Findings per PR\s+1\.0/);
+    expect(text).toMatch(/Blocking findings per PR\s+0\.00/);
     expect(text).toContain(
       "Candidate rules (a pattern seen in 2+ PRs):\n  aaaaaaaaaaaa  suggestion: A generated sibling lands in .github/workflows (#1, #2)",
     );

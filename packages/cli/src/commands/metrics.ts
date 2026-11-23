@@ -64,10 +64,11 @@ export function renderFindings(f: FindingsMetrics): string {
   const lines = [
     "Judge findings",
     "",
-    `  Tier 1 rules           ${f.tier1Rules.total} (${f.tier1Rules.catalog} checks, ${f.tier1Rules.diff} diff rules)`,
-    `  Reviewed tasks         ${f.reviewed}`,
-    `  Findings per PR        ${f.findingsPerPr === null ? "n/a" : f.findingsPerPr.toFixed(1)}`,
-    `  Distinct patterns      ${f.patterns.length}`,
+    `  Tier 1 rules              ${f.tier1Rules.total} (${f.tier1Rules.catalog} checks, ${f.tier1Rules.diff} diff rules)`,
+    `  Reviewed tasks            ${f.reviewed}`,
+    `  Blocking findings per PR  ${f.findingsPerPr === null ? "n/a" : f.findingsPerPr.toFixed(2)}`,
+    `  Suggestions               ${f.suggestions}${f.reviewed > 0 ? ` (${(f.suggestions / f.reviewed).toFixed(1)} per PR, not blocking)` : ""}`,
+    `  Distinct patterns         ${f.patterns.length}`,
     "",
     "Pattern recurrence:",
     ...(f.patterns.length > 0
