@@ -53,6 +53,18 @@ describe("failingTestFiles", () => {
     ]);
   });
 
+  it("reads the file past a workspace project's name", () => {
+    const output = [
+      ` ${ESC}[31m❯${ESC}[39m ${ESC}[33m|git|${ESC}[39m packages/runtime/src/task/store.test.ts (20 tests | 1 failed) 31002ms`,
+      ` FAIL  ${ESC}[33m|git|${ESC}[39m packages/runtime/src/task/store.test.ts > lease > takes a lease`,
+      " FAIL  |unit| packages/engine/src/paths.test.ts > paths > joins",
+    ].join("\n");
+    expect(failingTestFiles(output)).toEqual([
+      "packages/runtime/src/task/store.test.ts",
+      "packages/engine/src/paths.test.ts",
+    ]);
+  });
+
   it("names nothing in output that isn't vitest's", () => {
     expect(failingTestFiles("")).toEqual([]);
     expect(failingTestFiles("broken\nnpm ERR! Test failed.\n")).toEqual([]);

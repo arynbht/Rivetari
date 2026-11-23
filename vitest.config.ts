@@ -1,10 +1,4 @@
-import { fileURLToPath } from "node:url";
-
 import { defineConfig } from "vitest/config";
-
-const ROOT = fileURLToPath(new URL(".", import.meta.url))
-  .replaceAll("\\", "/")
-  .replace(/[()[\]{}*?!+@]/g, "\\$&");
 
 export const GIT_HEAVY_TESTS = [
   "packages/runtime/src/task/{store,tasks,run,run-deferred,fast-path,autonomy,ladder}.test.ts",
@@ -26,12 +20,6 @@ export default defineConfig({
     // Windows), the 5s default timed them out; nothing about them was wrong.
     testTimeout: 30_000,
     hookTimeout: 30_000,
-    pool: "forks",
-    poolMatchGlobs: GIT_HEAVY_TESTS.map((glob): [string, "threads"] => [
-      `${ROOT}${glob}`,
-      "threads",
-    ]),
-    poolOptions: { threads: { singleThread: true } },
     coverage: {
       // On for every run, so `pnpm test` always writes coverage-summary.json
       // (the judge's coverage floor reads it after its test run).
