@@ -13,6 +13,7 @@ export { fileJsonPath } from "./file-json-path.js";
 export { fileMatches } from "./file-matches.js";
 export { fileYamlPath } from "./file-yaml-path.js";
 export { githubApi } from "./github-api.js";
+export { workflow } from "./workflow.js";
 export { deepEqual, getByPath, tokenizePath } from "./path.js";
 export { registry } from "./registry.js";
 export { runDetector } from "./run.js";

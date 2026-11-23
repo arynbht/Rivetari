@@ -25,3 +25,4 @@ export { mergeYamlGenerator } from "./merge-yaml.js";
 export { githubSettingGenerator } from "./github-setting.js";
 export { commandGenerator } from "./command.js";
 export { claudeGenerator } from "./claude.js";
+export { workflowGenerator } from "./workflow.js";

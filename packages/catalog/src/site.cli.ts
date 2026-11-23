@@ -35,6 +35,8 @@ function fixSummary(fix: FixConfig | undefined): string {
       return `command \`${fix.run}\``;
     case "claude":
       return `claude \`${fix.task}\``;
+    case "workflow":
+      return `workflow \`${fix.patch}\``;
     default:
       // A future fix type must extend this switch rather than render "undefined".
       return assertNever(fix);

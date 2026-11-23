@@ -136,6 +136,28 @@ const GithubApiSchema = z.strictObject({
   equals: z.unknown().optional(),
 });
 
+/** Structural checks on GitHub Actions workflows that a path query can't express. */
+export const WORKFLOW_CHECKS = [
+  "required-aggregator",
+  "concurrency-pr-only",
+  "job-timeouts",
+  "docs-path-filter",
+  "pr-os-matrix",
+  "secret-scan-on-pr",
+] as const;
+
+const WorkflowSchema = z.strictObject({
+  type: z.literal("workflow"),
+  check: z
+    .enum(WORKFLOW_CHECKS)
+    .describe("Named check across `.github/workflows/*.yml`."),
+  exclude: glob
+    .optional()
+    .describe(
+      "Glob (may be `a|b|c`) of workflows that never count, e.g. Rivetari's own.",
+    ),
+});
+
 const StackCommandsSchema = z
   .strictObject({
     node: z.string().min(1).optional(),
@@ -217,6 +239,7 @@ const LeafDetectorSchema = z.discriminatedUnion("type", [
   FileJsonPathSchema,
   FileYamlPathSchema,
   GithubApiSchema,
+  WorkflowSchema,
   CommandSchema,
   ScorecardSchema,
   ReviewedSchema,
@@ -239,6 +262,7 @@ export const DetectorConfigSchema = z.discriminatedUnion("type", [
   FileJsonPathSchema,
   FileYamlPathSchema,
   GithubApiSchema,
+  WorkflowSchema,
   CommandSchema,
   ScorecardSchema,
   ReviewedSchema,
@@ -324,6 +348,14 @@ export const FixConfigSchema = z.discriminatedUnion("type", [
     byStack: ByStackCommandSchema.optional(),
   }),
   z.strictObject({ type: z.literal("claude"), task: z.string().min(1) }),
+  z.strictObject({
+    type: z.literal("workflow"),
+    patch: z
+      .enum([...WORKFLOW_CHECKS, "pin-actions"])
+      .describe(
+        "Named edit to the repo's GitHub Actions workflows, made in place.",
+      ),
+  }),
 ]);
 
 export type FixConfig = z.infer<typeof FixConfigSchema>;

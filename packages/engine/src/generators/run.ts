@@ -51,6 +51,7 @@ const FIX_ORDER: Record<string, number> = {
   template: 0,
   "merge-json": 1,
   "merge-yaml": 1,
+  workflow: 1,
   command: 2,
   "github-setting": 3,
   claude: 4,

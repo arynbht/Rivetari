@@ -1,0 +1,25 @@
+id: ci.pr-linux-only
+title: Windows and macOS stay off PRs on private repos
+lane: cicd
+phase: build
+severity: low
+effort: small
+detect:
+  - type: workflow
+    check: pr-os-matrix
+    exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
+evidence: none
+# The fix doesn't edit the workflow; it names the jobs and suggests the change:
+# narrow a mixed OS matrix to its Linux runners on pull requests, or keep a
+# Windows- or macOS-only job off them, and move a required `ci` job to Linux.
+fix:
+  type: workflow
+  patch: pr-os-matrix
+references:
+  - name: GitHub Docs — About billing for GitHub Actions (minute multipliers)
+    url: https://docs.github.com/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions
+rationale: >
+  On a private repo, Windows minutes count double and macOS minutes ten times,
+  so a free plan's allowance runs out quickly when every PR runs them. Linux on
+  pull requests and the full OS matrix on the default branch still catch an
+  OS-specific break, one merge later.

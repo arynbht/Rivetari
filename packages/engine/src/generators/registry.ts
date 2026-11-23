@@ -7,6 +7,7 @@ import { mergeJsonGenerator } from "./merge-json.js";
 import { mergeYamlGenerator } from "./merge-yaml.js";
 import { templateGenerator } from "./template.js";
 import type { Generator } from "./types.js";
+import { workflowGenerator } from "./workflow.js";
 
 type FixType = FixConfig["type"];
 
@@ -21,4 +22,5 @@ export const generators: Partial<Record<FixType, Generator>> = {
   "github-setting": githubSettingGenerator,
   command: commandGenerator,
   claude: claudeGenerator,
+  workflow: workflowGenerator,
 };
