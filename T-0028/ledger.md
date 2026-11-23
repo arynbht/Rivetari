@@ -15,6 +15,8 @@
 - 2026-11-23 21:42 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 21:42 judge: judge passed · round 1 · head 6015f62ee7cd · record sha256 a6f01ac587ad8cd06b0d985ed70bf148c07d9544a48d3669a4a468655d7c2376 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 21:42 ship: draft PR opened: #216 https://github.com/arynbht/Rivetari/pull/216 · fix/t-0028 at 6015f62ee7cd → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 22:08 close: worktree removed · branch fix/t-0028 deleted (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 22:08 close: ledger sealed · merged (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -53,3 +55,7 @@
 - 2026-11-23 21:42 acceptance A2: met — The new test runs git init and rivetari init, writes .rivetari/history.jsonl, then checks it is missing from git status --untracked-files=all and that git check-ignore succeeds.
 - 2026-11-23 21:42 acceptance A3: met — The only change to init.test.ts is the expected .gitignore string at line 123, which gains history.jsonl\n. The card explicitly allows this change to a protected path.
 - 2026-11-23 21:42 judge review posted: https://github.com/arynbht/Rivetari/pull/216#pullrequestreview-6029990709
+
+## Outcome
+
+- 2026-11-23 22:08 PR #216 merged by arynbht 2026-11-23 22:07 · 51m · 867k tokens · $1.06
