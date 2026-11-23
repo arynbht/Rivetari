@@ -324,18 +324,42 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
         : baseInstall;
     log("running checks on the change");
     let testRun: Tier1Result["testRun"];
-    const headResults = await runChecks(
-      workDir,
-      selected,
-      options,
-      (line, result) => {
-        testRun = {
-          command: line,
-          exitCode: result.exitCode,
-          output: `${result.stdout}\n${result.stderr}`,
-        };
-      },
-    );
+    const keepLog: CommandListener = (line, result) => {
+      testRun = {
+        command: line,
+        exitCode: result.exitCode,
+        output: `${result.stdout}\n${result.stderr}`,
+      };
+    };
+    let headResults = await runChecks(workDir, selected, options, keepLog);
+
+    // Tests green at base but red on the change get one more run, as the
+    // proof used to give them: a pass on the retry is a flake, not the change.
+    const tests = selected.find(runsTests);
+    const sideOf = (results: ControlResult[]) =>
+      side(results.find((r) => r.controlId === tests?.id));
+    if (
+      tests &&
+      sideOf(baseResults) === "green" &&
+      sideOf(headResults) === "red"
+    ) {
+      log(
+        "tests failed on the change but pass at base: running them once more",
+      );
+      const again = selected.filter((c) => runsTests(c) || c.id === COVERAGE);
+      const retry = await runChecks(workDir, again, options, keepLog);
+      if (sideOf(retry) === "green") {
+        headResults = [
+          ...headResults.filter(
+            (r) => !again.some((c) => c.id === r.controlId),
+          ),
+          ...retry,
+        ];
+        notes.push(
+          "tests failed on the change, then passed on one retry: flaky, not blamed on this change",
+        );
+      }
+    }
 
     if (headInstall && !headInstall.ok) {
       notes.push(`dependency install failed: ${headInstall.message}`);
