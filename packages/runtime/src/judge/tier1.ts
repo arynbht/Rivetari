@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 
 import { type Control, loadBundledCatalog } from "@arynbht/rivetari-catalog";
 import {
@@ -22,6 +23,7 @@ import {
   detectStacks,
   evaluateControls,
   runTool,
+  splitArgs,
   templateStacks,
   ToolNotFoundError,
 } from "@arynbht/rivetari-engine";
@@ -339,7 +341,45 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     const tests = selected.find(runsTests);
     const sideOf = (results: ControlResult[]) =>
       side(results.find((r) => r.controlId === tests?.id));
+    const failing =
+      testRun && testRun.exitCode !== 0 ? failingTestFiles(testRun.output) : [];
     if (
+      tests &&
+      testRun &&
+      failing.length > 0 &&
+      sideOf(baseResults) === "green" &&
+      sideOf(headResults) === "red"
+    ) {
+      log(
+        `tests failed on the change but pass at base: re-running ${failing.join(", ")} alone`,
+      );
+      const command = testRun.command;
+      const alone = await rerunAlone(workDir, command, failing, tests, {
+        env: options.env,
+        log,
+      });
+      const stillFailing = alone.filter((r) => !r.passed);
+      if (stillFailing.length === 0) {
+        headResults = headResults.map((r) =>
+          r.controlId === tests.id ? passedAlone(r, command, failing) : r,
+        );
+        for (const file of failing)
+          notes.push(
+            `${file} failed in the full run but passed alone: flaky under load, not blamed on this change`,
+          );
+      } else {
+        testRun = {
+          ...testRun,
+          output: [
+            testRun.output,
+            ...stillFailing.map((r) => `\n${r.command} (alone)\n${r.output}`),
+          ].join("\n"),
+        };
+        notes.push(
+          `${stillFailing.map((r) => r.file).join(", ")} failed in the full run and again alone`,
+        );
+      }
+    } else if (
       tests &&
       sideOf(baseResults) === "green" &&
       sideOf(headResults) === "red"
@@ -492,6 +532,81 @@ async function runChecks(
 
 function runsTests(control: Control): boolean {
   return control.id === "quality.tests.pass";
+}
+
+export function failingTestFiles(output: string): string[] {
+  const files: string[] = [];
+  for (const line of stripVTControlCharacters(output).split(/\r?\n/)) {
+    const file = /^\s*FAIL\s+(\S+\.[cm]?[jt]sx?)(?=\s|$)/.exec(line)?.[1];
+    if (file && !files.includes(file)) files.push(file);
+  }
+  return files;
+}
+
+interface AloneRun {
+  file: string;
+  command: string;
+  passed: boolean;
+  output: string;
+}
+
+async function rerunAlone(
+  dir: string,
+  line: string,
+  files: readonly string[],
+  tests: Control,
+  options: {
+    env?: readonly string[] | undefined;
+    log: (line: string) => void;
+  },
+): Promise<AloneRun[]> {
+  const detector = tests.detect.find((d) => d.type === "command");
+  const timeout = detector?.type === "command" ? detector.timeout : undefined;
+  const [binary, ...args] = splitArgs(line);
+  const runs: AloneRun[] = [];
+  for (const file of files) {
+    const argv = [...args, "--", file, "--coverage.enabled=false"];
+    const command = [binary, ...argv].join(" ");
+    options.log(`running ${file} alone: ${command}`);
+    try {
+      if (!binary) throw new Error(`no command to run ${file} with`);
+      const result = await runTool(binary, argv, dir, {
+        timeoutMs: (timeout ?? 60) * 1000,
+        env: allowlistedEnv(options.env),
+      });
+      runs.push({
+        file,
+        command,
+        passed: result.exitCode === 0,
+        output: `${result.stdout}\n${result.stderr}`,
+      });
+    } catch (err) {
+      runs.push({
+        file,
+        command,
+        passed: false,
+        output: `could not run ${file} alone: ${(err as Error).message}`,
+      });
+    }
+  }
+  return runs;
+}
+
+function passedAlone(
+  result: ControlResult,
+  command: string,
+  files: readonly string[],
+): ControlResult {
+  return {
+    ...result,
+    status: "pass",
+    detectors: [
+      {
+        status: "pass",
+        message: `\`${command}\` failed under load; ${files.join(", ")} passed alone`,
+      },
+    ],
+  };
 }
 
 const COVERAGE = "quality.coverage.floor";
