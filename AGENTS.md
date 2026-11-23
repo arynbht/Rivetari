@@ -103,8 +103,9 @@ Rivetari opens draft PRs. It never merges, and neither does any agent.
 
 - **Exemption (owner, 2026-11-23):** changes to Rivetari's own code ship as plain PRs
   from a branch or worktree, not through `/rivetari`; cards run on the BreathBand repos.
-  Each PR needs CI green on Ubuntu and Windows and `rivetari review --pr <n>` with no
-  blocking findings, and it's rebased on main before it merges. An agent may then merge
+  Each PR needs the required `ci` check green (the Ubuntu jobs; Windows runs on main,
+  nightly and `ci:full`) and `rivetari review --pr <n>` with no blocking findings, both on
+  the commit being merged; it's rebased only when GitHub reports a conflict. An agent may then merge
   it, unless it changes any of these, which wait for the owner to merge:
   - AGENTS.md, CONSTRAINTS.md or DESIGN.md;
   - a protected path (the list under "Protected paths");
