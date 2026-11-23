@@ -1,8 +1,10 @@
 // `rivetari task run --parallel N`: run up to N tasks at once, each through
 // `runTask` with its own worktree, lease and ledger, exactly as a single run.
 // Two tasks whose `touches` could name the same file never run side by side:
-// the later one waits until the one it overlaps with has finished, so their
-// branches don't fight over a file. A card that names no touches could change
+// the later one waits until the one it overlaps with has finished, so two
+// agents are never editing one file at once. The later task is still cut from
+// the default branch, not from the earlier one's, so whichever PR merges
+// second may need a rebase. A card that names no touches could change
 // anything, so it runs alone.
 import picomatch from "picomatch";
 

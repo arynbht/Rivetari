@@ -53,6 +53,15 @@ async function clone(): Promise<string> {
   return dir;
 }
 
+/** A second person's clone of the same origin. */
+async function cloneOf(first: string, email: string): Promise<string> {
+  const dir = await tmp("rivetari-clone-");
+  git(dir, "clone", "-q", git(first, "remote", "get-url", "origin"), ".");
+  git(dir, "config", "user.email", email);
+  await writeFile(join(dir, ".gitignore"), ".rivetari/tasks/\n");
+  return dir;
+}
+
 describe("rivetari task run --parallel", () => {
   it("refuses a --parallel that isn't a whole number from 1", async () => {
     const dir = await clone();
@@ -105,6 +114,33 @@ describe("rivetari task run --parallel", () => {
     expect(text).toContain("T-0001 started\n");
     expect(text).toContain(
       "summary:\n  T-0001 failed: task T-0001 needs a person first",
+    );
+  }, 60_000);
+
+  it("is refused a task someone else holds, before it runs, as a single run is", async () => {
+    const ann = await clone();
+    expect(
+      await runTaskNew("Fix the login redirect", {
+        type: "fix",
+        description: "After login the app lands on a blank page.",
+        accept: ["Redirects to /home after login::e2e"],
+        touches: ["src/login.ts"],
+        path: ann,
+      }),
+      err.join(" | "),
+    ).toBe(0);
+    const bob = await cloneOf(ann, "bob@team");
+    out = [];
+    expect(
+      await runTaskRunParallel(["T-0001"], { parallel: 2, path: bob }),
+    ).toBe(1);
+    expect(out.join("")).toMatch(
+      /summary:\n {2}T-0001 failed: T-0001 is held by ann@team on /,
+    );
+    // Ann still holds it: nothing of Bob's reached the branch.
+    const origin = git(ann, "remote", "get-url", "origin");
+    expect(git(origin, "log", "-1", "--format=%s", "rivetari/tasks")).toBe(
+      "T-0001: drafted",
     );
   }, 60_000);
 });

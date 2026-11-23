@@ -698,6 +698,9 @@ async function runMany(
               },
             }),
           undefined,
+          // No second pull, even for a task that starts late: onTask's first
+          // commitTask fetches the branch tip itself and is refused while
+          // anyone else holds the lease, before the run starts.
           { pulled: true },
         ),
     },
