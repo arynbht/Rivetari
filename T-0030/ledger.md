@@ -11,6 +11,8 @@
 - 2026-11-23 22:48 isolate: worktree .worktrees/T-0030 · branch fix/t-0030 from origin/main (6e0024095b4e) · port 5175 · db rivetari_t0030 · env sha256 93e2164e673af5992956a2dc531a39d72ecb0384a695e8f21a033752c586da39 (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 22:48 build: build started · fast path (low risk, 2 source file(s)): planned from the card's criteria, no plan call · budget 8 steps / 15k ctx (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 23:08 build: build done · commit 4e034284cdb3 · 3 file(s) this round · 1147469 tokens · $0.82 · 27 turns · I fixed T-0030: a card whose only touches are documentation is no longer routed to ui just because its title or description says design, css, component or layout. The related router tests pass (28 fil (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 23:10 close: worktree removed · branch fix/t-0030 kept (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 23:10 close: ledger sealed · abandoned (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -27,3 +29,7 @@
 - 2026-11-23 22:48 frontend-design matched but isn't available (not locked, not synced, or blocked at sync)
 - 2026-11-23 22:48 native-writing matched but isn't available (not locked, not synced, or blocked at sync)
 - 2026-11-23 22:48 impeccable matched but isn't available (not locked, not synced, or blocked at sync)
+
+## Outcome
+
+- 2026-11-23 23:10 abandoned: routed to a ui-screenshots proof by its own description words on a repo with no app (router backlog row); redrafted with neutral wording · 22m · 1147k tokens · $0.82
