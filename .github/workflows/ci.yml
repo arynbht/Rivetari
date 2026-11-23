@@ -1,93 +1,266 @@
+# The fast pipeline. Its `ci` aggregator is the only required check on PRs.
+#
+# Pull requests get a fast Ubuntu signal: lint, typecheck and sharded tests run
+# as parallel jobs over the packages the change affects (scripts/ci-scope.mjs),
+# and only the jobs whose paths changed run at all. Main gets the full pipeline
+# on both OSes on every push and nightly, and keeps a "main is red" issue open
+# while it fails.
 name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  schedule:
+    - cron: "41 3 * * *" # nightly, 03:41 UTC
 
 permissions:
   contents: read
 
-# Superseded PR runs are cancelled; main runs never are (grouped by commit).
+# Superseded PR runs are cancelled. Main runs are grouped by commit, so a merge
+# never cancels (or replaces the pending run of) the one before it.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-test:
-    name: build-test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    defaults:
-      run:
-        # Use bash on every OS so the multi-line scripts (and tools like `test`)
-        # behave identically; Git Bash ships on the Windows runners.
-        shell: bash
+  # What changed, read from the API (no checkout), and whether the judge has
+  # already passed this commit. Draft PRs stop here: every job below needs it.
+  changes:
+    name: changes
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      code: ${{ github.event_name != 'pull_request' || steps.filter.outputs.code == 'true' }}
+      desktop: ${{ github.event_name != 'pull_request' || steps.filter.outputs.desktop == 'true' }}
+      catalog: ${{ github.event_name != 'pull_request' || steps.filter.outputs.catalog == 'true' }}
+      registry: ${{ github.event_name != 'pull_request' || steps.filter.outputs.registry == 'true' }}
+      judged: ${{ steps.judge.outputs.passed == 'true' }}
     steps:
-      - name: Checkout
+      - name: Filter paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: every
+          # `code` is everything but docs; keep it in step with isDocs in
+          # scripts/ci-scope.mjs. Markdown inside a package is package content
+          # (prompts, skills), so only root *.md and changelogs count as docs.
+          filters: |
+            code:
+              - "**"
+              - "!docs/**"
+              - "!.changeset/**"
+              - "!*.md"
+              - "!**/CHANGELOG.md"
+            desktop:
+              - "{apps/desktop,packages/runtime}/**"
+            catalog:
+              - "{packages/catalog,docs/catalog}/**"
+            registry:
+              - "packages/registry/**"
+
+      # A green `rivetari/judge` check on this commit means the judge already
+      # ran lint, typecheck and tests on a clean clone, so they're skipped here.
+      # Nothing posts that check yet; this is ready for when the judge does.
+      # Only a check from the app named in the RIVETARI_JUDGE_APP variable
+      # counts (anyone with checks:write could post one by that name), and
+      # with the variable unset nothing is skipped.
+      - name: Has the judge passed this commit
+        id: judge
+        if: github.event_name == 'pull_request' && vars.RIVETARI_JUDGE_APP != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          APP: ${{ vars.RIVETARI_JUDGE_APP }}
+        run: |
+          passed=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=rivetari/judge" \
+            --jq "[.check_runs[] | select(.conclusion == \"success\" and .app.slug == \"$APP\")] | length")
+          echo "rivetari/judge green runs on $SHA: $passed"
+          echo "passed=$([ "$passed" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  lint:
+    name: lint
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true' && needs.changes.outputs.judged != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write # cancel the run when this fails
+    steps:
+      - &checkout
+        name: Checkout (the merge commit and its parents)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Set up pnpm
+        with:
+          # HEAD^1 of the merge commit is the base, so the diff is the PR's own.
+          fetch-depth: 2
+          # Nothing after checkout talks to the remote; keep the token out of
+          # .git/config, where install scripts and lint plugins could read it.
+          persist-credentials: false
+      - &pnpm
+        name: Set up pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-
-      - name: Set up Node
+      - &node
+        name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
-
-      - name: Install
+      - &install
+        name: Install
         run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      # The desktop app is built by electron-vite (not the root tsc --build graph),
-      # so it carries its own typecheck. Packaging stays out of CI (release only).
-      - name: Typecheck desktop
-        run: pnpm --filter @arynbht/rivetari-desktop typecheck
+      - &scope
+        name: Affected packages
+        id: scope
+        run: node scripts/ci-scope.mjs HEAD^1
 
       - name: Lint
-        run: pnpm lint
-
+        if: steps.scope.outputs.none != 'true'
+        run: pnpm exec eslint ${{ steps.scope.outputs.all == 'true' && '.' || steps.scope.outputs.paths }}
       - name: Format check
-        run: pnpm format
+        run: |
+          if [ "${{ steps.scope.outputs.all }}" = "true" ]; then
+            pnpm format
+          else
+            git diff --name-only -z --diff-filter=d HEAD^1 HEAD \
+              | xargs -0 -r pnpm exec prettier --check --ignore-unknown
+          fi
+      - name: Check module boundaries
+        if: steps.scope.outputs.none != 'true'
+        run: pnpm boundaries
 
+      # Fail fast: a red lint fails the aggregator now instead of after tests.
+      - &cancel
+        name: Cancel the rest of the run
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY"
+
+  typecheck:
+    name: typecheck
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true' && needs.changes.outputs.judged != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write # cancel the run when this fails
+    steps:
+      - *checkout
+      - *pnpm
+      - *node
+      - *install
+      - *scope
+      - &tsc-cache
+        name: Restore TypeScript build info
+        if: steps.scope.outputs.none != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            packages/*/dist
+            packages/*/lib
+            packages/*/.tsbuildinfo
+          key: tsc-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: tsc-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+      - name: Typecheck
+        if: steps.scope.outputs.none != 'true'
+        run: pnpm exec tsc --build ${{ steps.scope.outputs.tsconfigs }}
+      # The desktop app is built by electron-vite, outside the tsc --build graph.
+      - name: Typecheck desktop
+        if: steps.scope.outputs.desktop == 'true'
+        run: pnpm --filter @arynbht/rivetari-desktop typecheck
+      - *cancel
+
+  test:
+    name: test (${{ matrix.shard }}/3)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true' && needs.changes.outputs.judged != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - *checkout
+      - *pnpm
+      - *node
+      - *install
+      - *scope
+      - *tsc-cache
+      - name: Restore vitest cache
+        if: steps.scope.outputs.none != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: node_modules/.vite/vitest
+          key: vitest-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}-${{ matrix.shard }}
+          restore-keys: vitest-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+      # Tests import the workspace packages from dist: build only those.
+      - name: Build what the tests import
+        if: steps.scope.outputs.none != 'true'
+        run: pnpm exec tsc --build ${{ steps.scope.outputs.tsconfigs }}
+      # A shard covers part of the suite, so the coverage floor is checked by
+      # main's full run (and ci-full), not here.
+      - name: Test
+        if: steps.scope.outputs.none != 'true'
+        run: >-
+          pnpm exec vitest run ${{ steps.scope.outputs.paths }}
+          --shard=${{ matrix.shard }}/3 --passWithNoTests --coverage.enabled=false
+
+  validate:
+    name: validate
+    needs: changes
+    if: needs.changes.outputs.catalog == 'true' || needs.changes.outputs.registry == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - *pnpm
+      - *node
+      - *install
+      # The registry and catalog CLIs load the workspace packages from dist/.
+      - name: Build
+        run: pnpm build
       - name: Validate catalog
+        if: needs.changes.outputs.catalog == 'true'
         run: pnpm catalog:validate
-
-      - name: Validate skill manifests
-        run: pnpm registry:validate
-
       - name: Check catalog site is current
+        if: needs.changes.outputs.catalog == 'true'
         run: |
           pnpm catalog:site
           git diff --exit-code -- docs/catalog
+      - name: Validate skill manifests
+        if: needs.changes.outputs.registry == 'true'
+        run: pnpm registry:validate
 
-      - name: Test
-        run: pnpm test
-
-      - name: Build
-        run: pnpm build
-
-      - name: Build action bundle
+  # Task PRs don't commit the action bundle; the release's Version Packages PR
+  # rebuilds it, so that's the one PR that has to carry a current bundle. The
+  # bundle bytes vary by platform, so this diffs the copied catalog and the
+  # source hash instead.
+  action-bundle:
+    name: action-bundle
+    needs: changes
+    if: github.head_ref == 'changeset-release/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - *pnpm
+      - *node
+      - *install
+      - name: Check action bundle is current
         run: |
           pnpm action:build
-          test -s packages/action/dist/index.js
-
-      # Task PRs don't commit the bundle (AGENTS.md): two open PRs that both
-      # regenerate it always conflict. The release's Version Packages PR
-      # rebuilds it, so that's the one PR that has to carry a current bundle.
-      - name: Check action bundle is current
-        if: github.head_ref == 'changeset-release/main'
-        run: |
-          # The bundle bytes vary by platform, so we don't diff them directly;
-          # instead we diff the copied catalog and a deterministic source hash,
-          # which catches a committed bundle that wasn't rebuilt after a change.
           git diff --exit-code -- \
             packages/action/controls \
             packages/action/gates \
@@ -96,108 +269,161 @@ jobs:
             packages/action/skill \
             packages/action/dist/SOURCE_SHA256
 
-  # Desktop end-to-end: launch the built Electron app via Playwright and drive the
-  # sign-in, audit, and waive flows plus axe accessibility checks. Headless under
-  # xvfb; the app runs with --no-sandbox (CI has no SUID sandbox) — packaging fuses
-  # and the window sandbox are unaffected. Ubuntu only (the flows aren't OS-specific).
-  desktop-e2e:
-    name: desktop-e2e
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-
-      - name: Set up Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      # The desktop main externalizes @arynbht/rivetari-{engine,catalog} and imports
-      # them from dist at runtime. electron-vite does NOT build those packages, and
-      # dist/ is gitignored — so without a tsc --build the ESM import fails and the
-      # main process never boots (firstWindow then times out with no window). Build
-      # just engine (which project-references catalog); avoids rebuilding the action
-      # bundle the way a full `pnpm build` would.
-      - name: Build engine + catalog dist (desktop loads them at runtime)
-        run: pnpm exec tsc --build packages/engine/tsconfig.json
-
-      - name: Install Electron runtime libraries + xvfb
-        run: |
-          pnpm --filter @arynbht/rivetari-desktop exec playwright install-deps
-          sudo apt-get install -y xvfb
-
-      - name: Run desktop e2e (xvfb)
-        # Force 24-bit color depth — Chromium/Electron won't render on xvfb's 8-bit
-        # default, which otherwise leaves the window (and firstWindow) hanging.
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" pnpm --filter @arynbht/rivetari-desktop e2e
-
-  # Single required status check ("ci") that gates on every upstream job, so branch
-  # protection needs just one context regardless of how many OSes the matrix runs.
-  # `if: always()` plus the explicit result check matters: without it a failed
-  # dependency makes this job *skipped*, and GitHub treats a skipped required
-  # check as passing.
-  boundaries:
-    name: boundaries
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-
-      - name: Set up Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      - name: Check module boundaries
-        run: pnpm boundaries
-
-  ci:
-    name: ci
-    if: always()
-    needs: [build-test, desktop-e2e, secret-scan, boundaries]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require every upstream job to succeed
-        env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          echo "upstream results: $RESULTS"
-          for r in $RESULTS; do
-            if [ "$r" != "success" ]; then
-              echo "::error::a required job finished with '$r'"
-              exit 1
-            fi
-          done
-
-  # Secret-scanning backstop: the pre-commit hook (lefthook + gitleaks) can be
-  # bypassed with --no-verify, so CI scans the full history as well.
+  # On a PR, gitleaks scans the PR's own commits; a push scans what it pushed.
+  # The full history is scanned weekly by secret-scan.yml.
   secret-scan:
     name: secret-scan
+    needs: changes
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          # gitleaks-action picks the range itself (the PR's commits, or the
+          # push's); it needs their history present.
           fetch-depth: 0
       - name: gitleaks
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Not required on PRs: it runs when the desktop app or the runtime it drives
+  # changes, and on every main run.
+  desktop-e2e:
+    name: desktop-e2e
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - *pnpm
+      - *node
+      - *install
+      # The desktop main loads engine and catalog from dist at runtime.
+      - name: Build engine + catalog dist
+        run: pnpm exec tsc --build packages/engine/tsconfig.json
+      - name: Install Electron runtime libraries + xvfb
+        run: |
+          pnpm --filter @arynbht/rivetari-desktop exec playwright install-deps
+          sudo apt-get install -y xvfb
+      - name: Run desktop e2e (xvfb)
+        # Chromium won't render on xvfb's 8-bit default, so force 24-bit.
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" pnpm --filter @arynbht/rivetari-desktop e2e
+
+  # Main and nightly: everything, on both OSes, as ci.yml's build-test has it.
+  build-test:
+    name: build-test (${{ matrix.os }})
+    needs: changes
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - *pnpm
+      - *node
+      - *install
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Typecheck desktop
+        run: pnpm --filter @arynbht/rivetari-desktop typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Format check
+        run: pnpm format
+      - name: Check module boundaries
+        run: pnpm boundaries
+      # Full suite with the coverage floor.
+      - name: Test
+        run: pnpm test
+      - name: Build action bundle
+        run: |
+          pnpm action:build
+          test -s packages/action/dist/index.js
+
+  # The one check a PR needs.
+  # It always runs, so a job skipped by its path filter never leaves a PR
+  # waiting, and it treats skipped as fine but anything else that isn't a pass
+  # as a failure (GitHub counts a skipped required check as passing).
+  # Windows, desktop-e2e and the full-history scan aren't in it.
+  ci:
+    name: ci
+    if: always() && github.event_name == 'pull_request' && !github.event.pull_request.draft
+    needs:
+      [changes, lint, typecheck, test, validate, action-bundle, secret-scan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every upstream job to pass or be skipped
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "upstream results: $RESULTS"
+          if [ "$CHANGES" != "success" ]; then
+            echo "::error::the changes job finished with '$CHANGES'"
+            exit 1
+          fi
+          for r in $RESULTS; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              echo "::error::a required job finished with '$r'"
+              exit 1
+            fi
+          done
+
+  # Main's verdict. While main is red an issue titled "main is red" stays open
+  # (agents stop merging until it closes); a green run closes it.
+  main-status:
+    name: main-status
+    if: always() && github.event_name != 'pull_request'
+    needs: [changes, build-test, desktop-e2e, validate, secret-scan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open, update or close the "main is red" issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          echo "upstream results: $RESULTS"
+          red=false
+          for r in $RESULTS; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then red=true; fi
+          done
+          # Main runs for consecutive merges overlap and finish in any order;
+          # only the run for main's current head speaks for main.
+          head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "main has moved on to $head; leaving the issue to its run"
+            [ "$red" = true ] && exit 1 || exit 0
+          fi
+          issue=$(gh issue list --state open --search 'in:title "main is red"' \
+            --json number,title --jq '[.[] | select(.title == "main is red")][0].number // empty')
+          if [ "$red" = true ]; then
+            body="CI failed on main at $GITHUB_SHA ($GITHUB_EVENT_NAME): $RUN_URL"
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" --body "$body"
+            else
+              gh issue create --title "main is red" \
+                --body "$body. Agents stop merging while this issue is open; it closes when main is green again."
+            fi
+            exit 1
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "main is green again at $GITHUB_SHA: $RUN_URL"
+          fi
