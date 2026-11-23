@@ -1,0 +1,36 @@
+id: T-0031
+title: Don't send a Markdown-only card to the screenshot proof on wording
+type: fix
+source: prompt
+description: When every one of a card's touches is documentation (a .md file
+  anywhere, or a path under docs/), the router still puts the ui and a11y
+  sectors in when the title or description contains words it treats as UI
+  keywords, and the card then gets a ui-screenshots proof for a Markdown-only
+  change (breathband-console T-0002, which only wrote DESIGN.md). For such a
+  card, title and description keywords, and skill triggers matched by them,
+  don't count towards ui, so ui and a11y aren't in on wording alone and the
+  proof isn't ui-screenshots. A card with any non-docs touch, or with no
+  touches, routes exactly as now.
+acceptance:
+  - id: A1
+    text: route() for a card whose only touch is DESIGN.md and whose description
+      uses the router's ui keywords doesn't put ui or a11y in, and its proof
+      isn't ui-screenshots
+    verify: unit
+  - id: A2
+    text: a card touching docs/guide.md and src/app/page.tsx with the same
+      description still routes to ui as now
+    verify: unit
+  - id: A3
+    text: a card with no touches and the same description routes as now
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/router/route.ts
+  - packages/runtime/src/router/docs-only-ui.test.ts
+  - .changeset/docs-only-ui.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
