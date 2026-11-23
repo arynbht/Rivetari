@@ -1,0 +1,136 @@
+{
+  "task": "T-0032",
+  "round": 1,
+  "verdict": "passed",
+  "head": "3547bd8abb1e94b2667847128a15260df83276cb",
+  "base": "31821c83434a6e4ba9e7c4f3e9aa06451c59774b",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test -- packages/runtime/ apps/desktop/ packages/action/ packages/cli/ --passWithNoTests --coverage.enabled=false` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "n/a",
+        "head": "n/a",
+        "outcome": "n/a",
+        "message": "not checked: the tests ran for the affected packages only, and part of the suite can't be held to the whole repo's floor; it runs with the full suite"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": [
+      "checked packages/runtime, apps/desktop, packages/action, packages/cli only: the change touches packages/runtime, and apps/desktop, packages/action, packages/cli depend on it",
+      "quality.boundaries.clean, quality.lint.clean, quality.typecheck.clean ran on every package: their scripts can't be narrowed to packages",
+      "quality.coverage.floor not checked: the tests ran for the affected packages only, and part of the suite can't be held to the whole repo's floor; it runs with the full suite"
+    ]
+  },
+  "risk": {
+    "card": "low",
+    "effective": "low",
+    "reasons": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — The first test in docs-only-ui.test.ts routes a card touching only README.md with front-end wording and asserts ui is absent and the proof is not ui-screenshots.\n- A2: met — The test routes docs/guide.md plus src/app/main.ts and asserts ui, a11y and ui-screenshots. It checks the outcome, not equality with the old routing, but it is adequate.\n- A3: met — The test routes a card with empty touches and asserts ui, a11y and ui-screenshots. `docsOnly` requires a non-empty touch list, so this card routes as before.\n\n<details><summary>1 suggestion(s), non-blocking</summary>\n\n- Bare `continue` skips the rest of the sector's loop body, with no comment saying why `packages/runtime/src/router/route.ts:199` — Wrap the keyword loop in `if (wordsScore(sector)) { ... }` instead of continuing, and add a one-line comment on `docsOnly` saying a Markdown-only card is routed on its touches, not its wording.\n\n</details>\n\n_claude-sonnet-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-sonnet-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/router/route.ts",
+        "line": 199,
+        "acceptance_id": null,
+        "title": "Bare `continue` skips the rest of the sector's loop body, with no comment saying why",
+        "detail": "`if (!wordsScore(sector)) continue;` leaves the per-sector loop after the path score. If any code after the keyword loop in that body later scores something other than words (for example a flag or profile signal), docs-only cards will silently lose it for ui. The surrounding code explains each scoring rule in a comment, and `docsOnly` and `isDocsTouch` have none.",
+        "repro": "",
+        "fix": "Wrap the keyword loop in `if (wordsScore(sector)) { ... }` instead of continuing, and add a one-line comment on `docsOnly` saying a Markdown-only card is routed on its touches, not its wording.",
+        "pattern": "4c45233d7db8"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The first test in docs-only-ui.test.ts routes a card touching only README.md with front-end wording and asserts ui is absent and the proof is not ui-screenshots."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The test routes docs/guide.md plus src/app/main.ts and asserts ui, a11y and ui-screenshots. It checks the outcome, not equality with the old routing, but it is adequate."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The test routes a card with empty touches and asserts ui, a11y and ui-screenshots. `docsOnly` requires a non-empty touch list, so this card routes as before."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 11482,
+      "costUsd": 0.05689380000000001
+    }
+  }
+}
