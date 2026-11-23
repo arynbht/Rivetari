@@ -1,0 +1,42 @@
+# Proposed by `rivetari task route`. Edit it if you disagree, then
+# `rivetari task approve`: approval re-checks it and seals it in the ledger.
+task: T-0021
+sectors:
+  - testing
+  - docs
+  - infra
+phases:
+  - build
+  - prove
+  - review
+skills: []
+spine:
+  - constraint-driven-development
+  - playwright-cli
+  - spec-driven-development
+  - test-driven-development
+  - webapp-testing
+budget:
+  skill_tokens: 0
+  context_tokens: 60000
+  steps: 12
+checks:
+  - quality.boundaries.clean
+  - quality.coverage.floor
+  - quality.lint.clean
+  - quality.tests.pass
+  - quality.typecheck.clean
+proof: infra-plan
+review:
+  rubric: default
+  design_pass: false
+  security: false
+stop_and_ask:
+  - new_dependency
+  - schema_change
+  - touches:
+      - "**/auth/**"
+      - "**/billing/**"
+      - "**/payments/**"
+gaps:
+  - "infra: no vendored skill covers it; the agent works from the spine"
