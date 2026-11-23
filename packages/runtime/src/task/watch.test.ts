@@ -356,15 +356,17 @@ describe("watching tasks", { timeout: 30_000 }, () => {
 
   it("keeps going, and stops cleanly, when the listener throws", async () => {
     const idle = await scratches();
+    const heard: unknown[] = [];
     const watcher = watchTasks(
       repo,
       () => {
         throw new Error("listener broke");
       },
-      { intervalMs: 50 },
+      { intervalMs: 50, onListenerError: (err) => heard.push(err) },
     );
     expect((await watcher.ready).length).toBe(3);
     await watcher.stop();
+    expect(heard).toEqual([new Error("listener broke")]);
     expect(await scratches()).toEqual(idle);
   });
 
