@@ -146,7 +146,7 @@ export async function reviewPullRequest(
       path: f.file,
       line: f.line,
       side: "RIGHT" as const,
-      body: `**${f.kind}: ${f.title}**\n\n${f.detail}\n\n**Repro:** ${f.repro}${f.fix ? `\n\n**Fix:** ${f.fix}` : ""}`,
+      body: `**${f.kind}: ${f.title}**\n\n${f.detail}${f.repro ? `\n\n**Repro:** ${f.repro}` : ""}${f.fix ? `\n\n**Fix:** ${f.fix}` : ""}`,
     }));
   const event =
     verdict === "approve"
