@@ -42,6 +42,10 @@ import {
   Scorecard,
   SettingsSaveRequest,
   SettingsView,
+  TaskAnswerIpcRequest,
+  TaskAnswerResult,
+  TaskOpenPrRequest,
+  TaskOpenPrResult,
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
@@ -71,7 +75,12 @@ import { getFloorPlan, runFloorPlan } from "./engine/floorplan";
 import { listDocs, readDoc } from "./engine/docs";
 import { applyFix, openFixPrForRepo, planFix } from "./engine/fix";
 import { attachEvidence, computeGates, waiveControl } from "./engine/gates";
-import { unwatchTasks, watchRepoTasks } from "./engine/tasks";
+import {
+  answerTask,
+  openTaskPr,
+  unwatchTasks,
+  watchRepoTasks,
+} from "./engine/tasks";
 import { addRepo, listRepos, removeRepo } from "./store/repos";
 import { loadSettings, saveSettings } from "./store/settings";
 import { checkForUpdate } from "./update/check";
@@ -392,6 +401,22 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannel.TasksUnwatch, async () => {
     await unwatchTasks();
+  });
+
+  ipcMain.handle(IpcChannel.TasksAnswer, async (_event, raw: unknown) => {
+    const { repoPath, ...request } = TaskAnswerIpcRequest.parse(raw);
+    return TaskAnswerResult.parse(await answerTask(repoPath, request));
+  });
+
+  ipcMain.handle(IpcChannel.TasksOpenPr, async (_event, raw: unknown) => {
+    const { repoPath, id } = TaskOpenPrRequest.parse(raw);
+    // Any https host: a PR can live on GitHub Enterprise, and the URL is the
+    // one the task's signed ledger records, not one the renderer sends.
+    return TaskOpenPrResult.parse(
+      await openTaskPr(repoPath, id, (url) =>
+        isE2E ? Promise.resolve() : shell.openExternal(url),
+      ),
+    );
   });
 
   ipcMain.handle(IpcChannel.AuthStatus, async () => {
