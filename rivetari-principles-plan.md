@@ -3,6 +3,28 @@
 Where Rivetari stands against the gates it has to clear before it runs its own
 repo unattended. Each phase records the date it was met and the tasks that show it.
 
+## Status
+
+Updated after each merge. Rivetari's own changes ship as plain PRs under the exemption
+in AGENTS.md (2026-11-23); cards run on breathband-console.
+
+| Item                                                              | Track | PR   | State                     |
+| ----------------------------------------------------------------- | ----- | ---- | ------------------------- |
+| Rebuild the action bundle once per release                        | —     | #196 | merged 2026-11-23         |
+| Task PRs don't commit the action bundle (AGENTS.md)               | —     | #197 | merged 2026-11-23         |
+| Bug 20: per-call and per-task timeouts                            | A     | —    | in progress               |
+| Risk derived at intake, recomputed at the judge                   | A     | —    | in progress               |
+| Findings per PR counts blocking findings only                     | A     | —    | in progress               |
+| Affected-only tier 1                                              | B     | —    | in progress               |
+| Context cap redone: slice, enforced plan turns, 15k for low risk  | B     | —    | in progress (was #189)    |
+| `watchTasks` runtime API                                          | C     | —    | in progress               |
+| Read-only Tasks tab in the shell                                  | C     | —    | after `watchTasks`        |
+| `task run --parallel N` with overlap checks                       | D     | —    | in progress               |
+| Bug 9 + 19: keyword-only sectors don't hold the route             | D     | —    | after parallel (was #193) |
+| Floorplan stage 1                                                 | E     | —    | in progress               |
+| Regression card through `/rivetari` on this repo                  | —     | —    | after A–E merge           |
+| breathband-console: F2 + hygiene, DESIGN.md, three card proposals | cards | —    | in progress               |
+
 ## Phase A: a real task runs at review-at-pr without asking
 
 **Gate:** a real change to this repo goes through `/rivetari` at `review-at-pr` with

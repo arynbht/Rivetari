@@ -19,6 +19,13 @@ Anywhere else, use the `rivetari task` commands the skill uses. Don't change
 files in this checkout on the default branch: each task gets its own worktree and
 branch, and the change reaches the default branch only through a reviewed PR.
 
+**Exemption for this repo (owner, 2026-11-23):** changes to Rivetari's own code ship
+as plain PRs from a branch or worktree, not through `/rivetari`. Each PR needs CI green
+on Ubuntu and Windows and `rivetari review --pr <n>` with no blocking findings; it's
+rebased on main before it merges. An agent may then merge it, except changes to
+signing, leases or the autonomy ledger, which wait for the owner. Cards run on the
+BreathBand repos.
+
 ## The beats
 
 0. **sync**: `rivetari doctor && rivetari skills sync`. Machine and skills ready, pinned and verified.
