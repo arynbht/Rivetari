@@ -46,6 +46,16 @@ describe("touchesOverlap", () => {
     expect(touchesOverlap(["src/ui"], ["src/uikit/x.ts"])).toBe(false);
   });
 
+  it("the repo's root, a leading slash and a climb out of the repo", () => {
+    expect(touchesOverlap(["."], ["src/a.ts"])).toBe(true);
+    expect(touchesOverlap(["./"], ["docs/**"])).toBe(true);
+    expect(touchesOverlap(["/"], ["src/a.ts"])).toBe(true);
+    expect(touchesOverlap(["/src/a.ts"], ["src/a.ts"])).toBe(true);
+    expect(touchesOverlap(["src//ui/./a.ts"], ["src/ui/a.ts"])).toBe(true);
+    expect(touchesOverlap(["../other/a.ts"], ["src/a.ts"])).toBe(true);
+    expect(touchesOverlap(["/src/a.ts"], ["docs/a.md"])).toBe(false);
+  });
+
   it("a glob against a path", () => {
     expect(touchesOverlap(["src/**/*.ts"], ["src/ui/button.ts"])).toBe(true);
     expect(touchesOverlap(["src/*.ts"], ["src/a.ts"])).toBe(true);

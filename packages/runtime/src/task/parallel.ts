@@ -36,8 +36,15 @@ export interface ParallelOptions {
 
 const GLOB_CHAR = /[*?[\]{}()!+@]/;
 
-const normalize = (path: string) =>
-  path.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
+function normalize(path: string): string {
+  const parts = path
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter((part) => part !== "" && part !== ".");
+  // The repo's root, or a path that climbs out of it: it could be any file.
+  if (parts.length === 0 || parts.includes("..")) return "**";
+  return parts.join("/");
+}
 
 /** A plain path might name a directory, so it covers what's under it too. */
 function covers(entry: string): string[] {
