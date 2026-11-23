@@ -15,6 +15,8 @@
 - 2026-11-23 07:31 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 07:32 judge: judge passed · round 1 · head 150fcefcf1dc · record sha256 d3f0dcaf16d90b0c6e02d918877d18ad62fd6a7791f8ad62cb5f2a9b2ada5f92 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 07:32 ship: draft PR opened: #190 https://github.com/arynbht/Rivetari/pull/190 · fix/t-0018 at 150fcefcf1dc → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 07:44 close: worktree removed · branch fix/t-0018 deleted (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 07:44 close: ledger sealed · merged (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -46,3 +48,7 @@
 - 2026-11-23 07:32 acceptance A2: met — The CLI test drafts a card with a plain path, one with a 10-file glob and one with a glob matching nothing. The runtime test also accepts a glob matching exactly 20 files.
 - 2026-11-23 07:32 acceptance A3: met — The CLI test with --from YAML refuses the over-cap glob and reserves no id.
 - 2026-11-23 07:32 judge review posted: https://github.com/arynbht/Rivetari/pull/190#pullrequestreview-6017889870
+
+## Outcome
+
+- 2026-11-23 07:44 PR #190 merged by arynbht 2026-11-23 07:44 · 25m · 1746k tokens · $1.78
