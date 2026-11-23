@@ -40,6 +40,7 @@ import {
 import { parse as parseYaml } from "yaml";
 
 import { runAudit, type RunAuditOptions } from "./audit.js";
+import { type CiPlan, writeCi } from "./init-ci.js";
 import {
   CLAUDE_MD,
   mergeRivetariHooks,
@@ -451,6 +452,8 @@ export interface InitOptions extends RunAuditOptions {
    * is given, since it fetches the pinned skill and calls the model.
    */
   floorplan?: FloorplanOptions | undefined;
+  /** Find the repo's CI plan (tests). Default: the GitHub API. */
+  detectCiPlan?: (() => Promise<CiPlan>) | undefined;
 }
 
 /** Add `line` to the repo's .gitignore unless it's there. */
@@ -598,6 +601,12 @@ export async function runInit(
     beside.push(
       `${workflow}, then delete it (every file in .github/workflows runs on GitHub, so don't commit it)`,
     );
+  const ci = await writeCi(root, {
+    token: options.token,
+    detectPlan: options.detectCiPlan,
+    force: flags.force,
+  });
+  if (ci) beside.push(ci);
 
   // Backups init leaves under .rivetari/ are for the person to look at, not commit.
   await ignoreInRivetari(root, [
