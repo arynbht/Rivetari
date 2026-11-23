@@ -52,6 +52,8 @@ export interface TaskHistoryRow {
   cost_usd: number;
   build_rounds: number;
   judge_rounds: number;
+  risk?: "low" | "medium" | "high" | undefined;
+  prompt_tokens?: number | undefined;
   findings?: TaskFinding[] | undefined;
   rounds?: RoundUsage[] | undefined;
 }
@@ -144,6 +146,21 @@ export function usageTotals(task: Task): { tokens: number; costUsd: number } {
     costUsd += Number(/\$(\d+\.\d+)/.exec(note)?.[1] ?? 0);
   }
   return { tokens, costUsd };
+}
+
+const PROMPT_TOKENS = /~(\d[\d,]*)(k?) prompt tokens/g;
+
+export function promptTokens(task: Task): number | undefined {
+  const figures = task.entries.flatMap((e) =>
+    e.beat === "build" &&
+    e.section === "timeline" &&
+    e.text.startsWith("build started")
+      ? [...e.text.matchAll(PROMPT_TOKENS)].map(
+          (m) => Number(m[1]!.replace(/,/g, "")) * (m[2] ? 1000 : 1),
+        )
+      : [],
+  );
+  return figures.length > 0 ? Math.max(...figures) : undefined;
 }
 
 export function formatDuration(ms: number): string {
@@ -290,6 +307,7 @@ export async function closeTask(
   const assembly = task.assemblyText
     ? AssemblySchema.safeParse(parse(task.assemblyText))
     : null;
+  const prompt = promptTokens(task);
   const row: TaskHistoryRow = {
     kind: "task",
     date: now.toISOString().slice(0, 10),
@@ -309,6 +327,8 @@ export async function closeTask(
         /^build (done|paused)/.test(e.text),
     ).length,
     judge_rounds: judgeVerdicts(task).length,
+    risk: task.card.risk,
+    ...(prompt === undefined ? {} : { prompt_tokens: prompt }),
     findings: await taskFindings(repoPath, id),
     rounds: roundUsage(task),
   };

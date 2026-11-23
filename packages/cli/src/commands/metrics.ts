@@ -11,8 +11,10 @@ import {
 import {
   type FindingsMetrics,
   findingsMetrics,
+  historyRows,
   ladder,
   type LadderState,
+  type TaskHistoryRow,
 } from "@arynbht/rivetari-runtime";
 
 export interface MetricsFlags {
@@ -75,6 +77,25 @@ export function renderFindings(f: FindingsMetrics): string {
   return lines.join("\n");
 }
 
+export function costFlags(rows: TaskHistoryRow[]): TaskHistoryRow[] {
+  return rows.filter((r) => r.risk === "low" && r.cost_usd > 1);
+}
+
+export function renderCost(rows: TaskHistoryRow[]): string {
+  const flagged = costFlags(rows);
+  return [
+    "Cost",
+    "",
+    "Low-risk tasks over $1:",
+    ...(flagged.length > 0
+      ? flagged.map(
+          (r) =>
+            `  ${r.task}  $${r.cost_usd.toFixed(2)}  ${r.prompt_tokens === undefined ? "n/a" : r.prompt_tokens} prompt tokens`,
+        )
+      : ["  none: no low-risk task cost over $1"]),
+  ].join("\n");
+}
+
 export interface RunMetricsOptions {
   now?: Date | undefined;
   token?: string | null | undefined;
@@ -99,11 +120,13 @@ export async function runMetrics(
 
   const findings = await findingsMetrics(root);
   const trust = await ladder(root, { now: options.now });
+  const rows = await historyRows(root);
+  const cost = costFlags(rows);
   if (flags.findings) {
     process.stdout.write(
       flags.json
-        ? `${JSON.stringify({ findings, ladder: trust }, null, 2)}\n`
-        : `${renderLadder(trust)}\n\n${renderFindings(findings)}\n`,
+        ? `${JSON.stringify({ findings, ladder: trust, cost }, null, 2)}\n`
+        : `${renderLadder(trust)}\n\n${renderFindings(findings)}\n\n${renderCost(rows)}\n`,
     );
     return 0;
   }
@@ -140,13 +163,13 @@ export async function runMetrics(
 
   if (flags.json) {
     process.stdout.write(
-      `${JSON.stringify({ metrics, history, findings, ladder: trust }, null, 2)}\n`,
+      `${JSON.stringify({ metrics, history, findings, ladder: trust, cost }, null, 2)}\n`,
     );
     return 0;
   }
 
   process.stdout.write(
-    `${render(metrics, history.length)}\n\n${renderLadder(trust)}\n\n${renderFindings(findings)}\n`,
+    `${render(metrics, history.length)}\n\n${renderLadder(trust)}\n\n${renderFindings(findings)}\n\n${renderCost(rows)}\n`,
   );
   return 0;
 }
