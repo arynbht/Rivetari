@@ -8,14 +8,16 @@ on:
 permissions:
   contents: read
 
+# Superseded PR runs are cancelled; main runs never are (grouped by commit).
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-test:
     name: build-test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -101,6 +103,7 @@ jobs:
   desktop-e2e:
     name: desktop-e2e
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -144,6 +147,7 @@ jobs:
   boundaries:
     name: boundaries
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -168,6 +172,7 @@ jobs:
     if: always()
     needs: [build-test, desktop-e2e, secret-scan, boundaries]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Require every upstream job to succeed
         env:
@@ -186,6 +191,7 @@ jobs:
   secret-scan:
     name: secret-scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
