@@ -190,6 +190,8 @@ describe("CI posture controls", () => {
     async (id) => {
       const dir = await repoWith({ [WF]: LEGACY });
       expect(await statusOf(dir, id)).toBe("fail");
+      // The docs filter waits for an aggregator to require.
+      if (id === "ci.docs-skip-build") await fix(dir, "ci.required-aggregator");
       await fix(dir, id);
       expect(await statusOf(dir, id)).toBe("pass");
       // The fix keeps the file's comments and is idempotent.
@@ -412,32 +414,78 @@ jobs:
     expect(await statusOf(dir, "ci.concurrency-pr-only")).toBe("fail");
   });
 
-  it("never lets the docs filter skip a plain required `ci` job", async () => {
-    const dir = await repoWith({
-      [WF]: `on: [pull_request]
+  it.each([
+    ["no `ci` job", "build"],
+    ["a plain `ci` job", "ci"],
+  ])(
+    "leaves the jobs ungated and asks for an aggregator with %s",
+    async (_label, key) => {
+      const workflow = `on: [pull_request]
 jobs:
-  ci:
+  ${key}:
+    runs-on: \${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - run: npm test
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - run: npm test
+      - run: npm run lint
+`;
+      const dir = await repoWith({ [WF]: workflow });
+      const changes = await workflowGenerator(
+        ctx(dir),
+        control("ci.docs-skip-build"),
+      );
+      // A gated job would be the required check itself: a skipped matrix job
+      // never reports its leg's name, and a failed `changes` reads as passed.
+      expect(changes).toEqual([
+        expect.objectContaining({
+          type: "note",
+          message: expect.stringContaining(
+            "fix `ci.required-aggregator` first",
+          ),
+        }),
+      ]);
+      await applyChanges(dir, changes, { mode: "write" });
+      expect(await readFile(join(dir, WF), "utf8")).toBe(workflow);
+    },
+  );
+
+  it("gates the jobs behind an always() aggregator, which waits for changes", async () => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request]
+jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - run: npm run e2e
+  ci:
+    if: always()
+    needs: [e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: \${{ join(needs.*.result, ' ') }}
+        run: for r in $RESULTS; do [ "$r" = success ] || [ "$r" = skipped ] || exit 1; done
 `,
     });
     await fix(dir, "ci.docs-skip-build");
     const doc = parse(await readFile(join(dir, WF), "utf8")) as {
       jobs: Record<string, { needs?: unknown; if?: string }>;
     };
-    // `ci` still runs, and reports, on a docs-only PR or a failed `changes`.
-    expect(doc.jobs.ci?.needs).toBeUndefined();
-    expect(doc.jobs.ci?.if).toBeUndefined();
-    // Other jobs are still skipped on docs-only changes.
+    // `ci` runs and reports on every PR, and fails if `changes` failed.
+    expect(doc.jobs.ci?.if).toBe("always()");
+    expect(doc.jobs.ci?.needs).toEqual(["e2e", "changes"]);
     expect(doc.jobs.e2e?.if).toBe("needs.changes.outputs.code == 'true'");
     expect(await statusOf(dir, "ci.docs-skip-build")).toBe("pass");
+    expect(await statusOf(dir, "ci.required-aggregator")).toBe("pass");
   });
 
   it("makes an aggregator gated on a need's output run on every PR", async () => {

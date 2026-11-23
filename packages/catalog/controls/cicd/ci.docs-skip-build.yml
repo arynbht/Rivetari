@@ -12,6 +12,8 @@ evidence: none
 # Adds a `changes` job (dorny/paths-filter) and runs the other jobs only when
 # something besides docs and Markdown changed. The required `ci` job and the
 # secret scan still run on every PR: a skipped required check counts as passed.
+# It needs an `always()` `ci` aggregator first (`ci.required-aggregator`), so
+# no gated job is itself a required check; without one it only says so.
 fix:
   type: workflow
   patch: docs-path-filter

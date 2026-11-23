@@ -519,10 +519,18 @@ const patches: Record<Exclude<Patch, "pin-actions">, PatchFn> = {
     workflows
       .filter((w) => jobsWithoutTimeout(w).length > 0)
       .map((w) => ({ path: w.path, edit: addTimeouts })),
-  "docs-path-filter": async (_ctx, workflows) =>
-    workflows.filter(runsOnPr).some(filtersPaths)
-      ? []
-      : onTarget(workflows, addPathFilter),
+  "docs-path-filter": async (_ctx, workflows) => {
+    if (workflows.filter(runsOnPr).some(filtersPaths)) return [];
+    const target = targetWorkflow(workflows);
+    if (!target) return NO_PR_WORKFLOW;
+    // Without an `always()` aggregator to require, a gated job is the required
+    // check itself: a skipped matrix job reports under another name, and a
+    // failed `changes` skips the rest, which GitHub counts as passed.
+    if (!aggregatorKey(target)) {
+      return `${target.path} has no \`always()\` \`ci\` aggregator to require, so gating its jobs on changed paths could skip a required check; fix \`ci.required-aggregator\` first, then run this fix again`;
+    }
+    return [{ path: target.path, edit: addPathFilter }];
+  },
   "pr-os-matrix": async (ctx, workflows) => {
     const gh = await ctx.github();
     // Only a private repo pays for Windows and macOS minutes.
