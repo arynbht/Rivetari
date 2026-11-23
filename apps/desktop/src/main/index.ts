@@ -53,6 +53,7 @@ import {
   loadAnthropicKey,
   saveAnthropicKey,
 } from "./auth/anthropic-key-store";
+import { notConfiguredMessage, resolveClientId } from "./auth/client-id";
 import {
   fetchUserLogin,
   pollForToken,
@@ -171,8 +172,6 @@ if (isDev) {
   }
 }
 
-/** GitHub App / OAuth client id for device flow (ADR-0007). Empty → not set up. */
-const GITHUB_CLIENT_ID = process.env.RIVETARI_GITHUB_CLIENT_ID ?? "";
 const GITHUB_SCOPE = "repo read:org";
 
 let mainWindow: BrowserWindow | null = null;
@@ -407,14 +406,12 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.AuthSignIn, async () => {
-    if (!GITHUB_CLIENT_ID) {
-      throw new Error(
-        "GitHub sign-in isn't configured. Set RIVETARI_GITHUB_CLIENT_ID to a " +
-          "registered GitHub App/OAuth client id (ADR-0007).",
-      );
-    }
+    // Looked up per sign-in, so registering the App with the shell open works.
+    const resolved = await resolveClientId();
+    if (!resolved) throw new Error(notConfiguredMessage());
+    const { clientId } = resolved;
     const deps = { fetch: authFetch };
-    const code = await requestDeviceCode(GITHUB_CLIENT_ID, GITHUB_SCOPE, deps);
+    const code = await requestDeviceCode(clientId, GITHUB_SCOPE, deps);
     // Open github.com/login/device for the user (host is allow-listed). Skipped in
     // E2E so the suite doesn't spawn a real browser.
     if (!isE2E) openExternalIfAllowed(code.verificationUri);
@@ -430,7 +427,7 @@ function registerIpcHandlers(): void {
     // not save a token or push a stale outcome.
     void (async () => {
       try {
-        const token = await pollForToken(GITHUB_CLIENT_ID, code, deps, signal);
+        const token = await pollForToken(clientId, code, deps, signal);
         if (signal.aborted) return;
         await saveToken(token);
         let login = "";
