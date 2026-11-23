@@ -12,6 +12,8 @@
 - 2026-11-23 11:11 build: build started · fast path (low risk, 2 source file(s)): planned from the card's criteria, no plan call · budget 8 steps / 60k ctx (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 17:06 build: build done · commit a6165704fed8 · 5 file(s) this round · 1029814 tokens · $0.92 · 22 turns · I've finished the change and the rebuilt action bundle. Now I'm writing up the summary. (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 17:06 prove: proof deferred · test-run: the judge's tier 1 run on the change is the proof (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 17:13 close: worktree removed · branch fix/t-0025 kept (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 17:13 close: ledger sealed · abandoned (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -26,3 +28,7 @@
 - 2026-11-23 11:10 routed to docs, data, testing: docs (touches **/*.md (.changeset/init-detects-stack.md); skill native-writing triggers on **/*.md (.changeset/init-detects-stack.md)), data ("seed" in the title), testing (touches **/*.test.* (packages/cli/src/commands/init-stack.test.ts))
 - 2026-11-23 11:10 native-writing matched but isn't available (not locked, not synced, or blocked at sync)
 - 2026-11-23 11:10 data: no vendored skill covers it; the agent works from the spine
+
+## Outcome
+
+- 2026-11-23 17:13 abandoned: hung: no agent timeout (bug 20) · 6h03m · 1030k tokens · $0.92
