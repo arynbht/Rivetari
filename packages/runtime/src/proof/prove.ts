@@ -2,7 +2,7 @@
 // never described by the agent. UI: the base and the change served side by
 // side, shot at three breakpoints, axe on the change, the images on the
 // `evidence` branch. Everything else: the test run, with the new tests named.
-// The result goes to the ledger and `.factory/tasks/<id>/proof/proof.json`.
+// The result goes to the ledger and `.rivetari/tasks/<id>/proof/proof.json`.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,7 +17,7 @@ import {
   QUIET_LOG,
   resolveRepoSlug,
   runTool,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
@@ -163,7 +163,7 @@ export async function proofFromJudge(
     `${JSON.stringify(record, null, 2)}\n`,
     "utf8",
   );
-  const by = `factory runtime (for ${options.by})`;
+  const by = `rivetari runtime (for ${options.by})`;
   for (const line of lines)
     await task.ledger.append({
       beat: "prove",
@@ -193,9 +193,9 @@ async function baseCheckout(repoPath: string, base: string): Promise<string> {
   const commonDir = (
     await git.raw(["rev-parse", "--path-format=absolute", "--git-common-dir"])
   ).trim();
-  const noHooks = join(commonDir, "factory-no-hooks");
+  const noHooks = join(commonDir, "rivetari-no-hooks");
   await mkdir(noHooks, { recursive: true });
-  const dir = await mkdtemp(join(tmpdir(), "factory-proof-base-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-proof-base-"));
   await simpleGit(repoPath, {
     unsafe: { allowUnsafeHooksPath: true },
     config: [`core.hooksPath=${noHooks}`],
@@ -364,7 +364,7 @@ async function uiProof(
   const start = profile?.proof?.start;
   if (!start)
     throw new TaskError(
-      "the UI proof needs to know how to serve the app: set `proof.start` (and `proof.url` if it isn't http://localhost:{port}) in .factory/profile.yml",
+      "the UI proof needs to know how to serve the app: set `proof.start` (and `proof.url` if it isn't http://localhost:{port}) in .rivetari/profile.yml",
     );
   const timeoutMs = (profile?.proof?.ready_timeout ?? 90) * 1000;
   const pages = task.card.pages.length > 0 ? task.card.pages : ["/"];
@@ -488,7 +488,7 @@ function githubPublisher(repoPath: string, task: string): Publish {
 }
 
 /**
- * `factory task prove <id>`: run the assembly's proof against the built
+ * `rivetari task prove <id>`: run the assembly's proof against the built
  * worktree and record it. A failed proof sends the task back to build.
  */
 export async function proveTask(
@@ -510,7 +510,7 @@ export async function proveTask(
       beat: "prove",
       section: "timeline",
       text: DEFERRED,
-      by: `factory runtime (for ${options.by})`,
+      by: `rivetari runtime (for ${options.by})`,
       at: options.now,
     });
     return {
@@ -532,7 +532,7 @@ export async function proveTask(
     `${JSON.stringify(record, null, 2)}\n`,
     "utf8",
   );
-  const by = `factory runtime (for ${options.by})`;
+  const by = `rivetari runtime (for ${options.by})`;
   for (const line of record.lines)
     await task.ledger.append({
       beat: "prove",

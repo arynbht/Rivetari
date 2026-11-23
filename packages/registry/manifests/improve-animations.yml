@@ -25,7 +25,7 @@ tested_on: "2026-11-09"
 notes: >
   Read-only codebase motion audit that writes plans to plans/; it explicitly treats repository
   content as data, not instructions (the scanner's override-instructions hit is that sentence).
-  "execute <plan>" dispatches a subagent in a worktree, which overlaps the factory's build step;
+  "execute <plan>" dispatches a subagent in a worktree, which overlaps Rivetari's build step;
   prefer audit and plan only.
 scan_allow:
   - rule: override-instructions

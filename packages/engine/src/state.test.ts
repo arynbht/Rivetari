@@ -22,7 +22,7 @@ describe("state", () => {
     made.length = 0;
   });
   const tmp = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-state-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-state-"));
     made.push(d);
     return d;
   };
@@ -45,13 +45,13 @@ describe("state", () => {
 
   it("recovers from a corrupt state file", async () => {
     const dir = await tmp();
-    await mkdir(join(dir, ".factory"), { recursive: true });
-    await writeFile(join(dir, ".factory", "state.json"), "{not json", "utf8");
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
+    await writeFile(join(dir, ".rivetari", "state.json"), "{not json", "utf8");
     expect(await loadState(dir)).toEqual({ version: 1 });
   });
 
   describe("managedFileUnchanged", () => {
-    it("is false for a file the factory never wrote", async () => {
+    it("is false for a file Rivetari never wrote", async () => {
       const dir = await tmp();
       await writeFile(join(dir, "f.txt"), "human", "utf8");
       expect(await managedFileUnchanged(dir, "f.txt", { version: 1 })).toBe(
@@ -74,9 +74,9 @@ describe("state", () => {
       expect(await managedFileUnchanged(dir, "gone.txt", state)).toBe(true);
     });
 
-    it("matches a factory-written file checked out with CRLF or a BOM", async () => {
+    it("matches a rivetari-written file checked out with CRLF or a BOM", async () => {
       const dir = await tmp();
-      // Registry records the LF hash the factory wrote...
+      // Registry records the LF hash Rivetari wrote...
       const state = { version: 1, managed: { "f.txt": managedHash("a\nb\n") } };
       // ...but git (autocrlf) or an editor hands it back as CRLF / BOM+CRLF.
       await writeFile(join(dir, "f.txt"), "a\r\nb\r\n", "utf8");

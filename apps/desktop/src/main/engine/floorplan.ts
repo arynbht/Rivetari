@@ -12,17 +12,17 @@ import {
   saveArchitectureDoc,
   saveFloorPlan,
   type SwarmProgress,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import type { FloorPlanView } from "../../shared/ipc";
 
 /**
  * Whether the deep-audit swarm can run. It spawns real `claude` processes, so
  * under the E2E seam (deterministic, offline tests) we report it unavailable — the
- * tests drive the Floor Plan from a seeded `.factory/floorplan.json` instead.
+ * tests drive the Floor Plan from a seeded `.rivetari/floorplan.json` instead.
  */
 function deepAuditAvailable(): Promise<boolean> {
-  if (process.env.FACTORY_E2E === "1") return Promise.resolve(false);
+  if (process.env.RIVETARI_E2E === "1") return Promise.resolve(false);
   return claudeCliAvailable();
 }
 

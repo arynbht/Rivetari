@@ -23,7 +23,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     vi.restoreAllMocks();
   });
   const tmp = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-init-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-init-"));
     made.push(d);
     return d;
   };
@@ -39,7 +39,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
       ),
     ).toBe(0);
     const seeded = JSON.parse(
-      await readFile(join(dir, ".factory", "banned.json"), "utf8"),
+      await readFile(join(dir, ".rivetari", "banned.json"), "utf8"),
     ) as { patterns: { id: string }[] };
     expect(seeded.patterns.map((p) => p.id)).toEqual([
       "no-eval",
@@ -48,7 +48,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
       "no-inner-html",
     ]);
     const mine = '{ "version": 1, "patterns": [] }\n';
-    await writeFile(join(dir, ".factory", "banned.json"), mine);
+    await writeFile(join(dir, ".rivetari", "banned.json"), mine);
     expect(
       await runInit(
         dir,
@@ -56,7 +56,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
         { token: null },
       ),
     ).toBe(0);
-    expect(await readFile(join(dir, ".factory", "banned.json"), "utf8")).toBe(
+    expect(await readFile(join(dir, ".rivetari", "banned.json"), "utf8")).toBe(
       mine,
     );
   });
@@ -79,31 +79,31 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
 
     expect(code).toBe(0);
     const profile = await readFile(
-      join(dir, ".factory", "profile.yml"),
+      join(dir, ".rivetari", "profile.yml"),
       "utf8",
     );
     expect(profile).toContain("type: cli");
     expect(profile).toContain("open-source: true");
     await expect(
-      access(join(dir, ".factory", "waivers.yml")),
+      access(join(dir, ".rivetari", "waivers.yml")),
     ).resolves.toBeUndefined();
     const workflow = await readFile(
-      join(dir, ".github", "workflows", "factory.yml"),
+      join(dir, ".github", "workflows", "rivetari.yml"),
       "utf8",
     );
-    expect(workflow).toContain("name: factory");
+    expect(workflow).toContain("name: rivetari");
     expect(workflow).toContain("cron:");
     expect(workflow).toContain("gate: scaffold");
 
-    // §10: the /factory skill, the contract, its hooks and the PR template.
+    // §10: the /rivetari skill, the contract, its hooks and the PR template.
     const read = (...p: string[]) => readFile(join(dir, ...p), "utf8");
-    const skill = await read(".claude", "skills", "factory", "SKILL.md");
-    expect(skill).toContain("name: factory");
-    expect(skill).toContain("factory task run <id>");
+    const skill = await read(".claude", "skills", "rivetari", "SKILL.md");
+    expect(skill).toContain("name: rivetari");
+    expect(skill).toContain("rivetari task run <id>");
     const agents = await read("AGENTS.md");
-    expect(agents).toContain("Run `factory doctor`");
+    expect(agents).toContain("Run `rivetari doctor`");
     expect(agents).toContain("## Stop and ask");
-    expect(agents).toContain("- `.factory/**`");
+    expect(agents).toContain("- `.rivetari/**`");
     expect(agents).toContain("- **demo**: cli, phase scaffold");
     expect(await read("CLAUDE.md")).toContain("@AGENTS.md");
     expect(await read("CONSTRAINTS.md")).toContain("No new dependency");
@@ -119,16 +119,16 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     expect(settings.hooks.PreToolUse?.[0]?.hooks[0]?.command).toBe(
       GUARD_COMMAND,
     );
-    expect(await read(".factory", ".gitignore")).toBe(
+    expect(await read(".rivetari", ".gitignore")).toBe(
       "tasks/\nai-usage.log\ncache/\n*.bak\n*.bak.*\n",
     );
     // The spine skills are locked; task-scope skills aren't.
-    const lock = await read(".factory", "skills.lock");
+    const lock = await read(".rivetari", "skills.lock");
     expect(lock).toContain("scope: always");
     expect(lock).not.toContain("scope: task");
   });
 
-  it("never overwrites a file the repo already has: the factory's version goes beside it", async () => {
+  it("never overwrites a file the repo already has: Rivetari's version goes beside it", async () => {
     const dir = await tmp();
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     await writeFile(join(dir, "AGENTS.md"), "# Our own rules\n");
@@ -143,7 +143,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     expect(await readFile(join(dir, "AGENTS.md"), "utf8")).toBe(
       "# Our own rules\n",
     );
-    const ours = await readFile(join(dir, "AGENTS.factory.md"), "utf8");
+    const ours = await readFile(join(dir, "AGENTS.rivetari.md"), "utf8");
     expect(ours).toMatch(
       /Commands: install `npm install` · lint `npm run lint` · test `npm run test`/,
     );
@@ -199,7 +199,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
           // An earlier init's guard: replaced, not duplicated.
           {
             matcher: "Edit|Write|MultiEdit|NotebookEdit",
-            hooks: [{ type: "command", command: "factory hook guard" }],
+            hooks: [{ type: "command", command: "rivetari hook guard" }],
           },
         ],
       },
@@ -231,7 +231,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     );
     expect(await read(".claude", "settings.json.bak")).toBe(original);
     await expect(
-      access(join(dir, ".claude", "settings.factory.json")),
+      access(join(dir, ".claude", "settings.rivetari.json")),
     ).rejects.toThrow();
 
     // A re-run converges: nothing to merge, so no second backup.
@@ -257,7 +257,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
       "{ // comments\n}",
     );
     await expect(
-      access(join(dir, ".claude", "settings.factory.json")),
+      access(join(dir, ".claude", "settings.rivetari.json")),
     ).resolves.toBeUndefined();
     expect(out.mock.calls.join("")).toMatch(/the guard is off/);
   });
@@ -269,30 +269,30 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     const read = (...p: string[]) => readFile(join(dir, ...p), "utf8");
     const waiver =
       "- control: docs.runbooks-dir\n  reason: not yet\n  expires: 2027-01-01\n  owner: '@me'\n";
-    await writeFile(join(dir, ".factory", "waivers.yml"), waiver);
-    await writeFile(join(dir, ".factory", "evidence.yml"), "- note: kept\n");
-    const profile = await read(".factory", "profile.yml");
-    const workflow = await read(".github", "workflows", "factory.yml");
+    await writeFile(join(dir, ".rivetari", "waivers.yml"), waiver);
+    await writeFile(join(dir, ".rivetari", "evidence.yml"), "- note: kept\n");
+    const profile = await read(".rivetari", "profile.yml");
+    const workflow = await read(".github", "workflows", "rivetari.yml");
 
     await runInit(
       dir,
       { type: "library", phase: "build", yes: true, force: true },
       { token: null },
     );
-    expect(await read(".factory", "waivers.yml")).toBe(waiver);
-    expect(await read(".factory", "evidence.yml")).toBe("- note: kept\n");
-    expect(await read(".factory", "profile.yml")).toContain("type: library");
-    expect(await read(".factory", "profile.yml.bak")).toBe(profile);
-    expect(await read(".github", "workflows", "factory.yml")).toBe(workflow);
-    expect(await read(".github", "workflows", "factory.factory.yml")).toContain(
-      "gate: build",
-    );
+    expect(await read(".rivetari", "waivers.yml")).toBe(waiver);
+    expect(await read(".rivetari", "evidence.yml")).toBe("- note: kept\n");
+    expect(await read(".rivetari", "profile.yml")).toContain("type: library");
+    expect(await read(".rivetari", "profile.yml.bak")).toBe(profile);
+    expect(await read(".github", "workflows", "rivetari.yml")).toBe(workflow);
+    expect(
+      await read(".github", "workflows", "rivetari.rivetari.yml"),
+    ).toContain("gate: build");
     await expect(
-      access(join(dir, ".github", "workflows", "factory.yml.bak")),
+      access(join(dir, ".github", "workflows", "rivetari.yml.bak")),
     ).rejects.toThrow();
   });
 
-  it("--force keeps a customised factory.yml and writes the template beside it", async () => {
+  it("--force keeps a customised rivetari.yml and writes the template beside it", async () => {
     const dir = await tmp();
     const out = vi
       .spyOn(process.stdout, "write")
@@ -300,8 +300,8 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
     await runInit(dir, { type: "cli", yes: true }, { token: null });
     const wf = (...p: string[]) => join(dir, ".github", "workflows", ...p);
     const custom =
-      "name: factory\r\non: [pull_request]\njobs:\n  factory:\n    uses: ./packages/action\n";
-    await writeFile(wf("factory.yml"), custom);
+      "name: rivetari\r\non: [pull_request]\njobs:\n  rivetari:\n    uses: ./packages/action\n";
+    await writeFile(wf("rivetari.yml"), custom);
 
     const fresh = await tmp();
     await runInit(
@@ -310,7 +310,7 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
       { token: null },
     );
     const template = await readFile(
-      join(fresh, ".github", "workflows", "factory.yml"),
+      join(fresh, ".github", "workflows", "rivetari.yml"),
       "utf8",
     );
 
@@ -322,36 +322,36 @@ describe("runInit (integration)", { timeout: 30_000 }, () => {
         { token: null },
       ),
     ).toBe(0);
-    expect(await readFile(wf("factory.yml"), "utf8")).toBe(custom);
-    const sibling = await readFile(wf("factory.factory.yml"), "utf8");
+    expect(await readFile(wf("rivetari.yml"), "utf8")).toBe(custom);
+    const sibling = await readFile(wf("rivetari.rivetari.yml"), "utf8");
     expect(sibling).toContain("gate: build");
     expect(sibling).toBe(template);
-    await expect(access(wf("factory.yml.bak"))).rejects.toThrow();
+    await expect(access(wf("rivetari.yml.bak"))).rejects.toThrow();
 
     const said = out.mock.calls.join("");
-    expect(said).toContain(".github/workflows/factory.factory.yml");
+    expect(said).toContain(".github/workflows/rivetari.rivetari.yml");
     expect(said).toContain("merge it by hand");
   });
 
-  it("writes factory.yml from the template when there's none, with or without --force", async () => {
+  it("writes rivetari.yml from the template when there's none, with or without --force", async () => {
     const dir = await tmp();
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const wf = (...p: string[]) => join(dir, ".github", "workflows", ...p);
     await runInit(dir, { type: "cli", yes: true }, { token: null });
-    const template = await readFile(wf("factory.yml"), "utf8");
-    expect(template).toContain("name: factory");
+    const template = await readFile(wf("rivetari.yml"), "utf8");
+    expect(template).toContain("name: rivetari");
     expect(template).toContain("gate: scaffold");
-    await expect(access(wf("factory.factory.yml"))).rejects.toThrow();
+    await expect(access(wf("rivetari.rivetari.yml"))).rejects.toThrow();
 
-    await rm(wf("factory.yml"));
+    await rm(wf("rivetari.yml"));
     await runInit(
       dir,
       { type: "cli", yes: true, force: true },
       { token: null },
     );
-    expect(await readFile(wf("factory.yml"), "utf8")).toBe(template);
-    await expect(access(wf("factory.factory.yml"))).rejects.toThrow();
-    await expect(access(wf("factory.yml.bak"))).rejects.toThrow();
+    expect(await readFile(wf("rivetari.yml"), "utf8")).toBe(template);
+    await expect(access(wf("rivetari.rivetari.yml"))).rejects.toThrow();
+    await expect(access(wf("rivetari.yml.bak"))).rejects.toThrow();
   });
 
   it("refuses to overwrite an existing config without --force", async () => {

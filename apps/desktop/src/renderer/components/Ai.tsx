@@ -28,7 +28,7 @@ export function Ai({
   const [pr, setPr] = useState<FixPrOutcome | null>(null);
 
   useEffect(() => {
-    window.factory.ai.tasks().then(
+    window.rivetari.ai.tasks().then(
       (list) => {
         setTasks(list);
         setTask((t) => t || list[0]?.task || "");
@@ -45,7 +45,7 @@ export function Ai({
     setPr(null);
     setResult(null);
     try {
-      setResult(await window.factory.ai.run(repoPath, task));
+      setResult(await window.rivetari.ai.run(repoPath, task));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -69,7 +69,7 @@ export function Ai({
   async function handleApply(): Promise<void> {
     if (!result) return;
     await withBusy(async () => {
-      const applied = await window.factory.ai.apply({
+      const applied = await window.rivetari.ai.apply({
         repoPath,
         task: result.task,
         outputPath: result.outputPath,
@@ -84,7 +84,7 @@ export function Ai({
     if (!result) return;
     await withBusy(async () => {
       setPr(
-        await window.factory.ai.openPr({
+        await window.rivetari.ai.openPr({
           repoPath,
           task: result.task,
           outputPath: result.outputPath,

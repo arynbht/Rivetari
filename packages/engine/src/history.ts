@@ -1,5 +1,5 @@
 // Hygiene trend: on each CI run the Action appends a per-lane pass snapshot to
-// `.factory/history.jsonl` so `factory metrics` can show whether coverage is moving.
+// `.rivetari/history.jsonl` so `rivetari metrics` can show whether coverage is moving.
 // (Persisting it across CI runs — committing it back — is a separate mechanism.)
 
 import { appendFile, readFile } from "node:fs/promises";
@@ -18,7 +18,7 @@ export interface HistoryEntry {
   byLane: Record<string, LaneCount>;
 }
 
-const HISTORY_PATH = ".factory/history.jsonl";
+const HISTORY_PATH = ".rivetari/history.jsonl";
 
 /** Per-lane pass/total from a set of results (n/a and waived count as "not failing"). */
 export function laneCounts(

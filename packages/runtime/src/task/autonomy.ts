@@ -1,4 +1,4 @@
-import type { Autonomy } from "@arynbht/factory-catalog";
+import type { Autonomy } from "@arynbht/rivetari-catalog";
 import picomatch from "picomatch";
 import { parse } from "yaml";
 
@@ -104,7 +104,7 @@ export async function advanceTask(
   const did: string[] = [];
   if (level === "supervised" || task.problems.length > 0)
     return { task, level, did };
-  const by = `factory runtime (autonomy ${level}, for ${options.by})`;
+  const by = `rivetari runtime (autonomy ${level}, for ${options.by})`;
   if (!task.confirmed) {
     task = await confirmTask(repoPath, id, { by, now: options.now });
     did.push(`card confirmed without asking (autonomy ${level})`);
@@ -127,7 +127,7 @@ export async function advanceTask(
         task,
         level,
         did,
-        waiting: `route: a person approves this route (${concerns.join("; ")}): review assembly.yml, then \`factory task approve ${id}\``,
+        waiting: `route: a person approves this route (${concerns.join("; ")}): review assembly.yml, then \`rivetari task approve ${id}\``,
       };
     task = (
       await approveRoute(repoPath, id, {

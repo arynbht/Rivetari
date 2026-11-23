@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -11,7 +11,7 @@ import { remoteDatabaseHost } from "../agent/stops.js";
 import type { reviewLocal } from "../judge/review.js";
 import type { Tier1Options, Tier1Result } from "../judge/tier1.js";
 import type { RouteContext } from "../router/task-route.js";
-import type { OpenPrParams } from "@arynbht/factory-engine";
+import type { OpenPrParams } from "@arynbht/rivetari-engine";
 import {
   advanceTask,
   autonomyFor,
@@ -22,7 +22,7 @@ import { runTask } from "./run.js";
 import { loadTask, newTask, nextStep } from "./tasks.js";
 
 const made: string[] = [];
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const by = { by: "dev@example.com", now: new Date("2026-11-21T18:00:00Z") };
 
 const tmp = async (prefix: string) => {
@@ -31,11 +31,11 @@ const tmp = async (prefix: string) => {
   return dir;
 };
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) {
     await simpleGit(d)
       .raw(["worktree", "prune"])
@@ -52,7 +52,7 @@ async function repoWith(
   autonomy: string | null,
   extra: Record<string, string> = {},
 ): Promise<{ repo: string; context: RouteContext }> {
-  const repo = await tmp("factory-autonomy-");
+  const repo = await tmp("rivetari-autonomy-");
   const git = simpleGit(repo);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -60,7 +60,7 @@ async function repoWith(
   const files: Record<string, string> = {
     "package.json": `${JSON.stringify({ name: "demo", scripts: { test: "node --test" } }, null, 2)}\n`,
     "src/total.js": "exports.total = () => 0;\n",
-    ...(autonomy ? { ".factory/profile.yml": profile(autonomy) } : {}),
+    ...(autonomy ? { ".rivetari/profile.yml": profile(autonomy) } : {}),
     ...extra,
   };
   for (const [path, text] of Object.entries(files)) {
@@ -159,7 +159,11 @@ describe("autonomy levels", () => {
         reason: "existing-test",
       }),
     ).toBe(true);
-    for (const reason of ["ci-config", "lint-config", "factory-state"] as const)
+    for (const reason of [
+      "ci-config",
+      "lint-config",
+      "rivetari-state",
+    ] as const)
       expect(
         isSoftStop({ trigger: "protected_path", detail: "x", reason }),
       ).toBe(false);
@@ -221,7 +225,7 @@ describe("autonomy levels", () => {
     expect(advance.task.approved).toBe(true);
     expect(nextStep(advance.task)).toMatch(/^isolate:/);
     expect(advance.task.entries.map((e) => e.by)).toContain(
-      "factory runtime (autonomy review-at-pr, for dev@example.com)",
+      "rivetari runtime (autonomy review-at-pr, for dev@example.com)",
     );
   });
 

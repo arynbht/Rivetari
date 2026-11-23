@@ -1,9 +1,9 @@
-// The factory's GitHub App (ADR-0007): registered once from a
-// manifest, then the factory's identity in every repo it's installed on: the
+// Rivetari's GitHub App (ADR-0007): registered once from a
+// manifest, then Rivetari's identity in every repo it's installed on: the
 // judge's reviews, evidence uploads, the status issue, task pushes.
 // Uninstalling it revokes all of that at once.
 //
-// Its credentials live outside every repo, in the factory's config directory
+// Its credentials live outside every repo, in Rivetari's config directory
 // (beside the ledger key), and never in a repo or the agent's environment:
 //
 //   <config>/app.json          id, slug, client id, owner, URLs (no secrets)
@@ -48,7 +48,7 @@ export function appManifest(options: ManifestOptions): Record<string, unknown> {
     url: options.url,
     redirect_url: options.redirectUrl,
     description:
-      "Software Factory: audits the repo, judges changes, and posts its reviews and evidence.",
+      "Rivetari: audits the repo, judges changes, and posts its reviews and evidence.",
     public: false,
     hook_attributes: { url: options.url, active: false },
     default_permissions: APP_PERMISSIONS,
@@ -64,7 +64,7 @@ export function registrationUrl(state: string, org?: string): string {
   return `${base}?state=${encodeURIComponent(state)}`;
 }
 
-/** The fields of GitHub's manifest conversion the factory keeps. */
+/** The fields of GitHub's manifest conversion Rivetari keeps. */
 export interface AppConversion {
   id: number;
   slug: string;
@@ -96,7 +96,7 @@ async function github<T>(
     headers: {
       accept: "application/vnd.github+json",
       "x-github-api-version": "2022-11-28",
-      "user-agent": "software-factory",
+      "user-agent": "rivetari",
       ...(auth ? { authorization: `Bearer ${auth}` } : {}),
     },
   });
@@ -121,11 +121,11 @@ export function convertManifestCode(
   );
 }
 
-/** The factory's config directory (`FACTORY_CONFIG_DIR`, else `~/.config/factory`). */
-export function factoryConfigDir(): string {
+/** Rivetari's config directory (`RIVETARI_CONFIG_DIR`, else `~/.config/rivetari`). */
+export function rivetariConfigDir(): string {
   return (
-    process.env.FACTORY_CONFIG_DIR ??
-    join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "factory")
+    process.env.RIVETARI_CONFIG_DIR ??
+    join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "rivetari")
   );
 }
 
@@ -140,7 +140,7 @@ export interface AppRecord {
 
 /** Save a new App's credentials; secrets are readable by this user only. */
 export async function saveApp(conversion: AppConversion): Promise<AppRecord> {
-  const dir = factoryConfigDir();
+  const dir = rivetariConfigDir();
   await mkdir(dir, { recursive: true });
   const record: AppRecord = {
     id: conversion.id,
@@ -167,7 +167,7 @@ export async function saveApp(conversion: AppConversion): Promise<AppRecord> {
 export async function loadApp(): Promise<
   (AppRecord & { privateKey: string }) | null
 > {
-  const dir = factoryConfigDir();
+  const dir = rivetariConfigDir();
   try {
     const record = JSON.parse(
       await readFile(join(dir, "app.json"), "utf8"),

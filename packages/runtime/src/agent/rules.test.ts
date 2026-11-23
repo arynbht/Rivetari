@@ -26,21 +26,21 @@ const card = parseCard({
 });
 
 async function repo(profileExtra: string, banned?: object): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-rules-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-rules-test-"));
   made.push(dir);
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
   await git.addConfig("user.name", "t");
-  await mkdir(join(dir, ".factory"), { recursive: true });
+  await mkdir(join(dir, ".rivetari"), { recursive: true });
   await writeFile(
-    join(dir, ".factory", "profile.yml"),
+    join(dir, ".rivetari", "profile.yml"),
     `version: 1\nname: demo\ntype: library\nstack:\n  - typescript\nphase: build\nflags: {}\n${profileExtra}`,
     "utf8",
   );
   if (banned)
     await writeFile(
-      join(dir, ".factory", "banned.json"),
+      join(dir, ".rivetari", "banned.json"),
       JSON.stringify(banned),
       "utf8",
     );
@@ -74,9 +74,9 @@ describe("the tier 1 rules in the build prompt", () => {
 
   it("leaves out no-new-comments when the profile doesn't turn it on, and reads banned.json from the base", async () => {
     const dir = await repo("");
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     await writeFile(
-      join(dir, ".factory", "banned.json"),
+      join(dir, ".rivetari", "banned.json"),
       JSON.stringify({ version: 1, patterns: [] }),
       "utf8",
     );

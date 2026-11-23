@@ -1,7 +1,7 @@
 import type { AuditContext } from "./context.js";
 
 /**
- * A language ecosystem the factory knows how to scaffold and check. `typescript`
+ * A language ecosystem Rivetari knows how to scaffold and check. `typescript`
  * is a facet of `node` (it implies node) used by TypeScript-only controls.
  */
 export type Stack = "node" | "typescript" | "python" | "go" | "rust";

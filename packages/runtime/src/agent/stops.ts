@@ -4,8 +4,8 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { looksLikeSecret } from "@arynbht/factory-engine";
-import { OSI_ALLOWED } from "@arynbht/factory-registry";
+import { looksLikeSecret } from "@arynbht/rivetari-engine";
+import { OSI_ALLOWED } from "@arynbht/rivetari-registry";
 import picomatch from "picomatch";
 import { type SimpleGit, simpleGit } from "simple-git";
 

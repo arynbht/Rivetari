@@ -56,11 +56,11 @@ describe("saveProfile", () => {
   });
 
   it("writes a valid profile that round-trips through loadProfile", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-profile-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-profile-"));
     made.push(dir);
     await saveProfile(dir, { version: 1, name: "x", type: "cli" });
     const written = await readFile(
-      join(dir, ".factory", "profile.yml"),
+      join(dir, ".rivetari", "profile.yml"),
       "utf8",
     );
     expect(written).toContain("type: cli");
@@ -68,7 +68,7 @@ describe("saveProfile", () => {
   });
 
   it("rejects an invalid profile without writing", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-profile-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-profile-"));
     made.push(dir);
     await expect(
       saveProfile(dir, { version: 1, name: "x", type: "nope" }),
@@ -83,16 +83,16 @@ describe("updateProfile", () => {
     made.length = 0;
   });
   async function repoWith(profileYml: string): Promise<string> {
-    const dir = await mkdtemp(join(tmpdir(), "factory-profile-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-profile-"));
     made.push(dir);
-    await mkdir(join(dir, ".factory"), { recursive: true });
-    await writeFile(join(dir, ".factory", "profile.yml"), profileYml, "utf8");
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
+    await writeFile(join(dir, ".rivetari", "profile.yml"), profileYml, "utf8");
     return dir;
   }
 
   it("toggles one flag with a one-line, comment-preserving diff", async () => {
     const original = [
-      "# Factory profile for the repo.",
+      "# Rivetari profile for the repo.",
       "version: 1",
       "name: demo",
       "type: monorepo",
@@ -111,8 +111,8 @@ describe("updateProfile", () => {
       flags: { ...profile!.flags, "open-source": false },
     });
 
-    const after = await readFile(join(dir, ".factory", "profile.yml"), "utf8");
-    expect(after).toContain("# Factory profile for the repo."); // comment kept
+    const after = await readFile(join(dir, ".rivetari", "profile.yml"), "utf8");
+    expect(after).toContain("# Rivetari profile for the repo."); // comment kept
     const diff = lineDiff(original, after);
     expect(diff.added).toEqual(["  open-source: false"]);
     expect(diff.removed).toEqual(["  open-source: true"]);
@@ -127,12 +127,12 @@ describe("updateProfile", () => {
       ...profile!,
       flags: { ...profile!.flags, "handles-pii": false },
     });
-    const after = await readFile(join(dir, ".factory", "profile.yml"), "utf8");
+    const after = await readFile(join(dir, ".rivetari", "profile.yml"), "utf8");
     expect(after).not.toContain("handles-pii");
   });
 
   it("creates a fresh profile when none exists", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-profile-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-profile-"));
     made.push(dir);
     await updateProfile(dir, { version: 1, name: "fresh", type: "cli" });
     expect((await loadProfile(dir))?.name).toBe("fresh");

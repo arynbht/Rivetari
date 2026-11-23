@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadBundledCatalog } from "@arynbht/factory-catalog";
+import { loadBundledCatalog } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { evaluateControls } from "../audit.js";
@@ -20,7 +20,7 @@ afterEach(async () => {
   made.length = 0;
 });
 const repoWith = async (files: Record<string, string>): Promise<string> => {
-  const dir = await mkdtemp(join(tmpdir(), "factory-wf-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-wf-"));
   made.push(dir);
   for (const [path, contents] of Object.entries(files)) {
     await mkdir(join(dir, path, ".."), { recursive: true });
@@ -39,7 +39,7 @@ async function statuses(dir: string, prefix: RegExp) {
   return Object.fromEntries(results.map((r) => [r.controlId, r.status]));
 }
 
-const FACTORY_YML = `name: factory
+const RIVETARI_YML = `name: rivetari
 on:
   pull_request:
   push:
@@ -47,7 +47,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: factory
+  group: rivetari
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -59,9 +59,9 @@ jobs:
 `;
 
 describe("CI controls read workflow structure", () => {
-  it("a repo whose only workflow is factory.yml passes no ci.* or CI security control", async () => {
+  it("a repo whose only workflow is rivetari.yml passes no ci.* or CI security control", async () => {
     const dir = await repoWith({
-      ".github/workflows/factory.yml": FACTORY_YML,
+      ".github/workflows/rivetari.yml": RIVETARI_YML,
     });
     const result = await statuses(
       dir,
@@ -134,7 +134,7 @@ jobs:
 
 describe("reviewed detector", () => {
   const draft = (task: string, reviewer: string) =>
-    `<!-- factory:generated\ntask: ${task}\nreviewed-by:${reviewer}\n-->\n\n# Doc\n`;
+    `<!-- rivetari:generated\ntask: ${task}\nreviewed-by:${reviewer}\n-->\n\n# Doc\n`;
   const check = async (files: Record<string, string>, task?: string) =>
     runDetector(
       buildContext(await repoWith(files)),
@@ -169,7 +169,7 @@ describe("reviewed detector", () => {
   });
 });
 
-describe("the Node CI the factory writes", () => {
+describe("the Node CI Rivetari writes", () => {
   const IN_CI = /^(dev\.linter|test\.runner)\.in-ci$/;
   const node = (scripts: Record<string, string>) =>
     JSON.stringify({ name: "demo", scripts });

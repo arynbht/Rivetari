@@ -7,7 +7,7 @@ import {
   type LaunchedApp,
 } from "./helpers";
 
-// Floor Plan flow: the fixture ships a seeded `.factory/floorplan.json`, so the
+// Floor Plan flow: the fixture ships a seeded `.rivetari/floorplan.json`, so the
 // tab renders the persisted repository model without needing the Claude CLI (which
 // CI doesn't have). This verifies the tab, the graph container, and the model
 // summary — the deterministic half of the deep-audit feature.

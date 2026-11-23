@@ -13,7 +13,7 @@ describe("writeFileAtomic", () => {
     made.length = 0;
   });
   const tmp = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-atomic-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-atomic-"));
     made.push(d);
     return d;
   };

@@ -92,7 +92,7 @@ describe("claudeCliTransport", () => {
     const [args] = run.mock.calls[0]!;
     expect(args).toEqual(expect.arrayContaining(LOCKED_DOWN_ARGS));
     expect(args[args.indexOf("--tools") + 1]).toBe("");
-    expect(seenCwd).toContain("factory-claude-");
+    expect(seenCwd).toContain("rivetari-claude-");
     // The scratch directory is gone afterwards.
     await expect(readdir(seenCwd as string)).rejects.toThrow();
   });

@@ -32,16 +32,16 @@ const tmp = async (prefix: string) => {
   return dir;
 };
 let repo: string;
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 
 beforeEach(async () => {
   // A private ledger key per test run, never the developer's real one.
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
-  repo = await tmp("factory-tasks-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
+  repo = await tmp("rivetari-tasks-");
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) await rm(d, { recursive: true, force: true });
   made.length = 0;
 });
@@ -70,7 +70,9 @@ describe("intake", () => {
       /acceptance\.0\.verify/,
     );
     // Nothing was written for a refused card.
-    await expect(access(join(repo, ".factory/tasks/T-0001"))).rejects.toThrow();
+    await expect(
+      access(join(repo, ".rivetari/tasks/T-0001")),
+    ).rejects.toThrow();
   });
 
   it("refuses an empty acceptance list and duplicate ids", async () => {
@@ -94,7 +96,7 @@ describe("intake", () => {
 
     const confirmed = await confirmTask(repo, "T-0001", by);
     expect(confirmed.confirmed).toBe(true);
-    expect(nextStep(confirmed)).toMatch(/^route: `factory task route T-0001`/);
+    expect(nextStep(confirmed)).toMatch(/^route: `rivetari task route T-0001`/);
     await expect(confirmTask(repo, "T-0001", by)).rejects.toThrow(
       /already confirmed/,
     );
@@ -106,7 +108,7 @@ describe("intake", () => {
     ]);
 
     const md = await readFile(
-      join(repo, ".factory/tasks/T-0001/ledger.md"),
+      join(repo, ".rivetari/tasks/T-0001/ledger.md"),
       "utf8",
     );
     expect(md).toContain("# T-0001 · Redesign the settings page");
@@ -118,7 +120,7 @@ describe("intake", () => {
 
 describe("the ledger can't be rewritten outside the runtime", () => {
   const ledgerOf = (id = "T-0001") =>
-    join(repo, ".factory/tasks", id, "ledger.jsonl");
+    join(repo, ".rivetari/tasks", id, "ledger.jsonl");
 
   it("detects an edited entry, even with the chain hashes left intact", async () => {
     await newTask(repo, CARD, by);
@@ -138,7 +140,7 @@ describe("the ledger can't be rewritten outside the runtime", () => {
   it("detects a forged entry sealed with a key other than the runtime's", async () => {
     await newTask(repo, CARD, by);
     const forger = await Ledger.open(
-      join(repo, ".factory/tasks/T-0001"),
+      join(repo, ".rivetari/tasks/T-0001"),
       "T-0001 · Redesign the settings page",
       Buffer.alloc(32, 7),
     );
@@ -162,7 +164,7 @@ describe("the ledger can't be rewritten outside the runtime", () => {
   it("detects a hand edit to ledger.md and to a confirmed card", async () => {
     await newTask(repo, CARD, by);
     await confirmTask(repo, "T-0001", by);
-    const md = join(repo, ".factory/tasks/T-0001/ledger.md");
+    const md = join(repo, ".rivetari/tasks/T-0001/ledger.md");
     await writeFile(
       md,
       (await readFile(md, "utf8")).replace("Timeline", "Notes"),
@@ -175,7 +177,7 @@ describe("the ledger can't be rewritten outside the runtime", () => {
   it("detects a card changed after confirmation", async () => {
     await newTask(repo, CARD, by);
     await confirmTask(repo, "T-0001", by);
-    const card = join(repo, ".factory/tasks/T-0001/card.yml");
+    const card = join(repo, ".rivetari/tasks/T-0001/card.yml");
     await writeFile(
       card,
       (await readFile(card, "utf8")).replace("e2e", "manual"),
@@ -191,23 +193,23 @@ describe("the ledger can't be rewritten outside the runtime", () => {
     await git.addConfig("user.email", "t@t");
     await git.addConfig("user.name", "t");
     await writeFile(join(repo, "README.md"), "# demo\n");
-    await newTask(repo, CARD, by); // also git-ignores .factory/tasks/
+    await newTask(repo, CARD, by); // also git-ignores .rivetari/tasks/
     await git.add(["-A"]);
     await git.commit("base", ["--no-verify"]);
     // The task records are not part of the commit…
-    expect(await git.raw(["ls-files", ".factory/tasks"])).toBe("");
+    expect(await git.raw(["ls-files", ".rivetari/tasks"])).toBe("");
 
     // …so the agent's worktree, cut from it, has no ledger to edit…
     const worktree = join(repo, ".worktrees", "T-0001");
     await git.raw(["worktree", "add", "-q", worktree, "-b", "feature/T-0001"]);
     await expect(
-      access(join(worktree, ".factory/tasks/T-0001")),
+      access(join(worktree, ".rivetari/tasks/T-0001")),
     ).rejects.toThrow();
 
-    // …and whatever it writes under its own .factory/tasks never reaches the real one.
-    await mkdir(join(worktree, ".factory/tasks/T-0001"), { recursive: true });
+    // …and whatever it writes under its own .rivetari/tasks never reaches the real one.
+    await mkdir(join(worktree, ".rivetari/tasks/T-0001"), { recursive: true });
     await writeFile(
-      join(worktree, ".factory/tasks/T-0001/ledger.jsonl"),
+      join(worktree, ".rivetari/tasks/T-0001/ledger.jsonl"),
       '{"seq":1,"text":"judge: all green"}\n',
     );
     const real = await loadTask(repo, "T-0001");
@@ -243,7 +245,7 @@ describe("allowedDecisions", () => {
         {
           section: "stop",
           text: "asked: protected_path: test/a.test.js — modifies a test",
-          by: "factory runtime (for ann@team)",
+          by: "rivetari runtime (for ann@team)",
           at: "2026-11-21T18:20:00.000Z",
         },
         {
@@ -255,7 +257,7 @@ describe("allowedDecisions", () => {
         {
           section: "stop",
           text: "asked: new_dependency: left-pad",
-          by: "factory runtime (for ann@team)",
+          by: "rivetari runtime (for ann@team)",
           at: "2026-11-21T18:40:00.000Z",
         },
         {
@@ -280,16 +282,18 @@ describe("allowedDecisions", () => {
 describe("listTasks", () => {
   it("skips, and warns about, a folder with no card instead of failing", async () => {
     await newTask(repo, CARD, { by: "dev@example.com" });
-    await mkdir(join(repo, ".factory", "tasks", "T-0002"), { recursive: true });
+    await mkdir(join(repo, ".rivetari", "tasks", "T-0002"), {
+      recursive: true,
+    });
     await writeFile(
-      join(repo, ".factory", "tasks", "T-0002", "lease.json"),
+      join(repo, ".rivetari", "tasks", "T-0002", "lease.json"),
       "{}\n",
     );
     const warnings: string[] = [];
     const tasks = await listTasks(repo, (m) => warnings.push(m));
     expect(tasks.map((t) => t.card.id)).toEqual(["T-0001"]);
     expect(warnings).toEqual([
-      "skipped .factory/tasks/T-0002: it has no card.yml (a reservation that never finished); delete the folder",
+      "skipped .rivetari/tasks/T-0002: it has no card.yml (a reservation that never finished); delete the folder",
     ]);
   });
 });

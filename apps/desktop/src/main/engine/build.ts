@@ -9,13 +9,13 @@ import {
   runBuild,
   type BuildPlan,
   type BuildProgress,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import type { BuildPlanView, BuildResult } from "../../shared/ipc";
 
 /** The build pipeline spawns real `claude` write-agents — never under E2E. */
 function buildAvailable(): Promise<boolean> {
-  if (process.env.FACTORY_E2E === "1") return Promise.resolve(false);
+  if (process.env.RIVETARI_E2E === "1") return Promise.resolve(false);
   return claudeCliAvailable();
 }
 

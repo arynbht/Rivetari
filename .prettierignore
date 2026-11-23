@@ -8,7 +8,7 @@ CHANGELOG.md
 .changeset/*.md
 
 # Source-of-truth planning doc; keep as authored.
-software-factory-build-plan.md
+rivetari-build-plan.md
 
 # Generated from the zod schema via `pnpm schema:json`.
 packages/catalog/schema/*.json
@@ -31,4 +31,4 @@ docs/catalog/**
 apps/desktop/test-results/**
 apps/desktop/playwright-report/**
 
-.factory/
+.rivetari/

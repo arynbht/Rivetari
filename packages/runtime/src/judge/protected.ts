@@ -10,7 +10,7 @@ export interface DiffEntry {
 }
 
 export type ProtectedReason =
-  | "factory-state"
+  | "rivetari-state"
   | "skill-registry"
   | "agent-config"
   | "lint-config"
@@ -27,12 +27,12 @@ export interface ProtectedFinding {
 
 /** The judge's own record of what counts as a protected path. */
 export const PROTECTED = {
-  factoryState: [".factory/**"],
+  rivetariState: [".rivetari/**"],
   // Which skills an agent loads, at which pins, with which reviewed scan
   // exceptions: a human's call, never the agent's.
   skillRegistry: [
-    ".factory/skills.lock",
-    ".factory/skills/**",
+    ".rivetari/skills.lock",
+    ".rivetari/skills/**",
     "packages/registry/manifests/**",
   ],
   // Agent harness settings: hooks configured here run code on their own.
@@ -97,7 +97,7 @@ const matcher = (globs: readonly string[]): ((path: string) => boolean) => {
   const isMatch = picomatch([...globs], { dot: true });
   return (path) => isMatch(path);
 };
-const isFactoryState = matcher(PROTECTED.factoryState);
+const isRivetariState = matcher(PROTECTED.rivetariState);
 const isSkillRegistry = matcher(PROTECTED.skillRegistry);
 const isAgentConfig = matcher(PROTECTED.agentConfig);
 const isLintConfig = matcher(PROTECTED.lintConfig);
@@ -165,12 +165,12 @@ export function findProtected(
         detail:
           "changes agent harness settings, where hooks run code automatically",
       });
-    } else if (paths.some(isFactoryState)) {
+    } else if (paths.some(isRivetariState)) {
       findings.push({
-        reason: "factory-state",
+        reason: "rivetari-state",
         path: entry.path,
         detail:
-          "changes factory state (.factory/**): waivers, evidence and profile are human decisions",
+          "changes rivetari state (.rivetari/**): waivers, evidence and profile are human decisions",
       });
     } else if (paths.some(isLintConfig)) {
       findings.push({
@@ -218,10 +218,10 @@ export function findProtected(
   return findings;
 }
 
-/** `.factory/**`, lint or CI config: always judged as it was at base. */
+/** `.rivetari/**`, lint or CI config: always judged as it was at base. */
 export function isProtectedConfig(path: string): boolean {
   return (
-    isFactoryState(path) ||
+    isRivetariState(path) ||
     isSkillRegistry(path) ||
     isAgentConfig(path) ||
     isLintConfig(path) ||

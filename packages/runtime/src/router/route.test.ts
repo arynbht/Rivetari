@@ -1,10 +1,10 @@
-// The router against the factory's real manifests: the §13 step-5 cases, the
+// The router against Rivetari's real manifests: the §13 step-5 cases, the
 // §5.3 rules, and what approval re-checks in an edited assembly.
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests, type Manifest } from "@arynbht/factory-registry";
+import { loadManifests, type Manifest } from "@arynbht/rivetari-registry";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { type Card, parseCard } from "../task/card.js";
@@ -13,7 +13,7 @@ import { route, type RouteInput, validateAssembly } from "./route.js";
 let manifests: Map<string, Manifest>;
 let dir: string;
 beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), "factory-router-"));
+  dir = await mkdtemp(join(tmpdir(), "rivetari-router-"));
   ({ manifests } = await loadManifests(dir));
 });
 afterAll(() => rm(dir, { recursive: true, force: true }));
@@ -148,7 +148,7 @@ describe("router", () => {
     expect(assembly.spine).not.toContain("playwright-cli");
     expect(assembly.proof).toBe("test-run");
     expect(assembly.review.design_pass).toBe(false);
-    // No vendored data skill yet (factory-data is to be written): a gap.
+    // No vendored data skill yet (rivetari-data is to be written): a gap.
     expect(assembly.gaps).toEqual([
       "data: no vendored skill covers it; the agent works from the spine",
     ]);

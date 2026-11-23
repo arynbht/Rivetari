@@ -15,8 +15,8 @@ import { join, relative } from "node:path";
 export const AGENTS_SKILLS = ".agents/skills";
 export const CLAUDE_SKILLS = ".claude/skills";
 
-const BEGIN = "# factory skills (managed by `factory skills sync`)";
-const END = "# end factory skills";
+const BEGIN = "# rivetari skills (managed by `rivetari skills sync`)";
+const END = "# end rivetari skills";
 
 export async function installSkill(
   repoPath: string,
@@ -77,7 +77,7 @@ export async function writeIgnores(
     join(repoPath, CLAUDE_SKILLS, ".gitignore"),
     installed.map((n) => `/${n}`),
   );
-  await replaceBlock(join(repoPath, ".factory", ".gitignore"), [
+  await replaceBlock(join(repoPath, ".rivetari", ".gitignore"), [
     "skills.state.json",
   ]);
 }

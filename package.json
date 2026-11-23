@@ -1,5 +1,5 @@
 {
-  "name": "software-factory",
+  "name": "rivetari",
   "version": "0.0.0",
   "private": true,
   "description": "An auditor and scaffolder for GitHub repositories: controls-as-data, headless engine, PR-based fixes.",

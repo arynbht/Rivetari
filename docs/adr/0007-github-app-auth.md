@@ -8,7 +8,7 @@
 
 The desktop shell (M5) and CI both need a GitHub token that can read admin-only
 settings (branch protection, security features) and write PRs/comments/issues. How
-should the factory obtain that token?
+should Rivetari obtain that token?
 
 ## Considered Options
 

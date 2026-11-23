@@ -15,12 +15,12 @@ detect:
     detect:
       - type: file-yaml-path
         file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-        exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+        exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
         path: "jobs.*.steps[*].uses"
         matches: "^actions/cache(/restore)?@"
       - type: file-yaml-path
         file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-        exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+        exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
         path: "jobs.*.steps[*].with.cache"
 evidence: none
 fix:

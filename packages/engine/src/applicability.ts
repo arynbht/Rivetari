@@ -3,7 +3,7 @@ import {
   PHASES,
   type Predicate,
   type Profile,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 
 import type { AuditContext } from "./context.js";
 import { splitGlobs } from "./detectors/util.js";

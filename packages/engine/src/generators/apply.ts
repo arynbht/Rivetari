@@ -18,8 +18,8 @@ import type { Change } from "./types.js";
 export type ChangeAction =
   "create" | "update" | "skip" | "unchanged" | "suggest" | "effect" | "note";
 
-/** Suffix for a merge the factory declined to apply over a human-edited file. */
-const SUGGESTED_SUFFIX = ".factory-suggested";
+/** Suffix for a merge Rivetari declined to apply over a human-edited file. */
+const SUGGESTED_SUFFIX = ".rivetari-suggested";
 
 export interface ChangeResult {
   controlId: string;
@@ -42,21 +42,21 @@ export interface ApplyOptions {
 
 /**
  * Apply a plan of changes under the merge policy (ADR-0004):
- *  - a `create` file is written only when absent or factory-managed-and-unchanged
+ *  - a `create` file is written only when absent or rivetari-managed-and-unchanged
  *    (never clobbering a human's file) — unless the control marks the file
- *    `managed: true` (factory state the factory owns outright);
+ *    `managed: true` (Rivetari state Rivetari owns outright);
  *  - a `merge` file carries its already-merged contents and is written in place —
- *    except when the target is a file the factory previously wrote that a human has
+ *    except when the target is a file Rivetari previously wrote that a human has
  *    since edited. Re-serializing over those edits is the "ambiguous merge" the
  *    design guards against, so the merged result is written alongside as
- *    `<path>.factory-suggested` and the human reconciles it;
- *  - a `suggest` file is always written alongside as `<path>.factory-suggested`;
+ *    `<path>.rivetari-suggested` and the human reconciles it;
+ *  - a `suggest` file is always written alongside as `<path>.rivetari-suggested`;
  *  - effects run only in write mode; notes are reported as-is.
  *
  * In dry-run nothing is written, but each result still reports the action that would
  * be taken — against a virtual view of the files earlier changes in the same plan
  * would have written, so a run that creates a file and then merges into it previews
- * correctly. Writes update the `.factory/state.json` managed-hash registry.
+ * correctly. Writes update the `.rivetari/state.json` managed-hash registry.
  */
 export async function applyChanges(
   repoPath: string,
@@ -167,14 +167,14 @@ export async function applyChanges(
         path: change.path,
         before,
         after: change.contents,
-        message: `${change.path} exists and was not written by factory; skipping (edit it yourself or delete it)`,
+        message: `${change.path} exists and was not written by rivetari; skipping (edit it yourself or delete it)`,
       });
       continue;
     }
 
-    // Merge into a file the factory previously wrote but a human has since edited:
+    // Merge into a file Rivetari previously wrote but a human has since edited:
     // don't re-serialize over their work. Write the merged result alongside as
-    // `<path>.factory-suggested` and leave the human's file untouched.
+    // `<path>.rivetari-suggested` and leave the human's file untouched.
     if (change.op === "merge" && before !== undefined && !createdThisRun) {
       const recorded = state.managed[change.path];
       const humanEdited =
@@ -193,7 +193,7 @@ export async function applyChanges(
           path: suggestedPath,
           before,
           after: change.contents,
-          message: `${change.path} was edited since factory wrote it; wrote ${suggestedPath} to merge by hand`,
+          message: `${change.path} was edited since rivetari wrote it; wrote ${suggestedPath} to merge by hand`,
         });
         continue;
       }

@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -35,16 +35,16 @@ const tmp = async (prefix: string) => {
   made.push(dir);
   return dir;
 };
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const by = { by: "dev@example.com", now: new Date("2026-11-10T18:00:00Z") };
 let context: RouteContext;
 
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) {
     await simpleGit(d)
       .raw(["worktree", "prune"])
@@ -55,7 +55,7 @@ afterEach(async () => {
 });
 
 async function repoWith(files: Record<string, string>): Promise<string> {
-  const repo = await tmp("factory-proof-");
+  const repo = await tmp("rivetari-proof-");
   const git = simpleGit(repo);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -367,7 +367,7 @@ describe.skipIf(!hasBrowser)("UI proof", { timeout: 180_000 }, () => {
   const BASE = {
     "package.json": `${JSON.stringify({ name: "demo" }, null, 2)}\n`,
     "server.js": server(page("<h1>Settings</h1>")),
-    ".factory/profile.yml":
+    ".rivetari/profile.yml":
       "version: 1\nname: demo\ntype: web-app\nproof:\n  start: node server.js\n",
   };
 

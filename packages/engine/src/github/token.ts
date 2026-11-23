@@ -3,15 +3,15 @@ import { execFileSync } from "node:child_process";
 import { installationToken, loadApp } from "./app.js";
 import { resolveRepoSlug } from "../context.js";
 
-/** Where a token came from: the factory's App acts as itself, the rest as a person. */
+/** Where a token came from: Rivetari's App acts as itself, the rest as a person. */
 export type TokenSource = "explicit" | "env" | "app" | "gh";
 
 /**
- * The token the factory acts on a repo with: an explicit one,
+ * The token Rivetari acts on a repo with: an explicit one,
  * else `GITHUB_TOKEN`/`GH_TOKEN` (CI passes the App's installation token
- * there), else the factory's GitHub App when it's registered here and
+ * there), else Rivetari's GitHub App when it's registered here and
  * installed on the repo's origin, else the `gh` login. With the App, reviews,
- * evidence and PRs come from the factory, not from whoever ran it.
+ * evidence and PRs come from Rivetari, not from whoever ran it.
  */
 export async function githubToken(
   repoPath: string,

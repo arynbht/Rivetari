@@ -1,26 +1,26 @@
-# Software Factory Build Plan
+# Rivetari Build Plan
 
 Oct 25, 2026 · @Aryan B.
 
 ## How to use this plan
 
-This plan takes a solo full-stack developer from an empty repo to a 1.0 software factory in seven milestones over about 15 part-time weeks. Each milestone has a goal, the work broken into tasks, the files it produces, and a definition of done you can verify by running a command.
+This plan takes a solo full-stack developer from an empty repo to a 1.0 Rivetari in seven milestones over about 15 part-time weeks. Each milestone has a goal, the work broken into tasks, the files it produces, and a definition of done you can verify by running a command.
 
 Conventions used throughout:
 
 - **Task lists** are checkboxes. Tick them in this doc as you go; it is the progress tracker.
 - **Done means runnable.** Every milestone ends with a command that must pass. If you cannot run it, the milestone is not done.
-- **Dogfood from day one.** The factory repo carries its own `.factory/` directory and audits itself in CI. Every feature you build is tested first on the factory itself, then on one of your real repos.
+- **Dogfood from day one.** Rivetari repo carries its own `.rivetari/` directory and audits itself in CI. Every feature you build is tested first on Rivetari itself, then on one of your real repos.
 - **Headless first.** Nothing lives only in the Electron shell. If the CLI cannot do it, the shell cannot either.
 - **Controls are data, code is the engine.** Adding a new discipline later should mean adding YAML, not TypeScript.
 
 Reading order: read Product definition and Milestone 0 fully before starting. Read each later milestone when you reach it. Keep the Control catalog section open while doing Milestones 1 and 6. Review Risks every two weeks.
 
-Naming: the working name is `factory`; the npm scope is `@yourorg` (replace with your GitHub org or username). The target repo means any repo the factory is installed into; the factory repo means the one you build it in.
+Naming: the working name is `rivetari`; the npm scope is `@yourorg` (replace with your GitHub org or username). The target repo means any repo Rivetari is installed into; Rivetari repo means the one you build it in.
 
 ## Product definition
 
-The factory is an auditor and scaffolder for GitHub repositories. Given a repo and a profile describing what the project is and what risks it carries, it computes which controls apply, checks which are satisfied, reports the gaps by phase and discipline, and generates the fixes as pull requests. It works identically on an empty repo and a half-built one.
+Rivetari is an auditor and scaffolder for GitHub repositories. Given a repo and a profile describing what the project is and what risks it carries, it computes which controls apply, checks which are satisfied, reports the gaps by phase and discipline, and generates the fixes as pull requests. It works identically on an empty repo and a half-built one.
 
 **What it is**
 
@@ -32,13 +32,13 @@ The factory is an auditor and scaffolder for GitHub repositories. Given a repo a
 **What it is not**
 
 - Not a project-management tool. It tracks controls and gates, not tickets. It links out to GitHub Issues.
-- Not a replacement for GitHub's own features. Where GitHub has a native mechanism (rulesets, Dependabot, required checks), the factory configures it rather than reimplementing it.
+- Not a replacement for GitHub's own features. Where GitHub has a native mechanism (rulesets, Dependabot, required checks), Rivetari configures it rather than reimplementing it.
 - Not an authority on legal, security sign-off, or accessibility conformance. Those controls require named human evidence.
 - Not Backstage. Backstage is for teams running a developer portal; this is a tool one developer installs in an afternoon.
 
 **Guiding principles**
 
-1. The repo is the source of truth. All shared state lives in `.factory/` inside the target repo; the app stores only personal preferences.
+1. The repo is the source of truth. All shared state lives in `.rivetari/` inside the target repo; the app stores only personal preferences.
 2. Every control cites the standard it comes from. No control without a `references` entry.
 3. Automate detection where possible, require evidence where not, and never fake either.
 4. Waivers are first-class. A control you cannot or will not satisfy gets a waiver with a reason, an owner, and an expiry, never a disabled check.
@@ -51,10 +51,10 @@ You: a solo full-stack developer who moves between projects, sometimes starting 
 
 **Success criteria for 1.0**
 
-- `factory audit` on any of your repos runs in under 60 seconds locally and produces a report you agree with.
-- `factory init` on an empty repo yields a passing scaffold gate in one command.
+- `rivetari audit` on any of your repos runs in under 60 seconds locally and produces a report you agree with.
+- `rivetari init` on an empty repo yields a passing scaffold gate in one command.
 - A half-built repo gets a correct phase inference and a prioritized list of what remains.
-- The factory passes its own gates in CI.
+- Rivetari passes its own gates in CI.
 - A second person with repo access installs the Electron shell from GitHub Releases and audits a repo without reading the README.
 
 ## Milestone 0: foundations (week 1)
@@ -67,13 +67,13 @@ Goal: a monorepo that builds, tests, lints, and releases nothing yet, with the f
 | --- | --- | --- |
 | 0001 | Engine is headless; CLI, Action, skill, and Electron are thin clients | Lets CI enforce gates; keeps the shell optional |
 | 0002 | Controls are YAML data validated by a zod schema | Adding a discipline means adding files, not code |
-| 0003 | Shared state lives in `.factory/` in the target repo; personal state in the app | Teammates and CI see the same config |
+| 0003 | Shared state lives in `.rivetari/` in the target repo; personal state in the app | Teammates and CI see the same config |
 | 0004 | Generators open PRs, never write to the default branch | Every change is reviewable and revertible |
 | 0005 | TypeScript everywhere, pnpm workspaces, Node 22 LTS | One language across engine, CLI, and Electron |
 
 **Tasks**
 
-- [ ] Create the `factory` repo (private is fine). Enable Issues, Discussions off, Wiki off.
+- [ ] Create the `rivetari` repo (private is fine). Enable Issues, Discussions off, Wiki off.
 - [ ] `pnpm init`, `pnpm-workspace.yaml` listing `packages/*` and `apps/*`.
 - [ ] Packages (empty for now): `packages/catalog`, `packages/engine`, `packages/cli`, `packages/action`, `packages/skill`, `apps/desktop`.
 - [ ] Root tooling: TypeScript 5.x strict with project references; Vitest; ESLint flat config with `typescript-eslint`; Prettier; `.editorconfig`; `.nvmrc` or `.node-version`.
@@ -86,13 +86,13 @@ Goal: a monorepo that builds, tests, lints, and releases nothing yet, with the f
 - [ ] Repo ruleset on `main`: require PR, require `ci` status check, block force-push, require linear history.
 - [ ] Renovate app installed with a config that groups minor/patch updates weekly and pins GitHub Actions by SHA.
 - [ ] Devcontainer definition so a fresh clone works in Codespaces or VS Code.
-- [ ] `.factory/profile.yml` for the factory itself (type: `cli-and-desktop`, flags: `open-source: maybe`, `handles-pii: false`, `distributes-binaries: true`). It will be invalid until M1 defines the schema; write it anyway as the first fixture.
+- [ ] `.rivetari/profile.yml` for Rivetari itself (type: `cli-and-desktop`, flags: `open-source: maybe`, `handles-pii: false`, `distributes-binaries: true`). It will be invalid until M1 defines the schema; write it anyway as the first fixture.
 
 **Repo layout at the end of M0**
 
 ```
-factory/
-  .factory/profile.yml
+Rivetari/
+  .rivetari/profile.yml
   .github/workflows/ci.yml
   .changeset/
   docs/adr/0001-headless-engine.md ... 0005-typescript-pnpm.md
@@ -114,7 +114,7 @@ factory/
 
 ## Milestone 1: control schema, detectors, first audit (weeks 2–3)
 
-Goal: `factory audit` runs against a local clone plus the GitHub API and prints a lane-by-lane table of pass, fail, and needs-evidence, for about 40 controls.
+Goal: `rivetari audit` runs against a local clone plus the GitHub API and prints a lane-by-lane table of pass, fail, and needs-evidence, for about 40 controls.
 
 **The control schema** (`packages/catalog/src/schema.ts`, zod; JSON Schema generated from it for editor autocomplete)
 
@@ -158,7 +158,7 @@ rationale: >
 1. `loadCatalog()` reads all YAML under `packages/catalog/controls/**`, validates each against the schema, rejects duplicates.
 2. `buildContext(repoPath, token)` opens the clone (use `simple-git` for metadata, plain `fs` for files), builds a GitHub client (`octokit`) and caches API responses for the run.
 3. `runDetectors(controls, ctx)` with a concurrency limit; each result carries control id, status, message, duration.
-4. `report(results)` renders a table grouped by lane, then by phase; JSON output with `--json`; writes `.factory/state.json`.
+4. `report(results)` renders a table grouped by lane, then by phase; JSON output with `--json`; writes `.rivetari/state.json`.
 
 Profile and applicability are M2; in M1 every control applies.
 
@@ -169,29 +169,29 @@ Profile and applicability are M2; in M1 every control applies.
 - [ ] Implement the seven detector types with unit tests against fixture repos in `packages/engine/test/fixtures/` (an empty repo, a minimal Node repo, a repo with everything).
 - [ ] Implement `github-api` with response caching and a clear error when the token lacks scope.
 - [ ] Write the first 40 controls: 10 hygiene, 8 development, 8 CI/CD, 10 security, 4 testing. Pull the exact list from the Control catalog section.
-- [ ] `packages/cli`: commander-based `factory audit [path] [--json] [--lane x] [--token]`. Token from `GITHUB_TOKEN` env or the `gh` CLI's stored auth.
+- [ ] `packages/cli`: commander-based `rivetari audit [path] [--json] [--lane x] [--token]`. Token from `GITHUB_TOKEN` env or the `gh` CLI's stored auth.
 - [ ] Human-readable report with colors (`picocolors`), a summary line (`32 pass, 6 fail, 2 need evidence`), and exit code 1 on any `critical` failure.
-- [ ] Run against the factory repo and three of your real repos; keep a `docs/audit-notes.md` of every false positive and fix the detector or the control.
+- [ ] Run against Rivetari repo and three of your real repos; keep a `docs/audit-notes.md` of every false positive and fix the detector or the control.
 
 **Definition of done**
 
-- `pnpm factory audit .` on the factory repo completes in under 30 seconds and reports results for all 40 controls.
+- `pnpm rivetari audit .` on Rivetari repo completes in under 30 seconds and reports results for all 40 controls.
 - The same command on three real repos produces zero false positives you cannot explain.
 - `pnpm catalog:validate` catches a control with a missing `references` field.
 - Detector unit tests cover every type with at least one pass, one fail, and one skip fixture.
 
 ## Milestone 2: profile, gates, waivers, CI action (weeks 4–5)
 
-Goal: the factory knows what kind of project it is looking at, only applies the controls that matter, groups them into phase gates, lets you waive one with a reason, and fails a PR in CI when a gate is red.
+Goal: Rivetari knows what kind of project it is looking at, only applies the controls that matter, groups them into phase gates, lets you waive one with a reason, and fails a PR in CI when a gate is red.
 
-**Profile** (`.factory/profile.yml`, schema in catalog)
+**Profile** (`.rivetari/profile.yml`, schema in catalog)
 
 ```yaml
 version: 1
 name: my-app
 type: web-app            # web-app | api | cli | library | mobile | desktop | data-pipeline | monorepo
 stack: [typescript, react, postgres, aws]
-phase: build             # set by `factory init`; later inferred (M6)
+phase: build             # set by `rivetari init`; later inferred (M6)
 flags:
   public-facing: true
   has-users: true
@@ -216,7 +216,7 @@ severity-floor: medium   # ignore controls below this in reports
 
 **Gates** (`packages/catalog/gates/*.yml`): one per phase, listing control ids (or `lane: x, severity: >= high` selectors) that must pass. A gate result is `green` (all pass or waived), `amber` (only `needs-evidence` outstanding), or `red`.
 
-**Waivers** (`.factory/waivers.yml`)
+**Waivers** (`.rivetari/waivers.yml`)
 
 ```yaml
 - control: a11y.screen-reader-pass
@@ -228,14 +228,14 @@ severity-floor: medium   # ignore controls below this in reports
 
 Expired waivers count as failures. The report lists waivers expiring within 30 days.
 
-**Evidence** (`.factory/evidence.yml`): entries of `control`, `url` or `sha256`, `reviewer`, `date`, `note`. A `manual` detector passes when an unexpired entry exists; evidence can carry a `valid-for: 365d` so threat models and pen tests age out.
+**Evidence** (`.rivetari/evidence.yml`): entries of `control`, `url` or `sha256`, `reviewer`, `date`, `note`. A `manual` detector passes when an unexpired entry exists; evidence can carry a `valid-for: 365d` so threat models and pen tests age out.
 
-**`factory init`**: interactive (prompts for type and flags with `@clack/prompts`), writes `profile.yml`, `waivers.yml` (empty), `evidence.yml` (empty), adds `.github/workflows/factory.yml`, runs the first audit, prints what to do next. Non-interactive with `--type web-app --flag handles-pii` for scripting.
+**`rivetari init`**: interactive (prompts for type and flags with `@clack/prompts`), writes `profile.yml`, `waivers.yml` (empty), `evidence.yml` (empty), adds `.github/workflows/rivetari.yml`, runs the first audit, prints what to do next. Non-interactive with `--type web-app --flag handles-pii` for scripting.
 
-**GitHub Action** (`packages/action`, composite action): sets up Node, installs the CLI from GitHub Packages, runs `factory audit --gate <phase from profile> --format github`, uploads the JSON report as an artifact, posts or updates one sticky PR comment with the gap summary (use `peter-evans/create-or-update-comment` or a small script), and fails the job when the gate is red. Workflow in the target repo:
+**GitHub Action** (`packages/action`, composite action): sets up Node, installs the CLI from GitHub Packages, runs `rivetari audit --gate <phase from profile> --format github`, uploads the JSON report as an artifact, posts or updates one sticky PR comment with the gap summary (use `peter-evans/create-or-update-comment` or a small script), and fails the job when the gate is red. Workflow in the target repo:
 
 ```yaml
-name: factory
+name: Rivetari
 on: [pull_request, push]
 jobs:
   audit:
@@ -243,34 +243,34 @@ jobs:
     permissions: { contents: read, pull-requests: write }
     steps:
       - uses: actions/checkout@<sha>
-      - uses: yourorg/factory/packages/action@v1
+      - uses: yourorg/rivetari/packages/action@v1
         with: { token: ${{ secrets.GITHUB_TOKEN }} }
 ```
 
 **Tasks**
 
-- [ ] Profile schema, loader, and `factory profile show | set <key> <value>`.
+- [ ] Profile schema, loader, and `rivetari profile show | set <key> <value>`.
 - [ ] Applicability evaluator with unit tests for every predicate combination.
-- [ ] Gate definitions for all nine phases; `factory audit --gate build` and `--gate all`.
-- [ ] Waiver loader, expiry handling, `factory waive <control> --reason --expires`.
-- [ ] Evidence loader and `factory evidence add <control> --url|--file --note`.
-- [ ] `factory init` interactive and flag-driven.
+- [ ] Gate definitions for all nine phases; `rivetari audit --gate build` and `--gate all`.
+- [ ] Waiver loader, expiry handling, `rivetari waive <control> --reason --expires`.
+- [ ] Evidence loader and `rivetari evidence add <control> --url|--file --note`.
+- [ ] `rivetari init` interactive and flag-driven.
 - [ ] Report formats: `table`, `json`, `markdown`, `github` (annotations via `::error` lines).
 - [ ] Composite action, sticky PR comment, artifact upload.
-- [ ] Factory repo setting: Actions access set to "Accessible from repositories in the organization" so private consumers can `uses:` it. Document this in the README.
-- [ ] Publish `@yourorg/factory` to GitHub Packages from a release workflow driven by Changesets; tag `v1` and move it on each minor.
-- [ ] Add the `factory.yml` workflow to the factory repo itself.
+- [ ] Rivetari repo setting: Actions access set to "Accessible from repositories in the organization" so private consumers can `uses:` it. Document this in the README.
+- [ ] Publish `@yourorg/rivetari` to GitHub Packages from a release workflow driven by Changesets; tag `v1` and move it on each minor.
+- [ ] Add the `rivetari.yml` workflow to Rivetari repo itself.
 
 **Definition of done**
 
-- Deleting `SECURITY.md` on a branch of the factory repo turns the PR check red with a comment naming the control.
+- Deleting `SECURITY.md` on a branch of Rivetari repo turns the PR check red with a comment naming the control.
 - A waiver for that control with a future expiry turns it green; setting the expiry to yesterday turns it red again.
-- `factory init` on a fresh empty repo produces a valid profile, a workflow, and a first report in one run.
-- A second private repo in your org can `uses: yourorg/factory/packages/action@v1` successfully.
+- `rivetari init` on a fresh empty repo produces a valid profile, a workflow, and a first report in one run.
+- A second private repo in your org can `uses: yourorg/rivetari/packages/action@v1` successfully.
 
 ## Milestone 3: generators and remediation PRs (weeks 6–7)
 
-Goal: `factory fix` turns red controls into a pull request containing the files and settings that satisfy them, without ever clobbering work a human did.
+Goal: `rivetari fix` turns red controls into a pull request containing the files and settings that satisfy them, without ever clobbering work a human did.
 
 **Generator types** (`packages/engine/src/generators/`)
 
@@ -285,19 +285,19 @@ Goal: `factory fix` turns red controls into a pull request containing the files 
 
 **Merge policy** (the part that makes it trustworthy)
 
-1. Never overwrite a file that exists unless the control marks it `managed: true` (only for files the factory owns, like `.factory/state.json`).
-2. For an existing file the generator wants to change, produce a minimal structural merge (YAML/JSON path insertion), never a textual overwrite. If the merge is ambiguous, write `<file>.factory-suggested` next to it and tell the user.
-3. Record every generated file's hash in `.factory/state.json` so later runs can tell "unchanged since we wrote it" from "human edited it".
-4. Every run is a dry run by default; `--write` applies locally, `--pr` applies on a branch and opens a PR titled `factory: <n> fixes for <gate>` with one commit per control.
+1. Never overwrite a file that exists unless the control marks it `managed: true` (only for files Rivetari owns, like `.rivetari/state.json`).
+2. For an existing file the generator wants to change, produce a minimal structural merge (YAML/JSON path insertion), never a textual overwrite. If the merge is ambiguous, write `<file>.rivetari-suggested` next to it and tell the user.
+3. Record every generated file's hash in `.rivetari/state.json` so later runs can tell "unchanged since we wrote it" from "human edited it".
+4. Every run is a dry run by default; `--write` applies locally, `--pr` applies on a branch and opens a PR titled `rivetari: <n> fixes for <gate>` with one commit per control.
 
 **The scaffold phase generators to write** (these are the twenty files every repo needs)
 
-- [ ] `README.md` skeleton with sections for setup, scripts, architecture link, and a factory badge
+- [ ] `README.md` skeleton with sections for setup, scripts, architecture link, and a Rivetari badge
 - [ ] `LICENSE` from a chosen SPDX id; `CONTRIBUTING.md`; `CODE_OF_CONDUCT.md` (Contributor Covenant); `SECURITY.md` with disclosure email and supported versions; `CODEOWNERS`
 - [ ] `.editorconfig`, `.gitattributes`, `.gitignore` from stack
 - [ ] `.github/PULL_REQUEST_TEMPLATE.md`, `ISSUE_TEMPLATE/bug.yml`, `ISSUE_TEMPLATE/feature.yml`
 - [ ] `.github/workflows/ci.yml` for the detected stack (node, python, go, rust), with caching and SHA-pinned actions
-- [ ] `.github/workflows/factory.yml`
+- [ ] `.github/workflows/rivetari.yml`
 - [ ] `renovate.json` with grouping and action pinning
 - [ ] `.pre-commit-config.yaml` or `lefthook.yml` with gitleaks, formatter, linter
 - [ ] `.devcontainer/devcontainer.json`
@@ -312,14 +312,14 @@ Goal: `factory fix` turns red controls into a pull request containing the files 
 - [ ] Template engine wrapper with a test that renders every template in the catalog against three profiles.
 - [ ] YAML and JSON structural merge with round-trip-preserving parsers (`yaml` package with `keepSourceTokens`; `jsonc-parser` for JSON).
 - [ ] Hash registry in `state.json`; a detector helper `managedFileUnchanged(path)`.
-- [ ] `factory fix [--control id] [--gate phase] [--write | --pr]` with a dry-run diff preview.
-- [ ] PR creation via Octokit on a branch `factory/<date>-<gate>`; reuse the open PR if one exists.
-- [ ] Run `fix --pr` on the factory repo and on an old real repo; review the PR as if a stranger sent it.
+- [ ] `rivetari fix [--control id] [--gate phase] [--write | --pr]` with a dry-run diff preview.
+- [ ] PR creation via Octokit on a branch `rivetari/<date>-<gate>`; reuse the open PR if one exists.
+- [ ] Run `fix --pr` on Rivetari repo and on an old real repo; review the PR as if a stranger sent it.
 
 **Definition of done**
 
-- `factory init && factory fix --write` on an empty directory yields a repo whose `scaffold` gate is green.
-- `factory fix --pr` on a repo with a hand-edited `ci.yml` adds the missing step without touching any other line (verify with the PR diff).
+- `rivetari init && rivetari fix --write` on an empty directory yields a repo whose `scaffold` gate is green.
+- `rivetari fix --pr` on a repo with a hand-edited `ci.yml` adds the missing step without touching any other line (verify with the PR diff).
 - Running `fix` twice produces no second diff.
 
 ## Milestone 4: Claude integration and the Claude Code skill (weeks 8–9)
@@ -328,8 +328,8 @@ Goal: the controls nobody fills in by hand (threat model, ADRs, runbooks, user s
 
 **Two surfaces, build both**
 
-1. **Claude Code skill** (`packages/skill/`, copied by `factory init` into `.claude/skills/factory/`). A `SKILL.md` that teaches Claude Code when to run `factory audit --json`, how to read the gap report, and how to run `factory fix` or write the missing artifact itself. This is the cheapest path to agentic behaviour and needs no API key handling of your own.
-2. **`claude` generator type** in the engine, calling the Messages API through the official SDK (`@anthropic-ai/sdk`). Used by the CLI (`factory ai <task>`) and the Electron shell. Key from `ANTHROPIC_API_KEY` or the shell's secure store; never stored in the repo.
+1. **Claude Code skill** (`packages/skill/`, copied by `rivetari init` into `.claude/skills/rivetari/`). A `SKILL.md` that teaches Claude Code when to run `rivetari audit --json`, how to read the gap report, and how to run `rivetari fix` or write the missing artifact itself. This is the cheapest path to agentic behaviour and needs no API key handling of your own.
+2. **`claude` generator type** in the engine, calling the Messages API through the official SDK (`@anthropic-ai/sdk`). Used by the CLI (`rivetari ai <task>`) and the Electron shell. Key from `ANTHROPIC_API_KEY` or the shell's secure store; never stored in the repo.
 
 **Context packer** (`packages/engine/src/ai/context.ts`): assembles profile, the gap report, the control's rationale and references, and a size-capped selection of repo files chosen by the task (for a threat model: `docs/architecture/*`, route files, auth modules, `docker-compose*`, IaC). Hard cap on tokens; list the files included in the PR description so the reviewer knows what Claude saw. Never include `.env*`, keys, or files matching gitleaks patterns.
 
@@ -354,8 +354,8 @@ Goal: the controls nobody fills in by hand (threat model, ADRs, runbooks, user s
 
 - Output always lands on a branch or as a draft file; `evidence` for these controls still requires a human entry, so a generated threat model does not pass the gate until someone reviews it.
 - Each generated file starts with a header: generated by, date, model, files consulted, and a `reviewed-by:` line that is empty until a human fills it.
-- Cost logging: every call appends tokens in/out and estimated cost to `.factory/ai-usage.log` (gitignored) so you can see what the month is costing.
-- Use the Batch API for nightly or bulk jobs (`factory ai explain-gaps --all-repos`).
+- Cost logging: every call appends tokens in/out and estimated cost to `.rivetari/ai-usage.log` (gitignored) so you can see what the month is costing.
+- Use the Batch API for nightly or bulk jobs (`rivetari ai explain-gaps --all-repos`).
 
 **Tasks**
 
@@ -363,23 +363,23 @@ Goal: the controls nobody fills in by hand (threat model, ADRs, runbooks, user s
 - [ ] SDK wrapper with retries, timeouts, token accounting, and model pinning in config.
 - [ ] Context packer with include/exclude rules and a unit test that proves `.env` never gets in.
 - [ ] Ten prompt templates; a fixture test that runs each against a recorded response to catch format drift.
-- [ ] `factory ai <task> [--pr]`.
+- [ ] `rivetari ai <task> [--pr]`.
 - [ ] Generated-file header and reviewer checklist convention.
-- [ ] Usage log and `factory ai usage` summary.
+- [ ] Usage log and `rivetari ai usage` summary.
 
 **Definition of done**
 
-- On a half-built real repo, `factory ai explain-gaps` produces a narrative you would send to a collaborator with minor edits.
-- `factory ai threat-model --pr` opens a PR with a STRIDE table whose rows reference real components in the repo.
+- On a half-built real repo, `rivetari ai explain-gaps` produces a narrative you would send to a collaborator with minor edits.
+- `rivetari ai threat-model --pr` opens a PR with a STRIDE table whose rows reference real components in the repo.
 - Claude Code, with the skill installed, answers "what's left?" by running the audit rather than guessing.
 
 ## Milestone 5: Electron shell (weeks 10–13)
 
-Goal: a desktop app that lists your repos, lets you edit a repo's profile with toggles, shows the lane scorecard and phase gates, runs audits and fixes with live logs, and renders the repo's docs. It ships as a signed-or-unsigned installer on the factory repo's Releases page. Do not start this milestone until you have used M1–M3 on real work for two weeks.
+Goal: a desktop app that lists your repos, lets you edit a repo's profile with toggles, shows the lane scorecard and phase gates, runs audits and fixes with live logs, and renders the repo's docs. It ships as a signed-or-unsigned installer on Rivetari repo's Releases page. Do not start this milestone until you have used M1–M3 on real work for two weeks.
 
 **Stack**: Electron 33+, Vite, React, TypeScript, `electron-vite` for the build, `electron-builder` for packaging, Tailwind plus a small component set (Radix or shadcn) for accessible primitives. The engine runs in the main process; the renderer never touches the filesystem, git, or the network directly.
 
-**Security baseline for the app itself** (the factory audits this too)
+**Security baseline for the app itself** (Rivetari audits this too)
 
 - `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true` on every `BrowserWindow`.
 - A preload script exposing a typed, allow-listed API via `contextBridge`; IPC channels validated with zod on both sides.
@@ -393,12 +393,12 @@ Goal: a desktop app that lists your repos, lets you edit a repo's profile with t
 | Screen | Shows | Actions |
 | --- | --- | --- |
 | Repos | repos from the GitHub API plus local clones you add; last audit date; gate color | add local folder, clone, remove |
-| Profile | type, stack, flags, lane toggles, severity floor as form controls bound to `.factory/profile.yml` | save (commits to a branch or writes locally per setting), reset |
+| Profile | type, stack, flags, lane toggles, severity floor as form controls bound to `.rivetari/profile.yml` | save (commits to a branch or writes locally per setting), reset |
 | Scorecard | 14 lanes as rows, pass/fail/evidence/waived/n-a counts, click to expand controls with rationale and references | run audit, filter by lane or severity |
 | Gates | nine phases, current phase highlighted, red/amber/green per gate, what blocks each | waive with reason and expiry, attach evidence |
 | Fix | dry-run diff of proposed changes grouped by control | apply locally, open PR |
 | AI | list of AI tasks with cost estimate; runs stream into a log pane | run task, open resulting PR |
-| Docs | renders `docs/` and `.factory/` Markdown with Mermaid; ADR list; threat model | open in editor |
+| Docs | renders `docs/` and `.rivetari/` Markdown with Mermaid; ADR list; threat model | open in editor |
 | Settings (personal) | theme, keys, default org, update check | sign out |
 
 **Personal versus shared state**: anything on the Profile, Gates, and evidence screens writes to the repo. Settings writes to `app.getPath('userData')`. There is no third place.
@@ -406,7 +406,7 @@ Goal: a desktop app that lists your repos, lets you edit a repo's profile with t
 **Distribution**
 
 - Release workflow on tag: build for macOS (arm64, x64), Windows, Linux; attach to the GitHub Release with a `latest.yml`/`latest-mac.yml` for `electron-updater`.
-- Private factory repo: `electron-updater` cannot read private releases without a token, so v1 ships a manual "check for updates" that calls the Releases API with the user's token and links to the download. Revisit if the repo goes public.
+- Private Rivetari repo: `electron-updater` cannot read private releases without a token, so v1 ships a manual "check for updates" that calls the Releases API with the user's token and links to the download. Revisit if the repo goes public.
 - Code signing: optional for a team that trusts the repo (macOS users right-click Open once). Add Apple notarization and Windows signing before any wider audience.
 - Installation doc in the README: download, first-run device-flow sign-in, add a repo.
 
@@ -426,31 +426,31 @@ Goal: a desktop app that lists your repos, lets you edit a repo's profile with t
 **Definition of done**
 
 - A teammate installs from the Releases page, signs in, adds a repo, and sees a scorecard without help.
-- Changing a flag on the Profile screen and saving produces a one-line diff in `.factory/profile.yml` in that repo.
-- The app passes its own factory audit for the security and accessibility lanes.
+- Changing a flag on the Profile screen and saving produces a one-line diff in `.rivetari/profile.yml` in that repo.
+- The app passes its own rivetari audit for the security and accessibility lanes.
 
 ## Milestone 6: phase inference, metrics, evidence, lane breadth (weeks 14–15)
 
-Goal: the factory answers "where is this project and what is left?" for a repo it has never seen, shows how the project is performing, and covers every lane with real controls, not placeholders.
+Goal: Rivetari answers "where is this project and what is left?" for a repo it has never seen, shows how the project is performing, and covers every lane with real controls, not placeholders.
 
-**Phase inference**: the inferred phase is the lowest phase whose gate is not green. `factory status` prints the phase, the blocking controls in severity order, and an estimate of effort (small/medium/large, tagged on each control). The profile's `phase` field becomes a floor you can set manually, never a ceiling. The Electron Gates screen highlights the inferred phase.
+**Phase inference**: the inferred phase is the lowest phase whose gate is not green. `rivetari status` prints the phase, the blocking controls in severity order, and an estimate of effort (small/medium/large, tagged on each control). The profile's `phase` field becomes a floor you can set manually, never a ceiling. The Electron Gates screen highlights the inferred phase.
 
-**Metrics** (`factory metrics`, and a dashboard panel in the shell), computed from the GitHub API with no extra services:
+**Metrics** (`rivetari metrics`, and a dashboard panel in the shell), computed from the GitHub API with no extra services:
 
 - DORA four keys: deployment frequency (releases or deploy workflow runs), lead time for changes (PR open to merge to deploy), change failure rate (deploys followed by a `hotfix`/`revert` within 24 h), time to restore (incident label open to close).
-- Hygiene trend: pass count per lane per week, stored in `.factory/history.jsonl` on each CI run.
+- Hygiene trend: pass count per lane per week, stored in `.rivetari/history.jsonl` on each CI run.
 - Dependency age: count of outdated majors from Renovate's dashboard issue.
 
 **Evidence workflow**: attach a URL or upload a file whose sha256 is recorded; evidence has `valid-for`; the report lists evidence expiring in 30 days; the shell shows an "attach" button on every `needs-evidence` row.
 
 **Lane breadth**: write the remaining controls from the Control catalog section so every lane has coverage. The evidence-heavy lanes (legal, accessibility, operations, product) are mostly `manual` detectors with strong rationale text and references; that is correct, not a shortcut.
 
-**Multi-repo**: `factory audit --all` over a list of repos in `~/.config/factory/repos.yml` (or the shell's repo list) producing one combined table; the Batch API variant of `explain-gaps` for all of them.
+**Multi-repo**: `rivetari audit --all` over a list of repos in `~/.config/rivetari/repos.yml` (or the shell's repo list) producing one combined table; the Batch API variant of `explain-gaps` for all of them.
 
 **Tasks**
 
-- [ ] `factory status` with inference and effort tags; effort tag added to the control schema.
-- [ ] History append in the Action; `factory metrics` with DORA calculations and documented assumptions.
+- [ ] `rivetari status` with inference and effort tags; effort tag added to the control schema.
+- [ ] History append in the Action; `rivetari metrics` with DORA calculations and documented assumptions.
 - [ ] Evidence attach in CLI and shell; expiry warnings in reports.
 - [ ] Write the remaining controls (target 120–150 total) and gate definitions for all phases.
 - [ ] Multi-repo audit and dashboard.
@@ -459,10 +459,10 @@ Goal: the factory answers "where is this project and what is left?" for a repo i
 
 **Definition of done**
 
-- `factory status` on a half-built real repo names the phase you would have named and lists the top five blockers you agree with.
+- `rivetari status` on a half-built real repo names the phase you would have named and lists the top five blockers you agree with.
 - Every lane has at least six controls; every control has references and a rationale.
-- `factory metrics` returns the four DORA numbers for the factory repo itself.
-- The factory's own audit is fully green or waived with reasons.
+- `rivetari metrics` returns the four DORA numbers for Rivetari repo itself.
+- Rivetari's own audit is fully green or waived with reasons.
 
 ## Control catalog by lane
 
@@ -695,22 +695,22 @@ This is the master list of controls to write. Each row is one YAML file. Detecto
 
 Count: roughly 140 controls. Every row needs `rationale` text and at least one `references` entry before it merges; `pnpm catalog:validate` enforces both.
 
-## The factory's own quality bar
+## Rivetari's own quality bar
 
-The factory is a product with users (you, then teammates), so it is held to its own catalog. These are the controls that apply to the factory repo specifically and the practices that keep it maintainable by one person.
+Rivetari is a product with users (you, then teammates), so it is held to its own catalog. These are the controls that apply to Rivetari repo specifically and the practices that keep it maintainable by one person.
 
-**Testing the factory**
+**Testing Rivetari**
 
 - Unit tests per detector and generator against fixture repos (`packages/engine/test/fixtures/`): `empty`, `node-minimal`, `node-complete`, `python-minimal`, `broken` (malformed YAML, missing files). Add a fixture every time a real repo exposes a false positive.
 - Snapshot tests for every report format so output changes are deliberate.
 - Contract test for the GitHub API layer using recorded responses (`nock` or MSW) so CI does not need a token.
 - A fixture test for each Claude prompt template against a recorded response, asserting the output parses and the header is present.
 - Playwright Electron tests for sign-in, audit, and waive flows.
-- The factory audits itself in CI on every PR; the `build` gate must be green to merge.
+- Rivetari audits itself in CI on every PR; the `build` gate must be green to merge.
 
-**Security of the factory**
+**Security of Rivetari**
 
-- Tokens only in `safeStorage` (desktop) or environment (CLI/CI); never in `.factory/` or logs. A unit test greps all report output for token-shaped strings.
+- Tokens only in `safeStorage` (desktop) or environment (CLI/CI); never in `.rivetari/` or logs. A unit test greps all report output for token-shaped strings.
 - Generators run with a path allow-list rooted at the target repo; no writes outside it.
 - Context packer exclusion list tested; `.env*`, `*.pem`, `id_rsa*`, and gitleaks-matching content never reach Claude.
 - Dependencies: Renovate, OSV scan, Scorecard, SBOM on release, Actions pinned by SHA. Minimal `permissions:` blocks in every workflow.
@@ -721,7 +721,7 @@ The factory is a product with users (you, then teammates), so it is held to its 
 
 - Every interactive element reachable by keyboard with visible focus; axe in Playwright; respects system reduced-motion and high-contrast; text scales to 200%.
 
-**Documentation of the factory**
+**Documentation of Rivetari**
 
 - `docs/` in Diátaxis layout: a tutorial (install into a repo in 10 minutes), how-tos (write a control, write a generator, add a lane, run in CI), reference (CLI, schema, catalog rendered), explanation (why controls-as-data, why waivers).
 - ADRs for every architectural decision; the five from M0 plus one per later decision (merge policy, context packer limits, update strategy).
@@ -732,10 +732,10 @@ The factory is a product with users (you, then teammates), so it is held to its 
 
 1. Changeset per PR describing the user-facing change and bump type.
 2. Merging to `main` opens or updates a "Version packages" PR.
-3. Merging that PR tags, publishes `@yourorg/factory` to GitHub Packages, moves the `v1` tag, builds Electron installers, attaches them to the GitHub Release with SBOM and provenance.
-4. Smoke test: install the CLI from the registry into a scratch repo and run `factory audit`.
+3. Merging that PR tags, publishes `@yourorg/rivetari` to GitHub Packages, moves the `v1` tag, builds Electron installers, attaches them to the GitHub Release with SBOM and provenance.
+4. Smoke test: install the CLI from the registry into a scratch repo and run `rivetari audit`.
 
-**Operating the factory**
+**Operating Rivetari**
 
 - A `SUPPORT.md` pointing teammates to Issues with the bug template.
 - A monthly "catalog review" control that audits itself: a `manual` control with `valid-for: 90d` whose evidence is a dated review note of the referenced standards.
@@ -768,7 +768,7 @@ Milestones run back to back; M5 starts only after two weeks of using M1–M3 on 
 | --- | --- | --- |
 | Mon | 2 h | Review this doc's task list for the current milestone; pick the week's three tasks; open issues for them |
 | Tue–Thu | 2 h each | Build. One PR per task, each with a changeset and tests |
-| Fri | 1–2 h | Dogfood: run the latest build on the factory repo and one real repo; log false positives in `docs/audit-notes.md`; tick tasks here |
+| Fri | 1–2 h | Dogfood: run the latest build on Rivetari repo and one real repo; log false positives in `docs/audit-notes.md`; tick tasks here |
 | Every other Fri | 30 min | Read the Risks section; update the decision log; check Renovate PRs |
 
 **Definition of done, all milestones**
@@ -776,12 +776,12 @@ Milestones run back to back; M5 starts only after two weeks of using M1–M3 on 
 | Milestone | Command or check that proves it |
 | --- | --- |
 | M0 | `pnpm install && pnpm typecheck && pnpm lint && pnpm test && pnpm build` green in CI; bad commit message rejected |
-| M1 | `factory audit .` reports 40 controls in under 30 s on the factory and three real repos |
+| M1 | `rivetari audit .` reports 40 controls in under 30 s on Rivetari and three real repos |
 | M2 | Deleting `SECURITY.md` on a branch turns the PR check red; a waiver turns it green |
-| M3 | `factory init && factory fix --write` on an empty dir yields a green scaffold gate; second run is a no-op |
-| M4 | `factory ai threat-model --pr` opens a PR referencing real components; Claude Code answers "what's left?" via the audit |
+| M3 | `rivetari init && rivetari fix --write` on an empty dir yields a green scaffold gate; second run is a no-op |
+| M4 | `rivetari ai threat-model --pr` opens a PR referencing real components; Claude Code answers "what's left?" via the audit |
 | M5 | A teammate installs from Releases and audits a repo unaided; app passes its own security and a11y lanes |
-| M6 | `factory status` names the right phase on a half-built repo; every lane has six or more controls; factory audit green |
+| M6 | `rivetari status` names the right phase on a half-built repo; every lane has six or more controls; rivetari audit green |
 
 **Where to stop if time runs out**: M3 is a complete, useful product on its own (CLI plus CI). M4 adds the biggest leverage per hour. M5 is the most expensive milestone and the easiest to defer.
 
@@ -808,26 +808,26 @@ Milestones run back to back; M5 starts only after two weeks of using M1–M3 on 
 | --- | --- | --- |
 |  | Headless engine, thin clients | 0001 |
 |  | Controls as YAML with zod schema | 0002 |
-|  | Shared state in `.factory/`, personal state in app | 0003 |
+|  | Shared state in `.rivetari/`, personal state in app | 0003 |
 |  | Generators open PRs only | 0004 |
 |  | TypeScript, pnpm, Node 22 | 0005 |
 
 **Open questions** (answer before the milestone that needs them)
 
-- [ ] Open-source the factory or keep it private? Decides the license, GitHub Pages for docs, and the updater strategy. Needed by M0 for the license, revisit at M5.
+- [ ] Open-source Rivetari or keep it private? Decides the license, GitHub Pages for docs, and the updater strategy. Needed by M0 for the license, revisit at M5.
 - [ ] GitHub App or OAuth App for the desktop sign-in? A GitHub App gives finer permissions and an installation token; an OAuth App is simpler. Needed by M5.
 - [ ] Which stacks to support in generators for 1.0? Node is certain; Python, Go, Rust each cost a day of templates. Needed by M3.
-- [ ] Should `factory.yml` in target repos run on a schedule (weekly) as well as on PRs, to catch expiring waivers and evidence? Needed by M2.
+- [ ] Should `rivetari.yml` in target repos run on a schedule (weekly) as well as on PRs, to catch expiring waivers and evidence? Needed by M2.
 - [ ] Store `history.jsonl` in the repo or as a CI artifact? Repo is simpler and diffable; artifacts avoid noise commits. Needed by M6.
 
 ## Appendix: file reference, commands, and sources
 
-**Final repo layout of the factory**
+**Final repo layout of Rivetari**
 
 ```
-factory/
-  .factory/                      profile.yml  waivers.yml  evidence.yml  state.json  history.jsonl
-  .github/workflows/             ci.yml  factory.yml  release.yml
+Rivetari/
+  .rivetari/                      profile.yml  waivers.yml  evidence.yml  state.json  history.jsonl
+  .github/workflows/             ci.yml  rivetari.yml  release.yml
   .changeset/
   docs/                          tutorials/  how-to/  reference/  explanation/  adr/  catalog/  audit-notes.md
   packages/catalog/
@@ -845,34 +845,34 @@ factory/
   apps/desktop/src/              main/  preload/  renderer/
 ```
 
-**Files the factory writes into a target repo**
+**Files Rivetari writes into a target repo**
 
 | Path | Owner | Purpose |
 | --- | --- | --- |
-| `.factory/profile.yml` | human, via CLI or shell | what the project is and its risk flags |
-| `.factory/waivers.yml` | human | accepted exceptions with expiry |
-| `.factory/evidence.yml` | human | links and hashes proving manual controls |
-| `.factory/state.json` | factory (managed) | last audit, managed-file hashes, inferred phase |
-| `.factory/history.jsonl` | factory (managed) | per-run lane pass counts for trends |
-| `.github/workflows/factory.yml` | factory, then human | runs the audit in CI |
-| `.claude/skills/factory/` | factory (managed) | Claude Code skill |
+| `.rivetari/profile.yml` | human, via CLI or shell | what the project is and its risk flags |
+| `.rivetari/waivers.yml` | human | accepted exceptions with expiry |
+| `.rivetari/evidence.yml` | human | links and hashes proving manual controls |
+| `.rivetari/state.json` | Rivetari (managed) | last audit, managed-file hashes, inferred phase |
+| `.rivetari/history.jsonl` | Rivetari (managed) | per-run lane pass counts for trends |
+| `.github/workflows/rivetari.yml` | Rivetari, then human | runs the audit in CI |
+| `.claude/skills/rivetari/` | Rivetari (managed) | Claude Code skill |
 | scaffold files (`README.md`, `SECURITY.md`, ...) | human after generation | never overwritten once edited |
 
 **CLI commands at 1.0**
 
 | Command | Does |
 | --- | --- |
-| `factory init [--type] [--flag ...]` | create profile, workflow, skill; first audit |
-| `factory audit [path] [--gate phase] [--lane x] [--format table/json/markdown/github] [--all]` | run detectors, print report, write state |
-| `factory status` | inferred phase, blockers by severity, effort tags |
-| `factory fix [--control id] [--gate phase] [--write / --pr]` | run generators; dry run by default |
-| `factory ai <task> [--pr]` | Claude-drafted artifacts |
-| `factory ai usage` | token and cost summary |
-| `factory waive <control> --reason --expires` | add a waiver |
-| `factory evidence add <control> --url/--file --note` | add evidence |
-| `factory profile show / set <key> <value>` | edit the profile |
-| `factory metrics` | DORA four keys and lane trends |
-| `factory catalog list [--lane] / show <id>` | browse controls |
+| `rivetari init [--type] [--flag ...]` | create profile, workflow, skill; first audit |
+| `rivetari audit [path] [--gate phase] [--lane x] [--format table/json/markdown/github] [--all]` | run detectors, print report, write state |
+| `rivetari status` | inferred phase, blockers by severity, effort tags |
+| `rivetari fix [--control id] [--gate phase] [--write / --pr]` | run generators; dry run by default |
+| `rivetari ai <task> [--pr]` | Claude-drafted artifacts |
+| `rivetari ai usage` | token and cost summary |
+| `rivetari waive <control> --reason --expires` | add a waiver |
+| `rivetari evidence add <control> --url/--file --note` | add evidence |
+| `rivetari profile show / set <key> <value>` | edit the profile |
+| `rivetari metrics` | DORA four keys and lane trends |
+| `rivetari catalog list [--lane] / show <id>` | browse controls |
 
 **Sources the catalog is derived from** (verify current versions before citing them in control YAML; I could not fetch these pages from this session)
 

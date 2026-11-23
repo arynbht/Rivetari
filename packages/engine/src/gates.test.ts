@@ -1,4 +1,4 @@
-import type { Gate } from "@arynbht/factory-catalog";
+import type { Gate } from "@arynbht/rivetari-catalog";
 import { describe, expect, it } from "vitest";
 
 import type { ControlResult, ControlStatus } from "./evaluate.js";

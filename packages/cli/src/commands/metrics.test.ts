@@ -14,7 +14,7 @@ describe("runMetrics", () => {
     vi.restoreAllMocks();
   });
   async function tmp(): Promise<string> {
-    const d = await mkdtemp(join(tmpdir(), "factory-metrics-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-metrics-"));
     made.push(d);
     return d;
   }
@@ -22,7 +22,7 @@ describe("runMetrics", () => {
   it("shows the judge's findings without GitHub, with candidate rules", async () => {
     const dir = await tmp();
     const { mkdir, writeFile } = await import("node:fs/promises");
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     const finding = {
       pattern: "aaaaaaaaaaaa",
       kind: "suggestion",
@@ -46,7 +46,7 @@ describe("runMetrics", () => {
         findings: [finding],
       });
     await writeFile(
-      join(dir, ".factory", "history.jsonl"),
+      join(dir, ".rivetari", "history.jsonl"),
       `${row("T-0001", 1)}\n${row("T-0002", 2)}\n`,
     );
     const out: string[] = [];
@@ -71,9 +71,9 @@ describe("runMetrics", () => {
   it("shows where the tier 1 rules come from: findings, stack defaults, or built in", async () => {
     const dir = await tmp();
     const { mkdir, writeFile } = await import("node:fs/promises");
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     await writeFile(
-      join(dir, ".factory", "banned.json"),
+      join(dir, ".rivetari", "banned.json"),
       JSON.stringify({
         version: 1,
         patterns: [
@@ -112,7 +112,7 @@ describe("runMetrics", () => {
   it("fails fast on a nonexistent path", async () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const code = await runMetrics(
-      join(tmpdir(), "factory-metrics-missing-xyz"),
+      join(tmpdir(), "rivetari-metrics-missing-xyz"),
       {},
       { token: null },
     );

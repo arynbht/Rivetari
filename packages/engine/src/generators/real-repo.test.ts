@@ -1,10 +1,10 @@
-// Fixes against repos the factory did not scaffold: a CI job not named `ci`,
+// Fixes against repos Rivetari did not scaffold: a CI job not named `ci`,
 // several merges into one file in a single run, and values a human already set.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
@@ -50,14 +50,14 @@ jobs:
       - run: npm test
 `;
 
-describe("fixes on repos the factory did not scaffold", () => {
+describe("fixes on repos Rivetari did not scaffold", () => {
   const made: string[] = [];
   afterEach(async () => {
     for (const d of made) await rm(d, { recursive: true, force: true });
     made.length = 0;
   });
   const repoWith = async (files: Record<string, string>): Promise<string> => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-real-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-real-"));
     made.push(dir);
     for (const [path, contents] of Object.entries(files)) {
       await mkdir(join(dir, path, ".."), { recursive: true });
@@ -131,7 +131,7 @@ describe("fixes on repos the factory did not scaffold", () => {
     expect(results[0]?.action).toBe("suggest");
     expect(await ci(dir)).toBe(workflow); // untouched
     const suggested = await readFile(
-      join(dir, ".github/workflows/ci.yml.factory-suggested"),
+      join(dir, ".github/workflows/ci.yml.rivetari-suggested"),
       "utf8",
     );
     expect(suggested).toContain("several jobs could take this step");
@@ -202,7 +202,7 @@ describe("fixes on repos the factory did not scaffold", () => {
     await applyChanges(dir, changes, { mode: "write" });
     expect(await readFile(join(dir, "package.json"), "utf8")).toBe(pkg);
     expect(
-      await readFile(join(dir, "package.json.factory-suggested"), "utf8"),
+      await readFile(join(dir, "package.json.rivetari-suggested"), "utf8"),
     ).toContain("vitest run");
   });
 });

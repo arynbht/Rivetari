@@ -26,7 +26,7 @@ async function temp(prefix: string): Promise<string> {
 }
 
 async function repo() {
-  const dir = await temp("factory-workspace-test-");
+  const dir = await temp("rivetari-workspace-test-");
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -67,7 +67,7 @@ const exists = (path: string) =>
 describe("the judge's persistent workspace", () => {
   it("is reused across rounds: installed once, ignored leftovers cleaned, node_modules kept", async () => {
     const r = await repo();
-    const root = await temp("factory-workspace-root-");
+    const root = await temp("rivetari-workspace-root-");
     const lines: string[] = [];
     const judge = () =>
       runTier1({
@@ -110,7 +110,7 @@ describe("the judge's persistent workspace", () => {
 
   it("forgets the installed dependencies when the change touches a manifest", async () => {
     const r = await repo();
-    const root = await temp("factory-workspace-root-");
+    const root = await temp("rivetari-workspace-root-");
     await r.write(
       "packages/a/package.json",
       JSON.stringify({ name: "a", version: "1.0.0" }),
@@ -140,7 +140,7 @@ describe("the judge's persistent workspace", () => {
 
   it("falls back to a fresh clone of its own while another judge holds the workspace", async () => {
     const r = await repo();
-    const root = await temp("factory-workspace-root-");
+    const root = await temp("rivetari-workspace-root-");
     const held = await acquireWorkspace(r.dir, { root });
     expect(held).not.toBeNull();
     expect(await acquireWorkspace(r.dir, { root })).toBeNull();
@@ -167,7 +167,7 @@ describe("the judge's persistent workspace", () => {
 
   it("takes over a lock a crashed judge left behind", async () => {
     const r = await repo();
-    const root = await temp("factory-workspace-root-");
+    const root = await temp("rivetari-workspace-root-");
     const held = await acquireWorkspace(r.dir, { root });
     const later = Date.now() + 4 * 60 * 60_000;
     const taken = await acquireWorkspace(r.dir, { root, now: later });

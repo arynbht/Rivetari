@@ -21,4 +21,4 @@ tested_on: "2026-11-09"
 notes: >
   Spine "test" step: failing test first, reproduction test for every bug fix, discover the repo's
   own test commands before running anything. Treats browser content as untrusted data (good).
-  Mentions Chrome DevTools MCP for browser checks; playwright-cli is the factory's proof tool instead.
+  Mentions Chrome DevTools MCP for browser checks; playwright-cli is Rivetari's proof tool instead.

@@ -93,7 +93,7 @@ describe("banned patterns", () => {
   });
 
   it("reads the list from the working copy or from a commit", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-banned-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-banned-"));
     made.push(dir);
     const git = simpleGit(dir);
     await git.init(["-b", "main"]);
@@ -103,7 +103,7 @@ describe("banned patterns", () => {
     await git.add(["-A"]);
     await git.commit("base", ["--no-verify"]);
     const base = (await git.revparse(["HEAD"])).trim();
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     await writeFile(
       join(dir, BANNED_PATH),
       JSON.stringify({ version: 1, patterns: [] }),

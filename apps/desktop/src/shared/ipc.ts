@@ -1,7 +1,7 @@
 // The IPC contract shared by main, preload, and renderer. Every channel has a
 // zod schema validated on BOTH sides: the main process re-validates each request
 // it receives, and the preload re-validates each response before handing it to
-// the renderer. The renderer only ever sees the typed `window.factory` surface
+// the renderer. The renderer only ever sees the typed `window.rivetari` surface
 // (see preload) — never ipcRenderer, fs, git, or the network directly.
 import { z } from "zod";
 
@@ -316,7 +316,7 @@ export const AiApplyResult = z.object({
   path: z.string(),
 });
 
-// Docs — Markdown files under docs/ and .factory/, rendered (with Mermaid).
+// Docs — Markdown files under docs/ and .rivetari/, rendered (with Mermaid).
 export const DocEntry = z.object({ path: z.string(), name: z.string() });
 export type DocEntry = z.infer<typeof DocEntry>;
 export const DocList = z.array(DocEntry);
@@ -334,7 +334,7 @@ export type DocContent = z.infer<typeof DocContent>;
 
 // Floor Plan — the deep-audit swarm's repository model, drawn with Cytoscape. The
 // model is produced by the engine swarm and persisted as managed state in
-// `.factory/floorplan.json`; this boundary re-validates its full shape before the
+// `.rivetari/floorplan.json`; this boundary re-validates its full shape before the
 // renderer draws it.
 export const FloorPlanNodeKind = z.enum([
   "system",

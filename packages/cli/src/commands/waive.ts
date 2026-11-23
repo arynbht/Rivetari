@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 
-import type { Waiver } from "@arynbht/factory-catalog";
-import { addWaiver, WaiverError } from "@arynbht/factory-engine";
+import type { Waiver } from "@arynbht/rivetari-catalog";
+import { addWaiver, WaiverError } from "@arynbht/rivetari-engine";
 
 export interface WaiveFlags {
   reason?: string;
@@ -9,7 +9,7 @@ export interface WaiveFlags {
   owner?: string;
 }
 
-/** `factory waive <control> --reason --expires [--owner]`. */
+/** `rivetari waive <control> --reason --expires [--owner]`. */
 export async function runWaive(
   control: string,
   flags: WaiveFlags,
@@ -17,11 +17,11 @@ export async function runWaive(
   created: string,
 ): Promise<number> {
   if (!flags.reason) {
-    console.error("factory waive: --reason is required");
+    console.error("rivetari waive: --reason is required");
     return 1;
   }
   if (!flags.expires) {
-    console.error("factory waive: --expires <YYYY-MM-DD> is required");
+    console.error("rivetari waive: --expires <YYYY-MM-DD> is required");
     return 1;
   }
 

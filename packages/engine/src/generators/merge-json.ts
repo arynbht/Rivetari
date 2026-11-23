@@ -1,4 +1,4 @@
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { applyEdits, modify } from "jsonc-parser";
 
 import type { AuditContext } from "../context.js";
@@ -11,7 +11,7 @@ import type { Change, Generator } from "./types.js";
  * formatting-preserving edit (jsonc-parser). No-op if already equal.
  *
  * Never overwrites: when the path already holds a *different* value, the human's
- * value wins and the merged result is offered as `<file>.factory-suggested`.
+ * value wins and the merged result is offered as `<file>.rivetari-suggested`.
  *
  * An absent target is a no-op (creating a structured file from a single fragment
  * is normally a `template` fix's job — e.g. `package.json` in a non-Node repo),

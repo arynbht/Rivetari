@@ -1,4 +1,4 @@
-import type { DetectorConfig } from "@arynbht/factory-catalog";
+import type { DetectorConfig } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext, GitHubClient } from "../context.js";
 import { deepEqual } from "./path.js";

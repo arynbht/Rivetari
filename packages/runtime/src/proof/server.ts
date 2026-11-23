@@ -3,7 +3,7 @@
 // code). Resolves once its URL answers; `stop()` kills the whole process tree.
 import { spawn } from "node:child_process";
 
-import { allowlistedEnv } from "@arynbht/factory-engine";
+import { allowlistedEnv } from "@arynbht/rivetari-engine";
 
 export interface RunningServer {
   url: string;

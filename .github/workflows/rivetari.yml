@@ -1,4 +1,4 @@
-name: factory
+name: rivetari
 
 on:
   pull_request:
@@ -15,14 +15,14 @@ permissions:
 # One run per ref; a newer push/PR update supersedes an in-flight run so the two
 # can't race on the sticky comment or the status issue.
 concurrency:
-  group: factory-${{ github.ref }}
+  group: rivetari-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # PR runs post a sticky review comment — they need pull-requests:write only.
   audit-pr:
-    # Stable check name so the main ruleset can require it ("factory").
-    name: factory
+    # Stable check name so the main ruleset can require it ("Rivetari").
+    name: rivetari
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Factory audit
+      - name: Rivetari audit
         uses: ./packages/action
         with:
           gate: build
@@ -47,7 +47,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Factory audit
+      - name: Rivetari audit
         uses: ./packages/action
         with:
           gate: build

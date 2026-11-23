@@ -125,7 +125,7 @@ export async function fetchUserLogin(
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
-      "User-Agent": "factory-desktop",
+      "User-Agent": "rivetari-desktop",
     },
   });
   const data = (await res.json()) as { login?: unknown };

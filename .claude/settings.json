@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "factory hook session-start || echo factory: the session-start hook could not run, so the factory CLI is probably not on PATH. Until it is, the guard blocks every edit and command. Install it in a terminal, then run factory doctor."
+            "command": "rivetari hook session-start || echo rivetari: the session-start hook could not run, so Rivetari CLI is probably not on PATH. Until it is, the guard blocks every edit and command. Install it in a terminal, then run rivetari doctor."
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "factory hook guard || exit 2"
+            "command": "rivetari hook guard || exit 2"
           }
         ]
       }

@@ -1,5 +1,5 @@
-// Skill manifests (`factory.skill.yml`) and the per-repo lockfile
-// (`.factory/skills.lock`). A manifest is the router's only view of a skill; the
+// Skill manifests (`rivetari.skill.yml`) and the per-repo lockfile
+// (`.rivetari/skills.lock`). A manifest is the router's only view of a skill; the
 // lock is what travels with a repo.
 import { z } from "zod";
 

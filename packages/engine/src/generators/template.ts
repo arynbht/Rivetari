@@ -1,8 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 
-import type { Control, Profile } from "@arynbht/factory-catalog";
-import { bundledTemplatesDir } from "@arynbht/factory-catalog";
+import type { Control, Profile } from "@arynbht/rivetari-catalog";
+import { bundledTemplatesDir } from "@arynbht/rivetari-catalog";
 import { Eta } from "eta";
 import { simpleGit } from "simple-git";
 
@@ -134,14 +134,14 @@ const REQUIRES: Record<string, (vars: TemplateVars) => string | null> = {
   codeowners: (v) =>
     v.owner
       ? null
-      : "set project.owner (e.g. @your-handle) in .factory/profile.yml",
+      : "set project.owner (e.g. @your-handle) in .rivetari/profile.yml",
   security: (v) =>
     v.securityContact
       ? null
-      : "set project.security-contact (an email or URL) in .factory/profile.yml",
+      : "set project.security-contact (an email or URL) in .rivetari/profile.yml",
   license: (v) => {
     if (!v.license) {
-      return "set project.license (an SPDX id, e.g. MIT) in .factory/profile.yml";
+      return "set project.license (an SPDX id, e.g. MIT) in .rivetari/profile.yml";
     }
     if (!(SUPPORTED_LICENSES as readonly string[]).includes(v.license)) {
       return `no bundled text for ${v.license}; add it from https://spdx.org/licenses/${v.license}.html`;
@@ -232,7 +232,7 @@ export async function renderTemplate(
         controlId,
         message:
           stacks.length === 0
-            ? "not scaffolded: the repo's stack is unknown (no package.json, pyproject.toml, go.mod or Cargo.toml); set `stack` in .factory/profile.yml"
+            ? "not scaffolded: the repo's stack is unknown (no package.json, pyproject.toml, go.mod or Cargo.toml); set `stack` in .rivetari/profile.yml"
             : `not scaffolded: no ${templateName} template for ${stacks.join(", ")}`,
       },
     ];

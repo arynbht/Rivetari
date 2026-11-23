@@ -25,7 +25,7 @@ async function temp(prefix: string): Promise<string> {
 }
 
 async function repo(baseSource = "module.exports = 1;\n") {
-  const dir = await temp("factory-base-cache-test-");
+  const dir = await temp("rivetari-base-cache-test-");
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -74,7 +74,7 @@ function judge(dir: string, root: string, lines: string[]) {
 describe("tier 1's base results", () => {
   it("run once per base commit and are reused by the next round, which still fails a broken check", async () => {
     const r = await repo();
-    const root = await temp("factory-base-cache-root-");
+    const root = await temp("rivetari-base-cache-root-");
     await r.write("src/feature.js", "module.exports = 2;\n");
     await r.commit("feature");
 
@@ -101,7 +101,7 @@ describe("tier 1's base results", () => {
 
   it("keep only the green ones: a check red at base runs again next round, the green ones don't", async () => {
     const r = await repo("module.exports = 'BAD';\n");
-    const root = await temp("factory-base-cache-root-");
+    const root = await temp("rivetari-base-cache-root-");
     await r.write("src/feature.js", "module.exports = 2;\n");
     await r.commit("feature");
 
@@ -120,7 +120,7 @@ describe("tier 1's base results", () => {
 
   it("run again for a new base commit", async () => {
     const r = await repo();
-    const root = await temp("factory-base-cache-root-");
+    const root = await temp("rivetari-base-cache-root-");
     await r.write("src/feature.js", "module.exports = 2;\n");
     await r.commit("feature");
     const lines: string[] = [];

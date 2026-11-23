@@ -64,7 +64,7 @@ export async function checkForUpdate(
 
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "factory-desktop",
+    "User-Agent": "rivetari-desktop",
   };
   if (deps.token) headers.Authorization = `Bearer ${deps.token}`;
 

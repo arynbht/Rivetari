@@ -1,9 +1,9 @@
-# Software Factory
+# Rivetari
 
 An auditor and scaffolder for GitHub repositories.
 
 Give it a repo and a profile describing what the project is and what risks it
-carries, and the factory computes which controls apply, checks which are
+carries, and Rivetari computes which controls apply, checks which are
 satisfied, reports the gaps by phase and discipline, and generates the fixes as
 pull requests. It works identically on an empty repo and a half-built one.
 
@@ -11,17 +11,17 @@ pull requests. It works identically on an empty repo and a half-built one.
   controls; adding a discipline means adding files, not TypeScript.
 - **Headless first.** A TypeScript engine does the work; the CLI, GitHub Action,
   Claude Code skill, and Electron desktop shell are thin clients over it.
-- **The repo is the source of truth.** Shared state lives in `.factory/` inside
+- **The repo is the source of truth.** Shared state lives in `.rivetari/` inside
   the target repo; the app stores only personal preferences.
 - **Claude drafts, humans sign.** Every AI-generated artifact lands as a
   reviewable PR and still requires human evidence to pass a gate.
 
 > Status: 1.0 — first stable release. See
-> [`software-factory-build-plan.md`](./software-factory-build-plan.md) for the full
+> [`rivetari-build-plan.md`](./rivetari-build-plan.md) for the full
 > product definition, milestones, and control catalog, and
 > [`docs/catalog/`](./docs/catalog/) for the rendered controls.
 
-## Using the factory
+## Using Rivetari
 
 Pick the client that fits — all three run the same engine over the same catalog.
 
@@ -31,8 +31,8 @@ Add a workflow that runs the audit on every pull request and fails the job when 
 phase gate is red:
 
 ```yaml
-# .github/workflows/factory.yml
-name: factory
+# .github/workflows/rivetari.yml
+name: Rivetari
 on: [pull_request]
 permissions:
   contents: read
@@ -42,26 +42,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: arynbht/software-factory@<commit-sha> # pin a SHA; see below
+      - uses: arynbht/rivetari@<commit-sha> # pin a SHA; see below
 ```
 
-`factory init` scaffolds this workflow for you.
+`rivetari init` scaffolds this workflow for you.
 
 > **Pin a commit SHA for now.** The floating `v1` tag is frozen at the original
 > 1.0.0 release (milestones worked through, not yet verified on external repos). It
-> will not move again until every check in [`FACTORY_V2.md`](./FACTORY_V2.md) §9
+> will not move again until every check in [`RIVETARI_V2.md`](./RIVETARI_V2.md) §9
 > passes. Until then, reference a specific commit of this repo.
 
-### CLI (`factory`)
+### CLI (`rivetari`)
 
-The `@arynbht/factory` package publishes to GitHub Packages (ADR-0010). After the
+The `@arynbht/rivetari` package publishes to GitHub Packages (ADR-0010). After the
 one-time registry auth, run it in a repo:
 
 ```sh
-factory init            # interactive profile + self-audit workflow
-factory audit           # scorecard by lane; phase gate verdict
-factory fix --pr        # open remediation PRs for the gaps it can fix
-factory ai threat-model # draft an artifact for review (20 tasks available)
+rivetari init            # interactive profile + self-audit workflow
+rivetari audit           # scorecard by lane; phase gate verdict
+rivetari fix --pr        # open remediation PRs for the gaps it can fix
+rivetari ai threat-model # draft an artifact for review (20 tasks available)
 ```
 
 ## Desktop app
@@ -72,7 +72,7 @@ browse the lane scorecard and phase gates, apply fixes, and read the docs.
 ### Install
 
 Download the installer for your OS from the repo's
-[Releases](https://github.com/arynbht/software-factory/releases) page (look for a
+[Releases](https://github.com/arynbht/rivetari/releases) page (look for a
 `desktop-v*` release):
 
 - **macOS** — `.dmg` (Apple silicon or Intel). The build is unsigned for now, so on
@@ -91,7 +91,7 @@ installers.
    encrypted in your OS keychain via Electron `safeStorage` — it never leaves your
    machine and never touches the renderer.
 2. **Add a repo** with the folder picker, then open it to run an audit and see the
-   scorecard. Shared state is written to `.factory/` in the target repo; the app
+   scorecard. Shared state is written to `.rivetari/` in the target repo; the app
    keeps only personal preferences (theme, default org, update preference).
 
 ### Updates

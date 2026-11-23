@@ -2,7 +2,7 @@ import { access, cp, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { runTool } from "@arynbht/factory-engine";
+import { runTool } from "@arynbht/rivetari-engine";
 
 import { ensureCached, type FetchOptions, remoteHead } from "./cache.js";
 import { hashSkillDir } from "./hash.js";
@@ -91,7 +91,7 @@ export interface SyncResult {
 }
 
 /**
- * `factory skills sync`: for every locked skill, load it (vendor or cache,
+ * `rivetari skills sync`: for every locked skill, load it (vendor or cache,
  * fetching the pinned commit if needed), verify its hash, check its manifest,
  * scan it, then install it at repo level when `scope: always` — everything else
  * stays staged in the cache for the router to load per task. Skills installed
@@ -187,18 +187,18 @@ export async function syncSkills(
 /**
  * Is the repo's skill install current? Problems: never synced, the lock changed
  * since the last sync, a sync left skills blocked, or an installed skill no
- * longer matches its locked hash. `factory doctor` fails on any of these.
+ * longer matches its locked hash. `rivetari doctor` fails on any of these.
  */
 export async function skillsStatus(repoPath: string): Promise<string[]> {
   const lock = await readLock(repoPath);
   if (lock.skills.length === 0) return [];
   const state = await readState(repoPath);
   if (!state)
-    return ["skills have never been synced: run `factory skills sync`"];
+    return ["skills have never been synced: run `rivetari skills sync`"];
   const problems: string[] = [];
   if (state.lock !== (await lockDigest(repoPath))) {
     problems.push(
-      "the skills lock changed since the last sync: run `factory skills sync`",
+      "the skills lock changed since the last sync: run `rivetari skills sync`",
     );
   }
   for (const b of state.blocked)
@@ -217,7 +217,7 @@ export async function skillsStatus(repoPath: string): Promise<string[]> {
 }
 
 /**
- * `factory skills init`: lock every skill the factory ships a manifest for (or
+ * `rivetari skills init`: lock every skill Rivetari ships a manifest for (or
  * only the always-scope spine), at the manifests' pins. Entries already in the
  * lock are kept as they are — moving a pin is `update`'s job.
  */
@@ -257,8 +257,8 @@ export interface AddOptions extends RegistryOptions {
 }
 
 /**
- * `factory skills add owner/repo[/path]`: pin (default: the repo's HEAD), fetch,
- * hash, scan, and append to the lock. A skill the factory ships a manifest for
+ * `rivetari skills add owner/repo[/path]`: pin (default: the repo's HEAD), fetch,
+ * hash, scan, and append to the lock. A skill Rivetari ships a manifest for
  * uses it; otherwise the caller supplies the fields a manifest needs (scope,
  * sectors, phases) and a repo-local manifest is written.
  */
@@ -354,7 +354,7 @@ export interface UpdatePlan {
 }
 
 /**
- * `factory skills update [name]`: fetch the source repo's latest commit, show
+ * `rivetari skills update [name]`: fetch the source repo's latest commit, show
  * the diff of the skill body against the pinned one, rescan, and move the lock
  * only when `apply` is set — a skill is a prompt, and a changed prompt is a
  * changed program, so updates are never automatic. A dirty scan never applies.
@@ -409,8 +409,8 @@ export async function updateSkills(
 }
 
 /**
- * `factory skills vendor`: opt-in offline copies of every locked skill under
- * `.factory/vendor/skills/<name>/`, verified against the lock. Sync prefers them.
+ * `rivetari skills vendor`: opt-in offline copies of every locked skill under
+ * `.rivetari/vendor/skills/<name>/`, verified against the lock. Sync prefers them.
  */
 export async function vendorSkills(
   repoPath: string,
@@ -436,7 +436,7 @@ async function estimateTokens(dir: string): Promise<number> {
 
 /** A unified diff of two skill directories (git's no-index diff). */
 async function diffDirs(a: string, b: string): Promise<string> {
-  const scratch = await mkdtemp(join(tmpdir(), "factory-skill-diff-"));
+  const scratch = await mkdtemp(join(tmpdir(), "rivetari-skill-diff-"));
   try {
     await cp(a, join(scratch, "old"), { recursive: true });
     await cp(b, join(scratch, "new"), { recursive: true });

@@ -10,7 +10,7 @@ import {
   syncSkills,
   updateSkills,
   vendorSkills,
-} from "@arynbht/factory-registry";
+} from "@arynbht/rivetari-registry";
 
 export interface SkillsFlags {
   refetch?: boolean;
@@ -40,7 +40,7 @@ async function guarded(action: () => Promise<number>): Promise<number> {
       err instanceof SkillFetchError ||
       err instanceof SkillHashError
     ) {
-      console.error(`factory skills: ${err.message}`);
+      console.error(`rivetari skills: ${err.message}`);
       return 1;
     }
     throw err;
@@ -77,7 +77,7 @@ export function runSkillsInit(
     const added = await initLock(resolve(path), { spineOnly: flags.spineOnly });
     process.stdout.write(
       added.length > 0
-        ? `locked ${added.map((e) => e.name).join(", ")}; run \`factory skills sync\`\n`
+        ? `locked ${added.map((e) => e.name).join(", ")}; run \`rivetari skills sync\`\n`
         : "the lock already has every shipped skill\n",
     );
     return 0;
@@ -116,7 +116,7 @@ export function runSkillsAdd(
     );
     if (manifestPath)
       process.stdout.write(`wrote ${manifestPath}; review it\n`);
-    process.stdout.write("run `factory skills sync` to install\n");
+    process.stdout.write("run `rivetari skills sync` to install\n");
     return 0;
   });
 }
@@ -151,7 +151,7 @@ export function runSkillsUpdate(
     }
     if (!flags.yes) {
       process.stdout.write(
-        "\nReview the diffs above; re-run with --yes to move the lock, then `factory skills sync`.\n",
+        "\nReview the diffs above; re-run with --yes to move the lock, then `rivetari skills sync`.\n",
       );
     }
     return blocked ? 1 : 0;
@@ -168,7 +168,7 @@ export function runSkillsVendor(
       log,
     });
     process.stdout.write(
-      `vendored ${names.length} skill(s) into .factory/vendor/skills/ (commit them for offline runs)\n`,
+      `vendored ${names.length} skill(s) into .rivetari/vendor/skills/ (commit them for offline runs)\n`,
     );
     return 0;
   });

@@ -1,5 +1,5 @@
 {
-  "name": "@arynbht/factory-registry",
+  "name": "@arynbht/rivetari-registry",
   "version": "0.0.0",
   "description": "Skill registry: pinned, hashed, scanned skills with manifests; sync, add, update and vendor.",
   "license": "MIT",
@@ -18,7 +18,7 @@
   ],
   "scripts": {},
   "dependencies": {
-    "@arynbht/factory-engine": "workspace:*",
+    "@arynbht/rivetari-engine": "workspace:*",
     "simple-git": "^4.0.2",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"

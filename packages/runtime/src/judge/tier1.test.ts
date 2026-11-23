@@ -33,7 +33,7 @@ async function repo(): Promise<{
   commit: (msg: string) => Promise<void>;
   write: (p: string, c: string) => Promise<void>;
 }> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-judge-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-judge-test-"));
   made.push(dir);
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);
@@ -116,7 +116,7 @@ describe("judge tier 1", () => {
   it("fails a change that adds a pattern the base bans, even when the change empties the list", async () => {
     const r = await repo();
     await r.write(
-      ".factory/banned.json",
+      ".rivetari/banned.json",
       JSON.stringify({
         version: 1,
         patterns: [
@@ -135,7 +135,7 @@ describe("judge tier 1", () => {
     await simple.branch(["-f", "base"]);
     await r.write("src/feature.js", "module.exports = eval('2');\n");
     await r.write(
-      ".factory/banned.json",
+      ".rivetari/banned.json",
       JSON.stringify({ version: 1, patterns: [] }),
     );
     await r.commit("feature");
@@ -192,16 +192,16 @@ describe("judge tier 1", () => {
 
   it("doesn't ask again about a protected change a person allowed", async () => {
     const r = await repo();
-    await r.write(".factory/waivers.yml", "[]\n");
+    await r.write(".rivetari/waivers.yml", "[]\n");
     await r.commit("waive");
     const allowed = await runTier1({
       repoPath: r.dir,
       base: "base",
       install: false,
-      allowed: (f) => f.path === ".factory/waivers.yml",
+      allowed: (f) => f.path === ".rivetari/waivers.yml",
     });
     // Still listed, so the PR says a person approved it, but the checks decide.
-    expect(allowed.protected[0]?.path).toBe(".factory/waivers.yml");
+    expect(allowed.protected[0]?.path).toBe(".rivetari/waivers.yml");
     expect(allowed.verdict).toBe("pass");
     const other = await runTier1({
       repoPath: r.dir,
@@ -280,15 +280,15 @@ describe("judge tier 1", () => {
     expect(result.verdict).toBe("pass");
   }, 60_000);
 
-  it("marks a change to .factory/waivers.yml needs-human", async () => {
+  it("marks a change to .rivetari/waivers.yml needs-human", async () => {
     const r = await repo();
-    await r.write(".factory/waivers.yml", "[]\n");
+    await r.write(".rivetari/waivers.yml", "[]\n");
     await r.commit("waive");
     const result = await judge(r.dir);
     expect(result.verdict).toBe("needs-human");
     expect(result.protected[0]).toMatchObject({
-      reason: "factory-state",
-      path: ".factory/waivers.yml",
+      reason: "rivetari-state",
+      path: ".rivetari/waivers.yml",
     });
   }, 60_000);
 
@@ -320,7 +320,7 @@ describe("judge tier 1", () => {
     const hooksPath = await simpleGit(result.workDir).getConfig(
       "core.hooksPath",
     );
-    expect(hooksPath.value).toContain("factory-no-hooks");
+    expect(hooksPath.value).toContain("rivetari-no-hooks");
   }, 60_000);
 
   it("won't pass a non-Node repo on checks that are red at base too", async () => {
@@ -354,7 +354,7 @@ describe("judge tier 1", () => {
           private: true,
           scripts: {
             lint: "node lint.cjs",
-            test: 'node -e "process.exit(process.env.FACTORY_TEST_SECRET ? 1 : 0)"',
+            test: 'node -e "process.exit(process.env.RIVETARI_TEST_SECRET ? 1 : 0)"',
           },
         },
         null,
@@ -365,7 +365,7 @@ describe("judge tier 1", () => {
     await simpleGit(r.dir).raw(["branch", "-f", "base"]);
     await r.write("src/feature.js", "module.exports = 2;\n");
     await r.commit("feature");
-    process.env.FACTORY_TEST_SECRET = "ghp_should_not_leak";
+    process.env.RIVETARI_TEST_SECRET = "ghp_should_not_leak";
     try {
       const result = await judge(r.dir);
       expect(
@@ -376,13 +376,13 @@ describe("judge tier 1", () => {
         repoPath: r.dir,
         base: "base",
         install: false,
-        env: ["FACTORY_TEST_SECRET"],
+        env: ["RIVETARI_TEST_SECRET"],
       });
       expect(
         opted.checks.find((c) => c.id === "quality.tests.pass")?.head,
       ).toBe("red");
     } finally {
-      delete process.env.FACTORY_TEST_SECRET;
+      delete process.env.RIVETARI_TEST_SECRET;
     }
   }, 60_000);
 
@@ -403,18 +403,18 @@ describe("judge tier 1", () => {
 
 describe("sweepStaleClones", () => {
   it("removes judge clones older than a day and keeps fresh ones", async () => {
-    const root = await mkdtemp(join(tmpdir(), "factory-sweep-"));
+    const root = await mkdtemp(join(tmpdir(), "rivetari-sweep-"));
     made.push(root);
-    await mkdir(join(root, "factory-judge-old"));
-    await mkdir(join(root, "factory-judge-new"));
+    await mkdir(join(root, "rivetari-judge-old"));
+    await mkdir(join(root, "rivetari-judge-new"));
     await mkdir(join(root, "something-else"));
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60_000);
-    await utimes(join(root, "factory-judge-old"), twoDaysAgo, twoDaysAgo);
+    await utimes(join(root, "rivetari-judge-old"), twoDaysAgo, twoDaysAgo);
     await utimes(join(root, "something-else"), twoDaysAgo, twoDaysAgo);
 
     await sweepStaleClones(root);
     expect((await readdir(root)).sort()).toEqual([
-      "factory-judge-new",
+      "rivetari-judge-new",
       "something-else",
     ]);
   });

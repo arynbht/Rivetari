@@ -1,4 +1,4 @@
-# @arynbht/factory-desktop
+# @arynbht/rivetari-desktop
 
 ## 0.0.1
 
@@ -58,5 +58,5 @@
 - Updated dependencies [869e453]
 - Updated dependencies [563aea4]
 - Updated dependencies [96bd726]
-  - @arynbht/factory-catalog@1.0.0
-  - @arynbht/factory-engine@1.0.0
+  - @arynbht/rivetari-catalog@1.0.0
+  - @arynbht/rivetari-engine@1.0.0

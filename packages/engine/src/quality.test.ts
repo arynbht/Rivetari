@@ -14,7 +14,7 @@ afterEach(async () => {
   made.length = 0;
 });
 const repoWith = async (files: Record<string, string>): Promise<string> => {
-  const dir = await mkdtemp(join(tmpdir(), "factory-quality-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-quality-"));
   made.push(dir);
   for (const [path, contents] of Object.entries(files)) {
     await mkdir(join(dir, path, ".."), { recursive: true });
@@ -56,7 +56,7 @@ describe("coverage floor", () => {
   it("ratchets up, never down", async () => {
     const dir = await repoWith({
       "coverage/coverage-summary.json": summary(70.4),
-      ".factory/quality.json": JSON.stringify({
+      ".rivetari/quality.json": JSON.stringify({
         coverage: { lines: 60, recorded: "2026-11-01" },
       }),
     });
@@ -72,7 +72,7 @@ describe("coverage floor", () => {
 
   it("uses the profile's quality.coverage instead of the baseline", async () => {
     const dir = await repoWith({
-      ".factory/profile.yml": `${PROFILE}quality:\n  coverage: 80\n`,
+      ".rivetari/profile.yml": `${PROFILE}quality:\n  coverage: 80\n`,
       "coverage/coverage-summary.json": summary(75),
     });
     expect((await coverage(dir)).message).toContain("profile quality.coverage");

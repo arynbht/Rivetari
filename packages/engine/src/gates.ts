@@ -2,7 +2,7 @@ import {
   type Gate,
   type GateSelector,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 
 import type { ControlResult } from "./evaluate.js";
 

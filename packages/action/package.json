@@ -1,7 +1,7 @@
 {
-  "name": "@arynbht/factory-action",
+  "name": "@arynbht/rivetari-action",
   "version": "0.0.1",
-  "description": "Composite GitHub Action that runs the factory audit in CI and comments on PRs.",
+  "description": "Composite GitHub Action that runs the rivetari audit in CI and comments on PRs.",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -11,6 +11,6 @@
   ],
   "scripts": {},
   "dependencies": {
-    "@arynbht/factory": "workspace:*"
+    "@arynbht/rivetari": "workspace:*"
   }
 }

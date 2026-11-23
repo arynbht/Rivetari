@@ -1,4 +1,4 @@
-import { loadBundledCatalog } from "@arynbht/factory-catalog";
+import { loadBundledCatalog } from "@arynbht/rivetari-catalog";
 import { describe, expect, it } from "vitest";
 
 import { compileRegex } from "./util.js";

@@ -7,19 +7,19 @@ import {
   type AppRecord,
   appManifest,
   convertManifestCode,
-  factoryConfigDir,
+  rivetariConfigDir,
   installationToken,
   loadApp,
   registrationUrl,
   resolveRepoSlug,
   saveApp,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
-// `factory app`: the factory's GitHub App (ADR-0007).
+// `rivetari app`: Rivetari's GitHub App (ADR-0007).
 // `register` creates it from a manifest in one click: a page served here posts
 // the manifest to GitHub, GitHub sends the person back here with a one-time
 // code, and the code is traded for the App's credentials, which stay in the
-// factory's config directory.
+// Rivetari's config directory.
 
 export interface AppRegisterFlags {
   org?: string;
@@ -68,20 +68,20 @@ const settingsUrl = (slug: string, org?: string) =>
 function nextSteps(record: AppRecord, org?: string): string {
   return [
     `Registered ${record.slug} (App ID ${record.id}), owned by ${record.owner || org || "you"}.`,
-    `Its private key is in ${join(factoryConfigDir(), "app.pem")}; keep it there.`,
+    `Its private key is in ${join(rivetariConfigDir(), "app.pem")}; keep it there.`,
     "",
     "Next:",
-    `  1. Install it on the repos the factory works on: ${record.htmlUrl}/installations/new`,
+    `  1. Install it on the repos Rivetari works on: ${record.htmlUrl}/installations/new`,
     `  2. Turn on device flow (General → "Enable Device Flow"), so the desktop app can sign in: ${settingsUrl(record.slug, org)}`,
     "  3. For CI, add two repo secrets for actions/create-github-app-token:",
-    `       FACTORY_APP_ID = ${record.id}`,
-    `       FACTORY_APP_PRIVATE_KEY = the contents of app.pem`,
-    "Then `factory app status` in a repo shows whether the factory acts there as the App.",
+    `       RIVETARI_APP_ID = ${record.id}`,
+    `       RIVETARI_APP_PRIVATE_KEY = the contents of app.pem`,
+    "Then `rivetari app status` in a repo shows whether Rivetari acts there as the App.",
   ].join("\n");
 }
 
 /**
- * `factory app register`: create the factory's GitHub App from its manifest,
+ * `rivetari app register`: create Rivetari's GitHub App from its manifest,
  * under your account or `--org`, and keep its credentials here.
  */
 export async function runAppRegister(
@@ -92,7 +92,7 @@ export async function runAppRegister(
   const existing = await loadApp();
   if (existing) {
     console.error(
-      `factory app: ${existing.slug} is already registered (${existing.htmlUrl}). To register another, move ${join(factoryConfigDir(), "app.json")} aside first.`,
+      `rivetari app: ${existing.slug} is already registered (${existing.htmlUrl}). To register another, move ${join(rivetariConfigDir(), "app.json")} aside first.`,
     );
     return 1;
   }
@@ -100,7 +100,7 @@ export async function runAppRegister(
   // App names are unique across GitHub, and at most 34 characters.
   const name = (
     flags.name ??
-    `software-factory-${flags.org ?? slug?.owner ?? randomBytes(3).toString("hex")}`
+    `rivetari-${flags.org ?? slug?.owner ?? randomBytes(3).toString("hex")}`
   ).slice(0, 34);
   const state = randomBytes(16).toString("hex");
 
@@ -130,8 +130,8 @@ export async function runAppRegister(
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         res.end(
           page(
-            "Register the factory's GitHub App",
-            `<h1>Register the factory's GitHub App</h1>` +
+            "Register Rivetari's GitHub App",
+            `<h1>Register Rivetari's GitHub App</h1>` +
               `<p>This creates <b>${escapeHtml(name)}</b> under ${escapeHtml(flags.org ? `the ${flags.org} organization` : "your GitHub account")}, with the permissions in ADR-0007. GitHub shows them before you confirm.</p>` +
               `<form method="post" action="${escapeHtml(registrationUrl(state, flags.org))}">` +
               `<input type="hidden" name="manifest" value="${escapeHtml(JSON.stringify(manifest))}">` +
@@ -147,7 +147,7 @@ export async function runAppRegister(
           res.end(
             page(
               "Not registered",
-              "<p>That link didn't come from this registration. Start again with <code>factory app register</code>.</p>",
+              "<p>That link didn't come from this registration. Start again with <code>rivetari app register</code>.</p>",
             ),
           );
           return;
@@ -158,7 +158,7 @@ export async function runAppRegister(
               // The code is spent: say which App exists, so its owner can
               // generate a new private key for it rather than start over.
               throw new Error(
-                `${conversion.slug} (App ID ${conversion.id}) was created, but its credentials couldn't be saved: ${err.message}. Generate a new private key at ${settingsUrl(conversion.slug, flags.org)} and put it in ${join(factoryConfigDir(), "app.pem")}`,
+                `${conversion.slug} (App ID ${conversion.id}) was created, but its credentials couldn't be saved: ${err.message}. Generate a new private key at ${settingsUrl(conversion.slug, flags.org)} and put it in ${join(rivetariConfigDir(), "app.pem")}`,
               );
             }),
           )
@@ -209,7 +209,7 @@ export async function runAppRegister(
     process.stdout.write(`${nextSteps(record, flags.org)}\n`);
     return 0;
   } catch (err) {
-    console.error(`factory app: ${(err as Error).message}`);
+    console.error(`rivetari app: ${(err as Error).message}`);
     return 1;
   } finally {
     clearTimeout(timeout);
@@ -218,7 +218,7 @@ export async function runAppRegister(
   }
 }
 
-/** `factory app status`: the registered App, and whether the factory acts as it here. */
+/** `rivetari app status`: the registered App, and whether Rivetari acts as it here. */
 export async function runAppStatus(
   path: string,
   deps: { fetch?: typeof fetch } = {},
@@ -226,7 +226,7 @@ export async function runAppStatus(
   const app = await loadApp();
   if (!app) {
     process.stdout.write(
-      "No factory App registered on this machine: `factory app register`.\n",
+      "No rivetari App registered on this machine: `rivetari app register`.\n",
     );
     return 1;
   }
@@ -240,18 +240,18 @@ export async function runAppStatus(
     (err: Error) => err,
   );
   if (minted instanceof Error) {
-    console.error(`factory app: ${minted.message}`);
+    console.error(`rivetari app: ${minted.message}`);
     return 1;
   }
   process.stdout.write(
     minted
-      ? `Installed on ${slug.owner}/${slug.repo}: the factory acts there as ${app.slug}.\n`
+      ? `Installed on ${slug.owner}/${slug.repo}: Rivetari acts there as ${app.slug}.\n`
       : `Not installed on ${slug.owner}/${slug.repo}: ${app.htmlUrl}/installations/new\n`,
   );
   return minted ? 0 : 1;
 }
 
-/** `factory app token`: an installation token for this repo, for scripts and CI. */
+/** `rivetari app token`: an installation token for this repo, for scripts and CI. */
 export async function runAppToken(
   path: string,
   deps: { fetch?: typeof fetch } = {},
@@ -261,8 +261,8 @@ export async function runAppToken(
   if (!app || !slug) {
     console.error(
       app
-        ? "factory app: not in a repo with a GitHub origin"
-        : "factory app: no App registered: `factory app register`",
+        ? "rivetari app: not in a repo with a GitHub origin"
+        : "rivetari app: no App registered: `rivetari app register`",
     );
     return 1;
   }
@@ -270,12 +270,12 @@ export async function runAppToken(
     (err: Error) => err,
   );
   if (minted instanceof Error) {
-    console.error(`factory app: ${minted.message}`);
+    console.error(`rivetari app: ${minted.message}`);
     return 1;
   }
   if (!minted) {
     console.error(
-      `factory app: ${app.slug} isn't installed on ${slug.owner}/${slug.repo}: ${app.htmlUrl}/installations/new`,
+      `rivetari app: ${app.slug} isn't installed on ${slug.owner}/${slug.repo}: ${app.htmlUrl}/installations/new`,
     );
     return 1;
   }

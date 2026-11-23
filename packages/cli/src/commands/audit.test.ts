@@ -16,7 +16,7 @@ describe("runAudit (integration)", () => {
   });
 
   async function tempRepo(): Promise<string> {
-    const dir = await mkdtemp(join(tmpdir(), "factory-audit-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-audit-"));
     made.push(dir);
     return dir;
   }
@@ -36,7 +36,7 @@ describe("runAudit (integration)", () => {
     expect(out.join("")).toMatch(/\(\d+ controls\)/);
 
     const state = JSON.parse(
-      await readFile(join(dir, ".factory", "state.json"), "utf8"),
+      await readFile(join(dir, ".rivetari", "state.json"), "utf8"),
     );
     // Don't hard-code the catalog size — just assert it ran a reasonable number.
     expect(state.summary.total).toBeGreaterThanOrEqual(30);
@@ -51,7 +51,7 @@ describe("runAudit (integration)", () => {
     await runAudit(dir, { lane: "testing" }, { token: null });
 
     const state = JSON.parse(
-      await readFile(join(dir, ".factory", "state.json"), "utf8"),
+      await readFile(join(dir, ".rivetari", "state.json"), "utf8"),
     );
     expect(state.summary.total).toBeGreaterThan(0);
     expect(
@@ -62,7 +62,7 @@ describe("runAudit (integration)", () => {
   it("fails fast on a nonexistent path", async () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const code = await runAudit(
-      join(tmpdir(), "factory-definitely-missing-xyz"),
+      join(tmpdir(), "rivetari-definitely-missing-xyz"),
       {},
       { token: null },
     );

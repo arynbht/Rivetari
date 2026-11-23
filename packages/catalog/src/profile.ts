@@ -1,4 +1,4 @@
-// The profile schema. A profile (`.factory/profile.yml`) describes what a project
+// The profile schema. A profile (`.rivetari/profile.yml`) describes what a project
 // is and the risks it carries, so the engine can decide which controls apply.
 import { z } from "zod";
 
@@ -57,7 +57,7 @@ export const ProfileSchema = z.strictObject({
   name: z.string().min(1),
   type: z.enum(PROJECT_TYPES),
   stack: z.array(z.string()).default([]),
-  /** Current lifecycle phase; set by `factory init`, inferred in M6. */
+  /** Current lifecycle phase; set by `rivetari init`, inferred in M6. */
   phase: z.enum(PHASE_KEYS).optional(),
   flags: FlagsSchema,
   /** Optional per-lane on/off toggle; a lane absent here defaults to on. */
@@ -88,8 +88,8 @@ export const ProfileSchema = z.strictObject({
   quality: z
     .strictObject({
       /**
-       * Minimum line coverage (%). Unset: the baseline the factory recorded at
-       * the first measured run (`.factory/quality.json`), which only ratchets up.
+       * Minimum line coverage (%). Unset: the baseline Rivetari recorded at
+       * the first measured run (`.rivetari/quality.json`), which only ratchets up.
        */
       coverage: z.number().min(0).max(100).optional(),
       "no-new-comments": z.boolean().optional(),

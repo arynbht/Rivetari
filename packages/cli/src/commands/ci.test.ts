@@ -49,7 +49,7 @@ describe("runCi (integration)", () => {
     "GITHUB_REPOSITORY",
     "GITHUB_TOKEN",
     "GH_TOKEN",
-    "FACTORY_GATE",
+    "RIVETARI_GATE",
     "GITHUB_WORKSPACE",
     "GITHUB_EVENT_PATH",
     "GITHUB_STEP_SUMMARY",
@@ -75,7 +75,7 @@ describe("runCi (integration)", () => {
   });
 
   async function workspace(): Promise<string> {
-    const dir = await mkdtemp(join(tmpdir(), "factory-ci-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-ci-"));
     made.push(dir);
     process.env.GITHUB_WORKSPACE = dir;
     return dir;
@@ -85,7 +85,7 @@ describe("runCi (integration)", () => {
     await workspace();
     process.env.GITHUB_REPOSITORY = "o/r";
     process.env.GITHUB_TOKEN = "x";
-    process.env.FACTORY_GATE = "bogus-gate";
+    process.env.RIVETARI_GATE = "bogus-gate";
     expect(await runCi()).toBe(1);
   });
 
@@ -93,7 +93,7 @@ describe("runCi (integration)", () => {
     await workspace();
     process.env.GITHUB_REPOSITORY = "o/r";
     process.env.GITHUB_TOKEN = "x";
-    process.env.FACTORY_GATE = "build";
+    process.env.RIVETARI_GATE = "build";
 
     const eventPath = join(await workspace(), "event.json");
     await writeFile(eventPath, JSON.stringify({ pull_request: { number: 5 } }));
@@ -122,7 +122,7 @@ describe("runCi (integration)", () => {
     await workspace();
     process.env.GITHUB_REPOSITORY = "o/r";
     process.env.GITHUB_TOKEN = "x";
-    process.env.FACTORY_GATE = "build";
+    process.env.RIVETARI_GATE = "build";
     // No GITHUB_EVENT_PATH → not a PR.
 
     const created: unknown[] = [];
@@ -134,7 +134,7 @@ describe("runCi (integration)", () => {
         "https://api.github.com/repos/o/r/issues",
         async ({ request }) => {
           created.push(await request.json());
-          return HttpResponse.json({ number: 9, title: "Factory status" });
+          return HttpResponse.json({ number: 9, title: "Rivetari status" });
         },
       ),
     );
@@ -147,7 +147,7 @@ describe("runCi (integration)", () => {
     const dir = await workspace();
     process.env.GITHUB_REPOSITORY = "o/r";
     process.env.GITHUB_TOKEN = "x";
-    process.env.FACTORY_GATE = "build";
+    process.env.RIVETARI_GATE = "build";
     const summary = join(dir, "summary.md");
     process.env.GITHUB_STEP_SUMMARY = summary;
 
@@ -161,13 +161,13 @@ describe("runCi (integration)", () => {
     );
 
     await runCi();
-    expect(await readFile(summary, "utf8")).toContain("Factory audit");
+    expect(await readFile(summary, "utf8")).toContain("Rivetari audit");
   });
 
   it("warns and does not fail a non-PR run when the repository is unset", async () => {
     await workspace();
     process.env.GITHUB_TOKEN = "x";
-    process.env.FACTORY_GATE = "build";
+    process.env.RIVETARI_GATE = "build";
     // GITHUB_REPOSITORY unset → owner/repo missing → no API calls.
     expect(await runCi()).toBe(0);
   });

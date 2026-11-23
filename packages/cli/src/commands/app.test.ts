@@ -4,7 +4,7 @@ import { get } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { APP_PERMISSIONS } from "@arynbht/factory-engine";
+import { APP_PERMISSIONS } from "@arynbht/rivetari-engine";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runAppRegister } from "./app.js";
@@ -16,11 +16,11 @@ const { privateKey } = generateKeyPairSync("rsa", {
 });
 
 let config: string;
-const saved = process.env.FACTORY_CONFIG_DIR;
+const saved = process.env.RIVETARI_CONFIG_DIR;
 let out: string[];
 beforeEach(async () => {
-  config = await mkdtemp(join(tmpdir(), "factory-app-cli-"));
-  process.env.FACTORY_CONFIG_DIR = config;
+  config = await mkdtemp(join(tmpdir(), "rivetari-app-cli-"));
+  process.env.RIVETARI_CONFIG_DIR = config;
   out = [];
   vi.spyOn(process.stdout, "write").mockImplementation((s) => {
     out.push(String(s));
@@ -30,8 +30,8 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.restoreAllMocks();
-  if (saved === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = saved;
+  if (saved === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = saved;
   await rm(config, { recursive: true, force: true });
 });
 
@@ -43,19 +43,19 @@ const decode = (s: string) =>
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
 
-describe("factory app register", () => {
+describe("rivetari app register", () => {
   it("posts the manifest to GitHub, takes the code back, and keeps the credentials", async () => {
     const conversions: string[] = [];
     const github = (async (url: string) => {
       conversions.push(url);
       return Response.json({
         id: 77,
-        slug: "software-factory-acme",
+        slug: "rivetari-acme",
         client_id: "Iv1.abc",
         client_secret: "shh",
         webhook_secret: null,
         pem: privateKey,
-        html_url: "https://github.com/apps/software-factory-acme",
+        html_url: "https://github.com/apps/rivetari-acme",
         owner: { login: "acme" },
       });
     }) as typeof fetch;
@@ -87,7 +87,7 @@ describe("factory app register", () => {
       decode(/name="manifest" value="([^"]+)"/.exec(html)?.[1] ?? "{}"),
     );
     expect(manifest).toMatchObject({
-      name: "software-factory-acme",
+      name: "rivetari-acme",
       redirect_url: `${start}callback`,
       default_permissions: APP_PERMISSIONS,
     });
@@ -108,15 +108,15 @@ describe("factory app register", () => {
       JSON.parse(await readFile(join(config, "app.json"), "utf8")),
     ).toEqual({
       id: 77,
-      slug: "software-factory-acme",
+      slug: "rivetari-acme",
       clientId: "Iv1.abc",
       owner: "acme",
-      htmlUrl: "https://github.com/apps/software-factory-acme",
+      htmlUrl: "https://github.com/apps/rivetari-acme",
     });
     expect(out.join("")).toContain(
-      "https://github.com/apps/software-factory-acme/installations/new",
+      "https://github.com/apps/rivetari-acme/installations/new",
     );
-    expect(out.join("")).toContain("FACTORY_APP_ID = 77");
+    expect(out.join("")).toContain("RIVETARI_APP_ID = 77");
 
     // One App per machine: a second register is refused.
     expect(await runAppRegister(".", {}, { open: () => undefined })).toBe(1);

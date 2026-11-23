@@ -1,5 +1,5 @@
 // The acceptance self-check a build must pass before a PR opens: the repo's own
-// typecheck/lint/test scripts PLUS the factory phase gate, run against the built
+// typecheck/lint/test scripts PLUS Rivetari phase gate, run against the built
 // worktree. Failures feed the bounded fix-loop in build.ts. The command runner and
 // the gate are injectable so this is unit-tested without a real repo.
 import { readFile } from "node:fs/promises";
@@ -26,7 +26,7 @@ export interface VerifyOptions {
   run?: CommandRunner;
   /** npm scripts to run if present, in order. Default: typecheck, lint, test. */
   scripts?: string[];
-  /** Inject the factory-gate check (tests). Default evaluates the gate. */
+  /** Inject the rivetari-gate check (tests). Default evaluates the gate. */
   gate?: (dir: string) => Promise<VerifyCheck>;
   signal?: AbortSignal;
 }
@@ -106,11 +106,11 @@ export async function installDeps(
   }
 }
 
-/** Default factory-gate check: audit the worktree and assert its phase gate isn't red. */
+/** Default rivetari-gate check: audit the worktree and assert its phase gate isn't red. */
 async function defaultGateCheck(dir: string): Promise<VerifyCheck> {
   try {
     const [catalog, { buildContext }, audit, gates] = await Promise.all([
-      import("@arynbht/factory-catalog"),
+      import("@arynbht/rivetari-catalog"),
       import("../context.js"),
       import("../audit.js"),
       import("../gates.js"),
@@ -122,7 +122,7 @@ async function defaultGateCheck(dir: string): Promise<VerifyCheck> {
     const phase = profile?.phase;
     if (!phase) {
       return {
-        name: "factory-gate",
+        name: "rivetari-gate",
         passed: true,
         ran: false,
         output: "no profile phase set",
@@ -136,7 +136,7 @@ async function defaultGateCheck(dir: string): Promise<VerifyCheck> {
     const gate = allGates.find((g) => g.phase === phase);
     if (!gate) {
       return {
-        name: "factory-gate",
+        name: "rivetari-gate",
         passed: true,
         ran: false,
         output: `no gate for phase ${phase}`,
@@ -147,7 +147,7 @@ async function defaultGateCheck(dir: string): Promise<VerifyCheck> {
       .filter((c) => c.status === "fail")
       .map((c) => c.controlId);
     return {
-      name: "factory-gate",
+      name: "rivetari-gate",
       passed: result.status !== "red",
       ran: true,
       output:
@@ -158,7 +158,7 @@ async function defaultGateCheck(dir: string): Promise<VerifyCheck> {
   } catch (err) {
     // A gate that can't be evaluated shouldn't block the build.
     return {
-      name: "factory-gate",
+      name: "rivetari-gate",
       passed: true,
       ran: false,
       output: `gate check skipped: ${err instanceof Error ? err.message : String(err)}`,

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in the Software Factory.
+Thanks for your interest in the Rivetari.
 
 ## Prerequisites
 

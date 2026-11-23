@@ -8,7 +8,7 @@ import {
 } from "./helpers";
 
 // Waive flow: on the Gates screen, waive a blocking control and confirm it drops
-// out of the gate's blockers (it's now waived, written to .factory/waivers.yml).
+// out of the gate's blockers (it's now waived, written to .rivetari/waivers.yml).
 test.describe("waive", () => {
   let launched: LaunchedApp;
 

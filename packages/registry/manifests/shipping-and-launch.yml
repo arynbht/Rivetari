@@ -23,5 +23,5 @@ tested_on: "2026-11-09"
 notes: >
   Spine "ship" step: pre-launch checklist, flag-gated staged rollout, rollback plan. Written for
   production deploys, so most of it applies to the PR description and release notes rather than
-  to the factory's PR-only ship. Its rollback template includes "git revert <commit> && git push";
+  to Rivetari's PR-only ship. Its rollback template includes "git revert <commit> && git push";
   the runtime never pushes to main on its own.

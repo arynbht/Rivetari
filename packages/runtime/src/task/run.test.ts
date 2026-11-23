@@ -1,10 +1,10 @@
-// `factory task run`: from an approved route to a draft PR in one call, stopping
+// `rivetari task run`: from an approved route to a draft PR in one call, stopping
 // wherever a person is needed.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -21,7 +21,7 @@ import { MAX_BUILDS_PER_RUN, runTask } from "./run.js";
 import { confirmTask, newTask } from "./tasks.js";
 
 const made: string[] = [];
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const by = { by: "dev@example.com", now: new Date("2026-11-10T18:00:00Z") };
 let context: RouteContext;
 
@@ -31,11 +31,11 @@ const tmp = async (prefix: string) => {
   return dir;
 };
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) {
     await simpleGit(d)
       .raw(["worktree", "prune"])
@@ -51,7 +51,7 @@ const BASE = {
 };
 
 async function approvedTask(): Promise<{ repo: string; id: string }> {
-  const repo = await tmp("factory-run-");
+  const repo = await tmp("rivetari-run-");
   const git = simpleGit(repo);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -240,7 +240,7 @@ describe("runTask", { timeout: 180_000 }, () => {
     ).toHaveLength(1);
   });
 
-  it("an agent that ends with FACTORY_STOP stops the run before anything is committed or proved", async () => {
+  it("an agent that ends with RIVETARI_STOP stops the run before anything is committed or proved", async () => {
     const { repo, id } = await approvedTask();
     const calls: AgentCall[] = [];
     let worktree = "";
@@ -253,7 +253,7 @@ describe("runTask", { timeout: 180_000 }, () => {
           return JSON.stringify({ steps: ["fix total"] });
         worktree = call.cwd;
         await fix(call.cwd);
-        return "I fixed total, but the card doesn't say what an empty list should return.\nFACTORY_STOP: Should total([]) return 0 or throw?";
+        return "I fixed total, but the card doesn't say what an empty list should return.\nRIVETARI_STOP: Should total([]) return 0 or throw?";
       },
     });
     expect(outcome.ran).toEqual(["isolate", "build"]);
@@ -265,12 +265,12 @@ describe("runTask", { timeout: 180_000 }, () => {
     expect((await wt.revparse(["HEAD"])).trim()).toBe(
       (await wt.revparse(["main"])).trim(),
     );
-    expect(calls[1]?.system).toContain("FACTORY_STOP: <your question>");
-    expect(calls[1]?.prompt).toContain("FACTORY_STOP: <your question>");
+    expect(calls[1]?.system).toContain("RIVETARI_STOP: <your question>");
+    expect(calls[1]?.prompt).toContain("RIVETARI_STOP: <your question>");
   });
 
   it("won't start before a person has approved the route", async () => {
-    const repo = await tmp("factory-run-");
+    const repo = await tmp("rivetari-run-");
     await simpleGit(repo).init(["-b", "main"]);
     const draft = await newTask(
       repo,

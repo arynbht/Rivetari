@@ -13,7 +13,7 @@ OSV/Scorecard advisories land overnight. A workflow that runs only on
 
 ## Considered Options
 
-- **Run `factory.yml` on `pull_request`, `push`, a weekly `schedule`, and
+- **Run `rivetari.yml` on `pull_request`, `push`, a weekly `schedule`, and
   `workflow_dispatch`, with different behaviour per trigger.**
 - PR/push only (misses time- and drift-based failures).
 - A separate scheduled workflow (duplicates setup).
@@ -23,7 +23,7 @@ OSV/Scorecard advisories land overnight. A workflow that runs only on
 Chosen: one workflow with all four triggers. **PRs are the enforcement point** —
 the job posts a sticky comment and fails when the gate is red. **Scheduled/push
 runs are the signal, not a gate** — they write the report to the job summary,
-open/update one pinned "Factory status" issue (and close it when green), and
+open/update one pinned "Rivetari status" issue (and close it when green), and
 **never fail the job** (a red ✗ on `main` that nobody owns is noise). The cron is
 `17 6 * * 1` (Mondays 06:17 UTC — off the top of the hour, when GitHub's scheduler
 is busiest).

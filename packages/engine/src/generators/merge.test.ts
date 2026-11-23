@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildContext } from "../context.js";
@@ -31,7 +31,7 @@ describe("merge generators", () => {
     made.length = 0;
   });
   const tmp = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-merge-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-merge-"));
     made.push(d);
     return d;
   };
@@ -275,9 +275,9 @@ jobs:
     it("selects the per-stack fragment from the profile (byStack)", async () => {
       const dir = await tmp();
       await writeFile(join(dir, "ci.yml"), CI_WORKFLOW, "utf8");
-      await mkdir(join(dir, ".factory"), { recursive: true });
+      await mkdir(join(dir, ".rivetari"), { recursive: true });
       await writeFile(
-        join(dir, ".factory", "profile.yml"),
+        join(dir, ".rivetari", "profile.yml"),
         "version: 1\nname: demo\ntype: library\nstack: [python]\n",
         "utf8",
       );

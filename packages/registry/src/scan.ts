@@ -6,7 +6,7 @@ import {
   isSensitivePath,
   runTool,
   ToolNotFoundError,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 export interface ScanFinding {
   rule: string;
@@ -30,7 +30,7 @@ export const lineSha256 = (line: string): string =>
 /**
  * Instructions a skill has no business giving an agent, beyond its stated
  * purpose. A skill is a prompt; these are the ways a prompt turns hostile:
- * switching off the checks, touching the factory's own state, overriding the
+ * switching off the checks, touching Rivetari's own state, overriding the
  * contract, running remote code, or sending secrets out.
  */
 export const INJECTION_RULES: { id: string; pattern: RegExp; why: string }[] = [
@@ -41,12 +41,12 @@ export const INJECTION_RULES: { id: string; pattern: RegExp; why: string }[] = [
     why: "tells the agent to switch off checks",
   },
   {
-    id: "factory-state",
-    // Repo-relative only: `~/.factory/…` or `$HOME/.factory` is some other
+    id: "rivetari-state",
+    // Repo-relative only: `~/.rivetari/…` or `$HOME/.rivetari` is some other
     // tool's home directory, not this repo's state.
     pattern:
-      /(^|[\s`'"(=])(\.\/)?\.factory\/|\bwaivers\.ya?ml\b|\bevidence\.ya?ml\b/i,
-    why: "points the agent at the factory's own state",
+      /(^|[\s`'"(=])(\.\/)?\.rivetari\/|\bwaivers\.ya?ml\b|\bevidence\.ya?ml\b/i,
+    why: "points the agent at Rivetari's own state",
   },
   {
     id: "override-instructions",

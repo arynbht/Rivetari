@@ -4,7 +4,7 @@ import type {
   ControlStatus,
   GateResult,
   GateStatus,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import pc from "picocolors";
 
 export interface StatusBlocker {
@@ -23,7 +23,7 @@ export interface StatusReport {
   blockers: StatusBlocker[];
 }
 
-/** Render `factory status`: inferred phase, gate states, and blockers. */
+/** Render `rivetari status`: inferred phase, gate states, and blockers. */
 export function renderStatus(report: StatusReport, color = true): string {
   const c = pc.createColors(color);
   const tint = (s: GateStatus): string =>
@@ -158,7 +158,7 @@ export function renderGatesGithub(gates: GateResult[]): string {
   return lines.join("\n");
 }
 
-/** Render the result of a `factory fix` plan (dry-run preview or applied). */
+/** Render the result of a `rivetari fix` plan (dry-run preview or applied). */
 export function renderFixPlan(
   results: ChangeResult[],
   write: boolean,
@@ -313,7 +313,7 @@ const MARKDOWN_SYMBOL: Record<ControlStatus, string> = {
 function renderMarkdown(results: ControlResult[]): string {
   const s = summarize(results);
   const lines = [
-    "## Factory audit",
+    "## Rivetari audit",
     "",
     `**${s.pass} pass · ${s.fail} fail · ${s.needsEvidence} need evidence · ${s.waived} waived · ${s.skip} skip · ${s.na} n/a** (${s.total} controls)`,
     "",

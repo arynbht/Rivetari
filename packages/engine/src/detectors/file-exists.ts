@@ -1,4 +1,4 @@
-import type { DetectorConfig } from "@arynbht/factory-catalog";
+import type { DetectorConfig } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext } from "../context.js";
 import type { DetectorResult } from "./types.js";
@@ -9,7 +9,7 @@ type FileExistsConfig = Extract<DetectorConfig, { type: "file-exists" }>;
 /**
  * Passes if at least one file matches the (possibly `a|b`) glob, after removing
  * any file that also matches `exclude`. `exclude` lets a control ignore paths it
- * owns (e.g. the factory's own `factory.yml`) so they don't satisfy a "present"
+ * owns (e.g. Rivetari's own `rivetari.yml`) so they don't satisfy a "present"
  * check that is meant to be met by a real, user-facing file.
  */
 export async function fileExists(

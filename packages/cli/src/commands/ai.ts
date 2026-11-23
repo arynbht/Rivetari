@@ -5,7 +5,7 @@ import {
   bundledPromptsDir,
   loadBundledCatalog,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   type AiClient,
   AiKeyError,
@@ -25,7 +25,7 @@ import {
   resolveToken,
   summarizeUsage,
   WaiverError,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import { today as isoToday } from "../dates.js";
 import { renderFixPlan } from "../report.js";
@@ -59,7 +59,7 @@ async function availableTasks(): Promise<string[]> {
   }
 }
 
-/** `factory ai <task>` — draft an artifact with Claude, as a dry-run/write/PR. */
+/** `rivetari ai <task>` — draft an artifact with Claude, as a dry-run/write/PR. */
 export async function runAi(
   task: string,
   path: string,
@@ -69,11 +69,11 @@ export async function runAi(
   const root = resolve(path);
   try {
     if (!(await stat(root)).isDirectory()) {
-      console.error(`factory ai: not a directory: ${path}`);
+      console.error(`rivetari ai: not a directory: ${path}`);
       return 1;
     }
   } catch {
-    console.error(`factory ai: path not found: ${path}`);
+    console.error(`rivetari ai: path not found: ${path}`);
     return 1;
   }
 
@@ -102,7 +102,7 @@ export async function runAi(
       err instanceof WaiverError ||
       err instanceof EvidenceError
     ) {
-      console.error(`factory ai: ${err.message}`);
+      console.error(`rivetari ai: ${err.message}`);
       return 1;
     }
     throw err;
@@ -138,21 +138,21 @@ export async function runAi(
   } catch (err) {
     if (err instanceof AiKeyError) {
       console.error(
-        "factory ai: no Anthropic API key. Set ANTHROPIC_API_KEY and retry.",
+        "rivetari ai: no Anthropic API key. Set ANTHROPIC_API_KEY and retry.",
       );
       return 1;
     }
     if (isPromptError(err)) {
       const tasks = await availableTasks();
       console.error(
-        `factory ai: unknown task "${task}". Available: ${tasks.join(", ")}.`,
+        `rivetari ai: unknown task "${task}". Available: ${tasks.join(", ")}.`,
       );
       return 1;
     }
     throw err;
   }
 
-  // Record the call so `factory ai usage` can report the running cost.
+  // Record the call so `rivetari ai usage` can report the running cost.
   const costUsd = estimateCost(result.model, result.usage);
   await appendUsage(root, {
     date: today,
@@ -186,7 +186,7 @@ export async function runAi(
       return 0;
     } catch (err) {
       if (err instanceof FixPrError) {
-        console.error(`factory ai --pr: ${err.message}`);
+        console.error(`rivetari ai --pr: ${err.message}`);
         return 1;
       }
       throw err;
@@ -207,7 +207,7 @@ function isPromptError(err: unknown): err is PromptError {
   return err instanceof Error && err.name === "PromptError";
 }
 
-/** `factory ai usage` — summarize `.factory/ai-usage.log`. */
+/** `rivetari ai usage` — summarize `.rivetari/ai-usage.log`. */
 export async function runAiUsage(path: string): Promise<number> {
   const root = resolve(path);
   const entries = await loadUsage(root);

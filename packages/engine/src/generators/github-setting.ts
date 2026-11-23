@@ -1,11 +1,11 @@
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext, GitHubClient } from "../context.js";
 import type { Change, Generator } from "./types.js";
 
 type SettingAction = (gh: GitHubClient) => Promise<void>;
 
-const PROTECTION_RULESET = "factory: protect default branch";
+const PROTECTION_RULESET = "rivetari: protect default branch";
 
 /** Create a repository ruleset protecting the default branch, if absent. */
 async function ensureProtectionRuleset(gh: GitHubClient): Promise<void> {

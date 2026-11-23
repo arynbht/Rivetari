@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { confirm, isCancel } from "@clack/prompts";
-import { RegistryError } from "@arynbht/factory-registry";
+import { RegistryError } from "@arynbht/rivetari-registry";
 import {
   advanceTask,
   answerStops,
@@ -39,7 +39,7 @@ import {
   type Task,
   TaskError,
   whoami,
-} from "@arynbht/factory-runtime";
+} from "@arynbht/rivetari-runtime";
 import { parse, stringify } from "yaml";
 
 export interface TaskNewFlags {
@@ -71,7 +71,7 @@ async function guarded(action: () => Promise<number>): Promise<number> {
       err instanceof RegistryError ||
       err instanceof StoreError
     ) {
-      console.error(`factory task: ${err.message}`);
+      console.error(`rivetari task: ${err.message}`);
       return 1;
     }
     throw err;
@@ -79,7 +79,7 @@ async function guarded(action: () => Promise<number>): Promise<number> {
 }
 
 /**
- * Bring this checkout's task records up to the factory/tasks branch, saying
+ * Bring this checkout's task records up to the rivetari/tasks branch, saying
  * which ones it kept because they hold work no push has carried yet. A
  * read-only command carries on with the local copy when the branch can't be
  * reached; a beat can't, since it has to take the task's lease.
@@ -92,12 +92,12 @@ async function pull(
     const { kept } = await pullTasks(repo);
     for (const id of kept)
       process.stderr.write(
-        `factory task: kept this machine's record of ${id}: it has work the branch doesn't, which its next beat pushes\n`,
+        `rivetari task: kept this machine's record of ${id}: it has work the branch doesn't, which its next beat pushes\n`,
       );
   } catch (err) {
     if (!options.readOnly || !(err instanceof StoreError)) throw err;
     process.stderr.write(
-      `factory task: ${err.message}; showing this machine's copy\n`,
+      `rivetari task: ${err.message}; showing this machine's copy\n`,
     );
   }
 }
@@ -159,7 +159,7 @@ async function onTask<T>(
     if (!(err instanceof StoreError)) throw err;
     unpushed = true;
     process.stderr.write(
-      `factory task: ${beat} is done, but pushing its record failed: ${err.message}\nfactory task: the record is kept on this machine; the next \`factory task\` beat on ${id} pushes it once origin is reachable\n`,
+      `rivetari task: ${beat} is done, but pushing its record failed: ${err.message}\nrivetari task: the record is kept on this machine; the next \`rivetari task\` beat on ${id} pushes it once origin is reachable\n`,
     );
   }
   return result;
@@ -187,7 +187,7 @@ function describe(task: Task): string {
   return `${task.card.id}  ${status.padEnd(9)} ${task.card.title}`;
 }
 
-/** `factory task new "<title>"`: draft a card from flags or a YAML file. */
+/** `rivetari task new "<title>"`: draft a card from flags or a YAML file. */
 export function runTaskNew(
   title: string | undefined,
   flags: TaskNewFlags,
@@ -225,7 +225,7 @@ export function runTaskNew(
     if ((await autonomyFor(repo, task.card)) === "supervised") {
       process.stdout.write(
         `drafted ${task.card.id}: ${task.card.title}\n` +
-          `review .factory/tasks/${task.card.id}/card.yml, then \`factory task confirm ${task.card.id}\`\n`,
+          `review .rivetari/tasks/${task.card.id}/card.yml, then \`rivetari task confirm ${task.card.id}\`\n`,
       );
       return 0;
     }
@@ -233,14 +233,14 @@ export function runTaskNew(
       advanceTask(repo, id, { by: who }),
     );
     process.stdout.write(
-      `drafted ${task.card.id}: ${task.card.title}\n${advance.did.map((d) => `${d}\n`).join("")}next: ${advance.waiting ?? `\`factory task run ${id}\``}\n`,
+      `drafted ${task.card.id}: ${task.card.title}\n${advance.did.map((d) => `${d}\n`).join("")}next: ${advance.waiting ?? `\`rivetari task run ${id}\``}\n`,
     );
     return 0;
   });
 }
 
 /**
- * `factory task confirm <id>`: a person agrees the card. Shows it and asks at
+ * `rivetari task confirm <id>`: a person agrees the card. Shows it and asks at
  * the terminal; without one, `--yes` is required — and recorded as such.
  */
 export function runTaskConfirm(
@@ -255,7 +255,7 @@ export function runTaskConfirm(
     if (!flags.yes) {
       if (!process.stdin.isTTY) {
         console.error(
-          "factory task confirm: confirming a card needs a person at the terminal (or --yes).",
+          "rivetari task confirm: confirming a card needs a person at the terminal (or --yes).",
         );
         return 1;
       }
@@ -275,14 +275,14 @@ export function runTaskConfirm(
   });
 }
 
-/** `factory task status`: every task, its beat, and whether its record is intact. */
+/** `rivetari task status`: every task, its beat, and whether its record is intact. */
 export function runTaskStatus(flags: { path?: string }): Promise<number> {
   return guarded(async () => {
     const repo = resolve(flags.path ?? ".");
     await pull(repo, { readOnly: true });
     const tasks = await listTasks(repo);
     if (tasks.length === 0) {
-      process.stdout.write('no tasks yet: `factory task new "<title>"`\n');
+      process.stdout.write('no tasks yet: `rivetari task new "<title>"`\n');
       return 0;
     }
     for (const task of tasks) process.stdout.write(`${describe(task)}\n`);
@@ -291,7 +291,7 @@ export function runTaskStatus(flags: { path?: string }): Promise<number> {
 }
 
 /**
- * `factory task resume <id>`: verify the record, show the ledger, and say what
+ * `rivetari task resume <id>`: verify the record, show the ledger, and say what
  * comes next — the point a restarted session picks up from.
  */
 export function runTaskResume(
@@ -307,18 +307,18 @@ export function runTaskResume(
     const held =
       lease && Date.parse(lease.expires) > Date.now() ? lease : undefined;
     if (task.problems.length > 0) {
-      console.error(`factory task: ${id} fails verification; not resuming:`);
+      console.error(`rivetari task: ${id} fails verification; not resuming:`);
       for (const p of task.problems) console.error(`  - ${p}`);
       if (held && held.holder !== holder)
         console.error(
-          `  (${id} was recorded by ${held.holder}. A ledger signed on another machine only verifies with the same key: set FACTORY_LEDGER_KEY to the team's key.)`,
+          `  (${id} was recorded by ${held.holder}. A ledger signed on another machine only verifies with the same key: set RIVETARI_LEDGER_KEY to the team's key.)`,
         );
       return 1;
     }
     process.stdout.write(await readFile(task.ledger.mdPath, "utf8"));
     if (held)
       process.stdout.write(
-        `\nheld by ${held.holder} until ${held.expires}${held.holder === holder ? " (this machine)" : `; it can be taken over after that, or once they run \`factory task release ${id}\``}\n`,
+        `\nheld by ${held.holder} until ${held.expires}${held.holder === holder ? " (this machine)" : `; it can be taken over after that, or once they run \`rivetari task release ${id}\``}\n`,
       );
     process.stdout.write(`\nnext: ${nextStep(task)}\n`);
     return 0;
@@ -326,7 +326,7 @@ export function runTaskResume(
 }
 
 /**
- * `factory task release <id>`: give up this machine's lease, so someone else
+ * `rivetari task release <id>`: give up this machine's lease, so someone else
  * can take the task over now instead of when the lease runs out.
  */
 export function runTaskRelease(
@@ -350,7 +350,7 @@ export function runTaskRelease(
 }
 
 /**
- * `factory task route <id>`: route the confirmed card and show the proposed
+ * `rivetari task route <id>`: route the confirmed card and show the proposed
  * assembly with the reasons behind it; nothing is approved yet.
  */
 export function runTaskRoute(
@@ -374,7 +374,7 @@ export function runTaskRoute(
     for (const note of routing.notes) out.push(`note: ${note}`);
     out.push("", stringify(routing.assembly).trimEnd(), "");
     out.push(
-      `wrote .factory/tasks/${id}/assembly.yml; edit it if you disagree, then \`factory task approve ${id}\``,
+      `wrote .rivetari/tasks/${id}/assembly.yml; edit it if you disagree, then \`rivetari task approve ${id}\``,
     );
     process.stdout.write(`${out.join("\n")}\n`);
     return 0;
@@ -382,7 +382,7 @@ export function runTaskRoute(
 }
 
 /**
- * `factory task approve <id>`: a person agrees the assembly — the last
+ * `rivetari task approve <id>`: a person agrees the assembly — the last
  * approval before the agent starts. As with confirm, `--yes` without a
  * terminal, recorded as such.
  */
@@ -396,12 +396,12 @@ export function runTaskApprove(
     const task = await loadTask(repo, id);
     // Say what's wrong before asking anyone to approve anything.
     if (task.approved) {
-      console.error(`factory task: ${id}'s route is already approved`);
+      console.error(`rivetari task: ${id}'s route is already approved`);
       return 1;
     }
     if (task.assemblyText === undefined) {
       console.error(
-        `factory task: ${id} hasn't been routed: \`factory task route ${id}\``,
+        `rivetari task: ${id} hasn't been routed: \`rivetari task route ${id}\``,
       );
       return 1;
     }
@@ -410,7 +410,7 @@ export function runTaskApprove(
     if (!flags.yes) {
       if (!process.stdin.isTTY) {
         console.error(
-          "factory task approve: approving an assembly needs a person at the terminal (or --yes).",
+          "rivetari task approve: approving an assembly needs a person at the terminal (or --yes).",
         );
         return 1;
       }
@@ -430,7 +430,7 @@ export function runTaskApprove(
   });
 }
 
-/** `factory task isolate <id>`: the task's worktree, branch, port and database. */
+/** `rivetari task isolate <id>`: the task's worktree, branch, port and database. */
 export function runTaskIsolate(
   id: string,
   flags: { base?: string; path?: string },
@@ -445,14 +445,14 @@ export function runTaskIsolate(
       }),
     );
     process.stdout.write(
-      `${id}: worktree ${isolation.worktree} on ${isolation.branch} from ${isolation.baseRef} · port ${isolation.port} · db ${isolation.database}\nnext: \`factory task build ${id}\`\n`,
+      `${id}: worktree ${isolation.worktree} on ${isolation.branch} from ${isolation.baseRef} · port ${isolation.port} · db ${isolation.database}\nnext: \`rivetari task build ${id}\`\n`,
     );
     return 0;
   });
 }
 
 /**
- * `factory task build <id>`: plan, then build in the worktree; pauses on
+ * `rivetari task build <id>`: plan, then build in the worktree; pauses on
  * anything the operating rules say to ask about.
  */
 export function runTaskBuild(
@@ -471,7 +471,7 @@ export function runTaskBuild(
   });
 }
 
-/** `factory task answer <id> --allow|--deny [note]`: answer the open stops. */
+/** `rivetari task answer <id> --allow|--deny [note]`: answer the open stops. */
 export function runTaskAnswer(
   id: string,
   note: string | undefined,
@@ -479,7 +479,7 @@ export function runTaskAnswer(
 ): Promise<number> {
   return guarded(async () => {
     if (Boolean(flags.allow) === Boolean(flags.deny)) {
-      console.error("factory task answer: give one of --allow or --deny.");
+      console.error("rivetari task answer: give one of --allow or --deny.");
       return 1;
     }
     const repo = resolve(flags.path ?? ".");
@@ -491,7 +491,7 @@ export function runTaskAnswer(
   });
 }
 
-/** `factory task prove <id>`: run the assembly's proof and record it. */
+/** `rivetari task prove <id>`: run the assembly's proof and record it. */
 export function runTaskProve(
   id: string,
   flags: { path?: string },
@@ -510,7 +510,7 @@ export function runTaskProve(
 }
 
 /**
- * `factory task judge <id>`: tier 1 and tier 2 on the task's branch. Exits 0
+ * `rivetari task judge <id>`: tier 1 and tier 2 on the task's branch. Exits 0
  * when it passed, 1 when it went back to build, 2 when it needs a person.
  */
 export function runTaskJudge(
@@ -538,7 +538,7 @@ export function runTaskJudge(
   });
 }
 
-/** `factory task ship <id>`: push the judged branch and open its draft PR. */
+/** `rivetari task ship <id>`: push the judged branch and open its draft PR. */
 export function runTaskShip(
   id: string,
   flags: { path?: string },
@@ -555,7 +555,7 @@ export function runTaskShip(
   });
 }
 
-/** `factory task close <id> [--abandon "<why>"]`: record the outcome and seal the ledger. */
+/** `rivetari task close <id> [--abandon "<why>"]`: record the outcome and seal the ledger. */
 export function runTaskClose(
   id: string,
   flags: { abandon?: string | boolean; path?: string },
@@ -581,7 +581,7 @@ export function runTaskClose(
       ({ row }) => ({ release: true, history: [JSON.stringify(row)] }),
     );
     const ladderState = await enforceFallback(repo, {
-      by: `factory runtime (for ${await whoami(repo)})`,
+      by: `rivetari runtime (for ${await whoami(repo)})`,
     });
     if (ladderState.effective !== ladderState.configured)
       process.stdout.write(
@@ -595,7 +595,7 @@ export function runTaskClose(
 }
 
 /**
- * `factory task run <id>`: isolate → build → prove → judge → ship, reporting
+ * `rivetari task run <id>`: isolate → build → prove → judge → ship, reporting
  * each ledger entry, until a person is needed. Exits 0 when it shipped, 2 when
  * it waits on a person, 1 on an error.
  */
@@ -636,7 +636,7 @@ export function runTaskRunAll(flags: {
     const level = await repoAutonomy(repo);
     if (level !== "unattended") {
       console.error(
-        `factory task: run --all needs \`autonomy: unattended\` in .factory/profile.yml (this repo is ${level})`,
+        `rivetari task: run --all needs \`autonomy: unattended\` in .rivetari/profile.yml (this repo is ${level})`,
       );
       return 1;
     }

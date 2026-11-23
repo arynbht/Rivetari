@@ -40,7 +40,7 @@
       "allow": [],
       "why": "say the rule itself: spec sections get renumbered and two citations of one rule end up disagreeing",
       "source": "finding: T-0004 judge round 1, \"Section references disagree\"",
-      "covered_by": "factory/no-spec-section-refs"
+      "covered_by": "rivetari/no-spec-section-refs"
     },
     {
       "id": "no-generated-file-in-workflows",
@@ -48,8 +48,8 @@
       "files": "**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}",
       "allow": ["packages/cli/src/commands/init.ts"],
       "why": "every file in .github/workflows runs on GitHub, so a sibling or backup written there goes live; write it elsewhere",
-      "source": "finding: T-0004 judge rounds 1-2, \"The sibling factory.factory.yml is itself a live workflow\"",
-      "covered_by": "factory/no-writes-to-workflows"
+      "source": "finding: T-0004 judge rounds 1-2, \"The sibling rivetari.rivetari.yml is itself a live workflow\"",
+      "covered_by": "rivetari/no-writes-to-workflows"
     }
   ]
 }

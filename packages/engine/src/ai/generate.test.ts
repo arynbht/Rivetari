@@ -16,7 +16,7 @@ afterEach(async () => {
 });
 
 async function tmp(): Promise<string> {
-  const d = await mkdtemp(join(tmpdir(), "factory-gen-"));
+  const d = await mkdtemp(join(tmpdir(), "rivetari-gen-"));
   made.push(d);
   return d;
 }
@@ -37,7 +37,7 @@ describe("loadPrompt", () => {
   it("loads a bundled prompt with its front-matter and system body", async () => {
     const prompt = await loadPrompt("explain-gaps");
     expect(prompt.task).toBe("explain-gaps");
-    expect(prompt.output).toBe("docs/factory-gaps.md");
+    expect(prompt.output).toBe("docs/rivetari-gaps.md");
     expect(prompt.checklist.length).toBeGreaterThan(0);
     expect(prompt.system).toContain("senior engineer");
   });
@@ -65,20 +65,20 @@ describe("generateArtifact (recorded response)", () => {
       ],
     });
 
-    expect(result.outputPath).toBe("docs/factory-gaps.md");
+    expect(result.outputPath).toBe("docs/rivetari-gaps.md");
     expect(result.change).toMatchObject({
       type: "file",
-      path: "docs/factory-gaps.md",
+      path: "docs/rivetari-gaps.md",
       op: "create",
       controlId: "ai.explain-gaps",
     });
     const body = result.change.type === "file" ? result.change.contents : "";
-    expect(body).toContain("<!-- factory:generated");
+    expect(body).toContain("<!-- rivetari:generated");
     expect(body).toContain("date: 2026-11-01");
     expect(body).toContain("model: claude-sonnet-4-6");
     expect(body).toContain("reviewed-by:");
     expect(body).toContain("You have no SAST yet.");
-    expect(body).toContain("factory:reviewer-checklist");
+    expect(body).toContain("rivetari:reviewer-checklist");
     expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 50 });
   });
 

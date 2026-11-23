@@ -249,7 +249,7 @@ export function FloorPlan({
   // Load the persisted model on mount and whenever a run completes (version bump).
   useEffect(() => {
     let active = true;
-    window.factory.floorplan.get(repoPath).then(
+    window.rivetari.floorplan.get(repoPath).then(
       (view) => {
         if (!active) return;
         setModel(view.model);
@@ -264,7 +264,7 @@ export function FloorPlan({
 
   // Live swarm progress (a main → renderer push, regardless of who started it).
   useEffect(() => {
-    const unsubscribe = window.factory.floorplan.onProgress(setProgress);
+    const unsubscribe = window.rivetari.floorplan.onProgress(setProgress);
     return unsubscribe;
   }, []);
 

@@ -4,30 +4,28 @@ import { parseRepoSlug } from "./slug.js";
 
 describe("parseRepoSlug", () => {
   it("parses HTTPS remotes", () => {
-    expect(
-      parseRepoSlug("https://github.com/arynbht/software-factory.git"),
-    ).toEqual({ owner: "arynbht", repo: "software-factory" });
-    expect(
-      parseRepoSlug("https://github.com/arynbht/software-factory"),
-    ).toEqual({
+    expect(parseRepoSlug("https://github.com/arynbht/rivetari.git")).toEqual({
       owner: "arynbht",
-      repo: "software-factory",
+      repo: "rivetari",
+    });
+    expect(parseRepoSlug("https://github.com/arynbht/rivetari")).toEqual({
+      owner: "arynbht",
+      repo: "rivetari",
     });
   });
 
   it("parses SSH remotes", () => {
-    expect(
-      parseRepoSlug("git@github.com:arynbht/software-factory.git"),
-    ).toEqual({
+    expect(parseRepoSlug("git@github.com:arynbht/rivetari.git")).toEqual({
       owner: "arynbht",
-      repo: "software-factory",
+      repo: "rivetari",
     });
   });
 
   it("parses ssh:// remotes", () => {
-    expect(
-      parseRepoSlug("ssh://git@github.com/arynbht/software-factory.git"),
-    ).toEqual({ owner: "arynbht", repo: "software-factory" });
+    expect(parseRepoSlug("ssh://git@github.com/arynbht/rivetari.git")).toEqual({
+      owner: "arynbht",
+      repo: "rivetari",
+    });
   });
 
   it("returns null for non-GitHub or empty URLs", () => {
@@ -45,7 +43,7 @@ describe("parseRepoSlug", () => {
 
   it("returns null for a non-bare URL with extra path segments", () => {
     expect(
-      parseRepoSlug("https://github.com/arynbht/software-factory/tree/main"),
+      parseRepoSlug("https://github.com/arynbht/rivetari/tree/main"),
     ).toBeNull();
   });
 });

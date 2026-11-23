@@ -9,7 +9,7 @@ import { verify } from "./verify.js";
 
 const skipGate = (): Promise<VerifyCheck> =>
   Promise.resolve({
-    name: "factory-gate",
+    name: "rivetari-gate",
     passed: true,
     ran: false,
     output: "skip",
@@ -57,13 +57,13 @@ describe("verify", () => {
     expect(result.checks.find((c) => c.name === "test")?.passed).toBe(false);
   });
 
-  it("fails when the factory gate is red", async () => {
+  it("fails when Rivetari gate is red", async () => {
     const run = vi.fn(() =>
       Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }),
     );
     const gate = (): Promise<VerifyCheck> =>
       Promise.resolve({
-        name: "factory-gate",
+        name: "rivetari-gate",
         passed: false,
         ran: true,
         output: "red",
@@ -75,14 +75,14 @@ describe("verify", () => {
 
 describe("verify runs repo code without the caller's secrets", () => {
   let dir: string;
-  const saved = process.env.FACTORY_TEST_SECRET;
+  const saved = process.env.RIVETARI_TEST_SECRET;
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), "verify-env-"));
-    process.env.FACTORY_TEST_SECRET = "s3cret-from-the-caller";
+    process.env.RIVETARI_TEST_SECRET = "s3cret-from-the-caller";
   });
   afterEach(async () => {
-    if (saved === undefined) delete process.env.FACTORY_TEST_SECRET;
-    else process.env.FACTORY_TEST_SECRET = saved;
+    if (saved === undefined) delete process.env.RIVETARI_TEST_SECRET;
+    else process.env.RIVETARI_TEST_SECRET = saved;
     await rm(dir, { recursive: true, force: true });
   });
 
@@ -92,7 +92,7 @@ describe("verify runs repo code without the caller's secrets", () => {
       join(dir, "package.json"),
       JSON.stringify({
         scripts: {
-          test: 'node -e "process.exit(process.env.FACTORY_TEST_SECRET ? 1 : 0)"',
+          test: 'node -e "process.exit(process.env.RIVETARI_TEST_SECRET ? 1 : 0)"',
         },
       }),
     );

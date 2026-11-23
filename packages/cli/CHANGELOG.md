@@ -1,4 +1,4 @@
-# @arynbht/factory
+# @arynbht/rivetari
 
 ## 1.0.0
 
@@ -6,14 +6,14 @@
 
 - 96bd726: 1.0.0 — first stable release.
 
-  Software Factory audits a GitHub repository against a data-driven catalog of controls,
+  Rivetari audits a GitHub repository against a data-driven catalog of controls,
   reports the gaps by phase and discipline, and generates the fixes as pull requests.
   This is the first version with a committed public API across all clients.
 
   - **Engine** — profile resolution and applicability, ~40 detectors (file, YAML, and
     GitHub API), phase gates, template/merge/`claude` generators, the Claude API +
     Claude Code CLI transports, and the GitHub API layer with caching.
-  - **CLI** (`factory`) — `init`, `audit` (+ `--all`), `fix` (dry-run diff, apply, open
+  - **CLI** (`rivetari`) — `init`, `audit` (+ `--all`), `fix` (dry-run diff, apply, open
     PR), `ai <task>` (20 prompt tasks incl. changelog), `status` (phase inference),
     `metrics` (DORA + history), `waive`, `evidence`, `profile`.
   - **Action** — runs the audit in CI, comments the gap summary on PRs, fails the job
@@ -26,93 +26,93 @@
 
 ### Minor Changes
 
-- 1b932c6: Add the `factory audit` CLI command — the first user-facing surface. It loads the
+- 1b932c6: Add the `rivetari audit` CLI command — the first user-facing surface. It loads the
   bundled catalog, evaluates every control against a repo (bounded-concurrency
   `evaluateControls`), and prints a coloured table grouped by lane with a summary
   line, or `--json`. Supports `--lane`, `--token`, and `--no-color`, writes
-  `.factory/state.json`, and exits non-zero when a critical control fails. Catalog
+  `.rivetari/state.json`, and exits non-zero when a critical control fails. Catalog
   gains `loadBundledCatalog`; engine gains `evaluateControls` and a `title` on
   `ControlResult`.
-- ba927e1: Add the composite GitHub Action. A hidden `factory ci` command audits the
+- ba927e1: Add the composite GitHub Action. A hidden `rivetari ci` command audits the
   checked-out repo, writes the report to the job summary, and either posts a sticky
-  PR comment (failing the job when the gate is red) or maintains a pinned "Factory
+  PR comment (failing the job when the gate is red) or maintains a pinned "Rivetari
   status" issue on scheduled runs (never failing the job), per ADR-0006. The CLI is
   esbuild-bundled with the catalog into `packages/action/dist` (committed), and
   `action.yml` runs it; CI rebuilds the bundle to catch drift.
-- 7c9e9eb: Add the evidence workflow. `factory evidence add <control> --url|--file [--note
---reviewer --valid-for]` records an entry in `.factory/evidence.yml` (hashing a
+- 7c9e9eb: Add the evidence workflow. `rivetari evidence add <control> --url|--file [--note
+--reviewer --valid-for]` records an entry in `.rivetari/evidence.yml` (hashing a
   `--file` with sha256), and the audit warns about evidence expiring within 30 days.
 - 0e83bcc: Add phase gates. A gate (`packages/catalog/gates/<phase>.yml`) selects controls by
   id, lane, phase, or minimum severity; `evaluateGate` computes green (all pass /
   n/a / waived), amber (only needs-evidence or skip outstanding), or red (any fail).
-  `factory audit --gate <phase>` or `--gate all` prints gate status and exits
+  `rivetari audit --gate <phase>` or `--gate all` prints gate status and exits
   non-zero when a requested gate is red. Ships scaffold/build/harden gates and
   validates gates in `catalog:validate`.
-- 645b46e: Add `factory init`: an interactive (`@clack/prompts`) or flag-driven setup that
-  writes `.factory/{profile,waivers,evidence}.yml` and `.github/workflows/factory.yml`
+- 645b46e: Add `rivetari init`: an interactive (`@clack/prompts`) or flag-driven setup that
+  writes `.rivetari/{profile,waivers,evidence}.yml` and `.github/workflows/rivetari.yml`
   (with the PR + weekly-schedule triggers), then runs the first audit. It refuses to
   overwrite an existing config without `--force`, and `--type` is required in
   non-interactive mode.
-- 16b72ba: Add the project profile and applicability. A `.factory/profile.yml` (schema with a
+- 16b72ba: Add the project profile and applicability. A `.rivetari/profile.yml` (schema with a
   **constrained** flag set — unknown flags are rejected) describes the project's
   type, stack, phase, risk flags, lane toggles, and severity floor. The engine
   evaluates each control's `applies` predicate (all/any/not over flag/type/stack/
   phase-at-least, plus lane toggles) and marks non-applicable controls with the new
-  `n/a` status instead of running them. `factory audit` honours the profile and
-  severity floor; `factory profile show|set` reads and edits the profile.
-- 281411c: Add `markdown` and `github` report formats to `factory audit --format`. Markdown
+  `n/a` status instead of running them. `rivetari audit` honours the profile and
+  severity floor; `rivetari profile show|set` reads and edits the profile.
+- 281411c: Add `markdown` and `github` report formats to `rivetari audit --format`. Markdown
   renders a PR-comment/job-summary-friendly table of blocking controls; github emits
   `::error`/`::warning` workflow annotations plus a summary line (used by the Action).
-- ab8dd05: Add waivers. A waiver (`.factory/waivers.yml`: control, reason, owner, created,
+- ab8dd05: Add waivers. A waiver (`.rivetari/waivers.yml`: control, reason, owner, created,
   expires) turns a non-passing control into the new `waived` status while active;
-  an expired waiver has no effect (the control stays failing). `factory waive
+  an expired waiver has no effect (the control stays failing). `rivetari waive
 <control> --reason --expires [--owner]` records one, the audit reports `waived`
   and warns about waivers expiring within 30 days, and gates treat waived controls
   as satisfied.
-- 96e4fa2: Add `factory fix --pr`: apply the plan on a dedicated `factory/<date>-<gate>`
+- 96e4fa2: Add `rivetari fix --pr`: apply the plan on a dedicated `rivetari/<date>-<gate>`
   branch, commit one change per control, push, and open a pull request titled
-  `factory: <n> fixes for <gate>` — reusing (and refreshing) the existing open
-  factory PR for that branch instead of opening duplicates. Requires a clean
+  `rivetari: <n> fixes for <gate>` — reusing (and refreshing) the existing open
+  Rivetari PR for that branch instead of opening duplicates. Requires a clean
   working tree, skips settings effects that can't live in a PR, folds the
   managed-file registry into the branch, and always returns the tree to the base
   branch. New `openFixPr` orchestrator (git via simple-git) and `openOrReusePr`
   (Octokit, MSW-tested) in the engine.
-- 67cfb6e: Add the `factory fix` command: evaluate controls, select the non-passing ones that
+- 67cfb6e: Add the `rivetari fix` command: evaluate controls, select the non-passing ones that
   carry a generator, and plan their changes. Dry-run by default (a `+ create` / `~ update`
   / `· skip` / `⚙ would apply` preview that never touches disk); `--write` applies them.
   Honours `--control`, `--gate`, and `--lane` selectors and the profile severity-floor,
   reuses the never-clobber apply engine so a human-owned file is left untouched, and is
   idempotent — a second run reports zero file changes.
-- 9b44163: Add the `factory ai <task> [path]` command: runs the audit for gap context, drafts
+- 9b44163: Add the `rivetari ai <task> [path]` command: runs the audit for gap context, drafts
   the artifact with Claude (via the `claude` generator), and previews it (dry-run
   default), applies it with `--write`, or opens/reuses a PR with `--pr`. Reports the
   model, token usage, and the exact files consulted, and gives clear errors for a
   missing `ANTHROPIC_API_KEY` or an unknown task (listing the available ones).
-- a48d87e: Add AI usage accounting. Every `factory ai` call appends a JSON line (date, task,
-  model, tokens, estimated USD cost) to `.factory/ai-usage.log` (gitignored), and
-  `factory ai usage` summarizes it — totals plus per-task and per-day breakdowns. Cost
+- a48d87e: Add AI usage accounting. Every `rivetari ai` call appends a JSON line (date, task,
+  model, tokens, estimated USD cost) to `.rivetari/ai-usage.log` (gitignored), and
+  `rivetari ai usage` summarizes it — totals plus per-task and per-day breakdowns. Cost
   is estimated from a small per-model price table; an unpriced model counts as $0.
   Logging never fails the command.
 - a97d22f: Add the Claude Code skill (`packages/catalog/skill/SKILL.md`, exposed via
-  `bundledSkillDir`): it teaches an agent in a target repo to run `factory audit`
-  instead of guessing, read the gap report, and remediate with `factory fix` or draft
-  missing artifacts with `factory ai`, under "Claude drafts, humans sign". `factory
-init` now installs it into `.claude/skills/factory/SKILL.md` (never-clobber; init
+  `bundledSkillDir`): it teaches an agent in a target repo to run `rivetari audit`
+  instead of guessing, read the gap report, and remediate with `rivetari fix` or draft
+  missing artifacts with `rivetari ai`, under "Claude drafts, humans sign". `Rivetari
+init` now installs it into `.claude/skills/rivetari/SKILL.md` (never-clobber; init
   doesn't fail if it can't be read), and the action bundle copies `skill/` and folds
   it into the staleness hash.
-- c23be6b: Add `factory metrics`: the four DORA keys computed from the GitHub API with no extra
+- c23be6b: Add `rivetari metrics`: the four DORA keys computed from the GitHub API with no extra
   services — deployment frequency (releases/week), lead time (PR open→merge median),
   change failure rate (merged PRs that are reverts/hotfixes), and time to restore
   (`incident`-labeled issue open→close median) — each with its proxy documented and
   `null` when there isn't enough data. `--window <days>` and `--json` supported. The
-  Action also appends a per-lane pass snapshot to `.factory/history.jsonl` on each run
+  Action also appends a per-lane pass snapshot to `.rivetari/history.jsonl` on each run
   (hygiene trend); `loadHistory`/`laneCounts` read it back.
-- 63354f9: Add `factory audit --all`: audit every repo listed in `~/.config/factory/repos.yml`
+- 63354f9: Add `rivetari audit --all`: audit every repo listed in `~/.config/rivetari/repos.yml`
   (or `--repos <file>` — a YAML list of paths) and print one combined table (pass /
   fail / needs-evidence / total per repo), marking a missing or erroring repo inline
   and exiting non-zero if any repo has a critical failure. `--json` for the combined
   result.
-- 1f823bd: Add `factory status`: infers the project phase (the lowest phase whose gate is not
+- 1f823bd: Add `rivetari status`: infers the project phase (the lowest phase whose gate is not
   green) and lists the blocking controls (fail / needs-evidence) in severity then
   effort order, each tagged with its effort. Shows every defined gate's state and the
   profile's declared phase (a floor, never a ceiling). `--json` for machine output.
@@ -131,8 +131,8 @@ init` now installs it into `.claude/skills/factory/SKILL.md` (never-clobber; ini
 - fe0f33c: Dogfood `ci.actions-pinned-sha`: pin every `uses:` in `ci.yml` and `release.yml`
   to a commit SHA with a version comment (actions/checkout v4.4.0, actions/setup-node
   v4.4.0, pnpm/action-setup v4.3.0, gitleaks/gitleaks-action v2.3.9,
-  changesets/action v1.9.0). The factory previously failed its own control; Renovate
-  (`helpers:pinGitHubActionDigests`) keeps the pins current. `factory audit --lane
+  changesets/action v1.9.0). Rivetari previously failed its own control; Renovate
+  (`helpers:pinGitHubActionDigests`) keeps the pins current. `rivetari audit --lane
 cicd` is now fully green.
 - 95417a3: AI now uses the developer's Claude subscription via the Claude Code CLI by
   default, not a metered API key. A new `claudeCliTransport` runs `claude` in
@@ -141,8 +141,8 @@ cicd` is now fully green.
   to the `ANTHROPIC_API_KEY` SDK transport otherwise (`preferApiKey` forces the
   API). The `claude` fix generator only auto-drafts when AI is explicitly
   configured (`ctx.aiEnabled`: an injected transport or an API key), so a plain
-  `factory fix`/dry-run never spawns the interactive CLI; deliberate drafting via
-  `factory ai` uses the subscription.
+  `rivetari fix`/dry-run never spawns the interactive CLI; deliberate drafting via
+  `rivetari ai` uses the subscription.
 - 5431e4b: Fix three engine date/metric correctness bugs: DORA `deploymentFrequencyPerWeek`
   now returns `null` (not `Infinity`/`NaN`) when `windowDays <= 0`, matching the
   other metrics; zone-less datetimes (`2026-11-01T00:00:00`) are parsed as UTC
@@ -151,7 +151,7 @@ cicd` is now fully green.
   the start of the issue date (new `startOfDayMs`) rather than the end of that day,
   removing the ~1 extra day and making the evidence window symmetric with waiver
   expiry.
-- fe0f33c: Keep `factory audit` machine output valid. Previously `--gate` appended
+- fe0f33c: Keep `rivetari audit` machine output valid. Previously `--gate` appended
   human-readable, colorized gate lines to stdout and the "waiver/evidence
   expiring" warnings were always written to stdout, so `--json` / `--format
 markdown|github` combined with a gate (or an expiring waiver) produced
@@ -160,8 +160,8 @@ markdown|github` combined with a gate (or an expiring waiver) produced
   to stderr for machine formats. `--format table` is unchanged.
 - fe0f33c: Four engine robustness fixes. Generator failures are no longer swallowed:
   `planControl`/`planControls` return the changes plus a `GeneratorError[]`, and
-  `factory fix` prints each failure instead of silently reporting "nothing to fix".
-  `factory status` now applies the profile's `severity-floor` (like audit/ci/ai/fix)
+  `rivetari fix` prints each failure instead of silently reporting "nothing to fix".
+  `rivetari status` now applies the profile's `severity-floor` (like audit/ci/ai/fix)
   so it neither infers a phase from nor lists blockers the user chose to ignore,
   and derives the all-green phase from the phase list rather than a hardcoded
   `"operate"`. The `github-setting` protection ruleset now requires one approving
@@ -169,10 +169,10 @@ markdown|github` combined with a gate (or an expiring waiver) produced
   required" while self-merge is allowed. `merge-json` preserves a file's existing
   line ending instead of forcing `\n`, avoiding a mixed-EOL whole-file diff on
   Windows.
-- fe0f33c: Honor the merge policy's `.factory-suggested` escape hatch. A `merge` fix that
-  targets a file the factory previously wrote but a human has since edited no
+- fe0f33c: Honor the merge policy's `.rivetari-suggested` escape hatch. A `merge` fix that
+  targets a file Rivetari previously wrote but a human has since edited no
   longer re-serializes over those edits; it writes the merged result alongside as
-  `<path>.factory-suggested` and reports a `suggest` action so the human can
+  `<path>.rivetari-suggested` and reports a `suggest` action so the human can
   reconcile it by hand. First-time merges into a human-authored file (minimal
   structural insertion) are unchanged.
 - 4d2db9e: Harden the audit CLI after the M1 review: validate `--format` against
@@ -180,28 +180,28 @@ markdown|github` combined with a gate (or an expiring waiver) produced
   table); fail fast with a clear message when the audit path is missing or not a
   directory; disable colour for non-TTY output and when `NO_COLOR` is set; and stop
   shipping `.tsbuildinfo` inside published packages. Adds an end-to-end `runAudit`
-  integration test (report output, lane filter, `.factory/state.json` contents, and
+  integration test (report output, lane filter, `.rivetari/state.json` contents, and
   exit code) with an offline token override so it needs no network.
-- 36a2407: Harden the `factory ci` Action entrypoint after the M2 review: an unknown
-  `FACTORY_GATE` now fails closed (was: every PR passed green); a malformed
+- 36a2407: Harden the `rivetari ci` Action entrypoint after the M2 review: an unknown
+  `RIVETARI_GATE` now fails closed (was: every PR passed green); a malformed
   profile/waivers/evidence file fails with an error (was: silently ignored); PR
   context is detected by a resolvable PR number rather than only the literal
   `pull_request` event; an amber scheduled gate keeps the status issue open instead
   of closing it; expiring waivers/evidence are listed in the report body; and GitHub
   annotations escape newlines/`%`/`,` so a detector message can't truncate or spoof
   them.
-- b7e3ceb: Final M2-review hardening: `factory init` no longer clobbers existing
-  `waivers.yml`/`evidence.yml`/`factory.yml` when only the profile is absent (each
+- b7e3ceb: Final M2-review hardening: `rivetari init` no longer clobbers existing
+  `waivers.yml`/`evidence.yml`/`rivetari.yml` when only the profile is absent (each
   write is guarded, `--force` overrides). Add CLI tests for `profile set`, `waive`,
   `evidence add`, and `audit --gate` (red → exit 1, unknown gate → error), and stop
   hard-coding the catalog size in integration tests. The action build now emits a
   deterministic `SOURCE_SHA256` that CI diffs, so a committed bundle that wasn't
   rebuilt after a source change fails the build.
-- d8cf3e7: Add the generator framework and merge policy (ADR-0004) that `factory fix` builds
-  on. `.factory/state.json` gains a managed-file hash registry with
+- d8cf3e7: Add the generator framework and merge policy (ADR-0004) that `rivetari fix` builds
+  on. `.rivetari/state.json` gains a managed-file hash registry with
   `managedFileUnchanged`; `applyChanges` applies a plan of changes dry-run-by-default,
   never overwriting a human-edited file (a `create` file is written only when absent
-  or factory-managed-and-unchanged; a `merge` file writes its already-merged
+  or rivetari-managed-and-unchanged; a `merge` file writes its already-merged
   contents; effects run only in write mode) and records hashes on write. Adds the
   generator type + registry + `planControls` dispatch (generators themselves land in
   M3.2+). The audit now preserves the managed registry across runs.
@@ -215,7 +215,7 @@ markdown|github` combined with a gate (or an expiring waiver) produced
     templates (build-vs-buy, nfrs, out-of-scope, data-inventory, retention-schedule,
     dsar-process, privacy-policy, copy-guidelines, accessibility-statement) so the
     newly-wired `template`/`claude` fixes resolve instead of silently no-opping.
-  - `factory status` no longer treats a phase gate that selects zero controls as a
+  - `rivetari status` no longer treats a phase gate that selects zero controls as a
     blocker: an empty gate is "undefined for this profile", not amber, so it never
     pins the inferred phase. With the early phases now populated, an empty repo
     correctly infers `discovery`.
@@ -223,7 +223,7 @@ markdown|github` combined with a gate (or an expiring waiver) produced
 - edb2260: Engine correctness fixes from the full-repo review:
 
   - **Windows exec**: `runTool` no longer uses `shell: true` (which split arguments
-    containing spaces — e.g. the repo path `…\Software Factory - Dev`, breaking the
+    containing spaces — e.g. the repo path `…\Rivetari - Dev`, breaking the
     `scorecard` detector). It now resolves the binary via PATH+PATHEXT and runs a
     `.cmd`/`.bat` shim through `cmd.exe` directly, so Node's native argument quoting
     applies and spaces are preserved. A bare, extensionless name is no longer
@@ -234,13 +234,13 @@ markdown|github` combined with a gate (or an expiring waiver) produced
   - **Determinism**: the template generator's copyright year comes from an injected
     `context.now` instead of `new Date()`, so output is reproducible and testable.
   - **Cross-platform idempotency**: the managed-hash registry and the "already up to
-    date" check normalize line endings and a leading BOM, so a factory-written file
+    date" check normalize line endings and a leading BOM, so a rivetari-written file
     checked out with CRLF (`core.autocrlf=true`, the Windows default) is no longer
     mistaken for a human edit.
 
 - 869e453: Security hardening from the full-repo review:
 
-  - **Comment-injection fix**: `.factory/waivers.yml` and `.factory/evidence.yml`
+  - **Comment-injection fix**: `.rivetari/waivers.yml` and `.rivetari/evidence.yml`
     `control:` values are now validated against the control-id shape at load time, so
     an arbitrary string (Markdown/link payload) can't be smuggled into the PR/issue
     comment the Action posts.
@@ -248,7 +248,7 @@ markdown|github` combined with a gate (or an expiring waiver) produced
     `github.com` at a host boundary, rejecting look-alikes like `evilgithub.com/...`
     and `github.com.evil.com/...` that could have directed token-bearing API calls at
     an attacker-chosen repo.
-  - **Least-privilege workflows**: `factory.yml` (repo + scaffolded) now splits by
+  - **Least-privilege workflows**: `rivetari.yml` (repo + scaffolded) now splits by
     trigger — pull-request runs get `pull-requests: write` only, scheduled/push runs
     get `issues: write` only — and adds a `concurrency` group so overlapping runs
     can't race the sticky comment / status issue. `release.yml` gets a concurrency
@@ -283,17 +283,17 @@ markdown|github` combined with a gate (or an expiring waiver) produced
 
 - 2a0db12: CLI UX polish from the full-repo review:
 
-  - `factory fix` and `factory ci` now list each catalog error (file + message) on an
-    invalid catalog, matching `factory audit` instead of printing only a count.
-  - `factory profile set flags.<x>`/`lanes.<x>` rejects a non-boolean value instead
+  - `rivetari fix` and `rivetari ci` now list each catalog error (file + message) on an
+    invalid catalog, matching `rivetari audit` instead of printing only a count.
+  - `rivetari profile set flags.<x>`/`lanes.<x>` rejects a non-boolean value instead
     of silently coercing it to `false`.
-  - `factory evidence add` reports errors with a `factory evidence add:` prefix and
+  - `rivetari evidence add` reports errors with a `rivetari evidence add:` prefix and
     unwraps `EvidenceError`, consistent with the other commands.
-  - `factory audit` errors when `--json` and a conflicting `--format` are both given
+  - `rivetari audit` errors when `--json` and a conflicting `--format` are both given
     (`--json` is shorthand for `--format json`).
-  - `factory fix --control <id>` help note: it applies regardless of the severity
+  - `rivetari fix --control <id>` help note: it applies regardless of the severity
     floor.
-  - `factory fix` "nothing to apply" message is accurate whether controls already
+  - `rivetari fix` "nothing to apply" message is accurate whether controls already
     pass or simply have no generator.
 
 - Updated dependencies [fe0f33c]
@@ -350,5 +350,5 @@ markdown|github` combined with a gate (or an expiring waiver) produced
 - Updated dependencies [869e453]
 - Updated dependencies [563aea4]
 - Updated dependencies [96bd726]
-  - @arynbht/factory-catalog@1.0.0
-  - @arynbht/factory-engine@1.0.0
+  - @arynbht/rivetari-catalog@1.0.0
+  - @arynbht/rivetari-engine@1.0.0

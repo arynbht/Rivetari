@@ -1,15 +1,15 @@
 // Fix adapter: plan generator changes for a repo (dry-run), apply them locally,
-// or open a PR — mirroring `factory fix`. Each action re-plans from scratch
+// or open a PR — mirroring `rivetari fix`. Each action re-plans from scratch
 // (planning is cheap and idempotent) so no non-serializable Change[] crosses IPC.
 // Electron-free, so it unit-tests as plain functions.
-import { loadBundledCatalog, SEVERITIES } from "@arynbht/factory-catalog";
+import { loadBundledCatalog, SEVERITIES } from "@arynbht/rivetari-catalog";
 import {
   applyChanges,
   buildContext,
   evaluateControls,
   openFixPr,
   planControls,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import type { FixPlan, FixPrOutcome } from "../../shared/ipc";
 

@@ -1,4 +1,4 @@
-// `factory build "<description>"` — the orchestration layer from the terminal. It
+// `rivetari build "<description>"` — the orchestration layer from the terminal. It
 // plans the change (read-only, floor-plan-grounded) and prints the plan; with --yes
 // it then builds it with a write-agent in an isolated worktree, self-checks, and opens
 // a gated PR. The plan/build steps are injectable so the command is unit-tested
@@ -15,7 +15,7 @@ import {
   planFeature,
   resolveToken,
   runBuild,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 import { today as isoToday } from "../dates.js";
 
@@ -105,11 +105,11 @@ export async function runBuildCommand(
   const root = resolve(path);
   try {
     if (!(await stat(root)).isDirectory()) {
-      console.error(`factory build: not a directory: ${path}`);
+      console.error(`rivetari build: not a directory: ${path}`);
       return 1;
     }
   } catch {
-    console.error(`factory build: path not found: ${path}`);
+    console.error(`rivetari build: path not found: ${path}`);
     return 1;
   }
 
@@ -130,7 +130,7 @@ export async function runBuildCommand(
   try {
     plan = await planFn(ctx, description);
   } catch (err) {
-    console.error(`factory build: ${msg(err)}`);
+    console.error(`rivetari build: ${msg(err)}`);
     return 1;
   }
   out.write(renderPlan(plan));
@@ -150,7 +150,7 @@ export async function runBuildCommand(
         out.write(`  [${p.phase}] ${p.message}\n`),
     });
   } catch (err) {
-    console.error(`factory build: ${msg(err)}`);
+    console.error(`rivetari build: ${msg(err)}`);
     return 1;
   }
 

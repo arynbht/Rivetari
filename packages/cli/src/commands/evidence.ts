@@ -5,7 +5,7 @@ import {
   type EvidenceEntry,
   EvidenceError,
   hashFile,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 
 export interface EvidenceFlags {
   url?: string;
@@ -15,7 +15,7 @@ export interface EvidenceFlags {
   validFor?: string;
 }
 
-/** `factory evidence add <control> --url|--file [--note --reviewer --valid-for]`. */
+/** `rivetari evidence add <control> --url|--file [--note --reviewer --valid-for]`. */
 export async function runEvidenceAdd(
   control: string,
   flags: EvidenceFlags,
@@ -23,7 +23,7 @@ export async function runEvidenceAdd(
   date: string,
 ): Promise<number> {
   if (!flags.url && !flags.file) {
-    console.error("factory evidence add: provide --url or --file");
+    console.error("rivetari evidence add: provide --url or --file");
     return 1;
   }
 
@@ -36,7 +36,7 @@ export async function runEvidenceAdd(
     try {
       entry.sha256 = await hashFile(resolve(flags.file));
     } catch {
-      console.error(`factory evidence add: cannot read file: ${flags.file}`);
+      console.error(`rivetari evidence add: cannot read file: ${flags.file}`);
       return 1;
     }
   }
@@ -45,7 +45,7 @@ export async function runEvidenceAdd(
     await addEvidence(resolve(path), entry);
   } catch (err) {
     const message = err instanceof EvidenceError ? err.message : String(err);
-    console.error(`factory evidence add: ${message}`);
+    console.error(`rivetari evidence add: ${message}`);
     return 1;
   }
   process.stdout.write(`Recorded evidence for ${control}\n`);

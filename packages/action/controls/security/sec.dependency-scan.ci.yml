@@ -9,12 +9,12 @@ detect:
     detect:
       - type: file-yaml-path
         file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-        exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+        exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
         path: "jobs.*.steps[*].uses"
         matches: "(?i)^(google/osv-scanner|aquasecurity/trivy-action|snyk/actions|actions/dependency-review-action|anchore/scan-action)"
       - type: file-yaml-path
         file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-        exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+        exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
         path: "jobs.*.steps[*].run"
         matches: '(?i)\b(osv-scanner|npm audit|pnpm audit|yarn audit|pip-audit|govulncheck|cargo audit|trivy|grype)\b'
 evidence: none

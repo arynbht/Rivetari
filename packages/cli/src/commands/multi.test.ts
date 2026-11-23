@@ -20,9 +20,9 @@ describe("runAuditAll", () => {
   }
 
   it("audits every repo in the list and prints a combined table", async () => {
-    const repoA = await tmp("factory-multi-a-");
-    const repoB = await tmp("factory-multi-b-");
-    const listDir = await tmp("factory-multi-list-");
+    const repoA = await tmp("rivetari-multi-a-");
+    const repoB = await tmp("rivetari-multi-b-");
+    const listDir = await tmp("rivetari-multi-list-");
     const listFile = join(listDir, "repos.yml");
     await writeFile(listFile, `- ${repoA}\n- ${repoB}\n`);
 
@@ -41,8 +41,8 @@ describe("runAuditAll", () => {
   });
 
   it("--json returns a row per repo, marking a missing one as an error", async () => {
-    const repoA = await tmp("factory-multi-a-");
-    const listDir = await tmp("factory-multi-list-");
+    const repoA = await tmp("rivetari-multi-a-");
+    const listDir = await tmp("rivetari-multi-list-");
     const listFile = join(listDir, "repos.yml");
     await writeFile(listFile, `- ${repoA}\n- /definitely/missing/repo\n`);
 
@@ -62,7 +62,7 @@ describe("runAuditAll", () => {
   it("errors when the repo list file is missing", async () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const code = await runAuditAll(
-      { repos: join(tmpdir(), "factory-no-such-list.yml") },
+      { repos: join(tmpdir(), "rivetari-no-such-list.yml") },
       { token: null },
     );
     expect(code).toBe(1);

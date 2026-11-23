@@ -1,4 +1,4 @@
-import type { DetectorConfig } from "@arynbht/factory-catalog";
+import type { DetectorConfig } from "@arynbht/rivetari-catalog";
 import { parse as parseYaml } from "yaml";
 
 import type { AuditContext } from "../context.js";

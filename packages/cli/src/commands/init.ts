@@ -7,7 +7,7 @@ import {
   PHASE_KEYS,
   PROJECT_TYPES,
   SEVERITIES,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import {
   buildContext,
   detectStacks,
@@ -15,9 +15,9 @@ import {
   ProfileError,
   resolveRepoSlug,
   saveProfile,
-} from "@arynbht/factory-engine";
-import { initLock } from "@arynbht/factory-registry";
-import { BANNED_PATH, defaultsFor } from "@arynbht/factory-runtime";
+} from "@arynbht/rivetari-engine";
+import { initLock } from "@arynbht/rivetari-registry";
+import { BANNED_PATH, defaultsFor } from "@arynbht/rivetari-runtime";
 import {
   cancel,
   intro,
@@ -31,7 +31,7 @@ import {
 import { runAudit, type RunAuditOptions } from "./audit.js";
 import {
   CLAUDE_MD,
-  mergeFactoryHooks,
+  mergeRivetariHooks,
   PR_TEMPLATE,
   renderAgentsMd,
   renderConstraintsMd,
@@ -53,9 +53,9 @@ export interface InitFlags {
   force?: boolean;
 }
 
-/** The factory.yml workflow written into the target repo. */
+/** The rivetari.yml workflow written into the target repo. */
 function buildWorkflow(phase: string): string {
-  return `name: factory
+  return `name: rivetari
 on:
   pull_request:
   push:
@@ -71,7 +71,7 @@ permissions:
 # One run per ref so a newer push/PR update supersedes an in-flight run and the two
 # can't race on the sticky comment or the status issue.
 concurrency:
-  group: factory-\${{ github.ref }}
+  group: rivetari-\${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # Pin to a commit SHA for supply-chain safety; @v1 shown for readability.
-      - uses: arynbht/software-factory/packages/action@v1
+      - uses: arynbht/rivetari/packages/action@v1
         with:
           gate: ${phase}
           token: \${{ secrets.GITHUB_TOKEN }}
@@ -99,7 +99,7 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
-      - uses: arynbht/software-factory/packages/action@v1
+      - uses: arynbht/rivetari/packages/action@v1
         with:
           gate: ${phase}
           token: \${{ secrets.GITHUB_TOKEN }}
@@ -154,8 +154,8 @@ async function writeReplacing(
 
 /**
  * Write a generated file without clobbering: a missing file is written,
- * an identical one left alone, and a different one gets the factory's version
- * beside it as `name.factory.ext`. With --force it's replaced, and the old
+ * an identical one left alone, and a different one gets Rivetari's version
+ * beside it as `name.rivetari.ext`. With --force it's replaced, and the old
  * one kept as a backup. Returns a note when it did anything but write `rel`.
  */
 async function writeBeside(
@@ -174,16 +174,16 @@ async function writeBeside(
     return null;
   }
   const ext = extname(rel);
-  const besideRel = `${rel.slice(0, rel.length - ext.length)}.factory${ext}`;
+  const besideRel = `${rel.slice(0, rel.length - ext.length)}.rivetari${ext}`;
   await writeFile(resolve(root, besideRel), content, "utf8");
   return `${rel} exists; wrote ${besideRel}: merge it by hand`;
 }
 
 /**
- * Put the factory's hooks into `.claude/settings.json`. A sibling file
+ * Put Rivetari's hooks into `.claude/settings.json`. A sibling file
  * would be safe but dead, since Claude Code never reads it, so an existing
  * file is merged: its other settings kept, the old one backed up. Only a file
- * that won't parse gets the sibling, and `factory doctor` stays red until the
+ * that won't parse gets the sibling, and `rivetari doctor` stays red until the
  * hooks are in. Returns a note when it did anything but write a new file.
  */
 async function writeSettings(root: string): Promise<string | null> {
@@ -197,11 +197,11 @@ async function writeSettings(root: string): Promise<string | null> {
   }
   let merged: string;
   try {
-    merged = `${JSON.stringify(mergeFactoryHooks(JSON.parse(existing)), null, 2)}\n`;
+    merged = `${JSON.stringify(mergeRivetariHooks(JSON.parse(existing)), null, 2)}\n`;
   } catch (err) {
-    const beside = ".claude/settings.factory.json";
+    const beside = ".claude/settings.rivetari.json";
     await writeFile(resolve(root, beside), SETTINGS_JSON, "utf8");
-    return `couldn't merge the hooks into ${rel} (${(err as Error).message}); they're in ${beside}. Merge them by hand: until then the guard is off and \`factory doctor\` fails`;
+    return `couldn't merge the hooks into ${rel} (${(err as Error).message}); they're in ${beside}. Merge them by hand: until then the guard is off and \`rivetari doctor\` fails`;
   }
   // Already merged (formatting aside): nothing to back up or rewrite.
   if (
@@ -210,12 +210,12 @@ async function writeSettings(root: string): Promise<string | null> {
     return null;
   const bak = await keepBackup(root, rel, existing);
   await writeFile(path, merged, "utf8");
-  return `merged the factory's hooks into ${rel}; the old one is ${bak} (delete it once you've checked the merge)`;
+  return `merged Rivetari's hooks into ${rel}; the old one is ${bak} (delete it once you've checked the merge)`;
 }
 
-/** Add lines to .factory/.gitignore that aren't there yet. */
-async function ignoreInFactory(root: string, lines: string[]): Promise<void> {
-  const path = resolve(root, ".factory", ".gitignore");
+/** Add lines to .rivetari/.gitignore that aren't there yet. */
+async function ignoreInRivetari(root: string, lines: string[]): Promise<void> {
+  const path = resolve(root, ".rivetari", ".gitignore");
   const text = await readFile(path, "utf8").catch(() => "");
   const have = new Set(text.split(/\r?\n/));
   const add = lines.filter((l) => !have.has(l));
@@ -334,7 +334,7 @@ async function draftFromFlags(
 }
 
 async function draftInteractive(root: string): Promise<ProfileDraft | null> {
-  intro("factory init");
+  intro("rivetari init");
 
   const name = await text({
     message: "Project name",
@@ -418,8 +418,8 @@ async function draftInteractive(root: string): Promise<ProfileDraft | null> {
 }
 
 /**
- * `factory init`: the profile, the factory workflow, and the contract files (the
- * AGENTS.md contract, the /factory skill and its hooks, the PR template), then
+ * `rivetari init`: the profile, Rivetari workflow, and the contract files (the
+ * AGENTS.md contract, the /rivetari skill and its hooks, the PR template), then
  * the first audit.
  */
 export async function runInit(
@@ -429,12 +429,12 @@ export async function runInit(
 ): Promise<number> {
   const root = resolve(path);
 
-  const profileExists = await access(resolve(root, ".factory", "profile.yml"))
+  const profileExists = await access(resolve(root, ".rivetari", "profile.yml"))
     .then(() => true)
     .catch(() => false);
   if (profileExists && !flags.force) {
     console.error(
-      "factory init: .factory/profile.yml already exists. Use --force to overwrite, or `factory profile set`.",
+      "rivetari init: .rivetari/profile.yml already exists. Use --force to overwrite, or `rivetari profile set`.",
     );
     return 1;
   }
@@ -453,7 +453,7 @@ export async function runInit(
     draft = await draftFromFlags(flags, root);
     if (!draft.type) {
       console.error(
-        `factory init: --type is required in non-interactive mode (one of: ${PROJECT_TYPES.join(", ")}).`,
+        `rivetari init: --type is required in non-interactive mode (one of: ${PROJECT_TYPES.join(", ")}).`,
       );
       return 1;
     }
@@ -461,7 +461,7 @@ export async function runInit(
 
   // --force never deletes. The profile it replaces is backed up first.
   const beside: string[] = [];
-  const profileRel = ".factory/profile.yml";
+  const profileRel = ".rivetari/profile.yml";
   const oldProfile = profileExists
     ? await readFile(resolve(root, profileRel), "utf8")
     : null;
@@ -483,7 +483,7 @@ export async function runInit(
 
   // Waivers and evidence are a person's decisions: written when missing, and
   // never reset, --force or not.
-  for (const rel of [".factory/waivers.yml", ".factory/evidence.yml"])
+  for (const rel of [".rivetari/waivers.yml", ".rivetari/evidence.yml"])
     await writeFile(resolve(root, rel), "[]\n", { flag: "wx" }).catch(
       (err: NodeJS.ErrnoException) => {
         if (err.code !== "EEXIST") throw err;
@@ -498,7 +498,7 @@ export async function runInit(
   });
   const workflow = await writeBeside(
     root,
-    ".github/workflows/factory.yml",
+    ".github/workflows/rivetari.yml",
     buildWorkflow(draft.phase ?? "build"),
     false,
   );
@@ -507,8 +507,8 @@ export async function runInit(
       `${workflow}, then delete it (every file in .github/workflows runs on GitHub, so don't commit it)`,
     );
 
-  // Backups init leaves under .factory/ are for the person to look at, not commit.
-  await ignoreInFactory(root, [
+  // Backups init leaves under .rivetari/ are for the person to look at, not commit.
+  await ignoreInRivetari(root, [
     "tasks/",
     "ai-usage.log",
     "cache/",
@@ -516,7 +516,7 @@ export async function runInit(
     "*.bak.*",
   ]);
 
-  // The contract, the /factory skill, the hooks, the PR template.
+  // The contract, the /rivetari skill, the hooks, the PR template.
   const facts = await repoFacts(root, draft);
   // The skill ships with the CLI; a broken install shouldn't stop init.
   const skill = await readFile(
@@ -529,12 +529,12 @@ export async function runInit(
     ["CONSTRAINTS.md", renderConstraintsMd(facts)],
     [".github/PULL_REQUEST_TEMPLATE.md", PR_TEMPLATE],
     ...(skill
-      ? [[".claude/skills/factory/SKILL.md", skill] as [string, string]]
+      ? [[".claude/skills/rivetari/SKILL.md", skill] as [string, string]]
       : []),
   ];
   if (!skill)
     beside.push(
-      "the /factory skill couldn't be read from the CLI install; reinstall the CLI",
+      "the /rivetari skill couldn't be read from the CLI install; reinstall the CLI",
     );
   for (const [rel, content] of files) {
     const note = await writeBeside(root, rel, content, flags.force);
@@ -543,17 +543,17 @@ export async function runInit(
   const settings = await writeSettings(root);
   if (settings) beside.push(settings);
 
-  // The spine skills, locked; `factory skills sync` installs them.
+  // The spine skills, locked; `rivetari skills sync` installs them.
   let locked = "";
   try {
     const added = await initLock(root, { spineOnly: true });
     if (added.length > 0)
-      locked = ` Locked the spine skills (${added.map((e) => e.name).join(", ")}); run \`factory skills sync\`.`;
+      locked = ` Locked the spine skills (${added.map((e) => e.name).join(", ")}); run \`rivetari skills sync\`.`;
   } catch (err) {
     locked = ` Couldn't lock the spine skills: ${(err as Error).message}`;
   }
 
-  const wrote = `Wrote .factory/, AGENTS.md, CLAUDE.md, CONSTRAINTS.md, the /factory skill and hooks under .claude/, and .github/ (factory.yml, the PR template).${locked} Commit them to the default branch before the first task: the agent and the judge read the contract from there.`;
+  const wrote = `Wrote .rivetari/, AGENTS.md, CLAUDE.md, CONSTRAINTS.md, the /rivetari skill and hooks under .claude/, and .github/ (rivetari.yml, the PR template).${locked} Commit them to the default branch before the first task: the agent and the judge read the contract from there.`;
   const notes = beside.map((b) => `  - ${b}`).join("\n");
   if (interactive) {
     outro(`${wrote}${notes ? `\n${notes}` : ""} Running first audit…`);

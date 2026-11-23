@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { type Profile, ProfileSchema } from "@arynbht/factory-catalog";
+import { type Profile, ProfileSchema } from "@arynbht/rivetari-catalog";
 import {
   parse as parseYaml,
   parseDocument,
@@ -24,14 +24,14 @@ function validateProfile(profile: unknown): Profile {
 }
 
 /**
- * Load and validate `<repo>/.factory/profile.yml`. Returns null if there is no
+ * Load and validate `<repo>/.rivetari/profile.yml`. Returns null if there is no
  * profile (every control then applies); throws {@link ProfileError} if the file
  * is present but invalid, so the caller can surface a clear message.
  */
 export async function loadProfile(repoPath: string): Promise<Profile | null> {
   let raw: string;
   try {
-    raw = await readFile(resolve(repoPath, ".factory", "profile.yml"), "utf8");
+    raw = await readFile(resolve(repoPath, ".rivetari", "profile.yml"), "utf8");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw err;
@@ -56,13 +56,13 @@ export async function loadProfile(repoPath: string): Promise<Profile | null> {
   return result.data;
 }
 
-/** Validate and write a profile to `<repo>/.factory/profile.yml` (full serialize). */
+/** Validate and write a profile to `<repo>/.rivetari/profile.yml` (full serialize). */
 export async function saveProfile(
   repoPath: string,
   profile: unknown,
 ): Promise<Profile> {
   const validated = validateProfile(profile);
-  const dir = resolve(repoPath, ".factory");
+  const dir = resolve(repoPath, ".rivetari");
   await mkdir(dir, { recursive: true });
   await writeFile(
     resolve(dir, "profile.yml"),
@@ -84,7 +84,7 @@ export async function updateProfile(
   profile: unknown,
 ): Promise<Profile> {
   const validated = validateProfile(profile);
-  const file = resolve(repoPath, ".factory", "profile.yml");
+  const file = resolve(repoPath, ".rivetari", "profile.yml");
 
   let raw: string | null = null;
   try {
@@ -93,7 +93,7 @@ export async function updateProfile(
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
   }
 
-  await mkdir(resolve(repoPath, ".factory"), { recursive: true });
+  await mkdir(resolve(repoPath, ".rivetari"), { recursive: true });
   if (raw === null) {
     await writeFile(file, stringifyYaml(validated), "utf8");
     return validated;

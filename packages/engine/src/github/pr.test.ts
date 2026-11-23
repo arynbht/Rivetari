@@ -36,9 +36,9 @@ describe("openOrReusePr", () => {
     );
 
     const pr = await openOrReusePr(await client(), {
-      head: "factory/2026-11-01-scaffold",
+      head: "rivetari/2026-11-01-scaffold",
       base: "main",
-      title: "factory: 2 fixes for scaffold",
+      title: "rivetari: 2 fixes for scaffold",
       body: "body",
     });
 
@@ -48,9 +48,9 @@ describe("openOrReusePr", () => {
       reused: false,
     });
     expect(createdBody).toMatchObject({
-      head: "factory/2026-11-01-scaffold",
+      head: "rivetari/2026-11-01-scaffold",
       base: "main",
-      title: "factory: 2 fixes for scaffold",
+      title: "rivetari: 2 fixes for scaffold",
     });
   });
 
@@ -72,9 +72,9 @@ describe("openOrReusePr", () => {
     );
 
     const pr = await openOrReusePr(await client(), {
-      head: "factory/2026-11-01-scaffold",
+      head: "rivetari/2026-11-01-scaffold",
       base: "main",
-      title: "factory: 3 fixes for scaffold",
+      title: "rivetari: 3 fixes for scaffold",
       body: "updated body",
     });
 
@@ -84,7 +84,7 @@ describe("openOrReusePr", () => {
       reused: true,
     });
     expect(updated).toMatchObject({
-      title: "factory: 3 fixes for scaffold",
+      title: "rivetari: 3 fixes for scaffold",
       body: "updated body",
     });
   });
@@ -96,7 +96,7 @@ describe("openOrReusePr", () => {
     );
     await expect(
       openOrReusePr(await client(), {
-        head: "factory/2026-11-01-scaffold",
+        head: "rivetari/2026-11-01-scaffold",
         base: "main",
         title: "t",
         body: "b",

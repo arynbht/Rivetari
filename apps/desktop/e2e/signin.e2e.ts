@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { closeApp, launchApp, type LaunchedApp } from "./helpers";
 
-// Sign-in flow. With FACTORY_E2E the device flow is served canned responses (see
+// Sign-in flow. With RIVETARI_E2E the device flow is served canned responses (see
 // main/index.ts), so the real handler — poll loop, safeStorage token write, the
 // renderer push — runs end to end without the network.
 test.describe("GitHub sign-in", () => {
@@ -14,7 +14,7 @@ test.describe("GitHub sign-in", () => {
 
   test("signs in via the device flow and shows the user", async () => {
     launched = await launchApp({
-      env: { FACTORY_GITHUB_CLIENT_ID: "e2e-client-id" },
+      env: { RIVETARI_GITHUB_CLIENT_ID: "e2e-client-id" },
     });
     const { page } = launched;
 

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildContext } from "../context.js";
@@ -16,7 +16,7 @@ afterEach(async () => {
 });
 
 async function repo(files: Record<string, string>): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-ctx-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-ctx-"));
   made.push(dir);
   for (const [rel, contents] of Object.entries(files)) {
     const abs = join(dir, rel);
@@ -175,7 +175,7 @@ describe("packContext", () => {
 
   it("includes profile, control rationale, and gaps", async () => {
     const dir = await repo({
-      ".factory/profile.yml": "version: 1\nname: Demo\ntype: api\n",
+      ".rivetari/profile.yml": "version: 1\nname: Demo\ntype: api\n",
     });
     const ctx = buildContext(dir);
     const control = {
@@ -219,7 +219,7 @@ describe("packContext", () => {
       edges: [{ from: "system:api", to: "system:db", kind: "reads" }],
     };
     const dir = await repo({
-      ".factory/floorplan.json": JSON.stringify(model),
+      ".rivetari/floorplan.json": JSON.stringify(model),
     });
     const ctx = buildContext(dir);
 

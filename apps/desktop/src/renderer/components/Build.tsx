@@ -1,7 +1,7 @@
 // The Build tab: the orchestration layer's UI. You describe a feature or fix → the
-// factory drafts a plan (read-only, floor-plan-grounded) → you approve → write-agents
+// Rivetari drafts a plan (read-only, floor-plan-grounded) → you approve → write-agents
 // implement it in an isolated git worktree, self-check against the repo's tests/lint/
-// typecheck + the factory gate, and open a gated PR. Two human checkpoints: approve
+// typecheck + Rivetari gate, and open a gated PR. Two human checkpoints: approve
 // the plan, review the PR. Your working tree is never touched.
 import { GitPullRequest, Hammer, RefreshCw, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -28,7 +28,7 @@ export function Build({ repoPath }: { repoPath: string }) {
   const [result, setResult] = useState<BuildResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => window.factory.build.onProgress(setProgress), []);
+  useEffect(() => window.rivetari.build.onProgress(setProgress), []);
 
   async function handlePlan(): Promise<void> {
     setPlanning(true);
@@ -36,7 +36,7 @@ export function Build({ repoPath }: { repoPath: string }) {
     setResult(null);
     setPlan(null);
     try {
-      const view = await window.factory.build.plan(
+      const view = await window.rivetari.build.plan(
         repoPath,
         description.trim(),
       );
@@ -55,7 +55,7 @@ export function Build({ repoPath }: { repoPath: string }) {
     setError(null);
     setProgress(null);
     try {
-      setResult(await window.factory.build.run(repoPath, plan));
+      setResult(await window.rivetari.build.run(repoPath, plan));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -75,7 +75,7 @@ export function Build({ repoPath }: { repoPath: string }) {
       <div>
         <h2 className="text-lg font-semibold">Build</h2>
         <p className="text-xs text-muted-foreground">
-          Describe a change; the factory plans it, builds it in an isolated
+          Describe a change; Rivetari plans it, builds it in an isolated
           worktree, self-checks against your gates, and opens a PR. Your working
           tree is never touched.
         </p>

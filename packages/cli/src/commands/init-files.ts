@@ -1,7 +1,7 @@
-// The files `factory init` writes into a repo: the contract every agent
+// The files `rivetari init` writes into a repo: the contract every agent
 // reads (AGENTS.md, with CLAUDE.md pointing at it), the Claude Code hooks, the
 // PR template with its Proof section, and a CONSTRAINTS.md seed for the judge.
-import { BEATS, PROTECTED } from "@arynbht/factory-runtime";
+import { BEATS, PROTECTED } from "@arynbht/rivetari-runtime";
 
 /** What the generated files say about this repo. */
 export interface RepoFacts {
@@ -42,7 +42,7 @@ const code = (s: string) => `\`${s}\``;
 
 export function renderAgentsMd(facts: RepoFacts): string {
   const protectedPaths = [
-    ...PROTECTED.factoryState,
+    ...PROTECTED.rivetariState,
     ...PROTECTED.agentConfig,
     ...PROTECTED.ciConfig,
     ...PROTECTED.lintConfig,
@@ -52,32 +52,32 @@ export function renderAgentsMd(facts: RepoFacts): string {
   );
   return `# AGENTS.md
 
-<!-- Written by \`factory init\`. Everything above "This repo" is the factory's
-contract, the same in every factory repo; the "This repo" section is yours to edit.
+<!-- Written by \`rivetari init\`. Everything above "This repo" is Rivetari's
+contract, the same in every rivetari repo; the "This repo" section is yours to edit.
 The judge reads this file from the base branch and blocks a change that breaks it. -->
 
-This repo is built with the software factory. These rules apply to every agent that
-works in it (Claude Code, Codex, Cursor) and to the factory's own agents.
+This repo is built with Rivetari. These rules apply to every agent that
+works in it (Claude Code, Codex, Cursor) and to Rivetari's own agents.
 
 ## Before anything
 
-Run ${code("factory doctor")}. If it fails, do what it says (often
-${code("factory skills sync")}) before starting work.
+Run ${code("rivetari doctor")}. If it fails, do what it says (often
+${code("rivetari skills sync")}) before starting work.
 
-## Every task starts with /factory
+## Every task starts with /rivetari
 
-In Claude Code: ${code("/factory <what you want>")} or ${code("/factory #<issue>")}.
-Anywhere else, use the ${code("factory task")} commands the skill uses. Don't change
+In Claude Code: ${code("/rivetari <what you want>")} or ${code("/rivetari #<issue>")}.
+Anywhere else, use the ${code("rivetari task")} commands the skill uses. Don't change
 files in this checkout on the default branch: each task gets its own worktree and
 branch, and the change reaches the default branch only through a reviewed PR.
 
 ## The beats
 
-0. **sync**: ${code("factory doctor && factory skills sync")}. Machine and skills ready, pinned and verified.
+0. **sync**: ${code("rivetari doctor && rivetari skills sync")}. Machine and skills ready, pinned and verified.
 ${BEATS.map((b, i) => `${i + 1}. ${BEAT_LINES[b]}`).join("\n")}
 
-The ledger in ${code(".factory/tasks/<id>/")} is the record and the resume point:
-${code("factory task resume <id>")}. Only the runtime writes it.
+The ledger in ${code(".rivetari/tasks/<id>/")} is the record and the resume point:
+${code("rivetari task resume <id>")}. Only the runtime writes it.
 
 ## Protected paths
 
@@ -94,7 +94,7 @@ Pause and ask the person before:
 - adding a dependency
 - a schema change or a migration
 - touching a protected path, or deleting or changing an existing test
-- any change to lint config, CI config or ${code(".factory/**")}
+- any change to lint config, CI config or ${code(".rivetari/**")}
 - going past the plan's step budget
 - treating an acceptance criterion as impossible
 
@@ -110,7 +110,7 @@ Pause and ask the person before:
 
 ## People merge
 
-The factory opens draft PRs. It never merges, and neither does any agent.
+Rivetari opens draft PRs. It never merges, and neither does any agent.
 
 ## This repo
 
@@ -129,26 +129,26 @@ export const CLAUDE_MD = `# CLAUDE.md
 
 @AGENTS.md
 
-Start every task with \`/factory\`. The contract above applies to Claude Code too.
+Start every task with \`/rivetari\`. The contract above applies to Claude Code too.
 `;
 
 /** Claude Code hooks: the beats at session start, and the edit guard. */
 // The hooks fail closed. A hook that can't run exits non-blocking, so
-// the guard's command turns any failure, `factory` missing from PATH included,
+// the guard's command turns any failure, `Rivetari` missing from PATH included,
 // into exit 2, which blocks the call. The session-start one says why on the
 // first line of the session instead of leaving every edit blocked unexplained.
 // Both parse the same in sh and cmd.
-export const GUARD_COMMAND = "factory hook guard || exit 2";
+export const GUARD_COMMAND = "rivetari hook guard || exit 2";
 export const GUARD_MATCHER = "Edit|Write|MultiEdit|NotebookEdit|Bash";
 export const SESSION_START_COMMAND =
-  "factory hook session-start || echo factory: the session-start hook could not run, so the factory CLI is probably not on PATH. Until it is, the guard blocks every edit and command. Install it in a terminal, then run factory doctor.";
+  "rivetari hook session-start || echo rivetari: the session-start hook could not run, so Rivetari CLI is probably not on PATH. Until it is, the guard blocks every edit and command. Install it in a terminal, then run rivetari doctor.";
 
-/** A hook command `factory init` installed, this version's or an earlier one's. */
-export const isFactoryHook = (command: unknown): boolean =>
+/** A hook command `rivetari init` installed, this version's or an earlier one's. */
+export const isRivetariHook = (command: unknown): boolean =>
   typeof command === "string" &&
-  /^factory hook (guard|session-start)\b/.test(command);
+  /^rivetari hook (guard|session-start)\b/.test(command);
 
-const FACTORY_HOOKS = {
+const RIVETARI_HOOKS = {
   SessionStart: [
     { hooks: [{ type: "command", command: SESSION_START_COMMAND }] },
   ],
@@ -160,7 +160,7 @@ const FACTORY_HOOKS = {
   ],
 };
 
-export const SETTINGS_JSON = `${JSON.stringify({ hooks: FACTORY_HOOKS }, null, 2)}\n`;
+export const SETTINGS_JSON = `${JSON.stringify({ hooks: RIVETARI_HOOKS }, null, 2)}\n`;
 
 interface HookGroup {
   matcher?: string;
@@ -168,27 +168,27 @@ interface HookGroup {
 }
 
 /**
- * `settings` with the factory's hooks in it: every other setting and hook
- * kept as it is, and any factory hook an earlier `init` wrote replaced by this
+ * `settings` with Rivetari's hooks in it: every other setting and hook
+ * kept as it is, and any rivetari hook an earlier `init` wrote replaced by this
  * version's, so a re-run converges. Throws when `settings` isn't an object
  * with an object of hook arrays.
  */
-export function mergeFactoryHooks(settings: unknown): Record<string, unknown> {
+export function mergeRivetariHooks(settings: unknown): Record<string, unknown> {
   const isObject = (v: unknown): v is Record<string, unknown> =>
     typeof v === "object" && v !== null && !Array.isArray(v);
   if (!isObject(settings)) throw new Error("not a JSON object");
   const hooks = settings.hooks ?? {};
   if (!isObject(hooks)) throw new Error("`hooks` is not an object");
   const merged: Record<string, unknown> = { ...hooks };
-  for (const [event, ours] of Object.entries(FACTORY_HOOKS)) {
+  for (const [event, ours] of Object.entries(RIVETARI_HOOKS)) {
     const theirs = merged[event] ?? [];
     if (!Array.isArray(theirs))
       throw new Error(`\`hooks.${event}\` is not an array`);
     const kept = (theirs as HookGroup[]).flatMap((group) => {
       if (!Array.isArray(group?.hooks)) return [group];
-      const rest = group.hooks.filter((h) => !isFactoryHook(h?.command));
+      const rest = group.hooks.filter((h) => !isRivetariHook(h?.command));
       if (rest.length === group.hooks.length) return [group];
-      // A group that held only factory hooks goes; ours replaces it.
+      // A group that held only Rivetari hooks goes; ours replaces it.
       return rest.length > 0 ? [{ ...group, hooks: rest }] : [];
     });
     merged[event] = [...kept, ...ours];
@@ -207,7 +207,7 @@ export const PR_TEMPLATE = `## Summary
 ## Proof
 
 <!-- Required. Produced by a tool, not described: before/after screenshots for UI,
-test output for logic, plan output for infra. Factory tasks fill this in. -->
+test output for logic, plan output for infra. Rivetari tasks fill this in. -->
 
 ## Notes
 `;
@@ -222,7 +222,7 @@ export function renderConstraintsMd(facts: RepoFacts): string {
     .map((c) => code(c!));
   return `# CONSTRAINTS.md
 
-<!-- Seeded by \`factory init\`. The judge's review blocks a change that breaks a rule
+<!-- Seeded by \`rivetari init\`. The judge's review blocks a change that breaks a rule
 here, so keep every rule concrete enough to check against a diff. Add this codebase's
 rules below; delete any of these that don't fit. -->
 

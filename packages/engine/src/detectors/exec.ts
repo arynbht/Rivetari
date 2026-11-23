@@ -146,7 +146,7 @@ export class ToolTimeoutError extends Error {
  * clean ToolNotFoundError). A `.cmd`/`.bat` shim — which `execFile` cannot launch
  * directly — is run through `cmd.exe /d /s /c`; everything else runs directly.
  * Crucially we never pass `shell: true`, so Node applies its own argument quoting
- * and a path containing spaces (e.g. `C:\…\Software Factory - Dev`) is passed as a
+ * and a path containing spaces (e.g. `C:\…\Rivetari - Dev`) is passed as a
  * single argument rather than split.
  */
 export async function runTool(

@@ -1,13 +1,13 @@
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { buildContext, createAiClient } from "@arynbht/factory-engine";
+import { buildContext, createAiClient } from "@arynbht/rivetari-engine";
 import {
   JUDGE_DEFAULT_MODEL,
   reviewLocal,
   runTier1,
   type Tier1Result,
-} from "@arynbht/factory-runtime";
+} from "@arynbht/rivetari-runtime";
 import pc from "picocolors";
 
 import { today } from "../dates.js";
@@ -34,7 +34,7 @@ const EXIT: Record<Tier1Result["verdict"], number> = {
 };
 
 /**
- * `factory judge` — tier 1 of the judge: deterministic checks on a clean clone
+ * `rivetari judge` — tier 1 of the judge: deterministic checks on a clean clone
  * of base plus the change, with protected paths taken from base. Exits 0 on
  * pass, 1 on fail, 2 when the change needs a human (it touched what judges it).
  */
@@ -46,7 +46,7 @@ export async function runJudge(
   try {
     if (!(await stat(root)).isDirectory()) throw new Error("not a directory");
   } catch {
-    console.error(`factory judge: not a directory: ${path}`);
+    console.error(`rivetari judge: not a directory: ${path}`);
     return 1;
   }
 
@@ -67,7 +67,7 @@ export async function runJudge(
         : (line) => process.stderr.write(`· ${line}\n`),
     });
   } catch (err) {
-    console.error(`factory judge: ${(err as Error).message}`);
+    console.error(`rivetari judge: ${(err as Error).message}`);
     return 1;
   }
 
@@ -113,7 +113,7 @@ export async function runJudge(
         : (line) => process.stderr.write(`· ${line}\n`),
     });
   } catch (err) {
-    console.error(`factory judge: tier 2 failed: ${(err as Error).message}`);
+    console.error(`rivetari judge: tier 2 failed: ${(err as Error).message}`);
     return 1;
   }
   if (flags.json) {

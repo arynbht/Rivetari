@@ -15,12 +15,12 @@ detect:
     detect:
       - type: file-yaml-path
         file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-        exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+        exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
         path: "jobs.*.steps[*].uses"
         matches: "(?i)^(golangci/golangci-lint-action|biomejs/setup-biome)"
       - type: file-yaml-path
         file: ".github/workflows/*.yml|.github/workflows/*.yaml"
-        exclude: ".github/workflows/factory.yml|.github/workflows/factory.yaml"
+        exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
         path: "jobs.*.steps[*].run"
         matches: '(?is)^(?!.*--if-present).*\b(eslint|biome (check|lint|ci)|ruff check|flake8|pylint|golangci-lint|go vet|cargo clippy|(npm|pnpm|yarn)( run)? lint)\b'
 evidence: none

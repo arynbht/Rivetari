@@ -5,7 +5,7 @@ import type {
   Control,
   DetectorConfig,
   Profile,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import { describe, expect, it } from "vitest";
 
 import type { AuditContext } from "./context.js";

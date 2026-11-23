@@ -2,7 +2,7 @@
 // typed, allow-listed API over contextBridge; the renderer never touches
 // ipcRenderer, fs, git, or the network. Every request is zod-validated before it
 // leaves and every response is zod-validated before the renderer sees it.
-import type { Profile } from "@arynbht/factory-catalog";
+import type { Profile } from "@arynbht/rivetari-catalog";
 import { contextBridge, ipcRenderer } from "electron";
 
 import {
@@ -180,7 +180,7 @@ const api = {
   },
 
   fix: {
-    /** Dry-run: the changes `factory fix` would make, grouped per control. */
+    /** Dry-run: the changes `rivetari fix` would make, grouped per control. */
     async plan(repoPath: string) {
       const request = FixPlanRequest.parse({ repoPath });
       const raw: unknown = await ipcRenderer.invoke(
@@ -198,7 +198,7 @@ const api = {
       );
       return FixPlan.parse(raw);
     },
-    /** Open (or reuse) a factory PR with the changes; returns the PR outcome. */
+    /** Open (or reuse) a Rivetari PR with the changes; returns the PR outcome. */
     async openPr(repoPath: string) {
       const request = FixPlanRequest.parse({ repoPath });
       const raw: unknown = await ipcRenderer.invoke(
@@ -354,7 +354,7 @@ const api = {
   },
 };
 
-/** The shape exposed as `window.factory` in the renderer. */
-export type FactoryApi = typeof api;
+/** The shape exposed as `window.rivetari` in the renderer. */
+export type RivetariApi = typeof api;
 
-contextBridge.exposeInMainWorld("factory", api);
+contextBridge.exposeInMainWorld("rivetari", api);

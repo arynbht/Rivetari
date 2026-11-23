@@ -111,12 +111,12 @@ describe("loadEvidence + findValidEvidence", () => {
   });
 
   it("throws EvidenceError on a malformed (non-list) evidence file", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-evidence-bad-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-evidence-bad-"));
     try {
       const { mkdir, writeFile } = await import("node:fs/promises");
-      await mkdir(join(dir, ".factory"), { recursive: true });
+      await mkdir(join(dir, ".rivetari"), { recursive: true });
       await writeFile(
-        join(dir, ".factory", "evidence.yml"),
+        join(dir, ".rivetari", "evidence.yml"),
         "control: x\n",
         "utf8",
       );
@@ -148,7 +148,7 @@ describe("addEvidence", () => {
   });
 
   it("adds an entry that round-trips, replacing the same control", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-evidence-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-evidence-"));
     made.push(dir);
     await addEvidence(dir, { control: "sec.threat-model", url: "https://a" });
     await addEvidence(dir, { control: "sec.threat-model", url: "https://b" });

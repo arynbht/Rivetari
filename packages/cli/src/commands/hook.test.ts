@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { newTask } from "@arynbht/factory-runtime";
+import { newTask } from "@arynbht/rivetari-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { doctorChecks, tempCheck } from "./doctor.js";
@@ -16,7 +16,7 @@ import {
 import { SETTINGS_JSON } from "./init-files.js";
 
 const made: string[] = [];
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const tmp = async (prefix: string) => {
   const dir = await mkdtemp(join(tmpdir(), prefix));
   made.push(dir);
@@ -26,23 +26,23 @@ const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) await rm(d, { recursive: true, force: true });
   made.length = 0;
 });
 
-/** A repo on main with a factory profile, and a linked worktree on a task branch. */
-async function factoryRepo(): Promise<{ repo: string; worktree: string }> {
-  const repo = await tmp("factory-hook-");
+/** A repo on main with a rivetari profile, and a linked worktree on a task branch. */
+async function rivetariRepo(): Promise<{ repo: string; worktree: string }> {
+  const repo = await tmp("rivetari-hook-");
   git(repo, "init", "-b", "main");
   git(repo, "config", "user.email", "t@t");
   git(repo, "config", "user.name", "t");
-  await mkdir(join(repo, ".factory"));
-  await writeFile(join(repo, ".factory", "profile.yml"), "version: 1\n");
+  await mkdir(join(repo, ".rivetari"));
+  await writeFile(join(repo, ".rivetari", "profile.yml"), "version: 1\n");
   await writeFile(join(repo, "README.md"), "# demo\n");
   git(repo, "add", "-A");
   git(repo, "commit", "-m", "base", "--no-verify");
@@ -57,43 +57,43 @@ const posix = (path: string) => path.split("\\").join("/");
 const edit = (cwd: string, file_path: string) =>
   guardReason({ cwd, tool_input: { file_path } });
 
-describe("factory hook guard", () => {
+describe("rivetari hook guard", () => {
   it("refuses edits in the primary checkout on main, new files included", async () => {
-    const { repo } = await factoryRepo();
+    const { repo } = await rivetariRepo();
     expect(await edit(repo, "README.md")).toMatch(
-      /primary checkout on main.*\/factory/,
+      /primary checkout on main.*\/rivetari/,
     );
     expect(await edit(repo, join(repo, "src", "new", "file.ts"))).toMatch(
       /primary checkout on main/,
     );
   });
 
-  it("allows edits in a task's worktree, but never to .factory/**", async () => {
-    const { repo, worktree } = await factoryRepo();
+  it("allows edits in a task's worktree, but never to .rivetari/**", async () => {
+    const { repo, worktree } = await rivetariRepo();
     // The session's cwd is the primary checkout; the file is in the worktree.
     expect(await edit(repo, join(worktree, "README.md"))).toBeNull();
     expect(
-      await edit(worktree, join(worktree, ".factory", "waivers.yml")),
-    ).toMatch(/\.factory\/waivers\.yml is the factory's state/);
-    expect(await edit(repo, ".factory/tasks/T-0001/ledger.md")).toMatch(
-      /factory's state/,
+      await edit(worktree, join(worktree, ".rivetari", "waivers.yml")),
+    ).toMatch(/\.rivetari\/waivers\.yml is Rivetari's state/);
+    expect(await edit(repo, ".rivetari/tasks/T-0001/ledger.md")).toMatch(
+      /Rivetari's state/,
     );
   });
 
-  it("still guards .factory/** when the checkout is reached through a symlink", async () => {
-    const { repo } = await factoryRepo();
+  it("still guards .rivetari/** when the checkout is reached through a symlink", async () => {
+    const { repo } = await rivetariRepo();
     git(repo, "checkout", "-b", "by-hand");
-    const link = join(await tmp("factory-link-"), "repo");
+    const link = join(await tmp("rivetari-link-"), "repo");
     // A junction on Windows (no admin rights needed), a symlink elsewhere.
     await symlink(repo, link, "junction");
-    expect(await edit(link, join(link, ".factory", "waivers.yml"))).toMatch(
-      /factory's state/,
+    expect(await edit(link, join(link, ".rivetari", "waivers.yml"))).toMatch(
+      /Rivetari's state/,
     );
     expect(await edit(link, join(link, "README.md"))).toBeNull();
   });
 
-  it("allows edits on another branch, and in repos without a factory profile", async () => {
-    const { repo } = await factoryRepo();
+  it("allows edits on another branch, and in repos without a rivetari profile", async () => {
+    const { repo } = await rivetariRepo();
     git(repo, "checkout", "-b", "by-hand");
     expect(await edit(repo, "README.md")).toBeNull();
 
@@ -146,7 +146,7 @@ describe("parseShell", () => {
   it("treats heredoc bodies, comments and here-strings as data", () => {
     expect(
       parseShell(
-        "cat > notes.md <<'EOF'\nrm -rf .factory\nEOF\n# rm x\ngrep x <<< 'rm y' # rm z\nls",
+        "cat > notes.md <<'EOF'\nrm -rf .rivetari\nEOF\n# rm x\ngrep x <<< 'rm y' # rm z\nls",
       ).map(({ words, redirects }) => ({ words, redirects })),
     ).toEqual([
       { words: ["cat"], redirects: ["notes.md"] },
@@ -156,64 +156,66 @@ describe("parseShell", () => {
   });
 });
 
-describe("factory hook guard, for Bash", () => {
+describe("rivetari hook guard, for Bash", () => {
   const bash = (cwd: string, command: string) =>
     guardReason({ cwd, tool_input: { command } });
 
   it("refuses writes through Bash to anything the edit guard protects", async () => {
-    const { repo, worktree } = await factoryRepo();
+    const { repo, worktree } = await rivetariRepo();
     for (const command of [
-      "echo '[]' > .factory/waivers.yml",
-      "cd .factory && sed -i 's/x/y/' waivers.yml",
-      `cp /tmp/x ${posix(join(worktree, ".factory", "evidence.yml"))}`,
-      "rm -rf .factory/*",
+      "echo '[]' > .rivetari/waivers.yml",
+      "cd .rivetari && sed -i 's/x/y/' waivers.yml",
+      `cp /tmp/x ${posix(join(worktree, ".rivetari", "evidence.yml"))}`,
+      "rm -rf .rivetari/*",
       "printf x | tee README.md",
       "mv README.md docs.md",
       // `-t` names the destination: the source is only read.
-      "cp -t .factory /tmp/x",
-      "install --target-directory=.factory /tmp/x",
-      "echo x >& .factory/waivers.yml",
-      "sudo -u root rm .factory/profile.yml",
-      "env -i FOO=1 rm .factory/profile.yml",
-      "echo x \\\n  > .factory/waivers.yml",
+      "cp -t .rivetari /tmp/x",
+      "install --target-directory=.rivetari /tmp/x",
+      "echo x >& .rivetari/waivers.yml",
+      "sudo -u root rm .rivetari/profile.yml",
+      "env -i FOO=1 rm .rivetari/profile.yml",
+      "echo x \\\n  > .rivetari/waivers.yml",
     ])
       expect(await bash(repo, command), command).toMatch(
-        /this command (writes|removes) .*(factory's state|primary checkout on main)/,
+        /this command (writes|removes) .*(Rivetari's state|primary checkout on main)/,
       );
   });
 
   it("refuses wiping the checkout, whichever way it's spelled", async () => {
-    const { repo, worktree } = await factoryRepo();
+    const { repo, worktree } = await rivetariRepo();
     for (const command of ["rm -rf *", "rm -rf .", `rm -rf "$PWD"`])
       expect(await bash(repo, command), command).toMatch(
         /this command (writes|removes)/,
       );
-    // In a worktree: `.` holds .factory/**; `*` doesn't match dotfiles.
-    expect(await bash(worktree, "rm -rf .")).toMatch(/\.factory\/\*\* with it/);
+    // In a worktree: `.` holds .rivetari/**; `*` doesn't match dotfiles.
+    expect(await bash(worktree, "rm -rf .")).toMatch(
+      /\.rivetari\/\*\* with it/,
+    );
     expect(await bash(worktree, "cd .. && rm -rf T-0001")).toMatch(
-      /\.factory\/\*\* with it/,
+      /\.rivetari\/\*\* with it/,
     );
     expect(await bash(worktree, "rm -rf *")).toBeNull();
   });
 
   it("doesn't let a cd that may not have moved the shell hide a write", async () => {
-    const { repo, worktree } = await factoryRepo();
+    const { repo, worktree } = await rivetariRepo();
     const elsewhere = posix(await tmp("elsewhere-"));
     for (const command of [
-      `(cd ${elsewhere} && ls); rm -rf .factory`,
-      `cd /nonexistent; rm -rf .factory`,
-      `cd ${elsewhere} || true && rm -rf .factory`,
-      `cd ${elsewhere} | rm -rf .factory`,
+      `(cd ${elsewhere} && ls); rm -rf .rivetari`,
+      `cd /nonexistent; rm -rf .rivetari`,
+      `cd ${elsewhere} || true && rm -rf .rivetari`,
+      `cd ${elsewhere} | rm -rf .rivetari`,
     ])
       expect(await bash(worktree, command), command).toMatch(
-        /\.factory\/\*\* with it/,
+        /\.rivetari\/\*\* with it/,
       );
     // A cd that certainly moved does count: scratch work elsewhere is fine.
     expect(await bash(repo, `cd ${elsewhere} && echo x > out.txt`)).toBeNull();
   });
 
   it("only sees sed -i and perl -i as in-place", async () => {
-    const { repo } = await factoryRepo();
+    const { repo } = await rivetariRepo();
     expect(await bash(repo, "sed -Ei 's/a/b/' README.md")).toMatch(
       /writes README\.md/,
     );
@@ -224,36 +226,36 @@ describe("factory hook guard, for Bash", () => {
   });
 
   it("checks command lines run through sh -c and eval", async () => {
-    const { repo } = await factoryRepo();
+    const { repo } = await rivetariRepo();
     for (const command of [
-      `bash -lc "echo x > .factory/waivers.yml"`,
+      `bash -lc "echo x > .rivetari/waivers.yml"`,
       `sh -c 'git push --force'`,
-      "eval rm .factory/profile.yml",
+      "eval rm .rivetari/profile.yml",
     ])
       expect(await bash(repo, command), command).not.toBeNull();
     expect(await bash(repo, `bash -c "git status"`)).toBeNull();
   });
 
-  it("refuses Bash writes to .factory/** from a task's worktree too", async () => {
-    const { worktree } = await factoryRepo();
+  it("refuses Bash writes to .rivetari/** from a task's worktree too", async () => {
+    const { worktree } = await rivetariRepo();
     for (const command of [
-      "rm -rf .factory",
-      "rm -rf .factory/*",
-      "echo x > .factory/waivers.yml",
-      "echo x > ${PWD}/.factory/waivers.yml",
+      "rm -rf .rivetari",
+      "rm -rf .rivetari/*",
+      "echo x > .rivetari/waivers.yml",
+      "echo x > ${PWD}/.rivetari/waivers.yml",
     ])
       expect(await bash(worktree, command), command).toMatch(
-        /this command (writes|removes) .*factory's state/,
+        /this command (writes|removes) .*Rivetari's state/,
       );
   });
 
   it("lets reads, scratch writes and a task's worktree through", async () => {
-    const { repo, worktree } = await factoryRepo();
+    const { repo, worktree } = await rivetariRepo();
     for (const command of [
-      "cat .factory/profile.yml && git status 2>&1",
+      "cat .rivetari/profile.yml && git status 2>&1",
       "npm test > /dev/null",
       `echo x > "${join(tmpdir(), "scratch.txt")}"`,
-      "cat > notes.md <<'EOF'\nrm -rf .factory\nEOF",
+      "cat > notes.md <<'EOF'\nrm -rf .rivetari\nEOF",
       "sed 's/x/y/' README.md",
     ])
       expect(await bash(worktree, command), command).toBeNull();
@@ -262,8 +264,8 @@ describe("factory hook guard, for Bash", () => {
     ).toBeNull();
   });
 
-  it("refuses git commands that destroy work, in a factory repo only", async () => {
-    const { repo, worktree } = await factoryRepo();
+  it("refuses git commands that destroy work, in a rivetari repo only", async () => {
+    const { repo, worktree } = await rivetariRepo();
     for (const command of [
       "git push --force origin main",
       "git push -uf origin fix/t-0001",
@@ -291,16 +293,16 @@ describe("factory hook guard, for Bash", () => {
   });
 });
 
-describe("factory hook session-start", () => {
+describe("rivetari hook session-start", () => {
   it("says on its first line whether the guard is on", async () => {
-    const { repo } = await factoryRepo();
+    const { repo } = await rivetariRepo();
     expect((await sessionStartText(repo)).split("\n")[0]).toMatch(
-      /^factory guard: OFF\. no \.claude\/settings\.json/,
+      /^rivetari guard: OFF\. no \.claude\/settings\.json/,
     );
     await mkdir(join(repo, ".claude"));
     await writeFile(join(repo, ".claude", "settings.json"), SETTINGS_JSON);
     expect((await sessionStartText(repo)).split("\n")[0]).toBe(
-      "factory guard: on.",
+      "rivetari guard: on.",
     );
     // An earlier init's hook: no Bash, and it fails open.
     await writeFile(
@@ -310,19 +312,19 @@ describe("factory hook session-start", () => {
           PreToolUse: [
             {
               matcher: "Edit|Write|MultiEdit|NotebookEdit",
-              hooks: [{ type: "command", command: "factory hook guard" }],
+              hooks: [{ type: "command", command: "rivetari hook guard" }],
             },
           ],
         },
       }),
     );
-    expect((await guardSelfTest(repo)).detail).toMatch(/older factory/);
+    expect((await guardSelfTest(repo)).detail).toMatch(/older rivetari/);
   });
 
   it("states the contract and points at a missing AGENTS.md", async () => {
-    const { repo } = await factoryRepo();
+    const { repo } = await rivetariRepo();
     const text = await sessionStartText(repo);
-    expect(text).toContain("Start every task with /factory");
+    expect(text).toContain("Start every task with /rivetari");
     expect(text).toContain(
       "Beats: sync → intake → route → isolate → build → prove → judge → ship → close",
     );
@@ -330,7 +332,7 @@ describe("factory hook session-start", () => {
   });
 
   it("lists the tasks waiting on a person under Needs you", async () => {
-    const { repo } = await factoryRepo();
+    const { repo } = await rivetariRepo();
     const waiting = await newTask(
       repo,
       {
@@ -348,9 +350,9 @@ describe("factory hook session-start", () => {
   });
 });
 
-describe("factory doctor", () => {
+describe("rivetari doctor", () => {
   it("fails without a profile or the claude CLI, and warns without GitHub", async () => {
-    const dir = await tmp("factory-doctor-");
+    const dir = await tmp("rivetari-doctor-");
     git(dir, "init", "-b", "main");
     const checks = await doctorChecks(dir, {
       token: null,
@@ -367,7 +369,7 @@ describe("factory doctor", () => {
   });
 
   it("passes a set-up repo whose hooks are live and skills match the lock", async () => {
-    const { repo } = await factoryRepo();
+    const { repo } = await rivetariRepo();
     await mkdir(join(repo, ".claude"));
     await writeFile(join(repo, ".claude", "settings.json"), SETTINGS_JSON);
     const checks = await doctorChecks(repo, {
@@ -381,8 +383,8 @@ describe("factory doctor", () => {
     );
   });
 
-  it("fails while the guard can't run: not installed, or factory off PATH", async () => {
-    const { repo } = await factoryRepo();
+  it("fails while the guard can't run: not installed, or rivetari off PATH", async () => {
+    const { repo } = await rivetariRepo();
     const hooks = async (guardInShell: () => Promise<boolean>) =>
       (
         await doctorChecks(repo, {
@@ -404,9 +406,9 @@ describe("factory doctor", () => {
   });
 });
 
-describe("factory doctor's temp check", () => {
+describe("rivetari doctor's temp check", () => {
   it("warns only when the temp folder is crowded, and names it", async () => {
-    const dir = await tmp("factory-temp-");
+    const dir = await tmp("rivetari-temp-");
     for (const n of ["a", "b", "c"]) await mkdir(join(dir, n));
     expect(await tempCheck(dir, 10)).toBeNull();
     const warn = await tempCheck(dir, 3);

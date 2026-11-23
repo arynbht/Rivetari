@@ -2,4 +2,4 @@
 
 @AGENTS.md
 
-Start every task with `/factory`. The contract above applies to Claude Code too.
+Start every task with `/rivetari`. The contract above applies to Claude Code too.

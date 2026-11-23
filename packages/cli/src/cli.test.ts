@@ -11,14 +11,14 @@ const sub = (parent: Command, name: string): Command => {
   return found;
 };
 
-describe("factory hook guard --help", () => {
+describe("rivetari hook guard --help", () => {
   const hook = sub(buildProgram(), "hook");
   const guard = sub(hook, "guard");
 
   it("names everything the guard refuses", () => {
     const help = flat(guard.helpInformation());
     for (const refused of [
-      ".factory/**",
+      ".rivetari/**",
       "primary checkout on the default branch",
       "shell commands that write them",
       "force push",
@@ -30,7 +30,7 @@ describe("factory hook guard --help", () => {
       expect(help).toContain(refused);
   });
 
-  it("is listed under factory hook --help with the same description", () => {
+  it("is listed under rivetari hook --help with the same description", () => {
     const help = flat(hook.helpInformation());
     expect(help).toContain(`guard ${flat(guard.description())}`);
   });

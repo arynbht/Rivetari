@@ -1,5 +1,5 @@
 {
-  "name": "@arynbht/factory-engine",
+  "name": "@arynbht/rivetari-engine",
   "version": "1.0.0",
   "description": "Headless engine: resolves a profile, runs detectors, evaluates gates, and runs generators.",
   "license": "MIT",
@@ -18,7 +18,7 @@
   "scripts": {},
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
-    "@arynbht/factory-catalog": "workspace:*",
+    "@arynbht/rivetari-catalog": "workspace:*",
     "@octokit/rest": "^22.0.1",
     "eta": "^4.6.0",
     "jsonc-parser": "^3.3.1",

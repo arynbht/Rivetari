@@ -1,5 +1,5 @@
 {
-  "name": "@arynbht/factory-catalog",
+  "name": "@arynbht/rivetari-catalog",
   "version": "1.0.0",
   "description": "Control catalog: YAML controls, gates, templates, prompts, and the zod schema that validates them.",
   "license": "MIT",

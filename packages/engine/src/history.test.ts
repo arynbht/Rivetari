@@ -14,9 +14,9 @@ afterEach(async () => {
 });
 
 async function repo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-hist-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-hist-"));
   made.push(dir);
-  await mkdir(join(dir, ".factory"), { recursive: true });
+  await mkdir(join(dir, ".rivetari"), { recursive: true });
   return dir;
 }
 

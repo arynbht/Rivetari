@@ -24,10 +24,10 @@ async function tmp(prefix: string): Promise<string> {
 // A git repo on branch `main` with a bare `origin` remote and a clean tree.
 async function repoWithRemote(): Promise<string> {
   const { simpleGit } = await import("simple-git");
-  const bare = await tmp("factory-remote-");
+  const bare = await tmp("rivetari-remote-");
   await simpleGit(bare).init(true);
 
-  const work = await tmp("factory-work-");
+  const work = await tmp("rivetari-work-");
   const git = simpleGit(work);
   await git.init();
   await git.addConfig("user.email", "test@example.com");
@@ -72,22 +72,22 @@ describe("openFixPr", () => {
     );
 
     expect(result.pushed).toBe(true);
-    expect(result.branch).toBe("factory/2026-11-01-scaffold");
+    expect(result.branch).toBe("rivetari/2026-11-01-scaffold");
     expect(result.base).toBe("main");
     expect(result.commits).toHaveLength(2);
     expect(result.pr?.number).toBe(11);
     expect(calls[0]).toMatchObject({
-      head: "factory/2026-11-01-scaffold",
+      head: "rivetari/2026-11-01-scaffold",
       base: "main",
-      title: "chore(factory): 2 fixes for scaffold",
+      title: "chore(rivetari): 2 fixes for scaffold",
     });
 
     const { simpleGit } = await import("simple-git");
     const git = simpleGit(work);
     // We end back on the base branch.
     expect((await git.revparse(["--abbrev-ref", "HEAD"])).trim()).toBe("main");
-    // The factory branch exists and carries the commits.
-    const log = await git.log(["factory/2026-11-01-scaffold"]);
+    // Rivetari branch exists and carries the commits.
+    const log = await git.log(["rivetari/2026-11-01-scaffold"]);
     const messages = log.all.map((c) => c.message);
     expect(messages.some((m) => m.includes("doc.readme"))).toBe(true);
     expect(messages.some((m) => m.includes("repo.license"))).toBe(true);
@@ -113,7 +113,7 @@ describe("openFixPr", () => {
 
     const { simpleGit } = await import("simple-git");
     const branches = await simpleGit(work).branchLocal();
-    expect(branches.all).not.toContain("factory/2026-11-01-scaffold");
+    expect(branches.all).not.toContain("rivetari/2026-11-01-scaffold");
     expect(branches.current).toBe("main");
   });
 
@@ -134,7 +134,7 @@ describe("openFixPr", () => {
 
     const { simpleGit } = await import("simple-git");
     const git = simpleGit(work);
-    // Despite the failure, the working tree is back on base, not the factory branch.
+    // Despite the failure, the working tree is back on base, not Rivetari branch.
     expect((await git.revparse(["--abbrev-ref", "HEAD"])).trim()).toBe("main");
   }, 30_000);
 
@@ -224,7 +224,7 @@ describe("openFixPr", () => {
     expect((await git.revparse(["--abbrev-ref", "HEAD"])).trim()).toBe("main");
     // The reused branch is left in place (an open PR for it must not be disturbed).
     expect((await git.branchLocal()).all).toContain(
-      "factory/2026-11-01-scaffold",
+      "rivetari/2026-11-01-scaffold",
     );
   }, 30_000);
 });

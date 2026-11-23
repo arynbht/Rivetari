@@ -105,7 +105,7 @@ async function excludeWorktrees(repoPath: string): Promise<void> {
 }
 
 /**
- * `factory task isolate <id>` (the runtime does it after approval): create the
+ * `rivetari task isolate <id>` (the runtime does it after approval): create the
  * worktree and record it. Refuses until the route is approved, and twice; a
  * failure part-way leaves nothing behind, so a retry starts clean.
  */
@@ -124,7 +124,7 @@ export async function isolateTask(
     throw new TaskError(`task ${id} fails verification; not isolating`);
   if (!task.approved)
     throw new TaskError(
-      `task ${id}'s route isn't approved: \`factory task approve ${id}\``,
+      `task ${id}'s route isn't approved: \`rivetari task approve ${id}\``,
     );
   if ((await readEnv(repoPath, id)) !== null)
     throw new TaskError(`task ${id} already has a worktree`);
@@ -143,7 +143,7 @@ export async function isolateTask(
   const commonDir = (
     await git.raw(["rev-parse", "--path-format=absolute", "--git-common-dir"])
   ).trim();
-  const noHooks = join(commonDir, "factory-no-hooks");
+  const noHooks = join(commonDir, "rivetari-no-hooks");
   await mkdir(noHooks, { recursive: true });
   const unsafe = { allowUnsafeHooksPath: true };
   await simpleGit(repoPath, {
@@ -178,7 +178,7 @@ export async function isolateTask(
       beat: "isolate",
       section: "timeline",
       text: `worktree ${WORKTREES_DIR}/${id} · branch ${branch} from ${baseRef} (${base.slice(0, 12)}) · port ${isolation.port} · db ${isolation.database} · env sha256 ${sha256(text)}`,
-      by: `factory runtime (for ${options.by})`,
+      by: `rivetari runtime (for ${options.by})`,
       at: options.now,
     });
     return { task: await loadTask(repoPath, id), isolation };

@@ -82,7 +82,7 @@ export function Settings({
 
   useEffect(() => {
     let active = true;
-    window.factory.settings.load().then(
+    window.rivetari.settings.load().then(
       (v) => {
         if (!active) return;
         setView(v);
@@ -96,11 +96,11 @@ export function Settings({
   }, []);
 
   async function patch(
-    changes: Parameters<typeof window.factory.settings.save>[0],
+    changes: Parameters<typeof window.rivetari.settings.save>[0],
   ): Promise<void> {
     setError(null);
     try {
-      setView(await window.factory.settings.save(changes));
+      setView(await window.rivetari.settings.save(changes));
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -116,7 +116,7 @@ export function Settings({
     setSavingKey(true);
     setError(null);
     try {
-      setView(await window.factory.settings.setAnthropicKey(keyInput));
+      setView(await window.rivetari.settings.setAnthropicKey(keyInput));
       setKeyInput("");
     } catch (err) {
       setError(errorMessage(err));
@@ -129,7 +129,7 @@ export function Settings({
     setSavingKey(true);
     setError(null);
     try {
-      setView(await window.factory.settings.setAnthropicKey(""));
+      setView(await window.rivetari.settings.setAnthropicKey(""));
       setKeyInput("");
     } catch (err) {
       setError(errorMessage(err));
@@ -143,7 +143,7 @@ export function Settings({
     setUpdateError(null);
     setUpdate(null);
     try {
-      setUpdate(await window.factory.update.check());
+      setUpdate(await window.rivetari.update.check());
     } catch (err) {
       setUpdateError(errorMessage(err));
     } finally {

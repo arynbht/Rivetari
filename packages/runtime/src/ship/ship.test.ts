@@ -13,8 +13,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadHistory, type OpenPrParams } from "@arynbht/factory-engine";
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadHistory, type OpenPrParams } from "@arynbht/rivetari-engine";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -46,17 +46,17 @@ const tmp = async (prefix: string) => {
   made.push(dir);
   return dir;
 };
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const by = { by: "dev@example.com", now: new Date("2026-11-10T18:00:00Z") };
 const later = new Date("2026-11-10T20:38:00Z");
 let context: RouteContext;
 
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) {
     await simpleGit(d)
       .raw(["worktree", "prune"])
@@ -75,7 +75,7 @@ const TEST =
   'const t = require("node:test"); const a = require("node:assert"); const { total } = require("./total.js");\nt.test("sums", () => a.equal(total([1, 2, 3]), 6));\n';
 
 async function repoWith(files: Record<string, string>): Promise<string> {
-  const repo = await tmp("factory-ship-");
+  const repo = await tmp("rivetari-ship-");
   const git = simpleGit(repo);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
@@ -274,7 +274,7 @@ describe("judge, ship, close", { timeout: 180_000 }, () => {
     });
     expect(reviews[0]!.body).toMatch(
       new RegExp(
-        `^<!-- factory-task-review ${id} head=${judged.record.head} -->`,
+        `^<!-- rivetari-task-review ${id} head=${judged.record.head} -->`,
       ),
     );
     expect(reviews[0]!.body).toContain("review round 1");
@@ -352,7 +352,7 @@ describe("judge, ship, close", { timeout: 180_000 }, () => {
     await expect(closeTask(repo, id, by)).rejects.toThrow("already closed");
     // The task row shares history.jsonl without disturbing the posture trend.
     const lines = (
-      await readFile(join(repo, ".factory", "history.jsonl"), "utf8")
+      await readFile(join(repo, ".rivetari", "history.jsonl"), "utf8")
     ).trim();
     expect(JSON.parse(lines)).toMatchObject({ kind: "task", task: id });
     expect(await loadHistory(repo)).toEqual([]);
@@ -669,7 +669,7 @@ describe("judge, ship, close", { timeout: 180_000 }, () => {
       beat: "close",
       section: "outcome",
       text: "PR #4 merged by alice · 1h00m · 1k tokens · $0.10",
-      by: "factory runtime",
+      by: "rivetari runtime",
     });
     expect(nextStep(await loadTask(repo, id))).toMatch(/stopped part-way/);
     const { task, row } = await closeTask(repo, id, {
@@ -682,7 +682,7 @@ describe("judge, ship, close", { timeout: 180_000 }, () => {
     expect(task.entries.filter((e) => e.section === "outcome")).toHaveLength(1);
     expect(nextStep(task)).toBe("done");
     const rows = (
-      await readFile(join(repo, ".factory", "history.jsonl"), "utf8")
+      await readFile(join(repo, ".rivetari", "history.jsonl"), "utf8")
     )
       .trim()
       .split("\n");

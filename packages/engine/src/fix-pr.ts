@@ -43,18 +43,18 @@ export interface FixPrResult {
   skippedEffects: number;
 }
 
-const STATE_FILE = ".factory/state.json";
+const STATE_FILE = ".rivetari/state.json";
 
 /**
- * Apply file changes on a dedicated `factory/<date>-<gate>` branch, commit one per
+ * Apply file changes on a dedicated `Rivetari/<date>-<gate>` branch, commit one per
  * control, push, and open (or reuse) a pull request. Effects are skipped — a PR
  * can only carry file changes, not repo-setting mutations. Requires a clean
- * working tree so the PR contains only factory changes. If nothing changed, no
+ * working tree so the PR contains only Rivetari changes. If nothing changed, no
  * branch is left behind and no PR is opened.
  *
  * `changes` may be a planner instead of a list: it is called after the branch is
  * checked out, so a reused branch is planned against its own tip (with the
- * factory's earlier commits) rather than against the base it was cut from.
+ * Rivetari's earlier commits) rather than against the base it was cut from.
  */
 export async function openFixPr(
   ctx: AuditContext,
@@ -76,13 +76,13 @@ export async function openFixPr(
 
   const base = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
   // Detached HEAD reports the literal "HEAD"; opening a PR against it 422s and
-  // would strand the user on the factory branch, so refuse up front.
+  // would strand the user on Rivetari branch, so refuse up front.
   if (base === "HEAD" || base === "") {
     throw new FixPrError(
       "HEAD is detached; check out a branch before running fix --pr",
     );
   }
-  const branch = `factory/${options.date}-${options.gate}`;
+  const branch = `rivetari/${options.date}-${options.gate}`;
 
   const local = await git.branchLocal();
   const reusingBranch = local.all.includes(branch);
@@ -135,8 +135,8 @@ export async function openFixPr(
       await git.add(paths);
       const title = options.titles?.[controlId];
       const message = title
-        ? `chore(factory): ${controlId} — ${title}`
-        : `chore(factory): fix ${controlId}`;
+        ? `chore(rivetari): ${controlId} — ${title}`
+        : `chore(rivetari): fix ${controlId}`;
       await git.commit(message);
       commits.push({ controlId, message, paths });
     }
@@ -145,7 +145,7 @@ export async function openFixPr(
     const after = await git.status();
     if (after.files.some((f) => f.path === STATE_FILE)) {
       await git.add([STATE_FILE]);
-      await git.commit("chore(factory): update managed-file registry");
+      await git.commit("chore(rivetari): update managed-file registry");
     }
   } catch (err) {
     // Leave the tree on the base branch if we failed partway through.
@@ -216,7 +216,7 @@ async function defaultOpenPr(
 }
 
 function prTitle(count: number, gate: string): string {
-  return `chore(factory): ${count} fix${count === 1 ? "" : "es"} for ${gate}`;
+  return `chore(rivetari): ${count} fix${count === 1 ? "" : "es"} for ${gate}`;
 }
 
 function prBody(
@@ -224,7 +224,7 @@ function prBody(
   skippedEffects: number,
 ): string {
   const lines = [
-    "Automated remediation from `factory fix --pr`.",
+    "Automated remediation from `rivetari fix --pr`.",
     "",
     "### Controls fixed",
     ...commits.map(
@@ -235,7 +235,7 @@ function prBody(
   if (skippedEffects > 0) {
     lines.push(
       "",
-      `_${skippedEffects} setting change(s) could not be included in a PR; apply them with \`factory fix --write\`._`,
+      `_${skippedEffects} setting change(s) could not be included in a PR; apply them with \`rivetari fix --write\`._`,
     );
   }
   lines.push(

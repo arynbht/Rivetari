@@ -7,7 +7,7 @@ import {
   type Control,
   loadBundledCatalog,
   type Profile,
-} from "@arynbht/factory-catalog";
+} from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildContext } from "../context.js";
@@ -124,12 +124,12 @@ describe("renderTemplate", () => {
   });
 
   it("uses the context's injected `now` for the template year (no wall clock)", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-tmpl-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-tmpl-"));
     cleanup.push(dir);
     const { mkdir } = await import("node:fs/promises");
-    await mkdir(join(dir, ".factory"), { recursive: true });
+    await mkdir(join(dir, ".rivetari"), { recursive: true });
     await writeFile(
-      join(dir, ".factory", "profile.yml"),
+      join(dir, ".rivetari", "profile.yml"),
       "version: 1\nname: Acme\ntype: library\nproject:\n  license: MIT\n",
     );
 

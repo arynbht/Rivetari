@@ -25,7 +25,7 @@ export default {
     type: "problem",
     docs: {
       description:
-        "No pattern from the repo's banned list (.factory/banned.json), which the judge also enforces on every change",
+        "No pattern from the repo's banned list (.rivetari/banned.json), which the judge also enforces on every change",
     },
     messages: {
       banned: "{{id}} is banned here: {{why}}",

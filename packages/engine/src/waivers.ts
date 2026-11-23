@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { type Waiver, WaiversSchema } from "@arynbht/factory-catalog";
+import { type Waiver, WaiversSchema } from "@arynbht/rivetari-catalog";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 import { DAY_MS, endOfDayMs } from "./dates.js";
@@ -9,11 +9,11 @@ import { writeFileAtomic } from "./fs-atomic.js";
 
 export class WaiverError extends Error {}
 
-/** Load `.factory/waivers.yml` (missing → none; invalid → {@link WaiverError}). */
+/** Load `.rivetari/waivers.yml` (missing → none; invalid → {@link WaiverError}). */
 export async function loadWaivers(repoPath: string): Promise<Waiver[]> {
   let raw: string;
   try {
-    raw = await readFile(resolve(repoPath, ".factory", "waivers.yml"), "utf8");
+    raw = await readFile(resolve(repoPath, ".rivetari", "waivers.yml"), "utf8");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw err;
@@ -85,7 +85,7 @@ export async function addWaiver(
     throw new WaiverError(`invalid waiver: ${result.error.issues[0]?.message}`);
   }
   await writeFileAtomic(
-    resolve(repoPath, ".factory", "waivers.yml"),
+    resolve(repoPath, ".rivetari", "waivers.yml"),
     stringifyYaml(result.data),
   );
   return result.data;

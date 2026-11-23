@@ -1,17 +1,17 @@
 // Coverage ratchet: the floor is the profile's `quality.coverage`, else the
-// baseline recorded in `.factory/quality.json` at the first measured run. The
+// baseline recorded in `.rivetari/quality.json` at the first measured run. The
 // baseline only ever moves up.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { DetectorConfig } from "@arynbht/factory-catalog";
+import type { DetectorConfig } from "@arynbht/rivetari-catalog";
 
 import type { AuditContext } from "./context.js";
 import type { DetectorResult } from "./detectors/types.js";
 import { compileRegex, splitGlobs } from "./detectors/util.js";
 import { writeFileAtomic } from "./fs-atomic.js";
 
-export const QUALITY_FILE = ".factory/quality.json";
+export const QUALITY_FILE = ".rivetari/quality.json";
 export const DEFAULT_SUMMARY = "coverage/coverage-summary.json";
 
 export interface QualityBaseline {
@@ -90,7 +90,7 @@ export async function coverageDetector(
         }
       : {
           status: "skip",
-          message: `no ${summary}; run the tests (or \`factory judge\`) to measure`,
+          message: `no ${summary}; run the tests (or \`rivetari judge\`) to measure`,
         };
   }
 
@@ -101,7 +101,7 @@ export async function coverageDetector(
   if (floor === undefined) {
     return {
       status: "pass",
-      message: `${measured}% lines; no floor yet — \`factory audit\` records this as the baseline`,
+      message: `${measured}% lines; no floor yet — \`rivetari audit\` records this as the baseline`,
     };
   }
   const source = set !== undefined ? "profile quality.coverage" : QUALITY_FILE;

@@ -1,12 +1,12 @@
 ---
-"@arynbht/factory-runtime": minor
-"@arynbht/factory-engine": minor
-"@arynbht/factory-catalog": minor
-"@arynbht/factory": minor
+"@arynbht/rivetari-runtime": minor
+"@arynbht/rivetari-engine": minor
+"@arynbht/rivetari-catalog": minor
+"@arynbht/rivetari": minor
 ---
 
-Factory v2 step 4: judge tier 2. `factory review` (local, or `--pr <n>` to post one PR
-review) and `factory judge --review` (tier 1, then tier 2 unless tier 1 needs a human).
+Rivetari v2 step 4: judge tier 2. `rivetari review` (local, or `--pr <n>` to post one PR
+review) and `rivetari judge --review` (tier 1, then tier 2 unless tier 1 needs a human).
 Only defects, contract breaches and unmet acceptance criteria block; everything else
 is a suggestion. Each blocking finding is re-checked in a fresh context and downgraded
 without a concrete reproduction. Two rounds, then needs-human. The model sees only the

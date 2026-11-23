@@ -1,4 +1,4 @@
-import type { DetectorConfig } from "@arynbht/factory-catalog";
+import type { DetectorConfig } from "@arynbht/rivetari-catalog";
 import { type ParseError, parse as parseJsonc } from "jsonc-parser";
 
 import type { AuditContext } from "../context.js";

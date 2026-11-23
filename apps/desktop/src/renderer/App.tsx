@@ -108,9 +108,9 @@ function TabBar({
 }
 
 export function App() {
-  // The preload exposes `window.factory`; if it failed to load, surface a clear
+  // The preload exposes `window.rivetari`; if it failed to load, surface a clear
   // message instead of letting every handler throw into a blank screen.
-  const bridgeReady = typeof window.factory !== "undefined";
+  const bridgeReady = typeof window.rivetari !== "undefined";
   const [repos, setRepos] = useState<RepoEntry[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<ScorecardData | null>(null);
@@ -143,17 +143,17 @@ export function App() {
 
   useEffect(() => {
     if (!bridgeReady) return;
-    window.factory.repos.list().then(setRepos, (err: unknown) => {
+    window.rivetari.repos.list().then(setRepos, (err: unknown) => {
       setError(errorMessage(err));
     });
     // Apply the saved theme as early as possible (index.html defaults to dark).
-    window.factory.settings.load().then(
+    window.rivetari.settings.load().then(
       (s) => {
         setTheme(s.theme);
         applyTheme(s.theme);
         // Opt-in launch update check; show a banner only if one is available.
         if (s.autoCheckUpdates) {
-          window.factory.update.check().then(
+          window.rivetari.update.check().then(
             (info) => info.updateAvailable && setUpdateBanner(info),
             () => {
               // A failed launch check is silent; the user can retry in Settings.
@@ -180,7 +180,7 @@ export function App() {
   async function handleAdd(): Promise<void> {
     setError(null);
     try {
-      setRepos(await window.factory.repos.add());
+      setRepos(await window.rivetari.repos.add());
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -189,7 +189,7 @@ export function App() {
   async function handleRemove(path: string): Promise<void> {
     setError(null);
     try {
-      setRepos(await window.factory.repos.remove(path));
+      setRepos(await window.rivetari.repos.remove(path));
       if (selected === path) {
         setSelected(null);
         setScorecard(null);
@@ -224,7 +224,7 @@ export function App() {
     const run = ++floorPlanRun.current;
     setFloorPlanRunning(true);
     setFloorPlanError(null);
-    window.factory.floorplan
+    window.rivetari.floorplan
       .run(path)
       .catch((err: unknown) => {
         if (run === floorPlanRun.current) setFloorPlanError(errorMessage(err));
@@ -244,7 +244,7 @@ export function App() {
     // background while the (instant) scorecard renders.
     triggerFloorPlan(selected);
     try {
-      setScorecard(await window.factory.audit.run(selected));
+      setScorecard(await window.rivetari.audit.run(selected));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -269,7 +269,7 @@ export function App() {
     <div className="flex h-screen">
       <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-card/30">
         <div className="flex items-center justify-between p-4">
-          <h1 className="text-sm font-semibold tracking-tight">Factory</h1>
+          <h1 className="text-sm font-semibold tracking-tight">Rivetari</h1>
           <Button
             size="sm"
             variant="secondary"

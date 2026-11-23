@@ -4,7 +4,7 @@ export default {
       name: "engine-stays-below-runtime-and-cli",
       severity: "error",
       from: { path: "^packages/engine/" },
-      to: { path: "^(packages/(runtime|cli)/|@arynbht/factory(-runtime)?$)" },
+      to: { path: "^(packages/(runtime|cli)/|@arynbht/rivetari(-runtime)?$)" },
     },
     {
       name: "agent-doesnt-touch-the-ledger",
@@ -16,20 +16,20 @@ export default {
       name: "only-cli-imports-runtime",
       severity: "error",
       from: { path: "^(packages|apps)/", pathNot: "^packages/(runtime|cli)/" },
-      to: { path: "^(packages/runtime/|@arynbht/factory-runtime$)" },
+      to: { path: "^(packages/runtime/|@arynbht/rivetari-runtime$)" },
     },
     {
       name: "only-action-imports-cli",
       severity: "error",
       from: { path: "^(packages|apps)/", pathNot: "^packages/(cli|action)/" },
-      to: { path: "^(packages/cli/|@arynbht/factory$)" },
+      to: { path: "^(packages/cli/|@arynbht/rivetari$)" },
     },
     {
       name: "catalog-imports-no-workspace-package",
       severity: "error",
       from: { path: "^packages/catalog/" },
       to: {
-        path: "^(packages/(engine|registry|runtime|cli)/|@arynbht/factory(-engine|-registry|-runtime)?$)",
+        path: "^(packages/(engine|registry|runtime|cli)/|@arynbht/rivetari(-engine|-registry|-runtime)?$)",
       },
     },
     {

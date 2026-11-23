@@ -1,5 +1,5 @@
 // A transport that runs the local Claude Code CLI in headless mode instead of the
-// metered Messages API — so the factory's AI uses the developer's Claude
+// metered Messages API — so Rivetari's AI uses the developer's Claude
 // subscription (`claude login`), not an API key. The subprocess runner is
 // injectable so the JSON parsing is unit-tested without spawning anything.
 import { spawn } from "node:child_process";
@@ -101,7 +101,7 @@ export function parseClaudeJson(
  * prompt (the context packer's output) and can't reach anything else.
  *  - no tools, so it can't read `.env` or any file;
  *  - safe mode: no CLAUDE.md, skills, plugins, hooks or MCP from any repo or
- *    user config (the factory never honours a target repo's .claude settings);
+ *    user config (Rivetari never honours a target repo's .claude settings);
  *  - no saved session.
  */
 export const LOCKED_DOWN_ARGS = [
@@ -130,7 +130,7 @@ export function claudeCliTransport(
       if (req.system) args.push("--append-system-prompt", req.system);
       // An empty working directory: even a tool that slipped through finds
       // nothing to read.
-      const cwd = await mkdtemp(join(tmpdir(), "factory-claude-"));
+      const cwd = await mkdtemp(join(tmpdir(), "rivetari-claude-"));
       let stdout: string;
       try {
         stdout = await run(args, req.prompt, signal, cwd);

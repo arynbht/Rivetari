@@ -2,12 +2,12 @@ import { access, readFile, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { runTool } from "@arynbht/factory-engine";
-import { BEATS, listTasks, nextStep } from "@arynbht/factory-runtime";
+import { runTool } from "@arynbht/rivetari-engine";
+import { BEATS, listTasks, nextStep } from "@arynbht/rivetari-runtime";
 
-import { GUARD_COMMAND, GUARD_MATCHER, isFactoryHook } from "./init-files.js";
+import { GUARD_COMMAND, GUARD_MATCHER, isRivetariHook } from "./init-files.js";
 
-// Claude Code hooks that `factory init` installs in `.claude/settings.json`
+// Claude Code hooks that `rivetari init` installs in `.claude/settings.json`
 //. They run in the person's interactive session, not the sector agent's
 // (which runs with no repo hooks at all).
 
@@ -36,19 +36,19 @@ export interface HookInput {
   };
 }
 
-/** The top of the factory repo `dir` is in, or null outside one. */
-async function factoryTop(dir: string): Promise<string | null> {
+/** The top of Rivetari repo `dir` is in, or null outside one. */
+async function rivetariTop(dir: string): Promise<string | null> {
   const top = await git(["rev-parse", "--show-toplevel"], dir);
-  return top && (await exists(join(top, ".factory", "profile.yml")))
+  return top && (await exists(join(top, ".rivetari", "profile.yml")))
     ? top
     : null;
 }
 
 /**
  * Why writing `abs` must not happen, or null when it may: anything under
- * `.factory/**` (the runtime's state), and anything in the primary checkout
+ * `.rivetari/**` (the runtime's state), and anything in the primary checkout
  * while it's on the default branch (work happens in a task's worktree).
- * Only in repos with a factory profile.
+ * Only in repos with a rivetari profile.
  */
 async function pathReason(abs: string): Promise<string | null> {
   // The file may be new: ask git about the nearest directory that exists. A
@@ -59,7 +59,7 @@ async function pathReason(abs: string): Promise<string | null> {
     if (up === dir) return null;
     dir = up;
   }
-  const top = await factoryTop(dir);
+  const top = await rivetariTop(dir);
   if (!top) return null;
 
   // git reports the physical path; canonicalise the file's side the same way,
@@ -68,8 +68,8 @@ async function pathReason(abs: string): Promise<string | null> {
   const rel = relative(await realpath(top), physical)
     .split(sep)
     .join("/");
-  if (rel === ".factory" || rel.startsWith(".factory/"))
-    return `${rel} is the factory's state: the runtime writes it, and a person edits it by hand. Use the factory CLI (\`factory task …\`, \`factory waive\`, \`factory profile set\`) instead.`;
+  if (rel === ".rivetari" || rel.startsWith(".rivetari/"))
+    return `${rel} is Rivetari's state: the runtime writes it, and a person edits it by hand. Use Rivetari CLI (\`rivetari task …\`, \`rivetari waive\`, \`rivetari profile set\`) instead.`;
 
   // A task's worktree is a linked worktree: its git dir isn't the common one.
   const gitDir = await git(["rev-parse", "--absolute-git-dir"], dir);
@@ -88,7 +88,7 @@ async function pathReason(abs: string): Promise<string | null> {
     ? [originHead.replace(/^refs\/remotes\/origin\//, "")]
     : ["main", "master"];
   if (branch && defaults.includes(branch))
-    return `this is the primary checkout on ${branch}. Changes go through a task: start one with /factory (it works in .worktrees/<id> and opens a PR), or switch to a branch for a change you're making by hand.`;
+    return `this is the primary checkout on ${branch}. Changes go through a task: start one with /rivetari (it works in .worktrees/<id> and opens a PR), or switch to a branch for a change you're making by hand.`;
   return null;
 }
 
@@ -327,7 +327,7 @@ function wordPath(word: string, cwd: string): string | null {
 /**
  * Why a git command must not run here, or null: the ones that destroy work
  * or history (force push, remote delete, hard reset, clean, force-deleting a
- * branch), in a factory repo. A person runs those themselves.
+ * branch), in a Rivetari repo. A person runs those themselves.
  */
 async function gitReason(args: string[], cwd: string): Promise<string | null> {
   let dir = cwd;
@@ -373,8 +373,8 @@ async function gitReason(args: string[], cwd: string): Promise<string | null> {
   ) {
     what = "force-deleting a branch can lose commits nothing else points at";
   }
-  if (!what || !(await factoryTop(dir))) return null;
-  return `${what}. In a factory repo Claude doesn't run it; if you mean it, run it yourself in a terminal.`;
+  if (!what || !(await rivetariTop(dir))) return null;
+  return `${what}. In a rivetari repo Claude doesn't run it; if you mean it, run it yourself in a terminal.`;
 }
 
 /** Commands that run another command, and their options that take a value. */
@@ -395,19 +395,19 @@ const SHELLS = new Set(["sh", "bash", "zsh", "dash"]);
 const REMOVES = new Set(["rm", "rmdir", "unlink", "mv"]);
 
 /**
- * Is `abs` a factory's state directory, or a directory that holds one: the
+ * Is `abs` a Rivetari's state directory, or a directory that holds one: the
  * state of the repo the command runs in, or of a checkout `abs` is in (a
- * task's worktree has its own `.factory/`)?
+ * task's worktree has its own `.rivetari/`)?
  */
-async function holdsFactoryState(abs: string, cwd: string): Promise<boolean> {
+async function holdsRivetariState(abs: string, cwd: string): Promise<boolean> {
   const target = await realpath(abs).catch(() => abs);
   const tops = [
-    await factoryTop(cwd),
-    (await isDirectory(target)) ? await factoryTop(target) : null,
+    await rivetariTop(cwd),
+    (await isDirectory(target)) ? await rivetariTop(target) : null,
   ];
   for (const top of tops) {
     if (!top) continue;
-    const rel = relative(target, join(await realpath(top), ".factory"));
+    const rel = relative(target, join(await realpath(top), ".rivetari"));
     if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) return true;
   }
   return false;
@@ -505,7 +505,7 @@ async function commandReason(
   for (const target of [...redirects, ...writeTargets(name, args)]) {
     const abs = wordPath(target, dir);
     // A glob stands for what's in its directory, and only matches the
-    // dot-directory .factory when the globbed part starts with a dot.
+    // dot-directory .rivetari when the globbed part starts with a dot.
     const glob = target.search(/[*?[]/);
     const dotted =
       glob === -1 ||
@@ -514,9 +514,9 @@ async function commandReason(
       abs &&
       dotted &&
       REMOVES.has(name) &&
-      (await holdsFactoryState(abs, dir))
+      (await holdsRivetariState(abs, dir))
     )
-      return `this command removes ${target}, and .factory/** with it: the factory's state is the runtime's to change. Use the factory CLI instead.`;
+      return `this command removes ${target}, and .rivetari/** with it: Rivetari's state is the runtime's to change. Use Rivetari CLI instead.`;
     const reason = abs ? await pathReason(abs) : null;
     if (reason)
       return `this command writes ${target}, and ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`;
@@ -534,7 +534,7 @@ export async function guardReason(input: HookInput): Promise<string | null> {
   return pathReason(isAbsolute(target) ? target : resolve(cwd, target));
 }
 
-/** `factory hook guard`: a PreToolUse hook; exit 2 blocks the call and tells Claude why. */
+/** `rivetari hook guard`: a PreToolUse hook; exit 2 blocks the call and tells Claude why. */
 export async function runHookGuard(): Promise<number> {
   let input: HookInput = {};
   try {
@@ -546,15 +546,15 @@ export async function runHookGuard(): Promise<number> {
   }
   const reason = await guardReason(input);
   if (!reason) return 0;
-  process.stderr.write(`factory: ${reason}\n`);
+  process.stderr.write(`rivetari: ${reason}\n`);
   return 2;
 }
 
 /**
  * Is the guard live in `root` ? The current guard hook must be in
  * `.claude/settings.json` (Claude Code reads no other file of ours) with a
- * matcher covering edits and Bash, and it must refuse a `.factory/**` edit.
- * Run in-process: whether `factory` is on PATH is `factory doctor`'s check.
+ * matcher covering edits and Bash, and it must refuse a `.rivetari/**` edit.
+ * Run in-process: whether `Rivetari` is on PATH is `rivetari doctor`'s check.
  */
 export async function guardSelfTest(
   root: string,
@@ -579,15 +579,15 @@ export async function guardSelfTest(
   }
   const ours = groups.filter((g) =>
     (Array.isArray(g?.hooks) ? g.hooks : []).some((h) =>
-      isFactoryHook(h?.command),
+      isRivetariHook(h?.command),
     ),
   );
   if (ours.length === 0)
     return {
       ok: false,
       detail: text
-        ? ".claude/settings.json has no factory guard hook: run `factory init` to merge it in"
-        : "no .claude/settings.json: run `factory init`",
+        ? ".claude/settings.json has no rivetari guard hook: run `rivetari init` to merge it in"
+        : "no .claude/settings.json: run `rivetari init`",
     };
   const current = ours.some(
     (g) =>
@@ -598,18 +598,18 @@ export async function guardSelfTest(
     return {
       ok: false,
       detail:
-        "the guard hook is from an older factory (it misses Bash, or fails open): run `factory init` to update it",
+        "the guard hook is from an older rivetari (it misses Bash, or fails open): run `rivetari init` to update it",
     };
   const blocks = await guardReason({
     cwd: root,
-    tool_input: { file_path: join(root, ".factory", "profile.yml") },
+    tool_input: { file_path: join(root, ".rivetari", "profile.yml") },
   });
   return blocks
     ? {
         ok: true,
-        detail: "the guard hook is installed and refuses a .factory/** edit",
+        detail: "the guard hook is installed and refuses a .rivetari/** edit",
       }
-    : { ok: false, detail: "the guard let a .factory/** edit through" };
+    : { ok: false, detail: "the guard let a .rivetari/** edit through" };
 }
 
 /** What a session in this repo starts with: the guard's state, the contract in brief, and open tasks. */
@@ -618,16 +618,16 @@ export async function sessionStartText(root: string): Promise<string> {
   const lines = [
     // First line, so a dead guard can't go unnoticed.
     guard.ok
-      ? "factory guard: on."
-      : `factory guard: OFF. ${guard.detail}. Until it's fixed, nothing stops edits to .factory/** or to this checkout on the default branch.`,
-    "This repo runs on the factory (see AGENTS.md).",
-    "Start every task with /factory. The work happens in .worktrees/<id>, never in this checkout on the default branch.",
-    `Beats: sync → ${BEATS.join(" → ")}. A person confirms the card, approves the route, answers stop-and-ask questions, and merges; the factory never merges.`,
+      ? "rivetari guard: on."
+      : `rivetari guard: OFF. ${guard.detail}. Until it's fixed, nothing stops edits to .rivetari/** or to this checkout on the default branch.`,
+    "This repo runs on Rivetari (see AGENTS.md).",
+    "Start every task with /rivetari. The work happens in .worktrees/<id>, never in this checkout on the default branch.",
+    `Beats: sync → ${BEATS.join(" → ")}. A person confirms the card, approves the route, answers stop-and-ask questions, and merges; Rivetari never merges.`,
   ];
   const agents = await readFile(join(root, "AGENTS.md"), "utf8").catch(
     () => null,
   );
-  if (!agents) lines.push("(AGENTS.md is missing: run `factory init`.)");
+  if (!agents) lines.push("(AGENTS.md is missing: run `rivetari init`.)");
   const open = await listTasks(root)
     .then((tasks) => tasks.filter((t) => nextStep(t) !== "done"))
     .catch(() => []);
@@ -649,7 +649,7 @@ export async function sessionStartText(root: string): Promise<string> {
   return `${lines.join("\n")}\n`;
 }
 
-/** `factory hook session-start`: printed into the session's context. */
+/** `rivetari hook session-start`: printed into the session's context. */
 export async function runHookSessionStart(path: string): Promise<number> {
   process.stdout.write(await sessionStartText(resolve(path)));
   return 0;

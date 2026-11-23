@@ -3,8 +3,12 @@ import { access, opendir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { githubToken, resolveRepoSlug, runTool } from "@arynbht/factory-engine";
-import { skillsStatus } from "@arynbht/factory-registry";
+import {
+  githubToken,
+  resolveRepoSlug,
+  runTool,
+} from "@arynbht/rivetari-engine";
+import { skillsStatus } from "@arynbht/rivetari-registry";
 
 import { guardSelfTest } from "./hook.js";
 
@@ -21,13 +25,13 @@ const exists = (path: string) =>
     .catch(() => false);
 
 /**
- * Run the guard the way Claude Code does, through a shell, on a `.factory/**`
- * edit: true when it ran and refused it. `factory` missing from that shell's
+ * Run the guard the way Claude Code does, through a shell, on a `.rivetari/**`
+ * edit: true when it ran and refused it. `Rivetari` missing from that shell's
  * PATH is the case this catches.
  */
 function guardRunsInShell(root: string): Promise<boolean> {
   return new Promise((done) => {
-    const child = spawn("factory hook guard", {
+    const child = spawn("rivetari hook guard", {
       cwd: root,
       shell: true,
       stdio: ["pipe", "ignore", "pipe"],
@@ -39,12 +43,12 @@ function guardRunsInShell(root: string): Promise<boolean> {
     // A shell that exits before reading its input mustn't crash doctor.
     child.stdin.on("error", () => undefined);
     child.on("close", (code) =>
-      done(code === 2 && stderr.startsWith("factory: ")),
+      done(code === 2 && stderr.startsWith("rivetari: ")),
     );
     child.stdin.end(
       JSON.stringify({
         cwd: root,
-        tool_input: { file_path: join(root, ".factory", "profile.yml") },
+        tool_input: { file_path: join(root, ".rivetari", "profile.yml") },
       }),
     );
   });
@@ -52,7 +56,7 @@ function guardRunsInShell(root: string): Promise<boolean> {
 
 /**
  * The machine and the repo, checked before a task starts: a git repo
- * with a factory profile, its guard hook live, the Claude CLI the agent runs
+ * with a rivetari profile, its guard hook live, the Claude CLI the agent runs
  * on, a way to reach GitHub for ship and close, and skills that match their
  * lock.
  */
@@ -74,14 +78,14 @@ export async function doctorChecks(
       : { name: "git", status: "fail", detail: "not a git repository" },
   );
 
-  const profile = await exists(join(root, ".factory", "profile.yml"));
+  const profile = await exists(join(root, ".rivetari", "profile.yml"));
   checks.push(
     profile
-      ? { name: "profile", status: "ok", detail: ".factory/profile.yml" }
+      ? { name: "profile", status: "ok", detail: ".rivetari/profile.yml" }
       : {
           name: "profile",
           status: "fail",
-          detail: "no .factory/profile.yml: run `factory init`",
+          detail: "no .rivetari/profile.yml: run `rivetari init`",
         },
   );
 
@@ -96,7 +100,7 @@ export async function doctorChecks(
             name: "hooks",
             status: "fail",
             detail: guard.ok
-              ? "`factory hook guard` can't run from a shell here (is the factory CLI on PATH?), so the guard blocks every edit and command"
+              ? "`rivetari hook guard` can't run from a shell here (is Rivetari CLI on PATH?), so the guard blocks every edit and command"
               : guard.detail,
           },
     );
@@ -139,14 +143,14 @@ export async function doctorChecks(
           status: "ok",
           detail:
             auth.source === "app"
-              ? `${slug.owner}/${slug.repo}, as the factory's App`
-              : `${slug.owner}/${slug.repo}, as you (${auth.source} token); with the factory's App, reviews and evidence come from the factory: \`factory app status\``,
+              ? `${slug.owner}/${slug.repo}, as Rivetari's App`
+              : `${slug.owner}/${slug.repo}, as you (${auth.source} token); with Rivetari's App, reviews and evidence come from the rivetari: \`rivetari app status\``,
         }
       : {
           name: "github",
           status: "warn",
           detail: slug
-            ? "no way to reach GitHub (the factory's App, GITHUB_TOKEN or `gh auth login`): ship and close can't run"
+            ? "no way to reach GitHub (Rivetari's App, GITHUB_TOKEN or `gh auth login`): ship and close can't run"
             : "no GitHub origin remote: ship and close can't run",
         },
   );
@@ -154,7 +158,7 @@ export async function doctorChecks(
   const problems = isRepo
     ? await skillsStatus(root).catch((err: Error) => [err.message])
     : [];
-  const locked = await exists(join(root, ".factory", "skills.lock"));
+  const locked = await exists(join(root, ".rivetari", "skills.lock"));
   checks.push(
     problems.length > 0
       ? { name: "skills", status: "fail", detail: problems.join("; ") }
@@ -168,7 +172,7 @@ export async function doctorChecks(
             name: "skills",
             status: "warn",
             detail:
-              "no .factory/skills.lock: tasks run on the spine alone (`factory skills init`, then `factory skills sync`)",
+              "no .rivetari/skills.lock: tasks run on the spine alone (`rivetari skills init`, then `rivetari skills sync`)",
           },
   );
   return checks;
@@ -198,7 +202,7 @@ export async function tempCheck(
   };
 }
 
-/** `factory doctor`: exit 1 when anything a task needs is missing. */
+/** `rivetari doctor`: exit 1 when anything a task needs is missing. */
 export async function runDoctor(path: string): Promise<number> {
   const temp = await tempCheck();
   const checks = [

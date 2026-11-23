@@ -25,7 +25,7 @@ describe("applyChanges", () => {
     made.length = 0;
   });
   const tmp = async (): Promise<string> => {
-    const d = await mkdtemp(join(tmpdir(), "factory-apply-"));
+    const d = await mkdtemp(join(tmpdir(), "rivetari-apply-"));
     made.push(d);
     return d;
   };
@@ -70,7 +70,7 @@ describe("applyChanges", () => {
     );
   });
 
-  it("updates a factory-managed file that is unchanged since we wrote it", async () => {
+  it("updates a rivetari-managed file that is unchanged since we wrote it", async () => {
     const dir = await tmp();
     await applyChanges(dir, [fileChange({ contents: "v1\n" })], {
       mode: "write",
@@ -111,9 +111,9 @@ describe("applyChanges", () => {
     );
   });
 
-  it("diverts a merge to .factory-suggested when a managed file was human-edited", async () => {
+  it("diverts a merge to .rivetari-suggested when a managed file was human-edited", async () => {
     const dir = await tmp();
-    // Factory writes ci.yml via merge and records its hash.
+    // Rivetari writes ci.yml via merge and records its hash.
     await applyChanges(
       dir,
       [
@@ -145,12 +145,12 @@ describe("applyChanges", () => {
       { mode: "write" },
     );
     expect(r?.action).toBe("suggest");
-    expect(r?.path).toBe("ci.yml.factory-suggested");
+    expect(r?.path).toBe("ci.yml.rivetari-suggested");
     // The human's file is untouched; the suggestion sits alongside it.
     expect(await readFile(join(dir, "ci.yml"), "utf8")).toBe(
       "jobs:\n  a: 1\n  human: yes\n",
     );
-    expect(await readFile(join(dir, "ci.yml.factory-suggested"), "utf8")).toBe(
+    expect(await readFile(join(dir, "ci.yml.rivetari-suggested"), "utf8")).toBe(
       "jobs:\n  a: 2\n  human: yes\n",
     );
   });

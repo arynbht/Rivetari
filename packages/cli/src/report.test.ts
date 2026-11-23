@@ -1,4 +1,4 @@
-import type { ControlResult } from "@arynbht/factory-engine";
+import type { ControlResult } from "@arynbht/rivetari-engine";
 import { describe, expect, it } from "vitest";
 
 import { exitCodeFor, renderReport, summarize } from "./report.js";
@@ -80,7 +80,7 @@ describe("renderReport", () => {
 
   it("renders markdown with a summary and a table of blocking controls", () => {
     const md = renderReport(sample, { format: "markdown" });
-    expect(md).toContain("## Factory audit");
+    expect(md).toContain("## Rivetari audit");
     expect(md).toContain("`sec.sast-ci`");
     expect(md).toContain("(4 controls)");
   });

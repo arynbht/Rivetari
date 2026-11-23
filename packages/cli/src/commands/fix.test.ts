@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import type { OpenPrParams, PrResult } from "@arynbht/factory-engine";
+import type { OpenPrParams, PrResult } from "@arynbht/rivetari-engine";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { runFix } from "./fix.js";
@@ -23,11 +23,11 @@ async function exists(path: string): Promise<boolean> {
 
 /** A git repo on `main` with a bare `origin` remote and a clean tree. */
 async function gitRepoWithRemote(made: string[]): Promise<string> {
-  const bare = await mkdtemp(join(tmpdir(), "factory-fix-remote-"));
+  const bare = await mkdtemp(join(tmpdir(), "rivetari-fix-remote-"));
   made.push(bare);
   await GIT(bare, "init", "--bare");
 
-  const work = await mkdtemp(join(tmpdir(), "factory-fix-work-"));
+  const work = await mkdtemp(join(tmpdir(), "rivetari-fix-work-"));
   made.push(work);
   await GIT(work, "init");
   await GIT(work, "config", "user.email", "t@e.com");
@@ -56,7 +56,7 @@ describe("runFix (integration)", () => {
   });
 
   async function tempRepo(): Promise<string> {
-    const dir = await mkdtemp(join(tmpdir(), "factory-fix-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-fix-"));
     made.push(dir);
     return dir;
   }
@@ -139,7 +139,7 @@ describe("runFix (integration)", () => {
   it("fails fast on a nonexistent path", async () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const code = await runFix(
-      join(tmpdir(), "factory-fix-definitely-missing-xyz"),
+      join(tmpdir(), "rivetari-fix-definitely-missing-xyz"),
       {},
       { token: null },
     );
@@ -165,7 +165,7 @@ describe("runFix (integration)", () => {
       expect(code).toBe(0);
       expect(calls).toHaveLength(1);
       expect(calls[0]).toMatchObject({
-        head: "factory/2026-11-01-scaffold",
+        head: "rivetari/2026-11-01-scaffold",
         base: "main",
       });
       expect(out.join("")).toContain("Opened PR #11");

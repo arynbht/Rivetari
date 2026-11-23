@@ -27,7 +27,7 @@ describe("runTool", () => {
 
   it("passes an argument containing spaces as a single token", async () => {
     // Regression: a shell-based launch split "hello world" into two args, and the
-    // repo path (e.g. "…\\Software Factory - Dev") would break the same way.
+    // repo path (e.g. "…\\Rivetari - Dev") would break the same way.
     const result = await runTool(
       "node",
       ["-e", "process.stdout.write(process.argv[1])", "hello world"],
@@ -77,7 +77,7 @@ describe("resolveOnWindows", () => {
   // Lowercase PATHEXT + lowercase filenames so the candidate `tool.cmd` matches on
   // both case-sensitive (Linux CI) and case-insensitive (Windows) filesystems.
   it("resolves a .cmd shim and ignores a coexisting extensionless file", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-which-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-which-"));
     made.push(dir);
     // A bare `tool` (bash shim) next to `tool.cmd` — only the .cmd is runnable.
     await writeFile(join(dir, "tool"), "#!/bin/sh\n", "utf8");
@@ -90,7 +90,7 @@ describe("resolveOnWindows", () => {
   });
 
   it("returns null when nothing with an executable extension is found", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-which-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-which-"));
     made.push(dir);
     await writeFile(join(dir, "tool"), "#!/bin/sh\n", "utf8"); // bare only
     process.env.PATH = dir;
@@ -101,7 +101,7 @@ describe("resolveOnWindows", () => {
   });
 
   it("honours an explicit extension", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "factory-which-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-which-"));
     made.push(dir);
     await writeFile(join(dir, "tool.exe"), "MZ", "utf8");
     process.env.PATH = dir;
@@ -114,7 +114,7 @@ describe("resolveOnWindows", () => {
     // A malicious repo can drop a `scorecard.cmd` in its root; tools run with
     // `cwd = repoPath`, so resolving against CWD would be a code-execution hijack.
     // The resolver must consult PATH only.
-    const dir = await mkdtemp(join(tmpdir(), "factory-cwd-"));
+    const dir = await mkdtemp(join(tmpdir(), "rivetari-cwd-"));
     made.push(dir);
     await writeFile(join(dir, "tool.cmd"), "@echo off\n", "utf8");
     const savedCwd = process.cwd();

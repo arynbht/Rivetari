@@ -35,7 +35,7 @@ export interface LaunchOptions {
   repos?: RepoSeed[];
   /** settings.json overrides merged over the defaults used here. */
   settings?: Record<string, unknown>;
-  /** Extra env for the main process (e.g. FACTORY_GITHUB_CLIENT_ID). */
+  /** Extra env for the main process (e.g. RIVETARI_GITHUB_CLIENT_ID). */
   env?: Record<string, string>;
 }
 
@@ -48,7 +48,7 @@ export interface LaunchedApp {
 /** Copy the committed fixture repo into a fresh temp dir so tests can write to it. */
 export function copyFixtureRepo(name = "sample-repo"): string {
   const src = join(desktopRoot, "e2e", "fixtures", name);
-  const dest = mkdtempSync(join(tmpdir(), `factory-e2e-repo-`));
+  const dest = mkdtempSync(join(tmpdir(), `rivetari-e2e-repo-`));
   cpSync(src, dest, { recursive: true });
   return dest;
 }
@@ -60,7 +60,7 @@ export function copyFixtureRepo(name = "sample-repo"): string {
 export async function launchApp(
   opts: LaunchOptions = {},
 ): Promise<LaunchedApp> {
-  const userDataDir = mkdtempSync(join(tmpdir(), "factory-e2e-userdata-"));
+  const userDataDir = mkdtempSync(join(tmpdir(), "rivetari-e2e-userdata-"));
   mkdirSync(userDataDir, { recursive: true });
 
   if (opts.repos) {
@@ -99,7 +99,7 @@ export async function launchApp(
     ],
     env: {
       ...process.env,
-      FACTORY_E2E: "1",
+      RIVETARI_E2E: "1",
       ...opts.env,
     },
   });

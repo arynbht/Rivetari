@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { listDocs, readDoc } from "./docs";
 
 describe("docs adapter", () => {
-  it("lists the factory repo's Markdown docs (incl. ADRs)", async () => {
+  it("lists Rivetari repo's Markdown docs (incl. ADRs)", async () => {
     const docs = await listDocs(process.cwd());
     expect(docs.length).toBeGreaterThan(0);
     const paths = docs.map((d) => d.path);

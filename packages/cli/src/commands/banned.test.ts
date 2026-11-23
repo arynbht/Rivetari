@@ -32,22 +32,22 @@ afterEach(async () => {
 });
 
 async function repo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-banned-cli-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-banned-cli-"));
   made.push(dir);
-  await mkdir(join(dir, ".factory"), { recursive: true });
+  await mkdir(join(dir, ".rivetari"), { recursive: true });
   await writeFile(
-    join(dir, ".factory", "profile.yml"),
+    join(dir, ".rivetari", "profile.yml"),
     "version: 1\nname: demo\ntype: library\nstack: [typescript, node]\n",
   );
   return dir;
 }
 
 const read = async (dir: string) =>
-  JSON.parse(await readFile(join(dir, ".factory", "banned.json"), "utf8")) as {
+  JSON.parse(await readFile(join(dir, ".rivetari", "banned.json"), "utf8")) as {
     patterns: { id: string; allow: string[]; covered_by?: string }[];
   };
 
-describe("factory banned", () => {
+describe("rivetari banned", () => {
   it("seeds the stack's defaults once, then lists them", async () => {
     const dir = await repo();
     expect(await runBannedSeed({ path: dir })).toBe(0);
@@ -69,7 +69,7 @@ describe("factory banned", () => {
         pattern: String.raw`§\s*\d`,
         why: "say the rule itself",
         source: "finding: T-0004",
-        coveredBy: "factory/no-spec-section-refs",
+        coveredBy: "rivetari/no-spec-section-refs",
         path: dir,
       }),
     ).toBe(0);
@@ -92,7 +92,7 @@ describe("factory banned", () => {
       expect.objectContaining({
         id: "no-spec-section-refs",
         allow: ["docs/**"],
-        covered_by: "factory/no-spec-section-refs",
+        covered_by: "rivetari/no-spec-section-refs",
       }),
     ]);
   });

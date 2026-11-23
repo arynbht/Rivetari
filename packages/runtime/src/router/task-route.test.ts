@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { loadManifests } from "@arynbht/factory-registry";
+import { loadManifests } from "@arynbht/rivetari-registry";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -29,11 +29,11 @@ const tmp = async (prefix: string) => {
 };
 let repo: string;
 let context: RouteContext;
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 
 beforeEach(async () => {
-  process.env.FACTORY_CONFIG_DIR = await tmp("factory-config-");
-  repo = await tmp("factory-route-");
+  process.env.RIVETARI_CONFIG_DIR = await tmp("rivetari-config-");
+  repo = await tmp("rivetari-route-");
   const { manifests } = await loadManifests(repo);
   context = {
     manifests,
@@ -48,8 +48,8 @@ beforeEach(async () => {
   };
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) await rm(d, { recursive: true, force: true });
   made.length = 0;
 });
@@ -112,7 +112,7 @@ describe("task route and approve", () => {
     const id = await confirmedTask();
     await routeTask(repo, id, { ...by, context });
     await approveRoute(repo, id, { ...by, context });
-    const path = join(repo, ".factory/tasks", id, "assembly.yml");
+    const path = join(repo, ".rivetari/tasks", id, "assembly.yml");
     await writeFile(
       path,
       (await readFile(path, "utf8")).replace("steps: 12", "steps: 99"),
@@ -127,7 +127,7 @@ describe("task route and approve", () => {
   it("re-checks a human's edit before approving it, and records it", async () => {
     const id = await confirmedTask();
     await routeTask(repo, id, { ...by, context });
-    const path = join(repo, ".factory/tasks", id, "assembly.yml");
+    const path = join(repo, ".rivetari/tasks", id, "assembly.yml");
     const original = await readFile(path, "utf8");
 
     // Dropping a skill another one requires is refused.
@@ -152,7 +152,7 @@ describe("task route and approve", () => {
     const id = await confirmedTask();
     const { task } = await routeTask(repo, id, { ...by, context });
     const shown = sha256(task.assemblyText ?? "");
-    const path = join(repo, ".factory/tasks", id, "assembly.yml");
+    const path = join(repo, ".rivetari/tasks", id, "assembly.yml");
     await writeFile(
       path,
       (await readFile(path, "utf8")).replace("steps: 12", "steps: 8"),
@@ -163,9 +163,9 @@ describe("task route and approve", () => {
   });
 
   it("refuses to route on skills that weren't synced", async () => {
-    await mkdir(join(repo, ".factory"), { recursive: true });
+    await mkdir(join(repo, ".rivetari"), { recursive: true });
     await writeFile(
-      join(repo, ".factory/skills.lock"),
+      join(repo, ".rivetari/skills.lock"),
       [
         "version: 1",
         "skills:",
@@ -182,7 +182,7 @@ describe("task route and approve", () => {
     );
     // A sync of an older lock is just as stale.
     await writeFile(
-      join(repo, ".factory/skills.state.json"),
+      join(repo, ".rivetari/skills.state.json"),
       JSON.stringify({
         syncedAt: "2026-11-09T00:00:00Z",
         lock: "0".repeat(64),
@@ -196,9 +196,9 @@ describe("task route and approve", () => {
   });
 
   it("reads an unlocked repo as no skills, the profile's flags, and the judge's checks", async () => {
-    await mkdir(join(repo, ".factory"), { recursive: true });
+    await mkdir(join(repo, ".rivetari"), { recursive: true });
     await writeFile(
-      join(repo, ".factory/profile.yml"),
+      join(repo, ".rivetari/profile.yml"),
       "version: 1\nname: demo\ntype: web-app\nflags:\n  public-facing: true\n",
     );
     const read = await routingContext(repo);
@@ -216,7 +216,7 @@ describe("task route and approve", () => {
     );
     await routeTask(repo, id, { ...by, context });
     await writeFile(
-      join(repo, ".factory/tasks", id, "assembly.yml"),
+      join(repo, ".rivetari/tasks", id, "assembly.yml"),
       "skills: [unclosed\n",
     );
     await expect(approveRoute(repo, id, { ...by, context })).rejects.toThrow(

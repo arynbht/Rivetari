@@ -5,7 +5,7 @@ import {
   buildContext,
   createAiClient,
   githubToken,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import {
   JUDGE_DEFAULT_MODEL,
   loadTask,
@@ -13,7 +13,7 @@ import {
   reviewLocal,
   reviewPullRequest,
   whoami,
-} from "@arynbht/factory-runtime";
+} from "@arynbht/rivetari-runtime";
 
 import { today } from "../dates.js";
 
@@ -31,7 +31,7 @@ export interface ReviewFlags {
 const EXIT = { approve: 0, "request-changes": 1, "needs-human": 2 } as const;
 
 /**
- * `factory review`: judge tier 2. With `--pr <n>`, reviews that pull request and
+ * `rivetari review`: judge tier 2. With `--pr <n>`, reviews that pull request and
  * posts one review (unless `--dry-run`); otherwise reviews the local change
  * from `--base` (default origin/main) to `--head` and prints it.
  */
@@ -48,13 +48,13 @@ export async function runReview(
   let task;
   if (flags.task) {
     task = await loadTask(repo, flags.task).catch((err: Error) => {
-      console.error(`factory review: ${err.message}`);
+      console.error(`rivetari review: ${err.message}`);
       return null;
     });
     if (!task) return 1;
     if (task.problems.length > 0 || !task.confirmed) {
       console.error(
-        `factory review: task ${flags.task} ${task.problems.length > 0 ? "fails verification" : "isn't confirmed yet"}; not reviewing against it.`,
+        `rivetari review: task ${flags.task} ${task.problems.length > 0 ? "fails verification" : "isn't confirmed yet"}; not reviewing against it.`,
       );
       return 1;
     }
@@ -79,14 +79,14 @@ export async function runReview(
     if (flags.pr) {
       if (!/^[1-9]\d*$/.test(flags.pr)) {
         console.error(
-          `factory review: --pr takes a PR number, not "${flags.pr}".`,
+          `rivetari review: --pr takes a PR number, not "${flags.pr}".`,
         );
         return 1;
       }
       const token = (await githubToken(repo, flags.token))?.token;
       if (!token) {
         console.error(
-          "factory review: --pr needs GitHub: the factory's App installed on the repo, GITHUB_TOKEN, or `gh auth login`.",
+          "rivetari review: --pr needs GitHub: Rivetari's App installed on the repo, GITHUB_TOKEN, or `gh auth login`.",
         );
         return 1;
       }
@@ -105,7 +105,7 @@ export async function runReview(
     }
   } catch (err) {
     console.error(
-      `factory review: ${err instanceof AiError ? err.message : (err as Error).message}`,
+      `rivetari review: ${err instanceof AiError ? err.message : (err as Error).message}`,
     );
     return 1;
   }
@@ -117,7 +117,7 @@ export async function runReview(
       beat: "judge",
       section: "judge",
       text: `review round ${outcome.round}: ${outcome.verdict}; ${r.blocking.length} blocking, ${r.suggestions.length} suggestion(s) (${r.model})`,
-      by: `factory judge (for ${await whoami(repo)})`,
+      by: `rivetari judge (for ${await whoami(repo)})`,
     });
   }
 

@@ -18,32 +18,32 @@ import {
 } from "./ladder.js";
 
 const made: string[] = [];
-const savedConfig = process.env.FACTORY_CONFIG_DIR;
+const savedConfig = process.env.RIVETARI_CONFIG_DIR;
 const NOW = new Date("2026-11-21T12:00:00Z");
 const by = "owner@example.com";
 
 beforeEach(async () => {
-  const config = await mkdtemp(join(tmpdir(), "factory-config-"));
+  const config = await mkdtemp(join(tmpdir(), "rivetari-config-"));
   made.push(config);
-  process.env.FACTORY_CONFIG_DIR = config;
+  process.env.RIVETARI_CONFIG_DIR = config;
 });
 afterEach(async () => {
-  if (savedConfig === undefined) delete process.env.FACTORY_CONFIG_DIR;
-  else process.env.FACTORY_CONFIG_DIR = savedConfig;
+  if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+  else process.env.RIVETARI_CONFIG_DIR = savedConfig;
   for (const d of made) await rm(d, { recursive: true, force: true });
   made.length = 0;
 });
 
 async function repo(autonomy = "supervised"): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "factory-ladder-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-ladder-"));
   made.push(dir);
   const git = simpleGit(dir);
   await git.init(["-b", "main"]);
   await git.addConfig("user.email", "t@t");
   await git.addConfig("user.name", "t");
-  await mkdir(join(dir, ".factory"), { recursive: true });
+  await mkdir(join(dir, ".rivetari"), { recursive: true });
   await writeFile(
-    join(dir, ".factory", "profile.yml"),
+    join(dir, ".rivetari", "profile.yml"),
     `version: 1\nname: demo\ntype: library\nautonomy: ${autonomy}\n`,
   );
   await writeFile(join(dir, "README.md"), "# demo\n");
@@ -84,7 +84,7 @@ const row = (
 
 const writeHistory = (dir: string, rows: TaskHistoryRow[]) =>
   writeFile(
-    join(dir, ".factory", "history.jsonl"),
+    join(dir, ".rivetari", "history.jsonl"),
     `${rows.map((r) => JSON.stringify(r)).join("\n")}\n`,
   );
 
@@ -107,7 +107,7 @@ describe("the trust ladder", () => {
     );
     await writeFile(
       join(dir, "eslint.config.js"),
-      'export default [{ rules: { "factory/one": "error", "factory/two": ["error", {}], "no-undef": "error" } }];\n',
+      'export default [{ rules: { "rivetari/one": "error", "rivetari/two": ["error", {}], "no-undef": "error" } }];\n',
     );
     const count = await ruleCount(dir);
     expect(count.boundaries).toBe(2);
@@ -123,7 +123,7 @@ describe("the trust ladder", () => {
       /review-at-pr isn't earned yet: tier 1 rules \d+: needs 20, or double the count at entry; 0 of 10 reviewed PRs needed for findings per PR; 0 of 10 merged PRs needed for first-pass merge rate\. Raise it anyway with --override/,
     );
     expect(
-      await readFile(join(dir, ".factory", "profile.yml"), "utf8"),
+      await readFile(join(dir, ".rivetari", "profile.yml"), "utf8"),
     ).toContain("autonomy: supervised");
     expect(await autonomyEntries(dir)).toEqual([]);
   });
@@ -132,21 +132,21 @@ describe("the trust ladder", () => {
     const dir = await repo();
     const { state, kind } = await setAutonomy(dir, "review-at-pr", {
       by,
-      override: "the factory's own repo runs one level ahead; rule 6",
+      override: "Rivetari's own repo runs one level ahead; rule 6",
       now: NOW,
     });
     expect(kind).toBe("override");
     expect(state.configured).toBe("review-at-pr");
     expect(state.effective).toBe("review-at-pr");
     expect(
-      await readFile(join(dir, ".factory", "profile.yml"), "utf8"),
+      await readFile(join(dir, ".rivetari", "profile.yml"), "utf8"),
     ).toContain("autonomy: review-at-pr");
     const entries = await autonomyEntries(dir);
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({
       level: "review-at-pr",
       kind: "override",
-      note: "reason: the factory's own repo runs one level ahead; rule 6",
+      note: "reason: Rivetari's own repo runs one level ahead; rule 6",
       by,
     });
     expect(entries[0]?.rules).toBe(state.numbers.rules.total);
@@ -223,8 +223,8 @@ describe("the trust ladder", () => {
     );
     expect(await autonomyFor(dir, card)).toBe("supervised");
 
-    await enforceFallback(dir, { by: "factory runtime", now: NOW });
-    await enforceFallback(dir, { by: "factory runtime", now: NOW });
+    await enforceFallback(dir, { by: "rivetari runtime", now: NOW });
+    await enforceFallback(dir, { by: "rivetari runtime", now: NOW });
     const fell = (await autonomyEntries(dir)).filter(
       (e) => e.kind === "fell back",
     );
@@ -275,10 +275,10 @@ describe("the rule count with banned patterns", () => {
     const dir = await repo();
     await writeFile(
       join(dir, "eslint.config.js"),
-      'export default [{ rules: { "factory/one": "error", "factory/no-banned": ["error", {}] } }];\n',
+      'export default [{ rules: { "rivetari/one": "error", "rivetari/no-banned": ["error", {}] } }];\n',
     );
     await writeFile(
-      join(dir, ".factory", "banned.json"),
+      join(dir, ".rivetari", "banned.json"),
       JSON.stringify({
         version: 1,
         patterns: [
@@ -289,7 +289,7 @@ describe("the rule count with banned patterns", () => {
             pattern: String.raw`c\(`,
             why: "w",
             source: "finding",
-            covered_by: "factory/one",
+            covered_by: "rivetari/one",
           },
         ],
       }),
@@ -306,10 +306,10 @@ describe("where the rules come from", () => {
     const dir = await repo();
     await writeFile(
       join(dir, "eslint.config.js"),
-      'export default [{ rules: { "factory/from-a-finding": "error", "factory/by-hand": "error", "factory/no-banned": ["error", {}] } }];\n',
+      'export default [{ rules: { "rivetari/from-a-finding": "error", "rivetari/by-hand": "error", "rivetari/no-banned": ["error", {}] } }];\n',
     );
     await writeFile(
-      join(dir, ".factory", "banned.json"),
+      join(dir, ".rivetari", "banned.json"),
       JSON.stringify({
         version: 1,
         patterns: [
@@ -321,14 +321,14 @@ describe("where the rules come from", () => {
             pattern: "f2",
             why: "w",
             source: "finding: T-0004",
-            covered_by: "factory/from-a-finding",
+            covered_by: "rivetari/from-a-finding",
           },
           {
             id: "f3",
             pattern: "f3",
             why: "w",
             source: "finding: T-0004",
-            covered_by: "factory/not-in-the-config",
+            covered_by: "rivetari/not-in-the-config",
           },
           { id: "p1", pattern: "p1", why: "w", source: "added by a person" },
         ],
@@ -350,7 +350,7 @@ describe("the autonomy ledger's view", () => {
   it("re-renders a view a formatter changed, but never repairs a changed record", async () => {
     const dir = await repo();
     await setAutonomy(dir, "review-at-pr", { by, override: "first", now: NOW });
-    const md = join(dir, ".factory", "autonomy", "ledger.md");
+    const md = join(dir, ".rivetari", "autonomy", "ledger.md");
     const rendered = await readFile(md, "utf8");
     await writeFile(md, rendered.replace(/\n\n\n/g, "\n\n"));
     await setAutonomy(dir, "review-at-pr", {
@@ -364,7 +364,7 @@ describe("the autonomy ledger's view", () => {
     ]);
     expect((await (await autonomyLedger(dir)).verify()).ok).toBe(true);
 
-    const jsonl = join(dir, ".factory", "autonomy", "ledger.jsonl");
+    const jsonl = join(dir, ".rivetari", "autonomy", "ledger.jsonl");
     await writeFile(
       jsonl,
       (await readFile(jsonl, "utf8")).replace(

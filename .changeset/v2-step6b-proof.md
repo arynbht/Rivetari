@@ -1,11 +1,11 @@
 ---
-"@arynbht/factory-runtime": minor
-"@arynbht/factory-catalog": minor
-"@arynbht/factory-engine": minor
-"@arynbht/factory": minor
+"@arynbht/rivetari-runtime": minor
+"@arynbht/rivetari-catalog": minor
+"@arynbht/rivetari-engine": minor
+"@arynbht/rivetari": minor
 ---
 
-Factory v2 step 6b: the proof runner. `factory task prove <id>` produces the
+Rivetari v2 step 6b: the proof runner. `rivetari task prove <id>` produces the
 assembly's proof with tools. For UI tasks it serves the base and the change side by
 side (profile `proof.start` / `proof.url`), shoots each card `pages:` entry at three
 breakpoints with Playwright, runs axe on the change (serious or critical violations

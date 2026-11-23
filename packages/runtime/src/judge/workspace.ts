@@ -15,18 +15,18 @@ import {
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { type ControlResult, runTool } from "@arynbht/factory-engine";
+import { type ControlResult, runTool } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 
 export function judgeCacheRoot(): string {
-  if (process.env.FACTORY_JUDGE_CACHE) return process.env.FACTORY_JUDGE_CACHE;
+  if (process.env.RIVETARI_JUDGE_CACHE) return process.env.RIVETARI_JUDGE_CACHE;
   const base = process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache");
-  return join(base, "factory", "judge");
+  return join(base, "rivetari", "judge");
 }
 
 /** A judge run longer than this has crashed: its lock can be taken over. */
 const LOCK_STALE_MS = 3 * 60 * 60_000;
-const KEY_FILE = "factory-deps-key";
+const KEY_FILE = "rivetari-deps-key";
 
 export interface Workspace {
   dir: string;
@@ -89,7 +89,7 @@ export async function acquireWorkspace(
         "--no-checkout",
       ]);
       // The target repo's hooks never run inside the judge.
-      const noHooks = join(dir, ".git", "factory-no-hooks");
+      const noHooks = join(dir, ".git", "rivetari-no-hooks");
       await mkdir(noHooks, { recursive: true });
       await simpleGit(dir, {
         unsafe: { allowUnsafeHooksPath: true },

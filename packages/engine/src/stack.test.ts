@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { appliesTo, gatherRepoFacts } from "./applicability.js";
@@ -16,7 +16,7 @@ afterEach(async () => {
   made.length = 0;
 });
 const repoWith = async (files: Record<string, string>): Promise<string> => {
-  const dir = await mkdtemp(join(tmpdir(), "factory-stack-"));
+  const dir = await mkdtemp(join(tmpdir(), "rivetari-stack-"));
   made.push(dir);
   for (const [path, contents] of Object.entries(files)) {
     await mkdir(join(dir, path, ".."), { recursive: true });
@@ -48,7 +48,7 @@ describe("detectStacks", () => {
 
   it("adds what the profile declares, so an empty repo can be scaffolded", async () => {
     const dir = await repoWith({
-      ".factory/profile.yml":
+      ".rivetari/profile.yml":
         "version: 1\nname: x\ntype: cli\nstack: [typescript]\n",
     });
     expect(await detectStacks(buildContext(dir))).toEqual([

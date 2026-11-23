@@ -1,6 +1,6 @@
 // The "floor plan" repository model: a structured graph of a repo's architecture
 // produced by the deep-audit swarm (see swarm.ts) and persisted as managed state
-// in `.factory/floorplan.json` (ADR-0003). It is deliberately a plain data shape
+// in `.rivetari/floorplan.json` (ADR-0003). It is deliberately a plain data shape
 // with no behaviour — the engine produces it, the desktop IPC boundary
 // (apps/desktop/src/shared/ipc.ts) re-validates it with zod before the renderer
 // draws it with Cytoscape, and `detected` feeds the Phase-2 profile proposals.

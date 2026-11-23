@@ -1,8 +1,8 @@
-// The task store: `.factory/tasks/` is a working copy of the repo's
-// `factory/tasks` branch, so a task's record lives in the repo, not on one
+// The task store: `.rivetari/tasks/` is a working copy of the repo's
+// `rivetari/tasks` branch, so a task's record lives in the repo, not on one
 // machine. Each task directory is a subtree on that branch:
 //
-//   factory/tasks
+//   rivetari/tasks
 //   ├── T-0001/            card.yml, assembly.yml, ledger.*, env.json, judge/,
 //   │                      proof/, and lease.json (who holds the task, until when)
 //   └── history.jsonl      one row per closed task
@@ -29,7 +29,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { TASK_ID } from "./card.js";
 import { TASKS_DIR } from "./tasks.js";
 
-export const TASKS_BRANCH = "factory/tasks";
+export const TASKS_BRANCH = "rivetari/tasks";
 const LOCAL = `refs/heads/${TASKS_BRANCH}`;
 const REMOTE = `refs/remotes/origin/${TASKS_BRANCH}`;
 /** A lease is good for this long after the holder last wrote the task. */
@@ -123,7 +123,7 @@ export class LeaseError extends StoreError {
     readonly lease: Lease,
   ) {
     super(
-      `${id} is held by ${lease.holder} until ${lease.expires}. It can be taken over after that, or sooner if they run \`factory task release ${id}\`.`,
+      `${id} is held by ${lease.holder} until ${lease.expires}. It can be taken over after that, or sooner if they run \`rivetari task release ${id}\`.`,
     );
     this.name = "LeaseError";
   }
@@ -289,7 +289,7 @@ async function pushedBefore(
 }
 
 /**
- * Bring `.factory/tasks/` up to the branch: every task on it is written out,
+ * Bring `.rivetari/tasks/` up to the branch: every task on it is written out,
  * unless this machine's copy holds work the branch has never had (a beat
  * whose push failed). That copy is kept, and its id returned, so nothing
  * unpushed is ever deleted: the next beat on the task pushes it. Tasks only
@@ -346,7 +346,7 @@ export interface CommitOptions {
 }
 
 /**
- * Commit `.factory/tasks/<id>/` onto the branch tip and push it, renewing
+ * Commit `.rivetari/tasks/<id>/` onto the branch tip and push it, renewing
  * (or releasing) `holder`'s lease. Refused with a `LeaseError` when someone
  * else holds a live lease, and with a `StoreError` (`create`) when the id
  * was taken. A lost push race is redone on the new tip.
@@ -375,7 +375,7 @@ export async function commitTask(
   };
 
   const origin = await hasOrigin(repo);
-  const scratch = await mkdtemp(join(tmpdir(), "factory-store-"));
+  const scratch = await mkdtemp(join(tmpdir(), "rivetari-store-"));
   try {
     const env = { GIT_INDEX_FILE: join(scratch, "index") };
     for (let attempt = 1; ; attempt++) {
@@ -402,7 +402,7 @@ export async function commitTask(
         )
       )
         throw new StoreError(
-          `this machine's copy of ${id} isn't the branch's: ${held.holder} has written it since. Move ${TASKS_DIR}/${id} aside, and the next \`factory task status\` fetches theirs.`,
+          `this machine's copy of ${id} isn't the branch's: ${held.holder} has written it since. Move ${TASKS_DIR}/${id} aside, and the next \`rivetari task status\` fetches theirs.`,
         );
       // The lease is ours (or free): take or renew it.
       await mkdir(dir, { recursive: true });
@@ -479,16 +479,16 @@ export async function commitTask(
           {
             env: {
               // The record's commits are the runtime's, whoever runs it.
-              GIT_AUTHOR_NAME: "factory",
-              GIT_AUTHOR_EMAIL: "factory@localhost",
-              GIT_COMMITTER_NAME: "factory",
-              GIT_COMMITTER_EMAIL: "factory@localhost",
+              GIT_AUTHOR_NAME: "rivetari",
+              GIT_AUTHOR_EMAIL: "rivetari@localhost",
+              GIT_COMMITTER_NAME: "rivetari",
+              GIT_COMMITTER_EMAIL: "rivetari@localhost",
             },
           },
         )
       ).trim();
       // Compare-and-swap: only moves the branch if nobody else did meanwhile
-      // (another factory process on this machine); if somebody did, redo it.
+      // (another Rivetari process on this machine); if somebody did, redo it.
       const swapped = await git(repo, ["update-ref", LOCAL, commit, tip ?? ""]);
       if (swapped.code !== 0) {
         if (attempt >= PUSH_ATTEMPTS)

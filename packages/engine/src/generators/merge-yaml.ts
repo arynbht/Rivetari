@@ -1,4 +1,4 @@
-import type { Control } from "@arynbht/factory-catalog";
+import type { Control } from "@arynbht/rivetari-catalog";
 import {
   type Document,
   isSeq,
@@ -23,7 +23,7 @@ function toPlain(node: unknown): unknown {
  * Resolve the merge value for the audited repo. A merge-yaml fix may carry a
  * `byStack` map; the entry for the first detected stack that has one is used,
  * otherwise the plain `value`. With `byStack` but no matching stack and no
- * `value`, this is `undefined` (a no-op) — the factory does not guess a stack.
+ * `value`, this is `undefined` (a no-op) — Rivetari does not guess a stack.
  */
 async function resolveValue(
   ctx: AuditContext,
@@ -46,7 +46,7 @@ type JobResolution =
   { ok: true; tokens: string[] } | { ok: false; reason: string };
 
 /**
- * Catalog fixes name the CI job `jobs.ci`, matching the factory's own template.
+ * Catalog fixes name the CI job `jobs.ci`, matching Rivetari's own template.
  * Real workflows name it anything, so when `jobs.<name>` is absent, find the job
  * that builds the code instead: the one job with a checkout step, or — among
  * several — the first of `ci`, `build`, `test`. Anything else is ambiguous, and
@@ -166,7 +166,7 @@ export const mergeYamlGenerator: Generator = async (
       op: "suggest",
       reason: `${target}: ${reason}`,
       contents:
-        `# factory: ${reason}, so this was not merged automatically.\n` +
+        `# rivetari: ${reason}, so this was not merged automatically.\n` +
         `# Add the following at \`${path}\` in ${target} (in the job that builds\n` +
         `# and tests the code), then delete this file.\n` +
         stringify(value),

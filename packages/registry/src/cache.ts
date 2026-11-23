@@ -1,6 +1,6 @@
 // A user-level, content-addressed skill cache shared by every repo:
 //   <root>/<sha256 hex>/skill/              the skill directory, byte-exact
-//   <root>/<sha256 hex>/factory.skill.yml   its manifest, for offline routing
+//   <root>/<sha256 hex>/rivetari.skill.yml   its manifest, for offline routing
 // Entries are verified against their hash on every load.
 import { access, cp, mkdtemp, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -12,9 +12,10 @@ import { hashSkillDir } from "./hash.js";
 import { parseSource } from "./schema.js";
 
 export function cacheRoot(): string {
-  if (process.env.FACTORY_SKILLS_CACHE) return process.env.FACTORY_SKILLS_CACHE;
+  if (process.env.RIVETARI_SKILLS_CACHE)
+    return process.env.RIVETARI_SKILLS_CACHE;
   const base = process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache");
-  return join(base, "factory", "skills");
+  return join(base, "rivetari", "skills");
 }
 
 export function cacheEntry(hash: string, root = cacheRoot()): string {
@@ -116,7 +117,7 @@ async function fetchPinned(
     Boolean(s),
   )) {
     const { repo, path } = parseSource(source);
-    const tmp = await mkdtemp(join(tmpdir(), "factory-skill-"));
+    const tmp = await mkdtemp(join(tmpdir(), "rivetari-skill-"));
     try {
       const git = simpleGit(tmp);
       await git.init();

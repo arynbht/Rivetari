@@ -14,14 +14,14 @@ export interface OpenPrParams {
 export interface PrResult {
   number: number;
   url: string;
-  /** True when an existing open factory PR was updated rather than created. */
+  /** True when an existing open Rivetari PR was updated rather than created. */
   reused: boolean;
 }
 
 /**
  * Open a pull request for `head` → `base`, or — if an open PR already exists for
  * that head branch — update its title and body instead of opening a duplicate.
- * This is what lets repeated `factory fix --pr` runs keep refreshing one PR.
+ * This is what lets repeated `rivetari fix --pr` runs keep refreshing one PR.
  */
 export async function openOrReusePr(
   gh: GitHubClient,

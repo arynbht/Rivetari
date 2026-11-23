@@ -9,6 +9,6 @@
 ## Proof
 
 <!-- Required. Produced by a tool, not described: before/after screenshots for UI,
-test output for logic, plan output for infra. Factory tasks fill this in. -->
+test output for logic, plan output for infra. Rivetari tasks fill this in. -->
 
 ## Notes

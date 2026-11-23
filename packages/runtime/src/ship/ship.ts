@@ -1,7 +1,7 @@
 // The ship beat: push the task's branch and open a draft PR whose body
 // is generated from the card, the ledger, the proof and the judge's record —
 // summary, acceptance criteria with the judge's verdict on each, proof, files
-// changed, skills, model and iterations. The factory never merges.
+// changed, skills, model and iterations. Rivetari never merges.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -13,7 +13,7 @@ import {
   type OpenPrParams,
   type PrResult,
   pushBranch,
-} from "@arynbht/factory-engine";
+} from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse, stringify } from "yaml";
 
@@ -33,8 +33,8 @@ import {
   TASKS_DIR,
 } from "../task/tasks.js";
 
-/** Marks a PR body as the factory's, with the task it came from. */
-export const PR_MARKER = "<!-- factory-task";
+/** Marks a PR body as Rivetari's, with the task it came from. */
+export const PR_MARKER = "<!-- rivetari-task";
 
 /** Card types → conventional commit types (the PR title is the squash subject). */
 const COMMIT_TYPE: Record<Card["type"], string> = {
@@ -297,13 +297,13 @@ export function renderPrBody(input: PrBodyInput): string {
     `- Iterations: ${builds} build round(s) · ${judgeVerdicts(task).length} judge round(s) · ${stops} stop-and-ask question(s)`,
     ...(judge.review ? [`- Judge model: ${judge.review.model}`] : []),
     "",
-    `_Written by the factory from \`${TASKS_DIR}/${card.id}/\`. Claude builds, the judge checks, a person merges._`,
+    `_Written by Rivetari from \`${TASKS_DIR}/${card.id}/\`. Claude builds, the judge checks, a person merges._`,
   );
   return `${out.join("\n")}\n`;
 }
 
-/** Marks the judge's review on a factory PR, with the task and the head it judged. */
-export const TASK_REVIEW_MARKER = "<!-- factory-task-review";
+/** Marks the judge's review on a Rivetari PR, with the task and the head it judged. */
+export const TASK_REVIEW_MARKER = "<!-- rivetari-task-review";
 
 /**
  * The judge's verdict as one PR review: the tier 2 review when it ran,
@@ -316,7 +316,7 @@ export function renderTaskReview(task: Task, judge: JudgeRecord): string {
   ).length;
   const out = [
     `${TASK_REVIEW_MARKER} ${task.card.id} head=${judge.head} -->`,
-    `**Factory judge** · ${task.card.id} · round ${judge.round} · ${judge.verdict}`,
+    `**Rivetari judge** · ${task.card.id} · round ${judge.round} · ${judge.verdict}`,
     "",
     `- Tier 1: ${pass}/${ran.length} checks pass`,
     ...judge.tier1.protected.map(
@@ -333,7 +333,7 @@ export interface PostReviewParams {
   pr: number;
   head: string;
   body: string;
-  /** Labels the PR `factory:needs-human`, for the shell and the status issue. */
+  /** Labels the PR `rivetari:needs-human`, for the shell and the status issue. */
   needsHuman: boolean;
 }
 
@@ -352,7 +352,7 @@ export interface ShipOptions {
     ((params: PostReviewParams) => Promise<string | null>) | undefined;
 }
 
-export const NEEDS_HUMAN_LABEL = "factory:needs-human";
+export const NEEDS_HUMAN_LABEL = "rivetari:needs-human";
 
 /** Post the judge's review once per head; GitHub won't let the App approve its own PR, so it's a comment. */
 async function postTaskReview(
@@ -396,7 +396,7 @@ function baseBranch(isolation: Isolation): string {
 }
 
 /**
- * `factory task ship <id>`: push the judged branch and open (or refresh) its
+ * `rivetari task ship <id>`: push the judged branch and open (or refresh) its
  * draft PR. Refuses when the branch moved after the judge's verdict.
  */
 export async function shipTask(
@@ -443,7 +443,7 @@ export async function shipTask(
       : null;
     if (!gh)
       throw new TaskError(
-        "shipping needs GitHub: the factory's App installed on the repo, GITHUB_TOKEN or `gh auth login`, and an origin remote on GitHub",
+        "shipping needs GitHub: Rivetari's App installed on the repo, GITHUB_TOKEN or `gh auth login`, and an origin remote on GitHub",
       );
     openPr ??= (params) => openOrReusePr(gh, params);
     postReview ??= (params) => postTaskReview(gh, params);
@@ -472,14 +472,14 @@ export async function shipTask(
       beat: "ship",
       section: "judge",
       text: `judge review posted: ${reviewUrl}`,
-      by: `factory runtime (for ${options.by})`,
+      by: `rivetari runtime (for ${options.by})`,
       at: options.now,
     });
   await task.ledger.append({
     beat: "ship",
     section: "timeline",
     text: `${pr.reused ? "draft PR updated" : "draft PR opened"}: #${pr.number} ${pr.url} · ${isolation.branch} at ${head.slice(0, 12)} → ${base}`,
-    by: `factory runtime (for ${options.by})`,
+    by: `rivetari runtime (for ${options.by})`,
     at: options.now,
   });
   return { task: await loadTask(repoPath, id), pr };
