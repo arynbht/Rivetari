@@ -1,0 +1,42 @@
+id: T-0020
+title: Record risk and prompt size in history, and flag low-risk cards over $1
+  in metrics
+type: feature
+source: prompt
+description: "Redraft of T-0019 (#191, base moved: #190). The context cap needs
+  numbers: history.jsonl task rows have tokens and cost but no risk and no
+  prompt size, and rivetari metrics says nothing about cost. On close, each task
+  row gains risk (from the card) and prompt_tokens (the largest '~N prompt
+  tokens' figure on the task's build-started ledger lines, which #189 adds;
+  absent when no such line exists). rivetari metrics gets a cost section that
+  lists low-risk tasks whose cost_usd is over $1, with task id, cost and
+  prompt_tokens, and says so plainly when there are none. Rows written before
+  this change have no risk and are never flagged. Third of three context-cap
+  cards (#189 caps the slice, #190 caps touches at intake)."
+acceptance:
+  - id: A1
+    text: closing a task writes a history row with risk from its card and
+      prompt_tokens from the largest '~N prompt tokens' figure on its
+      build-started ledger lines, and leaves prompt_tokens out when no line
+      carries one
+    verify: unit
+  - id: A2
+    text: rivetari metrics lists each low-risk task row with cost_usd over 1 by id,
+      cost and prompt_tokens, and prints a none line when there is none
+    verify: unit
+  - id: A3
+    text: a history row with no risk field is never flagged
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/ship/close.ts
+  - packages/runtime/src/ship/history-cost.test.ts
+  - packages/cli/src/commands/metrics.ts
+  - packages/cli/src/commands/metrics-cost.test.ts
+  - packages/action/dist/**
+  - .changeset/history-cost.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
