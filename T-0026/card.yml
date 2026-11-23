@@ -1,0 +1,58 @@
+id: T-0026
+title: Rebuild the action bundle at release instead of on every PR
+type: chore
+source: prompt
+description: "Every task PR regenerates packages/action/dist (index.js and
+  SOURCE_SHA256), so any two open PRs conflict and the second has to be
+  abandoned and redrafted (T-0019; #189 and #193 are stale for it). A
+  .gitattributes merge strategy can't fix this, because GitHub ignores custom
+  merge drivers when it decides whether a PR conflicts; and CI can't commit a
+  rebuilt bundle to main, because the 'protect main' ruleset requires a PR and
+  status checks with no bypass, while a bot PR made with GITHUB_TOKEN doesn't
+  trigger CI. So the bundle is rebuilt once per release instead. In
+  .github/workflows/ci.yml the bundle step on a pull request builds the bundle
+  and fails only when the build fails or index.js is empty; the diff of
+  SOURCE_SHA256 and the copied assets (controls, gates, templates, prompts,
+  skill) runs only on the Version Packages PR (head branch
+  changeset-release/main). In .github/workflows/release.yml the Version Packages
+  PR runs pnpm action:build after changeset version, so it carries the rebuilt
+  dist and assets. In .github/workflows/rivetari.yml each job builds the bundle
+  before uses: ./packages/action, so the self-audit runs the PR's own code
+  rather than the last committed bundle. AGENTS.md's 'This repo' section
+  replaces the rule to run pnpm action:build and commit dist with: task PRs
+  don't commit packages/action/dist or the copied assets; the release's Version
+  Packages PR rebuilds them; consumers pin a commit from a release. The owner
+  ordered this change, including the workflow edits. Out of scope: repository
+  settings and rulesets, and how init picks the action's SHA."
+acceptance:
+  - id: A1
+    text: on a pull request, ci.yml builds the action bundle and fails only if the
+      build fails or dist/index.js is empty, and runs the SOURCE_SHA256 and
+      copied-asset diff only when the head branch is changeset-release/main
+    verify: review
+  - id: A2
+    text: release.yml's Version Packages PR runs pnpm action:build after changeset
+      version, so the PR carries the rebuilt bundle and assets
+    verify: review
+  - id: A3
+    text: "rivetari.yml builds the bundle before each uses: ./packages/action step"
+    verify: review
+  - id: A4
+    text: AGENTS.md's This repo section says task PRs don't commit
+      packages/action/dist or the copied assets, that the Version Packages PR
+      rebuilds them, and that consumers pin a release commit
+    verify: review
+  - id: A5
+    text: the change itself commits nothing under packages/action
+    verify: review
+out_of_scope: []
+touches:
+  - .github/workflows/ci.yml
+  - .github/workflows/release.yml
+  - .github/workflows/rivetari.yml
+  - AGENTS.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-23
