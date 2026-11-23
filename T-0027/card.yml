@@ -1,0 +1,34 @@
+id: T-0027
+title: Tell task PRs not to commit the action bundle
+type: chore
+source: prompt
+description: "The AGENTS.md half of rebuilding the action bundle once per
+  release (the workflow half is plain PR #196, because the build agent can't
+  edit workflows). AGENTS.md's 'This repo' section still says a change under
+  packages/engine, packages/cli, packages/catalog or packages/runtime/src needs
+  pnpm action:build with the rebuilt dist committed, which is what makes every
+  pair of open PRs conflict. Replace that rule: task PRs don't commit
+  packages/action/dist or the copied assets (packages/action/controls, gates,
+  templates, prompts, skill); CI builds the bundle on every PR to prove it
+  builds; the release's Version Packages PR rebuilds and commits it; and anyone
+  pinning the action should pin a commit from a release. Nothing else in
+  AGENTS.md changes."
+acceptance:
+  - id: A1
+    text: AGENTS.md's This repo section no longer asks for pnpm action:build with a
+      committed dist, and says task PRs don't commit packages/action/dist or the
+      copied assets, that CI builds the bundle on every PR, that the Version
+      Packages PR rebuilds it, and that the action should be pinned to a release
+      commit
+    verify: review
+  - id: A2
+    text: the change touches only AGENTS.md and commits nothing under packages/action
+    verify: review
+out_of_scope: []
+touches:
+  - AGENTS.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
