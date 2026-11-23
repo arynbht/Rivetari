@@ -145,6 +145,11 @@ function pathHit(
   return undefined;
 }
 
+function isDocsTouch(touch: string): boolean {
+  const path = touch.replace(/\\/g, "/").replace(/^\.\//, "");
+  return path.toLowerCase().endsWith(".md") || path.startsWith("docs/");
+}
+
 export function route(input: RouteInput): Routing {
   const { card, manifests, available } = input;
   const flags = input.flags ?? {};
@@ -159,6 +164,9 @@ export function route(input: RouteInput): Routing {
   }
   const touched = [...card.touches, ...covered];
   const notes: string[] = [];
+  const docsOnly =
+    card.touches.length > 0 && card.touches.every((t) => isDocsTouch(t));
+  const wordsScore = (sector: Sector) => !(docsOnly && sector === "ui");
 
   // 1–3. Score each sector: paths, keywords, manifest triggers, profile.
   const scores = new Map<Sector, SectorScore>();
@@ -185,6 +193,7 @@ export function route(input: RouteInput): Routing {
     const signals = SECTOR_SIGNALS[sector];
     const path = pathHit(signals.paths, touched);
     if (path) add(sector, 2, `touches ${path}`);
+    if (!wordsScore(sector)) continue;
     for (const word of signals.keywords) {
       if (hasWord(title, word)) add(sector, 2, `"${word}" in the title`);
       else if (hasWord(text, word))
@@ -206,6 +215,7 @@ export function route(input: RouteInput): Routing {
         add(sector, 1, `skill ${m.name} triggers on ${path}`);
         continue;
       }
+      if (!wordsScore(sector)) continue;
       // A skill's keyword is still a word in the card: it adds nothing to
       // the sector's own keyword for that word, and one found only in the
       // description is keyword evidence like any other.
