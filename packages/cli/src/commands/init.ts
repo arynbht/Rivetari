@@ -48,6 +48,7 @@ import {
 import { parse as parseYaml } from "yaml";
 
 import { runAudit, type RunAuditOptions } from "./audit.js";
+import { type CiPlan, planCi } from "./init-ci.js";
 import {
   ACTION_REPO,
   type ActionPin,
@@ -427,6 +428,8 @@ export interface InitOptions extends RunAuditOptions {
   floorplan?: FloorplanOptions | undefined;
   /** Find the commit to pin the Rivetari action to (tests). Default: the GitHub API. */
   resolveActionPin?: (() => Promise<ActionPin>) | undefined;
+  /** Find the repo's CI plan (tests). Default: the GitHub API. */
+  detectCiPlan?: (() => Promise<CiPlan>) | undefined;
 }
 
 /**
@@ -623,6 +626,16 @@ export async function runInit(
     beside.push(
       `${workflow}, then delete it (every file in .github/workflows runs on GitHub, so don't commit it)`,
     );
+  const ci = await planCi(root, {
+    token: options.token,
+    detectPlan: options.detectCiPlan,
+    force: flags.force,
+  });
+  if (ci.text !== null) {
+    await mkdir(resolve(root, ".github", "workflows"), { recursive: true });
+    await writeFile(resolve(root, ".github/workflows/ci.yml"), ci.text, "utf8");
+  }
+  if (ci.note) beside.push(ci.note);
 
   // Rivetari's state is hashed and diffed byte for byte; a Windows checkout
   // with autocrlf would otherwise rewrite it with CRLF.
