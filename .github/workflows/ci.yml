@@ -38,9 +38,11 @@ jobs:
       checks: read
     outputs:
       code: ${{ github.event_name != 'pull_request' || steps.filter.outputs.code == 'true' }}
-      desktop: ${{ github.event_name != 'pull_request' || steps.filter.outputs.desktop == 'true' }}
-      catalog: ${{ github.event_name != 'pull_request' || steps.filter.outputs.catalog == 'true' }}
-      registry: ${{ github.event_name != 'pull_request' || steps.filter.outputs.registry == 'true' }}
+      # CI or root config can change how any job behaves, so it runs them all.
+      full: ${{ github.event_name != 'pull_request' || steps.filter.outputs.full == 'true' }}
+      desktop: ${{ github.event_name != 'pull_request' || steps.filter.outputs.desktop == 'true' || steps.filter.outputs.full == 'true' }}
+      catalog: ${{ github.event_name != 'pull_request' || steps.filter.outputs.catalog == 'true' || steps.filter.outputs.full == 'true' }}
+      registry: ${{ github.event_name != 'pull_request' || steps.filter.outputs.registry == 'true' || steps.filter.outputs.full == 'true' }}
       judged: ${{ steps.judge.outputs.passed == 'true' }}
     steps:
       - name: Filter paths
@@ -65,6 +67,10 @@ jobs:
               - "{packages/catalog,docs/catalog}/**"
             registry:
               - "packages/registry/**"
+            # One pattern: with predicate-quantifier every, a file must match
+            # every pattern in a filter.
+            full:
+              - "{.github/**,scripts/**,package.json,pnpm-lock.yaml,pnpm-workspace.yaml,tsconfig*.json,eslint.config.*,vitest.config.*,.prettierrc*,prettier.config.*,.prettierignore,.dependency-cruiser*,.nvmrc}"
 
       # A green `rivetari/judge` check on this commit means the judge already
       # ran lint, typecheck and tests on a clean clone, so they're skipped here.
@@ -243,13 +249,14 @@ jobs:
         run: pnpm registry:validate
 
   # Task PRs don't commit the action bundle; the release's Version Packages PR
-  # rebuilds it, so that's the one PR that has to carry a current bundle. The
-  # bundle bytes vary by platform, so this diffs the copied catalog and the
-  # source hash instead.
+  # rebuilds it, so that's the one PR that has to carry a current bundle. A CI
+  # or root-config change builds the bundle too, to prove it still builds. The
+  # bundle bytes vary by platform, so the release check diffs the copied
+  # catalog and the source hash instead.
   action-bundle:
     name: action-bundle
     needs: changes
-    if: github.head_ref == 'changeset-release/main'
+    if: github.head_ref == 'changeset-release/main' || (github.event_name == 'pull_request' && needs.changes.outputs.full == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -258,9 +265,16 @@ jobs:
       - *pnpm
       - *node
       - *install
-      - name: Check action bundle is current
+      # The bundler loads the workspace packages from dist/.
+      - name: Build
+        run: pnpm build
+      - name: Build the action bundle
         run: |
           pnpm action:build
+          test -s packages/action/dist/index.js
+      - name: Check action bundle is current
+        if: github.head_ref == 'changeset-release/main'
+        run: |
           git diff --exit-code -- \
             packages/action/controls \
             packages/action/gates \
@@ -314,7 +328,8 @@ jobs:
         # Chromium won't render on xvfb's 8-bit default, so force 24-bit.
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" pnpm --filter @arynbht/rivetari-desktop e2e
 
-  # Main and nightly: everything, on both OSes, as ci.yml's build-test has it.
+  # Main and nightly: every check on both OSes, the same steps as ci-full.yml's
+  # build-test.
   build-test:
     name: build-test (${{ matrix.os }})
     needs: changes

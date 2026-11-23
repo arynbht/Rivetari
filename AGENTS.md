@@ -114,6 +114,8 @@ Rivetari opens draft PRs. It never merges, and neither does any agent.
   - the autonomy ledger: `packages/runtime/src/task/ladder.ts` and `.rivetari/autonomy/**`;
   - or anything a `rivetari review --pr` round flagged as blocking.
 
+  No agent merges while an open "main is red" issue exists.
+
   This exemption is the owner's policy for this repo; it doesn't change "People merge"
   for Rivetari itself, which still never merges.
 
