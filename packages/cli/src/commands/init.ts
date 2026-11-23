@@ -10,8 +10,9 @@ import {
 } from "@arynbht/rivetari-catalog";
 import {
   buildContext,
+  declaredStacks,
   detectStacks,
-  packageManager,
+  packageManagerAt,
   ProfileError,
   resolveRepoSlug,
   saveProfile,
@@ -249,7 +250,7 @@ async function repoFacts(
     .then((t) => JSON.parse(t) as { scripts?: Record<string, string> })
     .catch(() => null);
   if (pkg) {
-    const pm = await packageManager(root).catch(() => "npm");
+    const pm = await packageManagerAt(root);
     commands.install = `${pm} install`;
     const scripts = pkg.scripts ?? {};
     for (const [key, names] of [
@@ -316,6 +317,28 @@ function withoutEmpty(project: ProjectDraft): ProjectDraft | undefined {
     : undefined;
 }
 
+const splitList = (csv: string): string[] =>
+  csv
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/**
+ * The profile's `stack`: what the repo's manifests show, then what the person
+ * named, mapped onto the stacks it implies (`nextjs` is node). A name that maps
+ * onto nothing (`postgres`) is kept as given, since the profile's stack is free
+ * text. The profile on disk is ignored, so a re-init with --force reflects the
+ * repo now rather than the old profile.
+ */
+async function initStack(root: string, given: string[]): Promise<string[]> {
+  const ctx = { ...buildContext(root), profile: () => Promise.resolve(null) };
+  const detected = await detectStacks(ctx).catch(() => []);
+  const unmapped = given.filter((g) => declaredStacks([g]).length === 0);
+  return [
+    ...new Set<string>([...detected, ...declaredStacks(given), ...unmapped]),
+  ];
+}
+
 async function draftFromFlags(
   flags: InitFlags,
   root: string,
@@ -325,12 +348,7 @@ async function draftFromFlags(
     version: 1,
     name: flags.name ?? basename(root),
     type: flags.type ?? "",
-    stack: flags.stack
-      ? flags.stack
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [],
+    stack: await initStack(root, splitList(flags.stack ?? "")),
     flags: Object.fromEntries((flags.flag ?? []).map((f) => [f, true])),
     "severity-floor": flags.severityFloor ?? "low",
     phase: flags.phase ?? "scaffold",
@@ -411,10 +429,7 @@ async function draftInteractive(root: string): Promise<ProfileDraft | null> {
     version: 1,
     name: String(name),
     type: String(type),
-    stack: String(stack)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
+    stack: await initStack(root, splitList(String(stack))),
     phase: String(phase),
     flags: Object.fromEntries((chosen as string[]).map((f) => [f, true])),
     "severity-floor": String(floor),
