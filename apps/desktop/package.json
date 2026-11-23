@@ -14,13 +14,14 @@
     "typecheck:node": "tsc --noEmit --composite false -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit --composite false -p tsconfig.web.json",
     "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
-    "e2e": "electron-vite build && playwright test",
+    "e2e": "tsc --build ../../packages/runtime/tsconfig.json && electron-vite build && playwright test",
     "package": "electron-vite build && electron-builder",
     "package:dir": "electron-vite build && electron-builder --dir"
   },
   "dependencies": {
     "@arynbht/rivetari-catalog": "workspace:*",
     "@arynbht/rivetari-engine": "workspace:*",
+    "@arynbht/rivetari-runtime": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cytoscape": "^3.30.0",

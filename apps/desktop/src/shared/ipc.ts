@@ -40,10 +40,10 @@ export const IpcChannel = {
   FloorPlanRun: "floorplan:run",
   /** Push channel (main → renderer): deep-audit swarm progress. */
   FloorPlanProgress: "floorplan:progress",
-  BuildPlan: "build:plan",
-  BuildRun: "build:run",
-  /** Push channel (main → renderer): build pipeline progress. */
-  BuildProgress: "build:progress",
+  TasksWatch: "tasks:watch",
+  TasksUnwatch: "tasks:unwatch",
+  /** Push channel (main → renderer): the watched repo's tasks after a change. */
+  TasksUpdate: "tasks:update",
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -436,84 +436,56 @@ export const FloorPlanProgress = z.object({
 });
 export type FloorPlanProgress = z.infer<typeof FloorPlanProgress>;
 
-// Build — the orchestration layer: a feature/fix request → an approved plan → an
-// agent-built, gate-verified PR. The plan is validated here so the renderer can show
-// it for approval before anything is built.
-export const BuildTask = z.object({
+// Tasks — a read-only view of the repo's Rivetari tasks (the runtime's
+// watchTasks), as `rivetari task status` would show them. Nothing here acts on a
+// task: running, approving, answering and closing stay with the CLI.
+export const TaskEntry = z.object({
+  seq: z.number().int(),
+  at: z.string(),
+  beat: z.string(),
+  section: z.string(),
+  text: z.string(),
+  by: z.string(),
+});
+export type TaskEntry = z.infer<typeof TaskEntry>;
+
+export const TaskNeedsYou = z.object({
+  kind: z.enum(["record", "stop", "judge", "intake", "route"]),
+  why: z.string(),
+});
+export type TaskNeedsYou = z.infer<typeof TaskNeedsYou>;
+
+export const TaskSummary = z.object({
+  id: z.string(),
   title: z.string(),
-  detail: z.string(),
-  paths: z.array(z.string()),
+  type: z.string(),
+  risk: z.string(),
+  owner: z.string(),
+  beat: z.string(),
+  next: z.string(),
+  done: z.boolean(),
+  source: z.enum(["branch", "local"]),
+  lease: z.object({ holder: z.string(), expires: z.string() }).nullable(),
+  buildRounds: z.number().int(),
+  judgeRounds: z.number().int(),
+  tokens: z.number(),
+  costUsd: z.number(),
+  pr: z.object({ number: z.number().int(), url: z.string() }).nullable(),
+  needsYou: TaskNeedsYou.nullable(),
+  problems: z.array(z.string()),
+  entries: z.array(TaskEntry),
 });
+export type TaskSummary = z.infer<typeof TaskSummary>;
 
-export const BuildPlanObj = z.object({
-  request: z.string(),
-  summary: z.string(),
-  affectedSystems: z.array(z.string()),
-  tasks: z.array(BuildTask),
-  acceptanceCriteria: z.array(z.string()),
-  risks: z.array(z.string()),
+/** The watched repo's tasks, as a whole each time, plus the latest read error. */
+export const TasksState = z.object({
+  repoPath: z.string(),
+  tasks: z.array(TaskSummary),
+  error: z.string().nullable(),
 });
-export type BuildPlanObj = z.infer<typeof BuildPlanObj>;
+export type TasksState = z.infer<typeof TasksState>;
 
-export const VerifyCheck = z.object({
-  name: z.string(),
-  passed: z.boolean(),
-  ran: z.boolean(),
-  output: z.string(),
-});
-export const VerifyResult = z.object({
-  passed: z.boolean(),
-  checks: z.array(VerifyCheck),
-});
-
-export const BuildResult = z.object({
-  branch: z.string(),
-  base: z.string(),
-  worktree: z.string(),
-  plan: BuildPlanObj,
-  verify: VerifyResult,
-  iterations: z.number().int(),
-  pushed: z.boolean(),
-  pr: z
-    .object({ number: z.number(), url: z.string(), reused: z.boolean() })
-    .nullable(),
-  notes: z.string(),
-});
-export type BuildResult = z.infer<typeof BuildResult>;
-
-/** The plan response: the drafted plan + whether a build can actually run. */
-export const BuildPlanView = z.object({
-  plan: BuildPlanObj,
-  buildAvailable: z.boolean(),
-});
-export type BuildPlanView = z.infer<typeof BuildPlanView>;
-
-export const BuildPlanRequest = z.object({
-  repoPath: z.string().min(1),
-  description: z.string().min(1),
-});
-export const BuildRunRequest = z.object({
-  repoPath: z.string().min(1),
-  plan: BuildPlanObj,
-});
-
-/** build:progress push payload — one step of the build pipeline. */
-export const BuildProgress = z.object({
-  phase: z.enum([
-    "plan",
-    "worktree",
-    "install",
-    "implement",
-    "verify",
-    "iterate",
-    "pr",
-    "done",
-  ]),
-  message: z.string(),
-  done: z.number().int(),
-  total: z.number().int(),
-});
-export type BuildProgress = z.infer<typeof BuildProgress>;
+export const TasksWatchRequest = z.object({ repoPath: z.string().min(1) });
 
 // Settings — personal preferences in `userData` (never the repo). The Anthropic
 // API key is NOT in this object: like the GitHub token it lives in safeStorage and
