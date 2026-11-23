@@ -23,7 +23,7 @@ import { buildContext } from "../context.js";
 import { applyChanges } from "./apply.js";
 import { planControls } from "./run.js";
 import { renderTemplate, templateVars } from "./template.js";
-import { combineIf, pinActions, workflowGenerator } from "./workflow.js";
+import { pinActions, workflowGenerator } from "./workflow.js";
 
 const REPO = "https://api.github.com/repos/o/r";
 const SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -73,6 +73,13 @@ const POSTURE = [
   "ci.secret-scan-on-pr",
   "ci.actions-pinned-sha",
 ] as const;
+
+// These two only suggest a change: which jobs may skip, and which job is
+// required, is the repo's call.
+const SUGGESTED = ["ci.docs-skip-build", "ci.pr-linux-only"] as const;
+const AUTOMATIC = POSTURE.filter(
+  (id) => !(SUGGESTED as readonly string[]).includes(id),
+);
 
 let catalog: Control[];
 beforeAll(async () => {
@@ -185,19 +192,35 @@ jobs:
 const WF = ".github/workflows/ci.yml";
 
 describe("CI posture controls", () => {
-  it.each(POSTURE)(
+  it.each(AUTOMATIC)(
     "%s fails on a plain workflow and its fix makes it pass",
     async (id) => {
       const dir = await repoWith({ [WF]: LEGACY });
       expect(await statusOf(dir, id)).toBe("fail");
-      // The docs filter waits for an aggregator to require.
-      if (id === "ci.docs-skip-build") await fix(dir, "ci.required-aggregator");
       await fix(dir, id);
       expect(await statusOf(dir, id)).toBe("pass");
       // The fix keeps the file's comments and is idempotent.
       const after = await readFile(join(dir, WF), "utf8");
       expect(after).toContain("# Cancel superseded runs.");
       expect(await workflowGenerator(ctx(dir), control(id))).toEqual([]);
+    },
+  );
+
+  it.each(SUGGESTED)(
+    "%s fails on a plain workflow and its fix only suggests the change",
+    async (id) => {
+      const dir = await repoWith({ [WF]: LEGACY });
+      expect(await statusOf(dir, id)).toBe("fail");
+      const changes = await workflowGenerator(ctx(dir), control(id));
+      expect(changes).toEqual([
+        expect.objectContaining({
+          type: "note",
+          message: expect.stringContaining(WF),
+        }),
+      ]);
+      await applyChanges(dir, changes, { mode: "write" });
+      expect(await readFile(join(dir, WF), "utf8")).toBe(LEGACY);
+      expect(await statusOf(dir, id)).toBe("fail");
     },
   );
 
@@ -218,25 +241,27 @@ describe("CI posture controls", () => {
     });
     expect(
       Object.fromEntries(results.map((r) => [r.controlId, r.status])),
-    ).toEqual(Object.fromEntries(POSTURE.map((id) => [id, "pass"])));
+    ).toEqual({
+      ...Object.fromEntries(AUTOMATIC.map((id) => [id, "pass"])),
+      ...Object.fromEntries(SUGGESTED.map((id) => [id, "fail"])),
+    });
 
     const doc = parse(await readFile(join(dir, WF), "utf8")) as {
       jobs: Record<string, { needs?: string[]; if?: string }>;
     };
     expect(Object.keys(doc.jobs)).toEqual([
-      "changes",
       "build",
       "lint",
       "secret-scan",
       "ci",
     ]);
     expect(doc.jobs.ci?.needs).toEqual(
-      expect.arrayContaining(["changes", "build", "lint", "secret-scan"]),
+      expect.arrayContaining(["build", "lint", "secret-scan"]),
     );
-    // The docs filter never gates the aggregator or the secret scan.
     expect(doc.jobs.ci?.if).toBe("always()");
-    expect(doc.jobs["secret-scan"]?.if).toBeUndefined();
-    expect(doc.jobs.lint?.if).toBe("needs.changes.outputs.code == 'true'");
+    // Nothing is gated on paths or kept off PRs automatically.
+    expect(doc.jobs.lint?.if).toBeUndefined();
+    expect(doc.jobs.build?.if).toBeUndefined();
   });
 
   it("the CI workflow Rivetari writes has the shape", async () => {
@@ -268,26 +293,16 @@ describe("CI posture controls", () => {
     ).toEqual([]);
   });
 
-  it("keeps a Windows-only job off PRs instead of moving it to Linux", async () => {
-    const dir = await repoWith({
-      [WF]: `on: [pull_request]
-jobs:
-  installer:
-    runs-on: windows-latest
-    if: github.repository == 'o/r'
-    steps:
-      - run: build.cmd
-`,
-    });
-    await fix(dir, "ci.pr-linux-only");
-    const doc = parse(await readFile(join(dir, WF), "utf8")) as {
-      jobs: { installer: { if: string; "runs-on": string } };
-    };
-    expect(doc.jobs.installer["runs-on"]).toBe("windows-latest");
-    expect(doc.jobs.installer.if).toBe(
-      "(github.repository == 'o/r') && github.event_name != 'pull_request'",
+  it("suggests how to keep Windows off PRs and names the jobs", async () => {
+    const dir = await repoWith({ [WF]: LEGACY });
+    const [change] = await workflowGenerator(
+      ctx(dir),
+      control("ci.pr-linux-only"),
     );
-    expect(await statusOf(dir, "ci.pr-linux-only")).toBe("pass");
+    const message = (change as { message: string }).message;
+    expect(message).toContain("`build` run on Windows or macOS");
+    expect(message).toContain("matrix.os");
+    expect(message).toContain("if: github.event_name != 'pull_request'");
   });
 
   it("turns an existing working `ci` job into the aggregator", async () => {
@@ -447,7 +462,7 @@ jobs:
         expect.objectContaining({
           type: "note",
           message: expect.stringContaining(
-            "fix `ci.required-aggregator` first",
+            "first make `ci` an `always()` aggregator",
           ),
         }),
       ]);
@@ -456,7 +471,7 @@ jobs:
     },
   );
 
-  it("gates the jobs behind an always() aggregator, which waits for changes", async () => {
+  it("suggests gating the jobs behind an always() aggregator", async () => {
     const dir = await repoWith({
       [WF]: `on: [pull_request]
 jobs:
@@ -476,16 +491,22 @@ jobs:
         run: for r in $RESULTS; do [ "$r" = success ] || [ "$r" = skipped ] || exit 1; done
 `,
     });
-    await fix(dir, "ci.docs-skip-build");
-    const doc = parse(await readFile(join(dir, WF), "utf8")) as {
-      jobs: Record<string, { needs?: unknown; if?: string }>;
-    };
-    // `ci` runs and reports on every PR, and fails if `changes` failed.
-    expect(doc.jobs.ci?.if).toBe("always()");
-    expect(doc.jobs.ci?.needs).toEqual(["e2e", "changes"]);
-    expect(doc.jobs.e2e?.if).toBe("needs.changes.outputs.code == 'true'");
-    expect(await statusOf(dir, "ci.docs-skip-build")).toBe("pass");
-    expect(await statusOf(dir, "ci.required-aggregator")).toBe("pass");
+    const before = await readFile(join(dir, WF), "utf8");
+    const changes = await workflowGenerator(
+      ctx(dir),
+      control("ci.docs-skip-build"),
+    );
+    expect(changes).toHaveLength(1);
+    const message = (changes[0] as { message: string }).message;
+    expect(message).not.toContain("first make");
+    expect(message).toContain("dorny/paths-filter@");
+    expect(message).toContain(
+      "give `e2e` `needs: changes` and `if: needs.changes.outputs.code == 'true'`",
+    );
+    // The required `ci` job is never among the jobs to gate.
+    expect(message).not.toContain("`ci` `needs: changes`");
+    await applyChanges(dir, changes, { mode: "write" });
+    expect(await readFile(join(dir, WF), "utf8")).toBe(before);
   });
 
   it("makes an aggregator gated on a need's output run on every PR", async () => {
@@ -511,9 +532,8 @@ jobs:
     expect(doc.jobs.ci.if).toBe("always()");
   });
 
-  it("leaves a Windows `ci` job on PRs and says to move it by hand", async () => {
-    const dir = await repoWith({
-      [WF]: `on: [pull_request]
+  it("says to move a Windows `ci` job to Linux rather than off PRs", async () => {
+    const workflow = `on: [pull_request]
 jobs:
   ci:
     runs-on: windows-latest
@@ -525,24 +545,22 @@ jobs:
     timeout-minutes: 10
     steps:
       - run: build.cmd
-`,
-    });
+`;
+    const dir = await repoWith({ [WF]: workflow });
     const changes = await workflowGenerator(
       ctx(dir),
       control("ci.pr-linux-only"),
     );
-    expect(changes).toContainEqual(
+    expect(changes).toEqual([
       expect.objectContaining({
         type: "note",
-        message: expect.stringContaining("move it to a Linux runner by hand"),
+        message: expect.stringContaining(
+          "`ci` (required: move it to a Linux runner), `installer`",
+        ),
       }),
-    );
+    ]);
     await applyChanges(dir, changes, { mode: "write" });
-    const doc = parse(await readFile(join(dir, WF), "utf8")) as {
-      jobs: Record<string, { if?: string }>;
-    };
-    expect(doc.jobs.ci?.if).toBeUndefined();
-    expect(doc.jobs.installer?.if).toBe("github.event_name != 'pull_request'");
+    expect(await readFile(join(dir, WF), "utf8")).toBe(workflow);
   });
 
   it("fails, and fixes the rest with a note, when a workflow doesn't parse", async () => {
@@ -652,13 +670,5 @@ describe("pinActions", () => {
     expect(text).toContain(`github/codeql-action/init@${SHA} # v3`);
     expect(text).toContain(`o/r/.github/workflows/x.yml@${SHA} # main`);
     expect(text).toContain("uses: ./local");
-  });
-});
-
-describe("combineIf", () => {
-  it("wraps an existing condition, with or without ${{ }}", () => {
-    expect(combineIf(undefined, "x")).toBe("x");
-    expect(combineIf("${{ a || b }}", "x")).toBe("(a || b) && x");
-    expect(combineIf("a", "x")).toBe("(a) && x");
   });
 });

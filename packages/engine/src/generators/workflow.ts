@@ -19,13 +19,11 @@ import {
   concurrencyGap,
   filtersPaths,
   isPrivateRepo,
-  isRecord,
   type Job,
   jobsOf,
   jobsWithoutTimeout,
   loadWorkflows,
   needsOf,
-  PAID_OS,
   paidOsJobs,
   runsOnPr,
   scansSecrets,
@@ -161,12 +159,6 @@ function bare(condition: string): string {
   return (match?.[1] ?? condition).trim();
 }
 
-/** `existing && condition`, or just `condition` when the job has no `if`. */
-export function combineIf(existing: unknown, condition: string): string {
-  if (typeof existing !== "string" || existing.trim() === "") return condition;
-  return `(${bare(existing)}) && ${condition}`;
-}
-
 function addNeed(doc: Document, job: YAMLMap, plain: Job, need: string): void {
   const needs = needsOf(plain);
   if (needs.includes(need)) return;
@@ -198,8 +190,6 @@ type Edit = (doc: Document, workflow: Workflow) => boolean;
 interface Planned {
   path: string;
   edit: Edit;
-  /** Something the edit leaves for a person, reported beside it. */
-  note?: string | undefined;
 }
 
 type PatchFn = (
@@ -278,108 +268,55 @@ const addTimeouts: Edit = (doc, workflow) => {
   return missing.length > 0;
 };
 
-const addPathFilter: Edit = (doc, workflow) => {
-  const jobs = jobsMap(doc);
-  if (!jobs || filtersPaths(workflow) || jobs.has("changes")) return false;
+/**
+ * What to add for a docs path filter. It's a suggestion, not an edit: which
+ * jobs a docs-only change can skip, and how they're named in branch
+ * protection, is the repo's call, and a wrongly skipped required check
+ * counts as passed.
+ */
+function pathFilterSuggestion(workflow: Workflow): string {
   const aggregator = aggregatorKey(workflow);
-  const filterStep = doc.createNode({
-    name: "Filter paths",
-    id: "filter",
-    // Pull requests read their files from the API, so no checkout; every other
-    // event runs everything.
-    if: "github.event_name == 'pull_request'",
-    uses: PATHS_FILTER,
-    with: {
-      "predicate-quantifier": "every",
-      filters: [
-        "code:",
-        '  - "**"',
-        '  - "!docs/**"',
-        '  - "!**/*.md"',
-        "",
-      ].join("\n"),
-    },
-  }) as YAMLMap;
-  filterStep.set("uses", pinned(doc, PATHS_FILTER, PATHS_FILTER_TAG));
-  const changes = doc.createNode({
-    name: "changes",
-    "runs-on": "ubuntu-latest",
-    "timeout-minutes": 5,
-    permissions: { contents: "read", "pull-requests": "read" },
-    outputs: {
-      code: "${{ github.event_name != 'pull_request' || steps.filter.outputs.code == 'true' }}",
-    },
-    steps: [],
-  }) as YAMLMap;
-  const steps = changes.get("steps", true);
-  if (isSeq(steps)) steps.items.push(filterStep);
-  jobs.items.unshift(new Pair(doc.createNode("changes"), changes));
-
   const required = ciJob(workflow)?.[0];
-  for (const [key, plain] of jobsOf(workflow)) {
-    const job = jobMap(doc, key);
-    if (!job) continue;
-    // The required `ci` check must report on every PR, docs-only ones too:
-    // GitHub counts a skipped required check as passed. Only an `always()`
-    // aggregator may wait for `changes`, since it runs whatever that did.
-    if (key === required) {
-      if (key === aggregator) addNeed(doc, job, plain, "changes");
-      continue;
-    }
-    addNeed(doc, job, plain, "changes");
-    // The secret scan runs on every change, docs included.
-    if (scansSecrets(plain)) continue;
-    setIf(doc, job, combineIf(plain.if, CODE_CHANGED));
-  }
-  return true;
-};
-
-/** A matrix whose OS list can drop to its Linux runners on PRs, or null. */
-function narrowableOs(plain: Job): { os: string[]; free: string[] } | null {
-  const strategy = isRecord(plain.strategy) ? plain.strategy : {};
-  const matrix = isRecord(strategy.matrix) ? strategy.matrix : {};
-  const os = Array.isArray(matrix.os) ? matrix.os.map(String) : null;
-  const free = os?.filter((v) => !PAID_OS.test(v)) ?? [];
-  const runsOnMatrix =
-    typeof plain["runs-on"] === "string" &&
-    plain["runs-on"].includes("matrix.os");
-  return os && free.length > 0 && runsOnMatrix && matrix.include === undefined
-    ? { os, free }
-    : null;
+  const gated = jobsOf(workflow)
+    .filter(([key, job]) => key !== required && !scansSecrets(job))
+    .map(([key]) => `\`${key}\``);
+  return [
+    `${workflow.path}: to skip build and test on docs-only PRs,`,
+    aggregator
+      ? ""
+      : "first make `ci` an `always()` aggregator (`ci.required-aggregator`), so no skipped job is itself a required check; then",
+    `add a \`changes\` job running \`${PATHS_FILTER} # ${PATHS_FILTER_TAG}\``,
+    "on pull requests only, with `predicate-quantifier: every`, a `code` filter of `**`, `!docs/**` and `!**/*.md`,",
+    "and the output `code: ${{ github.event_name != 'pull_request' || steps.filter.outputs.code == 'true' }}`;",
+    gated.length > 0
+      ? `give ${gated.join(", ")} \`needs: changes\` and \`if: ${CODE_CHANGED}\`;`
+      : "",
+    "add `changes` to the aggregator's needs, and leave the required `ci` job and the secret scan ungated,",
+    "since GitHub counts a skipped required check as passed",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**
- * The required `ci` job when it runs only on Windows or macOS. Keeping it off
- * PRs would skip the required check, which GitHub counts as passed, so it's
- * left for a person to move to Linux.
+ * What to change so pull requests stay on Linux. A suggestion, not an edit:
+ * whether a job's Linux legs cover it on PRs, and which job is required, is
+ * the repo's call.
  */
-function paidOsCiJob(workflow: Workflow): string | undefined {
-  const found = ciJob(workflow);
-  if (!found || !paidOsJobs(workflow).includes(found[0])) return undefined;
-  return narrowableOs(found[1]) ? undefined : found[0];
+function linuxOnPrSuggestion(workflow: Workflow): string {
+  const required = ciJob(workflow)?.[0];
+  const jobs = paidOsJobs(workflow).map((key) =>
+    key === required
+      ? `\`${key}\` (required: move it to a Linux runner)`
+      : `\`${key}\``,
+  );
+  return [
+    `${workflow.path}: ${jobs.join(", ")} run on Windows or macOS on every pull request.`,
+    "Narrow a mixed `matrix.os` on PRs, e.g. `os: ${{ github.event_name == 'pull_request' && fromJSON('[\"ubuntu-latest\"]') || fromJSON('[\"ubuntu-latest\",\"windows-latest\"]') }}`,",
+    `or add \`if: ${NOT_PR}\` to a job that only runs on Windows or macOS;`,
+    "keep the required `ci` job running on PRs, since a skipped required check counts as passed",
+  ].join(" ");
 }
-
-const keepPaidOsOffPrs: Edit = (doc, workflow) => {
-  const keep = paidOsCiJob(workflow);
-  const offending = paidOsJobs(workflow).filter((key) => key !== keep);
-  const jobs = new Map(jobsOf(workflow));
-  for (const key of offending) {
-    const plain = jobs.get(key) ?? {};
-    const job = jobMap(doc, key);
-    if (!job) continue;
-    const narrowable = narrowableOs(plain);
-    if (narrowable) {
-      // Pull requests keep the free runners; every other event runs them all.
-      doc.setIn(
-        ["jobs", key, "strategy", "matrix", "os"],
-        `\${{ github.event_name == 'pull_request' && fromJSON('${JSON.stringify(narrowable.free)}') || fromJSON('${JSON.stringify(narrowable.os)}') }}`,
-      );
-    } else {
-      setIf(doc, job, combineIf(plain.if, NOT_PR));
-    }
-  }
-  return offending.length > 0;
-};
 
 const addSecretScan: Edit = (doc, workflow) => {
   const jobs = jobsMap(doc);
@@ -523,14 +460,7 @@ const patches: Record<Exclude<Patch, "pin-actions">, PatchFn> = {
   "docs-path-filter": async (_ctx, workflows) => {
     if (workflows.filter(runsOnPr).some(filtersPaths)) return [];
     const target = targetWorkflow(workflows);
-    if (!target) return NO_PR_WORKFLOW;
-    // Without an `always()` aggregator to require, a gated job is the required
-    // check itself: a skipped matrix job reports under another name, and a
-    // failed `changes` skips the rest, which GitHub counts as passed.
-    if (!aggregatorKey(target)) {
-      return `${target.path} has no \`always()\` \`ci\` aggregator to require, so gating its jobs on changed paths could skip a required check; fix \`ci.required-aggregator\` first, then run this fix again`;
-    }
-    return [{ path: target.path, edit: addPathFilter }];
+    return target ? pathFilterSuggestion(target) : NO_PR_WORKFLOW;
   },
   "pr-os-matrix": async (ctx, workflows) => {
     const gh = await ctx.github();
@@ -543,18 +473,10 @@ const patches: Record<Exclude<Patch, "pin-actions">, PatchFn> = {
       return `couldn't read whether the repo is private: ${(err as Error).message}`;
     }
     if (!isPrivate) return [];
-    return workflows
+    const suggestions = workflows
       .filter((w) => paidOsJobs(w).length > 0)
-      .map((w) => {
-        const keep = paidOsCiJob(w);
-        return {
-          path: w.path,
-          edit: keepPaidOsOffPrs,
-          note: keep
-            ? `${w.path}: the required \`${keep}\` job runs on Windows or macOS; move it to a Linux runner by hand, since keeping it off PRs would skip the required check`
-            : undefined,
-        };
-      });
+      .map(linuxOnPrSuggestion);
+    return suggestions.length > 0 ? suggestions.join("\n") : [];
   },
   "secret-scan-on-pr": async (_ctx, workflows) =>
     workflows.some(scansSecretsOnPr) ? [] : onTarget(workflows, addSecretScan),
@@ -667,14 +589,13 @@ async function planFix(
   const planned = await patches[patch](ctx, workflows);
   if (typeof planned === "string") return note(planned);
   const changes: Change[] = [];
-  for (const { path, edit, note: left } of planned) {
+  for (const { path, edit } of planned) {
     const workflow = workflows.find((w) => w.path === path);
     const read = await readDoc(ctx, path);
     if (!workflow || !read) continue;
     if (edit(read.doc, workflow)) {
       changes.push(merged(control, path, read.doc, read.bom));
     }
-    if (left) changes.push(...note(left));
   }
   return changes;
 }

@@ -234,7 +234,7 @@ export function filtersPaths(workflow: Workflow): boolean {
  * A GitHub-hosted Windows or macOS label (`windows-latest`, `macos-14`). A bare
  * `windows` or `macOS` label is a self-hosted runner, whose minutes are free.
  */
-export const PAID_OS = /^(windows|macos)-/i;
+const PAID_OS = /^(windows|macos)-/i;
 
 function osValues(job: Job): unknown[] {
   const values: unknown[] = [];

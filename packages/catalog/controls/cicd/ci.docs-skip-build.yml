@@ -9,11 +9,11 @@ detect:
     check: docs-path-filter
     exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
 evidence: none
-# Adds a `changes` job (dorny/paths-filter) and runs the other jobs only when
-# something besides docs and Markdown changed. The required `ci` job and the
-# secret scan still run on every PR: a skipped required check counts as passed.
-# It needs an `always()` `ci` aggregator first (`ci.required-aggregator`), so
-# no gated job is itself a required check; without one it only says so.
+# The fix doesn't edit the workflow; it suggests the change: a `changes` job
+# (dorny/paths-filter) and which jobs to gate on it, leaving the required `ci`
+# job and the secret scan ungated, since a skipped required check counts as
+# passed. Without an `always()` `ci` aggregator it says to add one first
+# (`ci.required-aggregator`), so no gated job is itself a required check.
 fix:
   type: workflow
   patch: docs-path-filter
