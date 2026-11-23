@@ -1,0 +1,37 @@
+id: T-0029
+title: Read branch-protection controls as n/a on free-plan private repos
+type: fix
+source: prompt
+description: F6. On a private repo on GitHub's free plan, branch protection and
+  rulesets aren't available, so the API answers 403 ('Upgrade to GitHub Pro or
+  make this repository public'). packages/engine/src/detectors/github-api.ts
+  turns that into a skip (or a failure) for repo.branch-protection,
+  quality.required-checks.named and dev.code-review-required, so a free-plan
+  private repo can never pass the gate on controls it can't satisfy. When the
+  repo is private and the protection or rules endpoint answers with GitHub's
+  plan-upgrade 403, those three checks report n/a with that reason instead of
+  skip or fail. getRepo already reads the repo's visibility. Public repos and
+  paid plans are unchanged, and any other 403 or error is unchanged.
+acceptance:
+  - id: A1
+    text: for a private repo whose protection endpoint answers GitHub's plan-upgrade
+      403, branch-protection, required-pull-request and required-status-checks
+      report n/a with a reason naming the free plan
+    verify: unit
+  - id: A2
+    text: a public repo, or a private repo on a paid plan, with no protection still
+      fails those checks as now
+    verify: unit
+  - id: A3
+    text: any other 403 or API error is handled exactly as now
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/engine/src/detectors/github-api.ts
+  - packages/engine/src/detectors/github-api-free-plan.test.ts
+  - .changeset/free-plan-protection-na.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
