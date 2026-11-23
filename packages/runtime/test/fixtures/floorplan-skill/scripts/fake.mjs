@@ -1,6 +1,6 @@
 // A stand-in for the floorplan skill's scripts in tests. Every call is logged
 // to calls.log beside the skill (name, flags, whether it ran unattended and
-// whether a token reached it), and each prints a short version of the JSON
+// whether a credential reached it), and each prints a short version of the JSON
 // the real script prints.
 import fs from "node:fs";
 import path from "node:path";
@@ -24,7 +24,7 @@ export function run(name, act) {
   const root = args.find((a) => !a.startsWith("--")) ?? ".";
   fs.appendFileSync(
     path.join(skill, "calls.log"),
-    `${name} ${flags.join(" ")} unattended=${process.env.FLOORPLAN_UNATTENDED ?? ""} token=${process.env.GITHUB_TOKEN ? "leaked" : "none"}\n`,
+    `${name} ${flags.join(" ")} unattended=${process.env.FLOORPLAN_UNATTENDED ?? ""} token=${process.env.GITHUB_TOKEN || process.env.GITHUB_PAT ? "leaked" : "none"}\n`,
   );
   const out = act({ root, map: path.join(root, "floorplan") });
   process.stdout.write(JSON.stringify(out));

@@ -35,10 +35,15 @@ const tmp = async (prefix: string) => {
   made.push(dir);
   return dir;
 };
-const savedToken = process.env.GITHUB_TOKEN;
+const saved = {
+  GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+  GITHUB_PAT: process.env.GITHUB_PAT,
+};
 afterEach(async () => {
-  if (savedToken === undefined) delete process.env.GITHUB_TOKEN;
-  else process.env.GITHUB_TOKEN = savedToken;
+  for (const [k, v] of Object.entries(saved)) {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
   for (const d of made) await rm(d, { recursive: true, force: true });
   made.length = 0;
 });
@@ -91,7 +96,9 @@ const calls = async (skillDir: string) =>
 
 describe("the floorplan skill's driver", { timeout: 60_000 }, () => {
   it("runs only the offline scripts, unattended and without tokens, never serve.mjs or open.mjs", async () => {
+    // One credential by a usual name, one by a name no denylist would catch.
     process.env.GITHUB_TOKEN = "ghp_not_for_scripts";
+    process.env.GITHUB_PAT = "ghp_not_for_scripts_either";
     const [repo, skillDir] = [await nodeRepo(), await skill()];
     const agentCalls: AgentCall[] = [];
     const options = { skillDir, agent: stubAgent(agentCalls) };

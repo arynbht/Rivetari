@@ -15,6 +15,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import {
   agentEnv,
+  allowlistedEnv,
   appendUsage,
   extractJson,
   loadProfile,
@@ -148,13 +149,13 @@ export async function floorplanSkillDir(repoPath: string): Promise<string> {
   return dir;
 }
 
-/** The scripts get no tokens or keys: they read the repo and need none. */
+/**
+ * The allowlisted environment, never the caller's: the scripts read the repo
+ * and need no tokens or keys.
+ */
 function scriptEnv(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
-  for (const [key, value] of Object.entries(process.env))
-    if (!/TOKEN|SECRET|PASSWORD|API_KEY|_KEY$/i.test(key)) env[key] = value;
   return {
-    ...env,
+    ...allowlistedEnv(),
     // Unattended: nothing written outside floorplan/, and failures fail.
     FLOORPLAN_UNATTENDED: "1",
     FLOORPLAN_AGENT: "none",
@@ -532,9 +533,9 @@ export async function floorplanOnMerge(
   let enabled: boolean;
   try {
     enabled = floorplanEnabled(await loadProfile(repoPath));
-  } catch {
-    // An unreadable profile turns nothing on; the other beats report it.
-    return null;
+  } catch (err) {
+    // An unreadable profile turns nothing on, and says so.
+    return `floorplan skipped: the profile couldn't be read (${oneLine((err as Error).message)})`;
   }
   if (!enabled) return null;
   try {

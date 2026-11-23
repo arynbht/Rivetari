@@ -439,7 +439,12 @@ export interface InitOptions extends RunAuditOptions {
 /** Add `line` to the repo's .gitignore unless it's there. */
 async function ignoreInRepo(root: string, line: string): Promise<void> {
   const path = resolve(root, ".gitignore");
-  const text = await readFile(path, "utf8").catch(() => "");
+  const text = await readFile(path, "utf8").catch(
+    (err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") return "";
+      throw err;
+    },
+  );
   if (text.split(/\r?\n/).includes(line)) return;
   await writeFile(
     path,
