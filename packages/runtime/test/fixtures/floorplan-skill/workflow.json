@@ -1,0 +1,51 @@
+{
+  "schema": "floorplan/workflow@1",
+  "conventions": { "answerRetries": 1 },
+  "jobs": {
+    "architecture": {
+      "read": ["references/schema.md"],
+      "input": [
+        { "name": "Scan summary", "from": "scan.summary" },
+        {
+          "name": "Your last architecture.json",
+          "file": "floorplan/architecture.json",
+          "optional": true
+        },
+        {
+          "name": "What the last build said about it",
+          "from": "build.report",
+          "optional": true
+        }
+      ],
+      "instructions": ["JOB architecture: submit architecture.json."],
+      "writes": "floorplan/architecture.json"
+    },
+    "update_architecture": {
+      "read": ["references/schema.md"],
+      "input": [
+        { "name": "What to do", "from": "item.text" },
+        {
+          "name": "The current architecture.json",
+          "file": "floorplan/architecture.json"
+        }
+      ],
+      "instructions": ["JOB update_architecture: submit architecture.json."],
+      "writes": "floorplan/architecture.json"
+    },
+    "descriptions": {
+      "input": [
+        { "name": "Worksheet", "file": "{worksheet.worksheet}" },
+        { "name": "The file to fill in", "file": "{worksheet.descriptions}" },
+        { "name": "Who you're writing for", "from": "describe.style" }
+      ],
+      "instructions": ["JOB descriptions: submit the whole file."],
+      "writes": "{worksheet.descriptions}"
+    },
+    "recent_work": {
+      "input": [{ "name": "Recent work facts", "from": "recent.text" }],
+      "instructions": ["JOB recent_work: submit recent-work.json."],
+      "writes": "floorplan/recent-work.json",
+      "set": { "updatedAt": "{now}" }
+    }
+  }
+}

@@ -194,6 +194,23 @@ export {
   usageTotals,
 } from "./ship/close.js";
 export {
+  drawFloorplan,
+  FLOORPLAN_DIR,
+  FLOORPLAN_IGNORE,
+  FLOORPLAN_SCRIPTS,
+  floorplanEnabled,
+  FloorplanError,
+  floorplanOnMerge,
+  type FloorplanOptions,
+  type FloorplanResult,
+  type FloorplanScript,
+  floorplanSkillDir,
+  floorplanUsage,
+  isFloorplanMap,
+  runFloorplanScript,
+  type ScriptRunner,
+} from "./map/floorplan-skill.js";
+export {
   MAX_BUILDS_PER_RUN,
   type RunOutcome,
   runTask,
