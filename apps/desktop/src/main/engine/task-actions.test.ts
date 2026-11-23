@@ -165,6 +165,21 @@ describe("the answer's runtime calls", () => {
       vi.mocked(failing.commitTask).mock.calls.map((c) => c[2].message),
     ).toEqual(["T-0001: answer", "T-0001: answer failed"]);
 
+    // When that push fails too, the person is told both.
+    let pushes = 0;
+    const stranded = deps({
+      answerStops: failing.answerStops,
+      commitTask: vi.fn(async () => {
+        pushes += 1;
+        if (pushes === 2) throw new Error("push rejected");
+      }),
+    });
+    await expect(
+      answerTask(repo, { id: "T-0001", allow: true, note: "" }, stranded),
+    ).rejects.toThrow(
+      "task T-0001 fails verification; pushing what got through also failed: push rejected",
+    );
+
     let calls = 0;
     const offline = deps({
       answerStops: vi.fn(done) as unknown as AnswerDeps["answerStops"],

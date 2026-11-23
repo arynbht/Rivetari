@@ -135,7 +135,9 @@ export async function answerTask(
 ): Promise<TaskAnswerResult> {
   const { id, allow } = request;
   const note = request.note.trim() || undefined;
-  const key = `${resolve(repoPath)}#${id}`;
+  // Windows paths are case-insensitive: C:\Repo and c:\repo are one repo.
+  const path = resolve(repoPath);
+  const key = `${process.platform === "win32" ? path.toLowerCase() : path}#${id}`;
   if (answering.has(key))
     throw new Error(`an answer to ${id} is already being recorded`);
   answering.add(key);
@@ -150,10 +152,17 @@ export async function answerTask(
         await deps.answerStops(repoPath, id, { allow, note, by }),
       );
     } catch (err) {
-      await deps
+      // The answer's own error is the one to report; a failed push goes with it.
+      const pushed = await deps
         .commitTask(repoPath, id, { holder, message: `${id}: answer failed` })
-        .catch(() => undefined);
-      throw err;
+        .then(
+          () => null,
+          (pushErr: unknown) => plain(pushErr).message,
+        );
+      if (pushed === null) throw err;
+      throw new Error(
+        `${plain(err).message}; pushing what got through also failed: ${pushed}`,
+      );
     }
     let warning: string | null = null;
     try {
