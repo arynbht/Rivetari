@@ -1,0 +1,182 @@
+{
+  "task": "T-0016",
+  "round": 1,
+  "verdict": "failed",
+  "head": "32aa8c446d074e11aad33a6172eb0b375d664cf0",
+  "base": "1116fe3c3329873436d16e1e83d030ccc1e19fdf",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "red",
+        "head": "green",
+        "outcome": "fixed",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "red",
+        "head": "green",
+        "outcome": "fixed",
+        "message": "70.51% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "request-changes",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · 1 blocking\n\n#### Blocking\n\n**defect: A non-zero exit that comes from something other than the FAIL-named files is turned green** `packages/runtime/src/judge/tier1.ts:362`\n`failing` comes only from `FAIL <file>` lines, but vitest can exit 1 for other reasons. Two examples: unhandled errors raised in a file whose tests all pass, and the coverage thresholds set in vitest.config.ts. When one flaky file prints a FAIL line, re-running that file alone passes, and `passedAlone` then sets the whole tests.pass result to pass. The other cause of the red run is dropped without any check. That is fail-open, which breaks 'Fail closed' in CONSTRAINTS.md. It is a defect this diff introduces.\n- **Repro:** On the change, add a test file whose tests all pass but which leaves an unhandled promise rejection. vitest prints 'Unhandled Errors', marks no FAIL line for that file, and exits 1. In the same full run, have a second file fail under load so vitest prints 'FAIL <thatfile>'. At base, tests.pass is green. Then: testRun.exitCode !== 0, so failingTestFiles returns only [thatfile]; the side check is base green and head red, so rerunAlone runs only thatfile; it passes alone, stillFailing is empty, passedAlone sets tests.pass to 'pass', and a 'flaky under load' note is added. The unhandled error is never checked or reported.\n- **Fix:** Take the flaky path only when the FAIL-named files account for every failure in the run. If the output contains vitest's 'Unhandled Error' / 'Errors' summary or a coverage 'does not meet' threshold line, keep tests.pass red with the original output. Comparing the 'Test Files  N failed' count with failing.length also works.\n\n#### Acceptance\n- A1: met — The first test in flaky-under-load.test.ts checks verdict pass, tests.pass pass, and one 'flaky under load' note per file.\n- A2: met — The second test checks fail, exitCode 1, the suite's FAIL line and the alone output kept, and a note.\n- A3: met — The call-log test shows one suite run, then a.test.ts and b.test.ts each run serially and once, with coverage off. Whether this holds under real pnpm is raised as a suggestion.\n- A4: met — vitest.config sets coverage.reportOnFailure: true, a config test asserts it, and the tier 1 test checks the coverage floor against the summary written by the failing run.\n- A5: met — Only a new test file was added; no existing test file is touched.\n\n<details><summary>4 suggestion(s), non-blocking</summary>\n\n- Check that the `--` separator reaches vitest as a filter under `pnpm run test` `packages/runtime/src/judge/tier1.ts:568` — Confirm against the repo's pinned pnpm. If `--` is forwarded, drop it for pnpm/yarn and keep it for npm.\n- Whole-suite retry kept as a fallback, and the comment above it is now stale `packages/runtime/src/judge/tier1.ts:339` — Reword the comment and state in the PR that the fallback is kept on purpose, or remove it.\n- Switching the default pool to threads affects every test outside the fork globs `vitest.config.ts:21` — Consider keeping `pool: \"forks\"` for the rest of the suite and singling out the git-heavy files through a separate project or `poolMatchGlobs` entry.\n- FAIL-line parsing misses paths with spaces and can match a test's own stdout `packages/runtime/src/judge/tier1.ts:540` — Optional: anchor the match on vitest's reporter format more tightly.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 2 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [
+      {
+        "kind": "defect",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 362,
+        "acceptance_id": null,
+        "title": "A non-zero exit that comes from something other than the FAIL-named files is turned green",
+        "detail": "`failing` comes only from `FAIL <file>` lines, but vitest can exit 1 for other reasons. Two examples: unhandled errors raised in a file whose tests all pass, and the coverage thresholds set in vitest.config.ts. When one flaky file prints a FAIL line, re-running that file alone passes, and `passedAlone` then sets the whole tests.pass result to pass. The other cause of the red run is dropped without any check. That is fail-open, which breaks 'Fail closed' in CONSTRAINTS.md. It is a defect this diff introduces.",
+        "repro": "On the change, add a test file whose tests all pass but which leaves an unhandled promise rejection. vitest prints 'Unhandled Errors', marks no FAIL line for that file, and exits 1. In the same full run, have a second file fail under load so vitest prints 'FAIL <thatfile>'. At base, tests.pass is green. Then: testRun.exitCode !== 0, so failingTestFiles returns only [thatfile]; the side check is base green and head red, so rerunAlone runs only thatfile; it passes alone, stillFailing is empty, passedAlone sets tests.pass to 'pass', and a 'flaky under load' note is added. The unhandled error is never checked or reported.",
+        "fix": "Take the flaky path only when the FAIL-named files account for every failure in the run. If the output contains vitest's 'Unhandled Error' / 'Errors' summary or a coverage 'does not meet' threshold line, keep tests.pass red with the original output. Comparing the 'Test Files  N failed' count with failing.length also works.",
+        "pattern": "669f73e62814"
+      }
+    ],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 568,
+        "acceptance_id": null,
+        "title": "Check that the `--` separator reaches vitest as a filter under `pnpm run test`",
+        "detail": "The re-run is `<testRun.command> -- <file> --coverage.enabled=false`. The fixture resolves to a runner that strips `--`. Some pnpm versions forward `--` to the script instead. vitest's CLI (cac) then puts everything after `--` into options['--'] and ignores it, which would make each 'alone' run the whole suite with coverage on. That is the case this task exists to avoid.",
+        "repro": "Run `pnpm run test -- packages/registry/src/skills.test.ts --coverage.enabled=false` in this repo and see whether only that file runs.",
+        "fix": "Confirm against the repo's pinned pnpm. If `--` is forwarded, drop it for pnpm/yarn and keep it for npm.",
+        "pattern": "c576e66f653a"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 339,
+        "acceptance_id": null,
+        "title": "Whole-suite retry kept as a fallback, and the comment above it is now stale",
+        "detail": "The card says the per-file re-run 'replaces the whole-suite retry'. The diff still uses the whole-suite retry when the output names no FAIL files. The comment at the top of the block still describes only that retry. Either note in the PR that the card was deviated from on purpose, or remove the fallback. Also update the comment to describe the per-file re-run.",
+        "repro": "n/a",
+        "fix": "Reword the comment and state in the PR that the fallback is kept on purpose, or remove it.",
+        "pattern": "ad69fccd43b7"
+      },
+      {
+        "kind": "suggestion",
+        "file": "vitest.config.ts",
+        "line": 21,
+        "acceptance_id": null,
+        "title": "Switching the default pool to threads affects every test outside the fork globs",
+        "detail": "Before this change every file ran in vitest's default pool, forks. Now the files outside the fork globs run in worker threads, where process.chdir is unsupported and some process-level APIs behave differently. Any test outside the listed globs that relies on those will break or change behaviour. `poolMatchGlobs` is also deprecated in newer vitest in favour of projects.",
+        "repro": "n/a",
+        "fix": "Consider keeping `pool: \"forks\"` for the rest of the suite and singling out the git-heavy files through a separate project or `poolMatchGlobs` entry.",
+        "pattern": "6142528436c5"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 540,
+        "acceptance_id": null,
+        "title": "FAIL-line parsing misses paths with spaces and can match a test's own stdout",
+        "detail": "`\\S+` stops at the first space, so a path containing a space is cut short. Any console output that starts with 'FAIL <x>.ts' is also taken as a failing file.",
+        "repro": "n/a",
+        "fix": "Optional: anchor the match on vitest's reporter format more tightly.",
+        "pattern": "4b10e092fde0"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The first test in flaky-under-load.test.ts checks verdict pass, tests.pass pass, and one 'flaky under load' note per file."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The second test checks fail, exitCode 1, the suite's FAIL line and the alone output kept, and a note."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The call-log test shows one suite run, then a.test.ts and b.test.ts each run serially and once, with coverage off. Whether this holds under real pnpm is raised as a suggestion."
+      },
+      {
+        "id": "A4",
+        "status": "met",
+        "note": "vitest.config sets coverage.reportOnFailure: true, a config test asserts it, and the tier 1 test checks the coverage floor against the summary written by the failing run."
+      },
+      {
+        "id": "A5",
+        "status": "met",
+        "note": "Only a new test file was added; no existing test file is touched."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 8801,
+      "costUsd": 0.3102112
+    }
+  }
+}

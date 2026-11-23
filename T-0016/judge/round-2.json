@@ -1,0 +1,170 @@
+{
+  "task": "T-0016",
+  "round": 2,
+  "verdict": "passed",
+  "head": "2e16a3a7171e75dbe481583ee2cbc95751d13bdd",
+  "base": "1116fe3c3329873436d16e1e83d030ccc1e19fdf",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "red",
+        "head": "green",
+        "outcome": "fixed",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "red",
+        "head": "green",
+        "outcome": "fixed",
+        "message": "70.54% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=2 -->\n### Rivetari judge · round 2 · approve\n\n#### Acceptance\n- A1: met — The first tier-1 test shows tests.pass passing with one flaky-under-load note per file.\n- A2: met — The second test shows a fail verdict, with the full-run output and the alone output both kept.\n- A3: met — The calls log shows each file started and ended in turn with no second suite run. This is shown with a stub script only; the real pnpm invocation is unverified.\n- A4: met — The config sets reportOnFailure: true and a config test asserts it. The coverage floor is judged on the summary the failing run wrote.\n- A5: met — The only test file in the diff is new.\n\n<details><summary>4 suggestion(s), non-blocking</summary>\n\n- The alone re-run is only exercised through npm and a stub script, not the repo's real pnpm and vitest command `packages/runtime/src/judge/tier1.ts:597` — Check the real invocation once. If pnpm forwards `--`, drop it from argv for pnpm, or call the test binary directly, and add a test that pins the pnpm argv.\n- The whole-suite retry is still there, but the card says it is replaced `packages/runtime/src/judge/tier1.ts:396` — Either remove the branch so a run with no named files stays red, or note the deviation on the card and in the PR.\n- The comment above the branch chain describes the old single retry `packages/runtime/src/judge/tier1.ts:339` — Rewrite the comment so it describes the per-file alone re-run and when the suite retry still applies.\n- poolMatchGlobs and poolOptions are deprecated in vitest 3 and gone in 4, and the default pool is now threads `vitest.config.ts:22` — If a warning appears, move to `test.projects` with a forks/singleFork project for the git-heavy globs. Otherwise leave a comment noting the upgrade path.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 597,
+        "acceptance_id": null,
+        "title": "The alone re-run is only exercised through npm and a stub script, not the repo's real pnpm and vitest command",
+        "detail": "The alone command is `<testRun.command> -- <file> --coverage.enabled=false`. The tests drive it through a package.json script that reads process.argv directly, so they only show what npm does with `--`. If the repo's command is `pnpm run test` and pnpm passes the `--` on to `vitest run`, vitest puts the file and `--coverage.enabled=false` into its `--` bucket instead of reading them as a filter and an option. Each 'alone' run would then be the whole suite with coverage on, which overwrites the full run's summary. That would defeat A3 and A4 in this repo even though the unit tests pass.",
+        "repro": "In this repo, after a red full run, run `pnpm run test -- packages/runtime/src/store.test.ts --coverage.enabled=false`. Check whether only store.test.ts runs and whether coverage/coverage-summary.json is left untouched.",
+        "fix": "Check the real invocation once. If pnpm forwards `--`, drop it from argv for pnpm, or call the test binary directly, and add a test that pins the pnpm argv.",
+        "pattern": "d8c71a104c9e"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 396,
+        "acceptance_id": null,
+        "title": "The whole-suite retry is still there, but the card says it is replaced",
+        "detail": "The card says 'This replaces the whole-suite retry.' The diff keeps that retry for a failing run that names no test files. The changeset says so, but it is a scope change from the card, and a person should agree to it rather than find it at merge.",
+        "repro": "Run on the change with a red test run whose output has no `FAIL <file>` line, for example a crash before the summary. The whole suite runs again.",
+        "fix": "Either remove the branch so a run with no named files stays red, or note the deviation on the card and in the PR.",
+        "pattern": "b777cc75f1d9"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier1.ts",
+        "line": 339,
+        "acceptance_id": null,
+        "title": "The comment above the branch chain describes the old single retry",
+        "detail": "The comment still says tests red on the change 'get one more run'. They now get per-file alone runs, an unhandled-error bail-out, and the suite retry only as a fallback.",
+        "repro": "Read lines 339-340 against the branches that follow them.",
+        "fix": "Rewrite the comment so it describes the per-file alone re-run and when the suite retry still applies.",
+        "pattern": "8d771fde5aa9"
+      },
+      {
+        "kind": "suggestion",
+        "file": "vitest.config.ts",
+        "line": 22,
+        "acceptance_id": null,
+        "title": "poolMatchGlobs and poolOptions are deprecated in vitest 3 and gone in 4, and the default pool is now threads",
+        "detail": "Depending on the installed vitest, `poolMatchGlobs` may log a deprecation warning, and CONSTRAINTS.md asks for no new warnings. It will also stop working on the next major upgrade. Switching the default pool from forks to threads also breaks any test outside these globs that calls process.chdir, which is unsupported in worker threads.",
+        "repro": "Run `pnpm run test` and look for a poolMatchGlobs deprecation line. Grep tests outside the listed globs for `process.chdir`.",
+        "fix": "If a warning appears, move to `test.projects` with a forks/singleFork project for the git-heavy globs. Otherwise leave a comment noting the upgrade path.",
+        "pattern": "d2f2d28f9e8b"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The first tier-1 test shows tests.pass passing with one flaky-under-load note per file."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The second test shows a fail verdict, with the full-run output and the alone output both kept."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The calls log shows each file started and ended in turn with no second suite run. This is shown with a stub script only; the real pnpm invocation is unverified."
+      },
+      {
+        "id": "A4",
+        "status": "met",
+        "note": "The config sets reportOnFailure: true and a config test asserts it. The coverage floor is judged on the summary the failing run wrote."
+      },
+      {
+        "id": "A5",
+        "status": "met",
+        "note": "The only test file in the diff is new."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 10417,
+      "costUsd": 0.31214000000000003
+    }
+  }
+}
