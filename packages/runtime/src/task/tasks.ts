@@ -347,6 +347,9 @@ function judgeStep(task: Task): string {
   for (const e of [...task.entries].reverse()) {
     if (e.beat !== "judge") continue;
     const answer = e.section === "stop" ? ANSWERED.exec(e.text) : null;
+    // A judge a time limit stopped never reached a verdict, so it runs again.
+    if (answer && lastAnswered(task).some((s) => s.startsWith("timeout:")))
+      return "judge";
     if (answer)
       return answer[1] === "allowed"
         ? "ship"

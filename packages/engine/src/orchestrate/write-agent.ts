@@ -9,8 +9,7 @@
 //
 // The runner is injectable so the build pipeline is unit-tested without spawning
 // `claude` or touching a real worktree.
-import { spawn } from "node:child_process";
-
+import { spawnWithLimit } from "../ai/call-limit.js";
 import { claudeCommand, parseClaudeJson } from "../ai/claude-cli.js";
 import { DEFAULT_MODEL } from "../ai/client.js";
 import { allowlistedEnv } from "../detectors/exec.js";
@@ -112,24 +111,11 @@ const defaultRunner: WriteAgentRunner = async ({
     DENIED_BUILD_TOOLS.join(","),
   ];
   const { command, argv } = await claudeCommand(args);
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(command, argv, {
-      cwd,
-      env: agentEnv(),
-      windowsHide: true,
-      ...(signal ? { signal } : {}),
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
-    child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolve(stdout);
-      else
-        reject(new Error(stderr.trim() || `claude exited with code ${code}`));
-    });
-    child.stdin.end(prompt);
+  return spawnWithLimit(command, argv, {
+    input: prompt,
+    cwd,
+    env: agentEnv(),
+    signal,
   });
 };
 

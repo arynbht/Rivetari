@@ -2,7 +2,7 @@
 // before any edit), then one writer in the task's worktree, then the runtime
 // commits and checks the diff for stop-and-ask triggers. A trigger pauses the
 // task until a person answers; an allowed trigger isn't asked about again.
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,6 +17,7 @@ import {
   ISOLATED_AGENT_ARGS,
   parseClaudeJson,
   READ_ONLY_TOOLS,
+  spawnWithLimit,
 } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
@@ -130,25 +131,11 @@ export function agentArgs(call: AgentCall): string[] {
 
 export const claudeAgent: AgentRunner = async (call) => {
   const { command, argv } = await claudeCommand(agentArgs(call));
-  const stdout = await new Promise<string>((resolve, reject) => {
-    const child = spawn(command, argv, {
-      cwd: call.cwd,
-      env: call.env,
-      windowsHide: true,
-    });
-    let out = "";
-    let err = "";
-    child.stdout.on("data", (d: Buffer) => (out += d.toString()));
-    child.stderr.on("data", (d: Buffer) => (err += d.toString()));
-    child.on("error", reject);
-    child.on("close", (code) =>
-      code === 0 || hitTurnLimit(out)
-        ? resolve(out)
-        : reject(new Error(err.trim() || `claude exited with code ${code}`)),
-    );
-    // A child that exits early closes stdin; its exit code says why, not EPIPE.
-    child.stdin.on("error", () => undefined);
-    child.stdin.end(call.prompt);
+  const stdout = await spawnWithLimit(command, argv, {
+    input: call.prompt,
+    cwd: call.cwd,
+    env: call.env,
+    accept: hitTurnLimit,
   });
   // A call stopped at its turn limit has no reply, only what it cost.
   const limited = hitTurnLimit(stdout);
