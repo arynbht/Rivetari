@@ -1,0 +1,47 @@
+id: T-0025
+title: Have init use the stack detector and seed the banned list from it
+type: fix
+source: prompt
+description: "F1, a BreathBand blocker. rivetari init takes the profile's stack
+  only from --stack or a free-text prompt, so a repo initialised without --stack
+  gets stack: [] (breathband-console did), and banned.json is seeded from that
+  empty list with defaultsFor, so it gets no patterns. The engine's detectStacks
+  already runs in init, but only after the profile and banned.json are written,
+  and only for the AGENTS.md text. Init runs detectStacks before saving: the
+  profile's stack is the detected stacks plus any --stack values normalised
+  through declaredStacks (so 'TypeScript' or 'ts' become the detector's names),
+  without duplicates, and banned.json is seeded from that stack. A repo where
+  nothing is detected and no --stack is given still gets stack: [] and an empty
+  banned list. An existing banned.json is still never overwritten."
+acceptance:
+  - id: A1
+    text: init without --stack in a repo with package.json and tsconfig.json writes
+      a profile whose stack is the detected stacks (node and typescript), not an
+      empty list
+    verify: unit
+  - id: A2
+    text: the banned.json init seeds for that repo has the node stack defaults, not
+      an empty list
+    verify: unit
+  - id: A3
+    text: --stack values are normalised through declaredStacks and merged with the
+      detected stacks without duplicates
+    verify: unit
+  - id: A4
+    text: "a repo with nothing detected and no --stack still gets stack: [] and an
+      empty banned list, and an existing banned.json is left as it is"
+    verify: unit
+  - id: A5
+    text: no test file that existed at base is modified
+    verify: review
+out_of_scope: []
+touches:
+  - packages/cli/src/commands/init.ts
+  - packages/cli/src/commands/init-stack.test.ts
+  - packages/action/dist/**
+  - .changeset/init-detects-stack.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
