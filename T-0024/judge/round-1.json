@@ -1,0 +1,181 @@
+{
+  "task": "T-0024",
+  "round": 1,
+  "verdict": "passed",
+  "head": "acbdc7e7b8a45be3e94526b1e067324e989c5333",
+  "base": "e715d32724398e3013be4ad33368a86c9aabd3ac",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "70.71% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — The runtime test edits entry 1. It asserts configured review-at-pr, effective supervised, and an 'entry 1: contents don't match its seal' problem.\n- A2: met — The test rewrites the header to name the factory runtime. It asserts ledger.md is re-rendered, verify().ok is true, verification is empty and effective is review-at-pr.\n- A3: met — Tests cover a non-JSON line and RIVETARI_LEDGER_KEY=not-a-key. ladder() and enforceFallback() resolve, report supervised, and leave ledger.jsonl byte-identical.\n- A4: met — The CLI test checks renderLadder and sessionStartText for the failure line, the entry problem and 'runs supervised'. It checks none of it appears for intact or absent ledgers.\n- A5: met — Only new test files are added.\n\n<details><summary>5 suggestion(s), non-blocking</summary>\n\n- Session start drops the ledger warning silently when ladder() throws `packages/cli/src/commands/hook.ts:632` — On rejection, push a line such as `(The trust ladder can't be read: <reason>; treat this repo as supervised.)` instead of nothing.\n- rerenderView failures are reported as 'ledger.jsonl can't be read' `packages/runtime/src/task/ladder.ts:120` — Catch rerenderView separately and word its problem as the view not being re-renderable, or use a neutral message naming the autonomy ledger.\n- Problems are listed twice in rivetari metrics `packages/cli/src/commands/metrics.ts:49` — In ladder(), set fallback to a short 'the autonomy ledger failed verification' without the joined problems, and let verificationLines carry the list.\n- New required `verification` field may break existing LadderState literals `packages/runtime/src/task/ladder.ts:67` — Confirm the deterministic checks are green. If a literal exists, make verificationLines tolerate a missing field (`l.verification ?? []`) rather than editing the old test.\n- CLI test doesn't isolate RIVETARI_LEDGER_KEY `packages/cli/src/commands/ladder-verify.test.ts:24` — Save, delete and restore RIVETARI_LEDGER_KEY in beforeEach and afterEach, as the runtime test does.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/hook.ts",
+        "line": 632,
+        "acceptance_id": null,
+        "title": "Session start drops the ledger warning silently when ladder() throws",
+        "detail": "verifiedEntries already catches ledger errors. But ladder() can still reject from historyRows or loadBanned, and `.catch(() => null)` then prints nothing. The person sees no hint that the trust ladder couldn't be read. This fails open on display, though enforcement is unaffected.",
+        "repro": "Make historyRows(root) reject, for example with a corrupt metrics history, while the autonomy ledger is tampered. The session-start text omits the failed-verification lines.",
+        "fix": "On rejection, push a line such as `(The trust ladder can't be read: <reason>; treat this repo as supervised.)` instead of nothing.",
+        "pattern": "cc5238e8cafb"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/ladder.ts",
+        "line": 120,
+        "acceptance_id": null,
+        "title": "rerenderView failures are reported as 'ledger.jsonl can't be read'",
+        "detail": "One try block wraps rerenderView(), verify() and entries(). A failure to write ledger.md, such as EACCES or a read-only checkout, is attributed to ledger.jsonl, which points the person at the wrong file.",
+        "repro": "Make .rivetari/autonomy/ledger.md read-only with a stale header, then run `rivetari metrics`. The problem says ledger.jsonl can't be read.",
+        "fix": "Catch rerenderView separately and word its problem as the view not being re-renderable, or use a neutral message naming the autonomy ledger.",
+        "pattern": "22a92c199eeb"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/metrics.ts",
+        "line": 49,
+        "acceptance_id": null,
+        "title": "Problems are listed twice in rivetari metrics",
+        "detail": "With verification failing and configured above supervised, the Autonomy line already prints `(running at supervised: the autonomy ledger failed verification: <problems>)`. verificationLines then lists the same problems again just below.",
+        "repro": "Run `rivetari metrics` on a review-at-pr repo with an edited entry. The entry problem appears on the Autonomy line and again as a bullet.",
+        "fix": "In ladder(), set fallback to a short 'the autonomy ledger failed verification' without the joined problems, and let verificationLines carry the list.",
+        "pattern": "656c3266c588"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/ladder.ts",
+        "line": 67,
+        "acceptance_id": null,
+        "title": "New required `verification` field may break existing LadderState literals",
+        "detail": "Any existing test or caller that builds a LadderState by hand now fails typecheck. At runtime it would also throw in renderLadder on `l.verification.length`. The card forbids changing existing tests.",
+        "repro": "Run `pnpm run typecheck` with any existing test that passes an object literal to renderLadder.",
+        "fix": "Confirm the deterministic checks are green. If a literal exists, make verificationLines tolerate a missing field (`l.verification ?? []`) rather than editing the old test.",
+        "pattern": "33a616875786"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/ladder-verify.test.ts",
+        "line": 24,
+        "acceptance_id": null,
+        "title": "CLI test doesn't isolate RIVETARI_LEDGER_KEY",
+        "detail": "The runtime test clears RIVETARI_LEDGER_KEY, but the CLI test doesn't. A developer or CI environment with that variable set changes which key signs and verifies the ledger, so the test can behave differently from one machine to the next.",
+        "repro": "Run `RIVETARI_LEDGER_KEY=not-a-key pnpm run test`. The intact-ledger case reports a failed verification.",
+        "fix": "Save, delete and restore RIVETARI_LEDGER_KEY in beforeEach and afterEach, as the runtime test does.",
+        "pattern": "a1ac46a776d4"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The runtime test edits entry 1. It asserts configured review-at-pr, effective supervised, and an 'entry 1: contents don't match its seal' problem."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The test rewrites the header to name the factory runtime. It asserts ledger.md is re-rendered, verify().ok is true, verification is empty and effective is review-at-pr."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "Tests cover a non-JSON line and RIVETARI_LEDGER_KEY=not-a-key. ladder() and enforceFallback() resolve, report supervised, and leave ledger.jsonl byte-identical."
+      },
+      {
+        "id": "A4",
+        "status": "met",
+        "note": "The CLI test checks renderLadder and sessionStartText for the failure line, the entry problem and 'runs supervised'. It checks none of it appears for intact or absent ledgers."
+      },
+      {
+        "id": "A5",
+        "status": "met",
+        "note": "Only new test files are added."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 21289,
+      "costUsd": 0.2406396
+    }
+  }
+}
