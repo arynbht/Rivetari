@@ -197,6 +197,8 @@ type Edit = (doc: Document, workflow: Workflow) => boolean;
 interface Planned {
   path: string;
   edit: Edit;
+  /** Something the edit leaves for a person, reported beside it. */
+  note?: string | undefined;
 }
 
 type PatchFn = (
@@ -240,14 +242,12 @@ const addAggregator: Edit = (doc, workflow) => {
     ...new Set([...needsOf(plain), ...aggregatedJobs(workflow, key)]),
   ];
   setNeeds(doc, job, needs);
-  if (typeof plain.if !== "string" || !plain.if.includes("always()")) {
-    // `always()` alone would let the job pass over a failed need, so the
-    // results check goes first.
-    const condition =
-      typeof plain.if === "string" && plain.if.trim() !== ""
-        ? `always() && (${bare(plain.if)})`
-        : "always()";
-    setIf(doc, job, condition);
+  // The required check has to report on every PR: any other condition (a
+  // need's output, say) could skip it, and GitHub counts a skipped required
+  // check as passed. `always()` alone would let it pass over a failed need, so
+  // the results check goes first.
+  if (typeof plain.if !== "string" || bare(plain.if) !== "always()") {
+    setIf(doc, job, "always()");
   }
   const hasCheck = steps.items.some(
     (s) => isMap(s) && s.get("name") === RESULTS_STEP.name,
@@ -314,36 +314,64 @@ const addPathFilter: Edit = (doc, workflow) => {
   if (isSeq(steps)) steps.items.push(filterStep);
   jobs.items.unshift(new Pair(doc.createNode("changes"), changes));
 
+  const required = ciJob(workflow)?.[0];
   for (const [key, plain] of jobsOf(workflow)) {
     const job = jobMap(doc, key);
     if (!job) continue;
+    // The required `ci` check must report on every PR, docs-only ones too:
+    // GitHub counts a skipped required check as passed. Only an `always()`
+    // aggregator may wait for `changes`, since it runs whatever that did.
+    if (key === required) {
+      if (key === aggregator) addNeed(doc, job, plain, "changes");
+      continue;
+    }
     addNeed(doc, job, plain, "changes");
-    // The aggregator and the secret scan run on every change, docs included.
-    if (key === aggregator || scansSecrets(plain)) continue;
+    // The secret scan runs on every change, docs included.
+    if (scansSecrets(plain)) continue;
     setIf(doc, job, combineIf(plain.if, CODE_CHANGED));
   }
   return true;
 };
 
+/** A matrix whose OS list can drop to its Linux runners on PRs, or null. */
+function narrowableOs(plain: Job): { os: string[]; free: string[] } | null {
+  const strategy = isRecord(plain.strategy) ? plain.strategy : {};
+  const matrix = isRecord(strategy.matrix) ? strategy.matrix : {};
+  const os = Array.isArray(matrix.os) ? matrix.os.map(String) : null;
+  const free = os?.filter((v) => !PAID_OS.test(v)) ?? [];
+  const runsOnMatrix =
+    typeof plain["runs-on"] === "string" &&
+    plain["runs-on"].includes("matrix.os");
+  return os && free.length > 0 && runsOnMatrix && matrix.include === undefined
+    ? { os, free }
+    : null;
+}
+
+/**
+ * The required `ci` job when it runs only on Windows or macOS. Keeping it off
+ * PRs would skip the required check, which GitHub counts as passed, so it's
+ * left for a person to move to Linux.
+ */
+function paidOsCiJob(workflow: Workflow): string | undefined {
+  const found = ciJob(workflow);
+  if (!found || !paidOsJobs(workflow).includes(found[0])) return undefined;
+  return narrowableOs(found[1]) ? undefined : found[0];
+}
+
 const keepPaidOsOffPrs: Edit = (doc, workflow) => {
-  const offending = paidOsJobs(workflow);
+  const keep = paidOsCiJob(workflow);
+  const offending = paidOsJobs(workflow).filter((key) => key !== keep);
   const jobs = new Map(jobsOf(workflow));
   for (const key of offending) {
     const plain = jobs.get(key) ?? {};
     const job = jobMap(doc, key);
     if (!job) continue;
-    const strategy = isRecord(plain.strategy) ? plain.strategy : {};
-    const matrix = isRecord(strategy.matrix) ? strategy.matrix : {};
-    const os = Array.isArray(matrix.os) ? matrix.os.map(String) : null;
-    const free = os?.filter((v) => !PAID_OS.test(v)) ?? [];
-    const runsOnMatrix =
-      typeof plain["runs-on"] === "string" &&
-      plain["runs-on"].includes("matrix.os");
-    if (os && free.length > 0 && runsOnMatrix && matrix.include === undefined) {
+    const narrowable = narrowableOs(plain);
+    if (narrowable) {
       // Pull requests keep the free runners; every other event runs them all.
       doc.setIn(
         ["jobs", key, "strategy", "matrix", "os"],
-        `\${{ github.event_name == 'pull_request' && fromJSON('${JSON.stringify(free)}') || fromJSON('${JSON.stringify(os)}') }}`,
+        `\${{ github.event_name == 'pull_request' && fromJSON('${JSON.stringify(narrowable.free)}') || fromJSON('${JSON.stringify(narrowable.os)}') }}`,
       );
     } else {
       setIf(doc, job, combineIf(plain.if, NOT_PR));
@@ -508,7 +536,16 @@ const patches: Record<Exclude<Patch, "pin-actions">, PatchFn> = {
     if (!isPrivate) return [];
     return workflows
       .filter((w) => paidOsJobs(w).length > 0)
-      .map((w) => ({ path: w.path, edit: keepPaidOsOffPrs }));
+      .map((w) => {
+        const keep = paidOsCiJob(w);
+        return {
+          path: w.path,
+          edit: keepPaidOsOffPrs,
+          note: keep
+            ? `${w.path}: the required \`${keep}\` job runs on Windows or macOS; move it to a Linux runner by hand, since keeping it off PRs would skip the required check`
+            : undefined,
+        };
+      });
   },
   "secret-scan-on-pr": async (_ctx, workflows) =>
     workflows.some(scansSecretsOnPr) ? [] : onTarget(workflows, addSecretScan),
@@ -595,13 +632,14 @@ export const workflowGenerator: Generator = async (ctx, control) => {
   const planned = await patches[patch](ctx, workflows);
   if (typeof planned === "string") return note(planned);
   const changes: Change[] = [];
-  for (const { path, edit } of planned) {
+  for (const { path, edit, note: left } of planned) {
     const workflow = workflows.find((w) => w.path === path);
     const read = await readDoc(ctx, path);
     if (!workflow || !read) continue;
     if (edit(read.doc, workflow)) {
       changes.push(merged(control, path, read.doc, read.bom));
     }
+    if (left) changes.push(...note(left));
   }
   return changes;
 };

@@ -412,6 +412,91 @@ jobs:
     expect(await statusOf(dir, "ci.concurrency-pr-only")).toBe("fail");
   });
 
+  it("never lets the docs filter skip a plain required `ci` job", async () => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: npm test
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: npm run e2e
+`,
+    });
+    await fix(dir, "ci.docs-skip-build");
+    const doc = parse(await readFile(join(dir, WF), "utf8")) as {
+      jobs: Record<string, { needs?: unknown; if?: string }>;
+    };
+    // `ci` still runs, and reports, on a docs-only PR or a failed `changes`.
+    expect(doc.jobs.ci?.needs).toBeUndefined();
+    expect(doc.jobs.ci?.if).toBeUndefined();
+    // Other jobs are still skipped on docs-only changes.
+    expect(doc.jobs.e2e?.if).toBe("needs.changes.outputs.code == 'true'");
+    expect(await statusOf(dir, "ci.docs-skip-build")).toBe("pass");
+  });
+
+  it("makes an aggregator gated on a need's output run on every PR", async () => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request]
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo
+  ci:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm test
+`,
+    });
+    await fix(dir, "ci.required-aggregator");
+    const doc = parse(await readFile(join(dir, WF), "utf8")) as {
+      jobs: { ci: { if: string } };
+    };
+    expect(doc.jobs.ci.if).toBe("always()");
+  });
+
+  it("leaves a Windows `ci` job on PRs and says to move it by hand", async () => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request]
+jobs:
+  ci:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - run: npm test
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - run: build.cmd
+`,
+    });
+    const changes = await workflowGenerator(
+      ctx(dir),
+      control("ci.pr-linux-only"),
+    );
+    expect(changes).toContainEqual(
+      expect.objectContaining({
+        type: "note",
+        message: expect.stringContaining("move it to a Linux runner by hand"),
+      }),
+    );
+    await applyChanges(dir, changes, { mode: "write" });
+    const doc = parse(await readFile(join(dir, WF), "utf8")) as {
+      jobs: Record<string, { if?: string }>;
+    };
+    expect(doc.jobs.ci?.if).toBeUndefined();
+    expect(doc.jobs.installer?.if).toBe("github.event_name != 'pull_request'");
+  });
+
   it("adds a secret scan that needs no license", async () => {
     const dir = await repoWith({ [WF]: LEGACY });
     await fix(dir, "ci.secret-scan-on-pr");
