@@ -93,7 +93,7 @@ On a private repo, Windows minutes count double and macOS minutes ten times, so 
 References:
   - [GitHub Docs — About billing for GitHub Actions (minute multipliers)](https://docs.github.com/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions)
 
-### `ci.required-aggregator` — One required `ci` check gates every PR job
+### `ci.required-aggregator` — One required `ci` check aggregates the PR jobs
 
 - **phase**: build · **severity**: medium · **effort**: small
 - **detect**: `workflow` · **fix**: workflow `required-aggregator`

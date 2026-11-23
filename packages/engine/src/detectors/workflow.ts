@@ -131,10 +131,10 @@ export function aggregatorGap(workflow: Workflow): string | null {
   if (!ifOf(job).includes("always()")) {
     return "has a `ci` job that doesn't run with `if: always()`, so a failed job skips it";
   }
-  const upstream = upstreamOf(workflow, key);
-  const missing = wanted.filter((j) => !upstream.has(j));
-  if (missing.length > 0) {
-    return `has a \`ci\` job that doesn't wait for ${missing.join(", ")}`;
+  // A job can be left out on purpose (an e2e run only some changes need), so
+  // the aggregator has to wait for some jobs, not all of them.
+  if (upstreamOf(workflow, key).size === 0) {
+    return "has a `ci` job that waits for no other job";
   }
   // With `always()` the job runs after a failure too, so it has to read the
   // results and fail on one itself.
@@ -299,7 +299,7 @@ const checks: Record<WorkflowCheck, CheckFn> = {
       const gap = aggregatorGap(workflow);
       if (gap === null) {
         return pass(
-          `${workflow.path}: the \`ci\` job gates every pull request job`,
+          `${workflow.path}: the \`ci\` job gates the pull request jobs it needs`,
         );
       }
       gaps.push(`${workflow.path} ${gap}`);

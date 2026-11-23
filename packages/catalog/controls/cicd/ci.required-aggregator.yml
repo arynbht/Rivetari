@@ -1,5 +1,5 @@
 id: ci.required-aggregator
-title: One required `ci` check gates every PR job
+title: One required `ci` check aggregates the PR jobs
 lane: cicd
 phase: build
 severity: medium
@@ -9,9 +9,10 @@ detect:
     check: required-aggregator
     exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
 evidence: none
-# Adds a `ci` job that needs every other PR job, runs with `if: always()` and
-# fails when one of them failed (skipped counts as passed), or turns an
-# existing `ci` job into that.
+# Passes a `ci` job that needs other jobs, runs with `if: always()` and reads
+# their results; a job may be left out of its needs on purpose. The fix adds a
+# `ci` job that needs every other PR job and fails when one of them failed
+# (skipped counts as passed), or turns an existing `ci` job into that.
 fix:
   type: workflow
   patch: required-aggregator
