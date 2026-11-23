@@ -1,0 +1,35 @@
+id: T-0032
+title: Route a Markdown-only card on its touches, not its wording
+type: fix
+source: prompt
+description: When every one of a card's touches is documentation (a .md file
+  anywhere, or a path under docs/), front-end keywords in its title or
+  description, and skill triggers matched by them, still score the front-end
+  sector and can bring in a browser proof for a change that only edits Markdown
+  (breathband-console T-0002 only wrote one Markdown file and got one). For such
+  a card those keywords don't count towards that sector, so it isn't in on
+  wording alone and the proof stays a test run. A card with any non-Markdown
+  touch, or with no touches, routes exactly as now.
+acceptance:
+  - id: A1
+    text: route() for a card whose only touch is a root Markdown file, with
+      front-end keywords in its description, doesn't put the front-end sector in
+      and its proof isn't the browser proof
+    verify: unit
+  - id: A2
+    text: a card touching docs/guide.md and src/app/main.ts with the same
+      description routes as now
+    verify: unit
+  - id: A3
+    text: a card with no touches and the same description routes as now
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/router/route.ts
+  - packages/runtime/src/router/docs-only-ui.test.ts
+  - .changeset/docs-only-ui.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
