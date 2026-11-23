@@ -54,7 +54,7 @@ import { generatedPaths } from "./tier2.js";
 
 export { parseNameStatus } from "./protected.js";
 export { type CheckOutcome, outcomeOf, type Side } from "./outcome.js";
-import { type CheckOutcome, outcomeOf, type Side } from "./outcome.js";
+import { type CheckOutcome, compare, side } from "./outcome.js";
 
 export interface Tier1Result {
   verdict: "pass" | "fail" | "needs-human";
@@ -793,35 +793,6 @@ function passedAlone(
 }
 
 const COVERAGE = "quality.coverage.floor";
-
-function side(result: ControlResult | undefined): Side {
-  if (!result || result.status === "n/a") return "n/a";
-  return result.status === "pass" ? "green" : "red";
-}
-
-function compare(
-  baseResults: ControlResult[],
-  headResults: ControlResult[],
-): CheckOutcome[] {
-  const baseById = new Map(baseResults.map((r) => [r.controlId, r]));
-  return headResults.map((h) => {
-    const b = baseById.get(h.controlId);
-    const before = side(b);
-    const after = side(h);
-    const message =
-      h.detectors.find((d) => d.status !== "pass")?.message ??
-      h.detectors[0]?.message ??
-      "";
-    return {
-      id: h.controlId,
-      title: h.title,
-      base: before,
-      head: after,
-      outcome: outcomeOf(before, after),
-      message,
-    };
-  });
-}
 
 /** Put protected paths back to their base state in the clone. */
 async function restoreProtected(
