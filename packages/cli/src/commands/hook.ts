@@ -3,9 +3,10 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { runTool } from "@arynbht/rivetari-engine";
-import { BEATS, listTasks, nextStep } from "@arynbht/rivetari-runtime";
+import { BEATS, ladder, listTasks, nextStep } from "@arynbht/rivetari-runtime";
 
 import { GUARD_COMMAND, GUARD_MATCHER, isRivetariHook } from "./init-files.js";
+import { verificationLines } from "./metrics.js";
 
 // Claude Code hooks that `rivetari init` installs in `.claude/settings.json`
 //. They run in the person's interactive session, not the sector agent's
@@ -628,6 +629,8 @@ export async function sessionStartText(root: string): Promise<string> {
     () => null,
   );
   if (!agents) lines.push("(AGENTS.md is missing: run `rivetari init`.)");
+  const trust = await ladder(root).catch(() => null);
+  if (trust) lines.push(...verificationLines(trust));
   const open = await listTasks(root)
     .then((tasks) => tasks.filter((t) => nextStep(t) !== "done"))
     .catch(() => []);

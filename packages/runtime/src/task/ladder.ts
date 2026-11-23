@@ -8,7 +8,7 @@ import { simpleGit } from "simple-git";
 import { loadBanned } from "../judge/banned.js";
 import { findingsMetrics, historyRows } from "../judge/findings.js";
 import type { TaskHistoryRow } from "../ship/close.js";
-import { Ledger } from "./ledger.js";
+import { Ledger, type LedgerEntry } from "./ledger.js";
 import { TaskError } from "./tasks.js";
 
 export const AUTONOMY_DIR = ".rivetari/autonomy";
@@ -64,16 +64,14 @@ export interface LadderState {
   numbers: LadderNumbers;
   unmet: Record<Autonomy, string[]>;
   fallback: string | null;
+  verification: string[];
 }
 
 export const autonomyLedger = (repoPath: string) =>
   Ledger.open(join(repoPath, AUTONOMY_DIR), "Autonomy");
 
-export async function autonomyEntries(
-  repoPath: string,
-): Promise<AutonomyEntry[]> {
-  const ledger = await autonomyLedger(repoPath);
-  return (await ledger.entries()).flatMap((e) => {
+const parseEntries = (entries: LedgerEntry[]): AutonomyEntry[] =>
+  entries.flatMap((e) => {
     const m = ENTRY.exec(e.text);
     return m
       ? [
@@ -88,6 +86,40 @@ export async function autonomyEntries(
         ]
       : [];
   });
+
+export async function autonomyEntries(
+  repoPath: string,
+): Promise<AutonomyEntry[]> {
+  const ledger = await autonomyLedger(repoPath);
+  return parseEntries(await ledger.entries());
+}
+
+const reason = (err: unknown) =>
+  err instanceof Error ? err.message : String(err);
+
+async function verifiedEntries(
+  repoPath: string,
+): Promise<{ entries: AutonomyEntry[]; problems: string[] }> {
+  let ledger: Ledger;
+  try {
+    ledger = await autonomyLedger(repoPath);
+  } catch (err) {
+    return {
+      entries: [],
+      problems: [`the ledger key can't be read: ${reason(err)}`],
+    };
+  }
+  try {
+    await ledger.rerenderView();
+    const check = await ledger.verify();
+    if (!check.ok) return { entries: [], problems: check.problems };
+    return { entries: parseEntries(await ledger.entries()), problems: [] };
+  } catch (err) {
+    return {
+      entries: [],
+      problems: [`${AUTONOMY_DIR}/ledger.jsonl can't be read: ${reason(err)}`],
+    };
+  }
 }
 
 async function firstText(
@@ -191,7 +223,7 @@ export async function ladder(
   const now = options.now ?? new Date();
   const profile = await loadProfile(repoPath).catch(() => null);
   const configured: Autonomy = profile?.autonomy ?? "supervised";
-  const entries = await autonomyEntries(repoPath);
+  const { entries, problems: verification } = await verifiedEntries(repoPath);
   const entry =
     [...entries].reverse().find((e) => e.level === configured) ?? null;
   const rows = (options.rows ?? (await historyRows(repoPath))).filter(
@@ -300,11 +332,14 @@ export async function ladder(
     latest?.kind === "fell back" &&
     RANK[latest.level] < RANK[configured] &&
     (!entry || Date.parse(latest.at) >= Date.parse(entry.at));
-  const effective = logged
-    ? (latest?.level ?? configured)
-    : fallback
-      ? BELOW[configured]
-      : configured;
+  const effective =
+    verification.length > 0
+      ? "supervised"
+      : logged
+        ? (latest?.level ?? configured)
+        : fallback
+          ? BELOW[configured]
+          : configured;
 
   return {
     configured,
@@ -317,7 +352,13 @@ export async function ladder(
       "review-at-pr": reviewAtPrUnmet,
       unattended: unattendedUnmet,
     },
-    fallback: logged ? (latest?.note ?? fallback) : fallback,
+    fallback:
+      verification.length > 0
+        ? `the autonomy ledger failed verification: ${verification.join("; ")}`
+        : logged
+          ? (latest?.note ?? fallback)
+          : fallback,
+    verification,
   };
 }
 
@@ -387,6 +428,7 @@ export async function enforceFallback(
   options: { by: string; now?: Date | undefined },
 ): Promise<LadderState> {
   const state = await ladder(repoPath, { now: options.now });
+  if (state.verification.length > 0) return state;
   const latest = state.entries.at(-1);
   const already =
     latest?.kind === "fell back" && latest.level === state.effective;

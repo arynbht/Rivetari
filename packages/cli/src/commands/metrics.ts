@@ -27,6 +27,15 @@ export interface MetricsFlags {
 const pct = (n: number | null) =>
   n === null ? "n/a" : `${Math.round(n * 100)}%`;
 
+export function verificationLines(l: LadderState, indent = ""): string[] {
+  if (l.verification.length === 0) return [];
+  return [
+    `${indent}The autonomy ledger (.rivetari/autonomy/ledger.jsonl) failed verification:`,
+    ...l.verification.map((p) => `${indent}  - ${p}`),
+    `${indent}Until it verifies, this repo runs supervised.`,
+  ];
+}
+
 export function renderLadder(l: LadderState): string {
   const n = l.numbers;
   const r = n.rules;
@@ -38,6 +47,7 @@ export function renderLadder(l: LadderState): string {
     "Trust ladder",
     "",
     `  Autonomy               ${l.configured}${l.effective !== l.configured ? ` (running at ${l.effective}: ${l.fallback})` : ""}${l.entry ? ` · ${l.entry.kind} on ${l.entry.at.slice(0, 10)}` : ""}`,
+    ...verificationLines(l, "  "),
     `  Tier 1 rules           ${r.total} (${r.checks} checks, ${r.diff} diff rules, ${r.boundaries} boundary rules, ${r.lint} lint rules, ${r.banned} banned patterns) · ${r.fromFindings} from findings, ${r.defaults} stack defaults, ${r.total - r.fromFindings - r.defaults} built in or by hand${n.rulesAtEntry !== null ? `; ${n.rulesAtEntry} at entry` : ""}`,
     `  Blocking per PR        ${n.last10.blockingPerPr === null ? "n/a" : n.last10.blockingPerPr.toFixed(2)} over ${n.last10.prs} reviewed PR(s)`,
     `  First-pass merge       ${pct(n.firstPass.rate)} of ${n.firstPass.merged} merged PR(s)`,
