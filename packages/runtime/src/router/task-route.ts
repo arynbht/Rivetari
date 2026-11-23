@@ -24,6 +24,7 @@ import {
 } from "../task/tasks.js";
 import {
   type Assembly,
+  KEYWORD_ONLY_REASON,
   route,
   type RouteInput,
   type Routing,
@@ -146,6 +147,11 @@ export async function routeTask(
   if (routing.borderline.length > 0)
     await entry(
       `under the threshold, for the approver: ${routing.borderline.join(", ")}`,
+      "decision",
+    );
+  for (const sector of routing.decidedOut)
+    await entry(
+      `decided not in: ${sector} (${KEYWORD_ONLY_REASON})`,
       "decision",
     );
   for (const note of [...routing.notes, ...a.gaps])
