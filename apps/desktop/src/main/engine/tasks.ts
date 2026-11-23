@@ -44,7 +44,6 @@ export async function watchRepoTasks(
   onState: (state: TasksState) => void,
   intervalMs?: number,
 ): Promise<TasksState> {
-  await unwatchTasks();
   let tasks: TaskView[] = [];
   let error: string | null = null;
   const state = (): TasksState => ({ repoPath, tasks, error });
@@ -60,7 +59,11 @@ export async function watchRepoTasks(
     },
     intervalMs === undefined ? {} : { intervalMs },
   );
+  // Swap first, then stop the one replaced: two watch calls racing each other
+  // can't both see no watcher and leave one running.
+  const replaced = active;
   active = watcher;
+  await replaced?.stop();
   try {
     tasks = await watcher.ready;
   } catch (err) {
