@@ -36,8 +36,10 @@ import {
   acquireWorkspace,
   dependencyKey,
   installedKey,
+  type CheckScope,
   readBaseResults,
   setInstalledKey,
+  workspaceScope,
   writeBaseResults,
 } from "./workspace.js";
 import {
@@ -248,10 +250,23 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       install && !reuse ? await installDeps(workDir, log, options.env) : null;
     if (key !== null && !reuse && baseInstall?.ok !== false)
       await setInstalledKey(workDir, key);
-    // The base's results depend only on the base commit, the checks, the
-    // installed dependencies and the env the checks see, so every round and
-    // task on the same base shares one run.
-    const selected = await selectChecks(options);
+    // In a pnpm workspace, only the packages the change can affect are
+    // checked, on both sides, so the comparison stays like for like.
+    const scoped = scopeChecks(
+      await selectChecks(options),
+      await workspaceScope(
+        repo,
+        [mergeBase, head],
+        diff.flatMap((e) => (e.oldPath ? [e.path, e.oldPath] : [e.path])),
+      ),
+      baseScripts,
+    );
+    const selected = scoped.controls;
+    notes.push(...scoped.notes);
+    for (const note of scoped.notes) log(note);
+    // The base's results depend only on the base commit, the checks (scoped
+    // ones carry their packages), the installed dependencies and the env the
+    // checks see, so every round and task on the same base shares one run.
     const baseKey = options.persistent
       ? createHash("sha256")
           .update(
@@ -420,7 +435,18 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       notes.push(`dependency install failed: ${headInstall.message}`);
     }
 
-    const catalogChecks = compare(baseResults, headResults);
+    // A check the scope left out is shown as not run, never dropped silently.
+    const catalogChecks = [
+      ...compare(baseResults, headResults),
+      ...scoped.skipped.map((c): CheckOutcome => ({
+        id: c.id,
+        title: c.title,
+        base: "n/a",
+        head: "n/a",
+        outcome: "n/a",
+        message: COVERAGE_SKIPPED,
+      })),
+    ];
     const checks = [
       ...catalogChecks,
       bannedCheck(await loadBanned(options.repoPath, mergeBase), added),
@@ -511,6 +537,130 @@ async function selectChecks(options: Tier1Options): Promise<Control[]> {
     : changeChecks();
 }
 
+/**
+ * The checks narrowed to a workspace scope, with notes saying what was checked
+ * and why. A check is narrowed only when its root script's runner takes the
+ * packages as a filter of what it would run anyway; any other runs in full. A
+ * narrowed test run covers part of the code, so the coverage floor, which
+ * holds the whole repo, runs only when the tests run in full.
+ */
+export function scopeChecks(
+  selected: readonly Control[],
+  scope: CheckScope | null,
+  scripts: Record<string, unknown>,
+): { controls: Control[]; notes: string[]; skipped: Control[] } {
+  if (!scope) return { controls: [...selected], notes: [], skipped: [] };
+  if (scope.kind === "all")
+    return {
+      controls: [...selected],
+      notes: [`checked every workspace package: ${scope.why}`],
+      skipped: [],
+    };
+  const narrowed = new Map<string, string>();
+  const full: string[] = [];
+  for (const control of selected) {
+    const line = nodeLine(control);
+    const name = line ? npmScript(line) : null;
+    if (!line || !name) continue;
+    const script = scripts[name];
+    const scopedLine =
+      typeof script === "string"
+        ? narrowScript(line, script, scope.dirs, scope.filters)
+        : null;
+    if (scopedLine) narrowed.set(control.id, scopedLine);
+    else full.push(control.id);
+  }
+  if (narrowed.size === 0)
+    return {
+      controls: [...selected],
+      notes: [
+        `checked every workspace package: the change touches ${scope.dirs.join(", ")} only, but no check's script can be narrowed to packages`,
+      ],
+      skipped: [],
+    };
+  const testsNarrowed = selected.some(
+    (c) => runsTests(c) && narrowed.has(c.id),
+  );
+  const skipped = selected.filter((c) => testsNarrowed && c.id === COVERAGE);
+  const controls = selected
+    .filter((c) => !skipped.includes(c))
+    .map((c) => {
+      const scopedLine = narrowed.get(c.id);
+      return scopedLine ? withNodeLine(c, scopedLine) : c;
+    });
+  const notes = [
+    `checked ${scope.dirs.join(", ")} only: the change touches ${scope.touched.join(", ")}${scope.dependents.length > 0 ? `, and ${scope.dependents.join(", ")} depend${scope.dependents.length === 1 ? "s" : ""} on it` : ""}`,
+  ];
+  if (full.length > 0)
+    notes.push(
+      `${full.join(", ")} ran on every package: ${full.length === 1 ? "its script" : "their scripts"} can't be narrowed to packages`,
+    );
+  if (skipped.length > 0) notes.push(`${COVERAGE} ${COVERAGE_SKIPPED}`);
+  return { controls, notes, skipped };
+}
+
+const COVERAGE_SKIPPED =
+  "not checked: the tests ran for the affected packages only, and part of the suite can't be held to the whole repo's floor; it runs with the full suite";
+
+function nodeLine(control: Control): string | undefined {
+  for (const d of control.detect)
+    if (d.type === "command" && d.byStack?.node) return d.byStack.node;
+  return undefined;
+}
+
+function withNodeLine(control: Control, line: string): Control {
+  return {
+    ...control,
+    detect: control.detect.map((d) =>
+      d.type === "command" && d.byStack?.node
+        ? { ...d, byStack: { ...d.byStack, node: line } }
+        : d,
+    ),
+  };
+}
+
+/** The root script an `npm test` or `npm run <name>` line runs. */
+function npmScript(line: string): string | null {
+  const match = /^npm\s+(?:(test|start)|run(?:-script)?\s+(\S+))$/.exec(
+    line.trim(),
+  );
+  return match ? (match[1] ?? match[2] ?? null) : null;
+}
+
+/**
+ * The command that runs `line`'s script for `dirs` alone, or null when its
+ * runner can't be told which packages to run. Two shapes narrow: a script whose
+ * last step is vitest or jest (the packages become path filters, coverage off),
+ * and `pnpm -r run <script>` (the packages become filters).
+ */
+export function narrowScript(
+  line: string,
+  script: string,
+  dirs: readonly string[],
+  filters: readonly string[] = dirs.map((d) => `./${d}`),
+): string | null {
+  // Commands are split on whitespace, so a directory with a space can't pass.
+  if (dirs.length === 0 || [...dirs, ...filters].some((d) => /\s/.test(d)))
+    return null;
+  const text = script.trim();
+  const recursive =
+    /^pnpm\s+(?:-r|--recursive)\s+(?:run\s+([\w:.-]+)|(test))$/.exec(text);
+  if (recursive) {
+    const name = recursive[1] ?? recursive[2] ?? "";
+    return `pnpm ${filters.map((f) => `--filter=${f}`).join(" ")} run --if-present ${name}`;
+  }
+  // Only plain `a && b` chains: anything else may not pass the args to the end.
+  if (/[|;<>`&]|\$\(/.test(text.replace(/&&/g, " "))) return null;
+  const last = text.split("&&").at(-1)?.trim() ?? "";
+  const runner = /^(?:(?:npx|pnpm\s+exec|pnpm)\s+)?(vitest|jest)(?:\s|$)/.exec(
+    last,
+  )?.[1];
+  if (!runner || /--watch\b/.test(last)) return null;
+  const coverageOff =
+    runner === "vitest" ? "--coverage.enabled=false" : "--coverage=false";
+  return `${line.trim()} -- ${dirs.map((d) => `${d}/`).join(" ")} --passWithNoTests ${coverageOff}`;
+}
+
 async function runChecks(
   dir: string,
   selected: readonly Control[],
@@ -591,7 +741,11 @@ async function rerunAlone(
 ): Promise<AloneRun[]> {
   const detector = tests.detect.find((d) => d.type === "command");
   const timeout = detector?.type === "command" ? detector.timeout : undefined;
-  const [binary, ...args] = splitArgs(line);
+  const [binary, ...all] = splitArgs(line);
+  // A scoped run already passes its packages after `--`; the file alone is
+  // narrower than they are, so it replaces them.
+  const cut = all.indexOf("--");
+  const args = cut === -1 ? all : all.slice(0, cut);
   const runs: AloneRun[] = [];
   for (const file of files) {
     const argv = [...args, "--", file, "--coverage.enabled=false"];
