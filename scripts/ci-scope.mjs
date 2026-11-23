@@ -57,7 +57,9 @@ function scope(base) {
   if (!base) return { all: "no base to diff against" };
   const paths = execFileSync(
     "git",
-    ["diff", "--name-only", "-z", base, "HEAD"],
+    // Without renames a moved file lists both ends, so the package it left
+    // is in scope too.
+    ["diff", "--name-only", "--no-renames", "-z", base, "HEAD"],
     {
       encoding: "utf8",
     },
