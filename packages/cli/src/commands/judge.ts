@@ -61,6 +61,7 @@ export async function runJudge(
       install: flags.install,
       env: flags.env,
       workDir: flags.workDir,
+      persistent: true,
       log: flags.json
         ? undefined
         : (line) => process.stderr.write(`· ${line}\n`),
