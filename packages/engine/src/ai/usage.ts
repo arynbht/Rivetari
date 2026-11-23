@@ -34,7 +34,12 @@ export function estimateCost(model: string, usage: AiUsage): number {
   const key = Object.keys(PRICES).find((m) => model.startsWith(m));
   if (!key) return 0;
   const [inp, out] = PRICES[key]!;
-  return (usage.inputTokens / 1e6) * inp + (usage.outputTokens / 1e6) * out;
+  return (
+    (usage.inputTokens / 1e6) * inp +
+    (usage.outputTokens / 1e6) * out +
+    ((usage.cacheCreationTokens ?? 0) / 1e6) * inp * 1.25 +
+    ((usage.cacheReadTokens ?? 0) / 1e6) * inp * 0.1
+  );
 }
 
 const LOG_PATH = ".rivetari/ai-usage.log";

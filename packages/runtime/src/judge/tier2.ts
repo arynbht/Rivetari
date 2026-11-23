@@ -434,7 +434,11 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
       maxTokens: 8000,
     });
     const cost = res.costUsd ?? estimateCost(res.model, res.usage);
-    usage.tokens += res.usage.inputTokens + res.usage.outputTokens;
+    usage.tokens +=
+      res.usage.inputTokens +
+      res.usage.outputTokens +
+      (res.usage.cacheCreationTokens ?? 0) +
+      (res.usage.cacheReadTokens ?? 0);
     usage.costUsd += cost;
     if (options.usageDate) {
       await appendUsage(options.repoPath, {

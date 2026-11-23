@@ -89,6 +89,14 @@ export function parseClaudeJson(
     usage: {
       inputTokens: Number(usage.input_tokens ?? 0),
       outputTokens: Number(usage.output_tokens ?? 0),
+      ...(usage.cache_creation_input_tokens !== undefined
+        ? {
+            cacheCreationTokens: Number(usage.cache_creation_input_tokens),
+          }
+        : {}),
+      ...(usage.cache_read_input_tokens !== undefined
+        ? { cacheReadTokens: Number(usage.cache_read_input_tokens) }
+        : {}),
     },
     model: typeof data.model === "string" ? data.model : fallbackModel,
     costUsd:
