@@ -16,6 +16,8 @@
 - 2026-11-23 07:17 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 07:18 judge: judge passed · round 1 · head 2f98aff3d5a1 · record sha256 925f436e3b6ad13c55a964e54c92387d66dec975c321bf9a928fb07768689ac0 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 07:18 ship: draft PR opened: #189 https://github.com/arynbht/Rivetari/pull/189 · fix/t-0017 at 2f98aff3d5a1 → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 22:09 close: worktree removed · branch fix/t-0017 kept (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 22:09 close: ledger sealed · closed (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -54,3 +56,7 @@
 - 2026-11-23 07:18 acceptance A3: met — The buildTask test checks that the plan and build prompts carry the same SLICE headers and that plan maxTurns is PLAN_TURNS (4). The agentArgs test checks for --max-turns 4.
 - 2026-11-23 07:18 acceptance A4: met — The build-started line includes '~N prompt tokens · M repo file(s) in context'. The test checks N equals ceil(prompt.length/4) and M equals the slice length in the ledger.
 - 2026-11-23 07:18 judge review posted: https://github.com/arynbht/Rivetari/pull/189#pullrequestreview-6017764187
+
+## Outcome
+
+- 2026-11-23 22:09 PR #189 closed without merging · 15h16m · 2897k tokens · $2.43
