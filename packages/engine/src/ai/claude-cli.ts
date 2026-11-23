@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { resolveOnWindows } from "../detectors/exec.js";
+import { CallTimeoutError, spawnWithLimit } from "./call-limit.js";
 import {
   AiError,
   type AiTransport,
@@ -44,24 +45,7 @@ export async function claudeCommand(
 
 const defaultRunner: ClaudeRunner = async (args, input, signal, cwd) => {
   const { command, argv } = await claudeCommand(args);
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(command, argv, {
-      windowsHide: true,
-      ...(cwd ? { cwd } : {}),
-      ...(signal ? { signal } : {}),
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
-    child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolve(stdout);
-      else
-        reject(new Error(stderr.trim() || `claude exited with code ${code}`));
-    });
-    child.stdin.end(input);
-  });
+  return spawnWithLimit(command, argv, { input, cwd, signal });
 };
 
 /** Parse Claude Code's `--output-format json` result into a CompleteResult. */
@@ -143,6 +127,8 @@ export function claudeCliTransport(
       try {
         stdout = await run(args, req.prompt, signal, cwd);
       } catch (err) {
+        // A call past its limit stops the task; it isn't a failure to retry.
+        if (err instanceof CallTimeoutError) throw err;
         throw new AiError(
           `claude CLI failed: ${(err as Error).message}`,
           false,

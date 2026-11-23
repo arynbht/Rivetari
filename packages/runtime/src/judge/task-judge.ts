@@ -10,6 +10,8 @@ import { join } from "node:path";
 import {
   type AiClient,
   buildContext,
+  CallTimeoutError,
+  callTimeoutMinutes,
   createAiClient,
 } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
@@ -258,7 +260,10 @@ export async function judgeTask(
       });
     const full = () =>
       review(
-        options.ai ?? createAiClient({ timeoutMs: 900_000 }),
+        // The CLI transport's own call limit fires first and stops the task;
+        // this one bounds the API path, a minute later.
+        options.ai ??
+          createAiClient({ timeoutMs: (callTimeoutMinutes() + 1) * 60_000 }),
         options.model ?? profile?.ai?.judge_model ?? JUDGE_DEFAULT_MODEL,
       );
     let outcome: ReviewOutcome;
@@ -273,6 +278,8 @@ export async function judgeTask(
           FAST_REVIEW_MODEL,
         );
       } catch (err) {
+        // The run's budget ran out: the full review would only be killed too.
+        if (err instanceof CallTimeoutError) throw err;
         await append(
           "judge",
           `fast review (${FAST_REVIEW_MODEL}, ${FAST_REVIEW_TIMEOUT_MS / 60_000} min) didn't finish: ${oneLine((err as Error).message, 120)}; escalating to the full review`,
