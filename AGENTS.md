@@ -17,14 +17,8 @@ Run `rivetari doctor`. If it fails, do what it says (often
 In Claude Code: `/rivetari <what you want>` or `/rivetari #<issue>`.
 Anywhere else, use the `rivetari task` commands the skill uses. Don't change
 files in this checkout on the default branch: each task gets its own worktree and
-branch, and the change reaches the default branch only through a reviewed PR.
-
-**Exemption for this repo (owner, 2026-11-23):** changes to Rivetari's own code ship
-as plain PRs from a branch or worktree, not through `/rivetari`. Each PR needs CI green
-on Ubuntu and Windows and `rivetari review --pr <n>` with no blocking findings; it's
-rebased on main before it merges. An agent may then merge it, except changes to
-signing, leases or the autonomy ledger, which wait for the owner. Cards run on the
-BreathBand repos.
+branch, and the change reaches the default branch only through a reviewed PR. This
+repo has an exemption: see "This repo" below.
 
 ## The beats
 
@@ -104,10 +98,19 @@ Pause and ask the person before:
 
 ## People merge
 
-Rivetari opens draft PRs. It never merges, and neither does any agent.
+Rivetari opens draft PRs. It never merges, and neither does any agent, except under
+this repo's exemption below.
 
 ## This repo
 
+- **Exemption (owner, 2026-11-23):** changes to Rivetari's own code ship as plain PRs
+  from a branch or worktree, not through `/rivetari`; cards run on the BreathBand repos.
+  Each PR needs CI green on Ubuntu and Windows and `rivetari review --pr <n>` with no
+  blocking findings, and it's rebased on main before it merges. An agent may then merge
+  it, except a change to signing, leases or the autonomy ledger, which waits for the
+  owner: `packages/runtime/src/task/ledger.ts` (entries, seals, keys),
+  `packages/runtime/src/task/store.ts` (leases), `packages/runtime/src/task/ladder.ts`
+  and `.rivetari/autonomy/**`. Rivetari itself still never merges.
 - **rivetari**: monorepo, phase scaffold
 - Stack: node, typescript, pnpm, electron
 - Flags: open-source, distributes-binaries, uses-ai
