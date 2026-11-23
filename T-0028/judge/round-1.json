@@ -1,0 +1,162 @@
+{
+  "task": "T-0028",
+  "round": 1,
+  "verdict": "passed",
+  "head": "6015f62ee7cd3531eb49595d800b9c279ce7003f",
+  "base": "f92f1c0e625b2ec5c14137a3138abcc96f621f2b",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "73.01% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [
+      {
+        "reason": "existing-test",
+        "path": "packages/cli/src/commands/init.test.ts",
+        "detail": "modifies a test that existed at base"
+      }
+    ],
+    "notes": [
+      "checked every workspace package: .changeset/init-ignore-history.md is outside every workspace package"
+    ]
+  },
+  "risk": {
+    "card": "low",
+    "effective": "low",
+    "reasons": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — init.ts adds history.jsonl to the ignoreInRivetari list. The new test and the updated exact-content assertion in init.test.ts both check it.\n- A2: met — The new test runs git init and rivetari init, writes .rivetari/history.jsonl, then checks it is missing from git status --untracked-files=all and that git check-ignore succeeds.\n- A3: met — The only change to init.test.ts is the expected .gitignore string at line 123, which gains history.jsonl\\n. The card explicitly allows this change to a protected path.\n\n<details><summary>3 suggestion(s), non-blocking</summary>\n\n- A2 test also asserts profile.yml shows as untracked, which A2 doesn't need `packages/cli/src/commands/init-history-ignore.test.ts:67` — Drop the profile.yml assertion, or assert that some .rivetari/ entry appears in status without naming a particular file.\n- history.jsonl is written by hand rather than through close's writer `packages/cli/src/commands/init-history-ignore.test.ts:54` — Take the path from the constant or helper close uses, if one is exported.\n- Comment above the ignore list only mentions backups `packages/cli/src/commands/init.ts:585` — Reword it to cover local runtime output and backups, which are for the person and not for commits.\n\n</details>\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init-history-ignore.test.ts",
+        "line": 67,
+        "acceptance_id": null,
+        "title": "A2 test also asserts profile.yml shows as untracked, which A2 doesn't need",
+        "detail": "The last assertion ties this test to other init outputs: that init writes .rivetari/profile.yml and that runInit doesn't commit or ignore it. A later change to either would fail a test about history.jsonl for an unrelated reason. Its apparent purpose is to show that git status ran and saw .rivetari/, and the check-ignore assertion already covers that.",
+        "repro": "Change init so it commits its scaffold or stops writing profile.yml; this test fails even though history.jsonl is still ignored.",
+        "fix": "Drop the profile.yml assertion, or assert that some .rivetari/ entry appears in status without naming a particular file.",
+        "pattern": "91f34ef43112"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init-history-ignore.test.ts",
+        "line": 54,
+        "acceptance_id": "A2",
+        "title": "history.jsonl is written by hand rather than through close's writer",
+        "detail": "The test writes the file to a hard-coded path. If close ever moves where it writes history, this test keeps passing while the real file shows up in git status again.",
+        "repro": "Change close to write history to .rivetari/metrics/history.jsonl; this test still passes, but the new file is untracked.",
+        "fix": "Take the path from the constant or helper close uses, if one is exported.",
+        "pattern": "5bccc3e6c1ad"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/cli/src/commands/init.ts",
+        "line": 585,
+        "acceptance_id": null,
+        "title": "Comment above the ignore list only mentions backups",
+        "detail": "The comment says the list is backups. The list also holds local runtime output (tasks/, ai-usage.log, cache/ and now history.jsonl), so the comment is further from what the list does.",
+        "repro": "Read init.ts:585 next to the list it describes.",
+        "fix": "Reword it to cover local runtime output and backups, which are for the person and not for commits.",
+        "pattern": "8d6d15ce957e"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "init.ts adds history.jsonl to the ignoreInRivetari list. The new test and the updated exact-content assertion in init.test.ts both check it."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The new test runs git init and rivetari init, writes .rivetari/history.jsonl, then checks it is missing from git status --untracked-files=all and that git check-ignore succeeds."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The only change to init.test.ts is the expected .gitignore string at line 123, which gains history.jsonl\\n. The card explicitly allows this change to a protected path."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 10792,
+      "costUsd": 0.095352
+    }
+  }
+}
