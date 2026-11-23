@@ -1,0 +1,156 @@
+{
+  "task": "T-0012",
+  "round": 1,
+  "verdict": "passed",
+  "head": "fd01f090a953823c8ae5cafff6ab646c1393a4db",
+  "base": "03bb3e56dc76c88be885e39a2562a0cf0e0303e1",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "red",
+        "head": "green",
+        "outcome": "fixed",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "red",
+        "head": "green",
+        "outcome": "fixed",
+        "message": "70.31% lines ≥ floor 53% (.factory/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [
+      {
+        "reason": "existing-test",
+        "path": "packages/runtime/src/task/store.test.ts",
+        "detail": "modifies a test that existed at base"
+      }
+    ],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- factory-judge-review round=1 -->\n### Factory judge · round 1 · approve\n\n#### Acceptance\n- A1: met — Every original lease assertion is still made: LeaseError at NOW, the takeover at LATER, taskLease holder, /held by bob on b/, the pulled ledger, and the release followed by an immediate take. The assertions in the other split tests were preserved as well.\n- A2: unverified — There is no vitest report in the diff. The work moved into beforeAll hooks, which are not timed as tests but are subject to the 10 s hookTimeout (see the defect).\n- A3: met — The diff touches only store.test.ts; store.ts is not in it.\n\n<details><summary>3 suggestion(s), non-blocking</summary>\n\n- Setup moved into beforeAll hooks that get vitest's 10 s hookTimeout, not the describe's 30 s `packages/runtime/src/task/store.test.ts:241` _(downgraded: no reproduction confirmed: The failure depends on unseen state (the vitest config's hookTimeout, and per-git-op timings on Windows taken from a task card that isn't shown), so no concrete trigger can be established from this diff.)_ — Pass an explicit timeout as the second argument to each new `beforeAll`, for example `beforeAll(async () => {...}, 30_000)`. For the heaviest ones, add a `beforeAll` per `it` that needs it, or share the setup only for the cheap steps.\n- Split tests depend on running in order `packages/runtime/src/task/store.test.ts:118` — Add a comment saying the tests in these describes are sequential, or run each such describe with `describe.sequential`.\n- Four other tests were restructured beyond the card's scope `packages/runtime/src/task/store.test.ts:196` — Limit the change to the lease test, or confirm the extra splits are wanted.\n\n</details>\n\n_claude-sonnet-5-5 · 2 call(s) · Claude reviews, humans merge._",
+    "model": "claude-sonnet-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/store.test.ts",
+        "line": 241,
+        "acceptance_id": null,
+        "title": "Setup moved into beforeAll hooks that get vitest's 10 s hookTimeout, not the describe's 30 s",
+        "detail": "The describe's `{ timeout: 30_000 }` applies to tests only. A `beforeAll` called without a timeout argument uses `hookTimeout`, which defaults to 10 s. The task card says about eight git commits, pushes and pulls exceed 30 s on Windows under the full suite. This hook runs two clones, three commitTask calls (each a commit plus a push) and a pull, which is nearly as much work as the lease test. The hooks at lines 108 and 199 and the history describe's hook are the same kind of risk. A hook timeout fails every test in its describe block. That would make the suite red, or flaky, in the environment this task is meant to fix.",
+        "repro": "Run `pnpm run test` on Windows under the full suite, where git operations take about 3 to 4 s each. The `beforeAll` in \"won't let a kept copy overwrite what someone else pushed since\" runs about 6 git-heavy steps, passes 10 s, and fails with 'Hook timed out in 10000ms'. The describe's test is then reported failed. This assumes the repo's vitest config does not raise hookTimeout, and that config is not in the diff.",
+        "fix": "Pass an explicit timeout as the second argument to each new `beforeAll`, for example `beforeAll(async () => {...}, 30_000)`. For the heaviest ones, add a `beforeAll` per `it` that needs it, or share the setup only for the cheap steps.",
+        "pattern": "39055fd8b096",
+        "downgraded": "no reproduction confirmed: The failure depends on unseen state (the vitest config's hookTimeout, and per-git-op timings on Windows taken from a task card that isn't shown), so no concrete trigger can be established from this diff."
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/store.test.ts",
+        "line": 118,
+        "acceptance_id": null,
+        "title": "Split tests depend on running in order",
+        "detail": "Each `it` in the split describes relies on state left by the previous one, for example the second `commitTask` needing the first pull, and `first` being set in an earlier test. Running a single test with `-t` or `it.only`, or any sequence shuffle, makes later tests fail for reasons unrelated to the lease logic.",
+        "repro": "`vitest -t \"lets a released task be taken at once\"` fails because the lease is never released.",
+        "fix": "Add a comment saying the tests in these describes are sequential, or run each such describe with `describe.sequential`.",
+        "pattern": "c339f9081558"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/task/store.test.ts",
+        "line": 196,
+        "acceptance_id": null,
+        "title": "Four other tests were restructured beyond the card's scope",
+        "detail": "The card names only the lease test. The \"never deletes\", \"won't let a kept copy\", \"gives two machines\" and \"appends history\" tests were also split. Their assertions look preserved, but this is more changed test code for a person to review. The repo flags this as an existing-test modification.",
+        "repro": "n/a",
+        "fix": "Limit the change to the lease test, or confirm the extra splits are wanted.",
+        "pattern": "6f62b069d95b"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "Every original lease assertion is still made: LeaseError at NOW, the takeover at LATER, taskLease holder, /held by bob on b/, the pulled ledger, and the release followed by an immediate take. The assertions in the other split tests were preserved as well."
+      },
+      {
+        "id": "A2",
+        "status": "unverified",
+        "note": "There is no vitest report in the diff. The work moved into beforeAll hooks, which are not timed as tests but are subject to the 10 s hookTimeout (see the defect)."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "The diff touches only store.test.ts; store.ts is not in it."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 6628,
+      "costUsd": 0.15169359999999998
+    }
+  }
+}
