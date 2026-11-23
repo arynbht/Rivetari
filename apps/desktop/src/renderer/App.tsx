@@ -14,6 +14,7 @@ import { Fix } from "@/components/Fix";
 import { FloorPlan } from "@/components/FloorPlan";
 import { Gates } from "@/components/Gates";
 import { ProfileForm } from "@/components/ProfileForm";
+import { RepoMap } from "@/components/RepoMap";
 import { Scorecard } from "@/components/Scorecard";
 import { Settings } from "@/components/Settings";
 import { Tasks } from "@/components/Tasks";
@@ -29,6 +30,7 @@ type View =
   | "fix"
   | "ai"
   | "tasks"
+  | "map"
   | "docs";
 
 const TABS: { id: View; label: string }[] = [
@@ -39,6 +41,7 @@ const TABS: { id: View; label: string }[] = [
   { id: "fix", label: "Fix" },
   { id: "ai", label: "AI" },
   { id: "tasks", label: "Tasks" },
+  { id: "map", label: "Map" },
   { id: "docs", label: "Docs" },
 ];
 
@@ -370,7 +373,7 @@ export function App() {
           // The Floor Plan needs room to breathe; other tabs read best narrower.
           <div
             className={`mx-auto space-y-5 p-6 ${
-              view === "floorplan" ? "max-w-7xl" : "max-w-4xl"
+              view === "floorplan" || view === "map" ? "max-w-7xl" : "max-w-4xl"
             }`}
           >
             <div className="flex items-center justify-between gap-4">
@@ -514,6 +517,19 @@ export function App() {
               >
                 {/* key starts a fresh watch (and selection) when the repo changes. */}
                 <Tasks key={selectedRepo.path} repoPath={selectedRepo.path} />
+              </div>
+            )}
+
+            {opened.has("map") && (
+              <div
+                id="panel-map"
+                role="tabpanel"
+                aria-labelledby="tab-map"
+                tabIndex={0}
+                hidden={view !== "map"}
+              >
+                {/* key loads the newly selected repo's map (and fences to it). */}
+                <RepoMap key={selectedRepo.path} repoPath={selectedRepo.path} />
               </div>
             )}
 

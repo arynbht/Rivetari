@@ -228,7 +228,7 @@ describe("test-run proof", { timeout: 120_000 }, () => {
     expect(record.passed).toBe(true);
     expect(record.tests?.added).toEqual(["src/total.test.js: sums"]);
     expect(record.lines[0]).toMatch(
-      /^tests passed \(pnpm run test, exit 0\) · new tests: src\/total\.test\.js: sums/,
+      /^tests passed \(npm run test, exit 0\) · new tests: src\/total\.test\.js: sums/,
     );
     // The whole run goes to the evidence branch.
     expect(uploaded).toHaveLength(1);

@@ -66,6 +66,21 @@ export {
 } from "./github/app.js";
 export { openOrReusePr } from "./github/pr.js";
 export type { OpenPrParams, PrResult } from "./github/pr.js";
+export {
+  CI_BUDGET_WARN,
+  ciBudgetLine,
+  ciBudgetSection,
+  ciMonth,
+  type CiMinutes,
+  jobMinutes,
+  monthCiMinutes,
+  prCiMinutes,
+} from "./github/actions.js";
+export {
+  JUDGE_CHECK_NAME,
+  type JudgeCheckParams,
+  postJudgeCheck,
+} from "./github/checks.js";
 export { openFixPr, FixPrError } from "./fix-pr.js";
 export type { FixPrOptions, FixPrResult } from "./fix-pr.js";
 export {
@@ -182,6 +197,12 @@ export { planFeature } from "./orchestrate/plan.js";
 export type { PlanOptions } from "./orchestrate/plan.js";
 export { runBuild, BuildError } from "./orchestrate/build.js";
 export type { BuildOptions, GitOps } from "./orchestrate/build.js";
+export {
+  inferPackageManager,
+  type PackageManager,
+  packageManagerAt,
+  type RepoReader,
+} from "./package-manager.js";
 export {
   installDeps,
   packageManager,

@@ -1,14 +1,22 @@
 import { CircleAlert, GitPullRequest } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { errorMessage } from "@/lib/errors";
 
-import type { TaskNeedsYou, TasksState, TaskSummary } from "../../shared/ipc";
+import type {
+  TaskAnswerResult,
+  TaskNeedsYou,
+  TasksState,
+  TaskSummary,
+} from "../../shared/ipc";
 
-// Read-only on purpose: the tab shows where each task stands and what it waits
-// on, and the person acts with the `rivetari task` commands. No control here runs,
-// approves, answers or closes anything.
+// The tab shows where each task stands and what it waits on. Two things can be
+// done from it, both by the main process through the runtime: answer a stop
+// (allow or deny, with a note) and open the task's PR. Running, approving and
+// closing stay with the `rivetari task` commands. What an action changes shows
+// up here from the watcher, not from the action's reply.
 
 const NEEDS_LABEL: Record<TaskNeedsYou["kind"], string> = {
   record: "Record fails verification",
@@ -36,6 +44,13 @@ function isHttps(url: string): boolean {
     return false;
   }
 }
+
+const inputClass =
+  "w-full rounded-md border border-border bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/** A stop the person can answer: the build's question, or the judge's. */
+const answerable = (task: TaskSummary) =>
+  task.needsYou?.kind === "stop" || task.needsYou?.kind === "judge";
 
 const cost = (task: TaskSummary) => `$${task.costUsd.toFixed(2)}`;
 const beat = (task: TaskSummary) => (task.done ? "closed" : task.beat);
@@ -180,7 +195,145 @@ function TaskTable({
   );
 }
 
-function TaskDetail({ task }: { task: TaskSummary }) {
+type Outcome =
+  | { kind: "answered"; result: TaskAnswerResult }
+  | { kind: "opened"; url: string }
+  | { kind: "error"; message: string };
+
+function OutcomeLine({ outcome }: { outcome: Outcome | null }) {
+  if (!outcome) return null;
+  if (outcome.kind === "error")
+    return (
+      <p className="text-xs text-rose-300" role="alert">
+        {outcome.message}
+      </p>
+    );
+  if (outcome.kind === "opened")
+    return (
+      <p className="text-xs" role="status">
+        Opened {outcome.url} in your browser.
+      </p>
+    );
+  const { result } = outcome;
+  return (
+    <div className="space-y-1 text-xs" role="status">
+      <p>
+        {result.id} {result.answer} by {result.by}. Next: {result.next}
+      </p>
+      {result.warning && <p className="text-amber-400">{result.warning}</p>}
+    </div>
+  );
+}
+
+function AnswerForm({
+  task,
+  busy,
+  onAnswer,
+}: {
+  task: TaskSummary;
+  busy: boolean;
+  onAnswer: (allow: boolean, note: string) => void;
+}) {
+  const [note, setNote] = useState("");
+  const noteId = useId();
+  const headingId = useId();
+  return (
+    <form
+      aria-labelledby={headingId}
+      className="space-y-2 border-t border-border/60 pt-3"
+      onSubmit={(e) => e.preventDefault()}
+    >
+      <h4 id={headingId} className="text-xs font-semibold text-amber-400">
+        Answer the stop
+      </h4>
+      <p className="text-xs">{task.needsYou?.why}</p>
+      <label htmlFor={noteId} className="block text-xs text-muted-foreground">
+        Note (recorded with the answer; a denied build round is told it)
+      </label>
+      <textarea
+        id={noteId}
+        rows={2}
+        className={inputClass}
+        value={note}
+        maxLength={2000}
+        disabled={busy}
+        onChange={(e) => setNote(e.target.value)}
+      />
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          disabled={busy}
+          onClick={() => onAnswer(true, note)}
+        >
+          Allow
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => onAnswer(false, note)}
+        >
+          Deny
+        </Button>
+        {busy && (
+          <span className="self-center text-xs text-muted-foreground">
+            Recording…
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function TaskDetail({
+  task,
+  repoPath,
+}: {
+  task: TaskSummary;
+  repoPath: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  // State lands after the click, so a second click in the same tick would get
+  // past `busy`; the ref closes that gap.
+  const inFlight = useRef(false);
+
+  const act = (run: () => Promise<Outcome>) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setOutcome(null);
+    void run()
+      .catch((err: unknown): Outcome => ({
+        kind: "error",
+        message: errorMessage(err),
+      }))
+      .then((next) => {
+        inFlight.current = false;
+        setBusy(false);
+        setOutcome(next);
+      });
+  };
+
+  const answer = (allow: boolean, note: string) =>
+    act(async () => ({
+      kind: "answered",
+      result: await window.rivetari.tasks.answer(
+        repoPath,
+        task.id,
+        allow,
+        note,
+      ),
+    }));
+
+  const openPr = () =>
+    act(async () => ({
+      kind: "opened",
+      url: (await window.rivetari.tasks.openPr(repoPath, task.id)).url,
+    }));
+
   return (
     <section aria-labelledby="task-detail" className="space-y-3">
       <Card className="space-y-3 p-4">
@@ -208,6 +361,12 @@ function TaskDetail({ task }: { task: TaskSummary }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sky-400 underline"
+                aria-disabled={busy || undefined}
+                onClick={(e) => {
+                  // The main process opens the URL the ledger records.
+                  e.preventDefault();
+                  openPr();
+                }}
               >
                 PR #{task.pr.number}
               </a>
@@ -228,6 +387,10 @@ function TaskDetail({ task }: { task: TaskSummary }) {
             ))}
           </ul>
         )}
+        {answerable(task) && (
+          <AnswerForm task={task} busy={busy} onAnswer={answer} />
+        )}
+        <OutcomeLine outcome={outcome} />
       </Card>
 
       <div className="space-y-2">
@@ -290,8 +453,9 @@ export function Tasks({ repoPath }: { repoPath: string }) {
         <h2 className="text-lg font-semibold">Tasks</h2>
         <p className="text-xs text-muted-foreground">
           What each task is doing and what it waits on, as{" "}
-          <code>rivetari task status</code> shows it. Act on a task with the{" "}
-          <code>rivetari task</code> commands.
+          <code>rivetari task status</code> shows it. Pick a task to answer its
+          stop or open its PR; anything else is a <code>rivetari task</code>{" "}
+          command.
         </p>
       </div>
 
@@ -315,7 +479,10 @@ export function Tasks({ repoPath }: { repoPath: string }) {
         <>
           <NeedsYou tasks={tasks} onSelect={setSelected} />
           <TaskTable tasks={tasks} selected={selected} onSelect={setSelected} />
-          {current && <TaskDetail task={current} />}
+          {current && (
+            // key keeps one task's answer and outcome off another's detail.
+            <TaskDetail key={current.id} task={current} repoPath={repoPath} />
+          )}
         </>
       )}
     </div>

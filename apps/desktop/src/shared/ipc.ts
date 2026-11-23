@@ -42,8 +42,13 @@ export const IpcChannel = {
   FloorPlanProgress: "floorplan:progress",
   TasksWatch: "tasks:watch",
   TasksUnwatch: "tasks:unwatch",
+  TasksAnswer: "tasks:answer",
+  TasksOpenPr: "tasks:openPr",
   /** Push channel (main → renderer): the watched repo's tasks after a change. */
   TasksUpdate: "tasks:update",
+  MapGet: "map:get",
+  /** Push channel (main → renderer): requests the map's session cancelled. */
+  MapBlocked: "map:blocked",
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -436,9 +441,9 @@ export const FloorPlanProgress = z.object({
 });
 export type FloorPlanProgress = z.infer<typeof FloorPlanProgress>;
 
-// Tasks — a read-only view of the repo's Rivetari tasks (the runtime's
-// watchTasks), as `rivetari task status` would show them. Nothing here acts on a
-// task: running, approving, answering and closing stay with the CLI.
+// Tasks — a view of the repo's Rivetari tasks (the runtime's watchTasks), as
+// `rivetari task status` would show them. The person can answer a stop and open
+// a task's PR from it; running, approving and closing stay with the CLI.
 export const TaskEntry = z.object({
   seq: z.number().int(),
   at: z.string(),
@@ -486,6 +491,62 @@ export const TasksState = z.object({
 export type TasksState = z.infer<typeof TasksState>;
 
 export const TasksWatchRequest = z.object({ repoPath: z.string().min(1) });
+
+// Map — the floorplan skill's static map (floorplan/index.html), shown in a
+// webview whose session cancels every request outside floorplan/.
+
+/** The map webview's session, which main guards; the renderer's webview names it. */
+export const MAP_PARTITION = "rivetari-map";
+
+export const MapGetRequest = z.object({ repoPath: z.string().min(1) });
+
+export const MapView = z.object({
+  repoPath: z.string(),
+  /** The repo's floorplan/ directory, whether or not a map is in it. */
+  dir: z.string(),
+  /** file:// URL of floorplan/index.html, or null when there's no map yet. */
+  url: z.string().nullable(),
+  /** The profile's `floorplan` switch. */
+  floorplanOn: z.boolean(),
+});
+export type MapView = z.infer<typeof MapView>;
+
+/** map:blocked push payload — every request cancelled since the map was opened. */
+export const MapBlocked = z.object({
+  repoPath: z.string(),
+  urls: z.array(z.string()),
+});
+export type MapBlocked = z.infer<typeof MapBlocked>;
+
+/** tasks:answer — allow or deny a task's open stops, with an optional note. */
+export const TaskAnswerRequest = z.object({
+  id: z.string().regex(/^T-\d{4,}$/),
+  allow: z.boolean(),
+  note: z.string().max(2000),
+});
+export type TaskAnswerRequest = z.infer<typeof TaskAnswerRequest>;
+
+export const TaskAnswerIpcRequest = TaskAnswerRequest.extend({
+  repoPath: z.string().min(1),
+});
+
+/** What the answer recorded; `warning` is set when only its push failed. */
+export const TaskAnswerResult = z.object({
+  id: z.string(),
+  answer: z.enum(["allowed", "denied"]),
+  by: z.string(),
+  next: z.string(),
+  warning: z.string().nullable(),
+});
+export type TaskAnswerResult = z.infer<typeof TaskAnswerResult>;
+
+/** tasks:openPr — open the task's PR (the URL its ledger records) in the browser. */
+export const TaskOpenPrRequest = z.object({
+  repoPath: z.string().min(1),
+  id: z.string().regex(/^T-\d{4,}$/),
+});
+export const TaskOpenPrResult = z.object({ url: z.string() });
+export type TaskOpenPrResult = z.infer<typeof TaskOpenPrResult>;
 
 // Settings — personal preferences in `userData` (never the repo). The Anthropic
 // API key is NOT in this object: like the GitHub token it lives in safeStorage and

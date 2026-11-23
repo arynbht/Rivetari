@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { allowlistedEnv, runTool, type ToolResult } from "../detectors/exec.js";
+import { type PackageManager, packageManagerAt } from "../package-manager.js";
 import type { VerifyCheck, VerifyResult } from "./types.js";
 
 export type CommandRunner = (
@@ -39,21 +40,12 @@ function truncate(s: string, max = 2000): string {
   return t.length > max ? `…${t.slice(-max)}` : t;
 }
 
-/** Pick the package manager from the worktree's lockfile (default pnpm). */
-export async function packageManager(dir: string): Promise<string> {
-  for (const [file, pm] of [
-    ["pnpm-lock.yaml", "pnpm"],
-    ["yarn.lock", "yarn"],
-    ["package-lock.json", "npm"],
-  ] as const) {
-    try {
-      await readFile(resolve(dir, file), "utf8");
-      return pm;
-    } catch {
-      // try next
-    }
-  }
-  return "pnpm";
+/**
+ * The worktree's package manager, read the way init and the templates read it,
+ * so a repo that names no manager anywhere gets npm here too.
+ */
+export function packageManager(dir: string): Promise<PackageManager> {
+  return packageManagerAt(dir);
 }
 
 async function readScripts(dir: string): Promise<Record<string, string>> {

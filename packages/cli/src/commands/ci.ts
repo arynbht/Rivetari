@@ -14,6 +14,7 @@ import {
 import {
   appendHistory,
   buildContext,
+  ciBudgetSection,
   type ControlResult,
   evaluateControls,
   evaluateGate,
@@ -374,7 +375,7 @@ export async function runCi(): Promise<number> {
       octokit,
       owner,
       repo,
-      body,
+      `${body}${await ciBudgetSection(ctx, profile?.ci?.budget_minutes_per_month, now)}`,
       gateResult.status === "green",
     );
   } catch (err) {
