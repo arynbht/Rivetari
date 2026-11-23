@@ -37,6 +37,9 @@ export interface ParallelOptions {
 const GLOB_CHAR = /[*?[\]{}()!+@]/;
 
 function normalize(path: string): string {
+  // A drive or UNC path can't be relative to the repo, so it could name any
+  // file. A leading "/" stays repo-rooted, as in .gitignore.
+  if (/^([A-Za-z]:|\\\\|\/\/)/.test(path)) return "**";
   const parts = path
     .replace(/\\/g, "/")
     .split("/")
