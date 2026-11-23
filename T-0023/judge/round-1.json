@@ -1,0 +1,143 @@
+{
+  "task": "T-0023",
+  "round": 1,
+  "verdict": "passed",
+  "head": "2577f1484e3509bef41f230ac7732467e18ab273",
+  "base": "2b401948e6b940efeb8cc3aa9481e43c7874657e",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "70.65% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — cache-usage.test.ts checks that parseClaudeJson returns both cache fields.\n- A2: met — tier2-cache-usage.test.ts expects 21_015 tokens, which includes the cache creation and cache read tokens.\n- A3: met — estimateCost adds inp*1.25 and inp*0.1 for the cache tokens, and the tests cover both rates.\n- A4: met — The new tests cover the no-cache usage, total and cost. Every test file in the diff is new.\n\n<details><summary>2 suggestion(s), non-blocking</summary>\n\n- The cache fields are guarded with `!== undefined`, so null or non-numeric values get through `packages/engine/src/ai/claude-cli.ts:92` — Only spread a cache field when it is a finite number, e.g. `typeof usage.cache_read_input_tokens === \"number\"`.\n- The ai-usage.log record may still leave out the cache tokens `packages/runtime/src/judge/tier2.ts:443` — If the record carries token counts, use the same four-key sum there.\n\n</details>\n\n_Not reviewed: `packages/action/dist/SOURCE_SHA256` (generated), `packages/action/dist/index.js` (generated)._\n\n_claude-opus-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-opus-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "packages/engine/src/ai/claude-cli.ts",
+        "line": 92,
+        "acceptance_id": null,
+        "title": "The cache fields are guarded with `!== undefined`, so null or non-numeric values get through",
+        "detail": "If the CLI sends `cache_read_input_tokens: null`, the result gains `cacheReadTokens: 0`, so the usage object has a key it didn't have before. A non-numeric string becomes NaN, and NaN poisons tier2's `usage.tokens` and the cost estimate. The existing input and output fields have the same NaN exposure, so this is hardening, not a regression from current CLI output.",
+        "repro": "Call parseClaudeJson('{\"result\":\"ok\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cache_read_input_tokens\":null}}', 'm'). The usage includes cacheReadTokens: 0.",
+        "fix": "Only spread a cache field when it is a finite number, e.g. `typeof usage.cache_read_input_tokens === \"number\"`.",
+        "pattern": "0aa0aed8f660"
+      },
+      {
+        "kind": "suggestion",
+        "file": "packages/runtime/src/judge/tier2.ts",
+        "line": 443,
+        "acceptance_id": null,
+        "title": "The ai-usage.log record may still leave out the cache tokens",
+        "detail": "The appendUsage call after this hunk isn't shown. If it records only input and output tokens, the log under-reports the same way the review line did. The card doesn't require a change here, so this doesn't block.",
+        "repro": "Run runTier2 with usageDate set and a cached response, then compare the logged tokens with result.usage.tokens.",
+        "fix": "If the record carries token counts, use the same four-key sum there.",
+        "pattern": "a24c5cfe8797"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "cache-usage.test.ts checks that parseClaudeJson returns both cache fields."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "tier2-cache-usage.test.ts expects 21_015 tokens, which includes the cache creation and cache read tokens."
+      },
+      {
+        "id": "A3",
+        "status": "met",
+        "note": "estimateCost adds inp*1.25 and inp*0.1 for the cache tokens, and the tests cover both rates."
+      },
+      {
+        "id": "A4",
+        "status": "met",
+        "note": "The new tests cover the no-cache usage, total and cost. Every test file in the diff is new."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 1733,
+      "costUsd": 0.10674
+    }
+  }
+}
