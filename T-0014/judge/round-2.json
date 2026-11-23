@@ -1,0 +1,86 @@
+{
+  "task": "T-0014",
+  "round": 2,
+  "verdict": "failed",
+  "head": "55ae1628d2ebe02305b734a5575464ac53dfa742",
+  "base": "cf4293abf9db8155d2ea303a8c5795e5a7d6ec6f",
+  "tier1": {
+    "verdict": "fail",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "red",
+        "outcome": "fail",
+        "message": "`npm test` exited 1 (expected 0)\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/cli/src/commands/task.test.ts\u001b[2m > \u001b[22mfactory task, shared through the factory/tasks branch\u001b[2m > \u001b[22mdrafts on one machine, and the other sees it but can't take it while it's held\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 60000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯\u001b[22m\u001b[39m\n\n\u001b[31m\u001b[1m\u001b[7m FAIL \u001b[27m\u001b[22m\u001b[39m packages/cli/src/commands/task.test.ts\u001b[2m > \u001b[22mfactory task, shared through the factory/tasks branch\u001b[2m > \u001b[22mdrafts on one machine, and the other sees it but can't take it while it's held\n\u001b[31m\u001b[1mError\u001b[22m: EBUSY: resource busy or locked, rmdir 'C:\\Users\\arynb\\AppData\\Local\\Temp\\factory-clone-pTUL8o'\u001b[39m\n\u001b[31m\u001b[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯\u001b[22m\u001b[39m"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "red",
+        "outcome": "fail",
+        "message": "coverage is configured, but the test run wrote no coverage/coverage-summary.json"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  }
+}
