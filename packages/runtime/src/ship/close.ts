@@ -5,7 +5,12 @@
 import { access, appendFile, mkdir, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { buildContext, githubToken } from "@arynbht/rivetari-engine";
+import {
+  buildContext,
+  type CiMinutes,
+  githubToken,
+  prCiMinutes,
+} from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
@@ -26,6 +31,8 @@ export interface PrState {
   merged: boolean;
   mergedBy?: string | undefined;
   mergedAt?: string | undefined;
+  /** The minutes the PR's CI runs used, when they could be read. */
+  ci?: CiMinutes | undefined;
 }
 
 export interface CloseOptions {
@@ -63,6 +70,9 @@ export interface TaskHistoryRow {
   prompt_tokens?: number | undefined;
   findings?: TaskFinding[] | undefined;
   rounds?: RoundUsage[] | undefined;
+  /** GitHub Actions minutes the PR's runs used, per job rounded up. */
+  ci_minutes?: number | undefined;
+  ci_runs?: number | undefined;
 }
 
 export interface TaskFinding {
@@ -195,11 +205,18 @@ async function githubPrState(repoPath: string, pr: number): Promise<PrState> {
     repo: gh.repo,
     pull_number: pr,
   });
+  // Only a decided PR's runs are worth counting, and a token without
+  // actions: read just leaves the minutes out of the row.
+  const ci =
+    data.state === "open"
+      ? undefined
+      : await prCiMinutes(gh, pr).catch(() => undefined);
   return {
     state: data.state === "open" ? "open" : "closed",
     merged: data.merged,
     mergedBy: data.merged_by?.login,
     mergedAt: data.merged_at ?? undefined,
+    ci,
   };
 }
 
@@ -236,6 +253,7 @@ export async function closeTask(
   );
   let outcome: TaskHistoryRow["outcome"];
   let said = "";
+  let ci: CiMinutes | undefined;
   const abandon = options.abandon?.replace(/\s+/g, " ").trim();
   if (decided) {
     outcome = decided.text.startsWith("abandoned")
@@ -259,6 +277,7 @@ export async function closeTask(
         `PR #${pr} is still open; a person merges or closes it, then close the task (or --abandon "<why>")`,
       );
     outcome = state.merged ? "merged" : "closed";
+    ci = state.ci;
     said = state.merged
       ? `PR #${pr} merged${state.mergedBy ? ` by ${state.mergedBy}` : ""}${state.mergedAt ? ` ${state.mergedAt.slice(0, 16).replace("T", " ")}` : ""}`
       : `PR #${pr} closed without merging`;
@@ -356,6 +375,7 @@ export async function closeTask(
     ...(prompt === undefined ? {} : { prompt_tokens: prompt }),
     findings: await taskFindings(repoPath, id),
     rounds: roundUsage(task),
+    ...(ci ? { ci_minutes: ci.minutes, ci_runs: ci.runs } : {}),
   };
   const historyPath = join(repoPath, ".rivetari", "history.jsonl");
   const written = (await readFile(historyPath, "utf8").catch(() => ""))

@@ -1,10 +1,16 @@
 import { spawn } from "node:child_process";
-import { access, opendir } from "node:fs/promises";
+import { access, mkdir, opendir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import {
+  buildContext,
+  CI_BUDGET_WARN,
+  type CiMinutes,
+  ciMonth,
   githubToken,
+  loadProfile,
+  monthCiMinutes,
   resolveRepoSlug,
   runTool,
 } from "@arynbht/rivetari-engine";
@@ -202,12 +208,81 @@ export async function tempCheck(
   };
 }
 
+const CI_MINUTES_CACHE = join(".rivetari", "cache", "ci-minutes.json");
+
+/**
+ * The month's CI minutes, keeping what earlier runs counted in
+ * `.rivetari/cache/` so a doctor run only looks up runs that are new.
+ */
+async function cachedMonthMinutes(
+  root: string,
+  token: string,
+  now: Date,
+): Promise<CiMinutes | null> {
+  const gh = await buildContext(root, { token }).github();
+  if (!gh) return null;
+  const path = join(root, CI_MINUTES_CACHE);
+  const cache = (await readFile(path, "utf8")
+    .then((t) => JSON.parse(t) as unknown)
+    .catch(() => null)) as {
+    month?: string;
+    runs?: Record<string, number>;
+  } | null;
+  const known = new Map(
+    cache?.month === ciMonth(now) ? Object.entries(cache.runs ?? {}) : [],
+  );
+  const used = await monthCiMinutes(gh, now, { known });
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(
+    path,
+    `${JSON.stringify({ month: used.month, runs: Object.fromEntries(known) })}\n`,
+  ).catch(() => undefined);
+  return used;
+}
+
+/**
+ * A warning once the month's CI minutes reach 75% of the profile's
+ * `ci.budget_minutes_per_month`. Silent below it, without a budget, without
+ * a token, or when the Actions API can't be read: it's advice, not a gate.
+ */
+export async function ciBudgetCheck(
+  root: string,
+  options: {
+    token?: string | null;
+    now?: Date;
+    minutes?: () => Promise<CiMinutes | null>;
+  } = {},
+): Promise<DoctorCheck | null> {
+  const profile = await loadProfile(root).catch(() => null);
+  const budget = profile?.ci?.budget_minutes_per_month;
+  if (!budget) return null;
+  const now = options.now ?? new Date();
+  const minutes =
+    options.minutes ??
+    (async () => {
+      const token =
+        options.token === undefined
+          ? (await githubToken(root))?.token
+          : options.token;
+      return token ? cachedMonthMinutes(root, token, now) : null;
+    });
+  const used = await minutes().catch(() => null);
+  if (!used || used.minutes / budget < CI_BUDGET_WARN) return null;
+  return {
+    name: "ci",
+    status: "warn",
+    detail: `${used.partial ? "at least " : ""}${used.minutes.toLocaleString("en-US")} of the ${budget.toLocaleString("en-US")} CI minutes budgeted for ${ciMonth(now)} used (${Math.round((used.minutes / budget) * 100)}%)`,
+  };
+}
+
 /** `rivetari doctor`: exit 1 when anything a task needs is missing. */
 export async function runDoctor(path: string): Promise<number> {
   const temp = await tempCheck();
+  const ci = await ciBudgetCheck(resolve(path));
   const checks = [
     ...(await doctorChecks(resolve(path))),
     ...(temp ? [temp] : []),
+    ...(ci ? [ci] : []),
   ];
   const mark = { ok: "✓", warn: "!", fail: "✗" } as const;
   for (const c of checks)

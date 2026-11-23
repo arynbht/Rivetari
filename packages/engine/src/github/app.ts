@@ -31,6 +31,8 @@ export const APP_PERMISSIONS = {
   secret_scanning_alerts: "read",
   // CI duration and DORA metrics.
   actions: "read",
+  // The `rivetari/judge` check run on a commit the judge passed.
+  checks: "write",
 } as const;
 
 export interface ManifestOptions {

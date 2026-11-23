@@ -8,6 +8,7 @@ import {
 import {
   appendHistory,
   buildContext,
+  ciBudgetSection,
   evaluateControls,
   evaluateGate,
   EvidenceError,
@@ -181,7 +182,7 @@ export async function runCi(): Promise<number> {
       octokit,
       owner,
       repo,
-      body,
+      `${body}${await ciBudgetSection(ctx, profile?.ci?.budget_minutes_per_month, now)}`,
       gateResult.status === "green",
     );
   } catch (err) {
