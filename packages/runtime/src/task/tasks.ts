@@ -83,6 +83,8 @@ export interface Task {
   beat: Beat;
   /** Ledger and card integrity problems (empty when intact). */
   problems: string[];
+  /** ledger.md differed from a fresh render while every seal held, and was rendered again. */
+  viewRerendered?: boolean | undefined;
 }
 
 /** The confirmation entry seals the card: its text carries the card's hash. */
@@ -123,6 +125,10 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
     `${card.id} · ${card.title}`,
   );
   const entries = await ledger.entries();
+  // ledger.md is rendered, not sealed: when every seal holds and only the view
+  // differs (the renderer's wording changed, a formatter touched it), it's
+  // rendered again from the signed record. A broken seal still fails.
+  const viewRerendered = await ledger.rerenderView();
   const { problems } = await ledger.verify();
   const seal = cardSeal(entries);
   if (seal && seal.hash !== sha256(text)) {
@@ -161,6 +167,7 @@ export async function loadTask(repoPath: string, id: string): Promise<Task> {
     approved: approved !== undefined,
     beat: entries[entries.length - 1]?.beat ?? "intake",
     problems,
+    viewRerendered,
   };
 }
 
