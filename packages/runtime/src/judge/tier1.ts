@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   access,
   mkdir,
@@ -28,6 +29,14 @@ import { type SimpleGit, simpleGit } from "simple-git";
 import type { Card } from "../task/card.js";
 import { bannedCheck, loadBanned } from "./banned.js";
 import { diffRules, type Hunk } from "./diff-rules.js";
+import {
+  acquireWorkspace,
+  dependencyKey,
+  installedKey,
+  readBaseResults,
+  setInstalledKey,
+  writeBaseResults,
+} from "./workspace.js";
 import {
   type DiffEntry,
   findProtected,
@@ -83,6 +92,13 @@ export interface Tier1Options {
   noNewComments?: boolean | undefined;
   /** Install dependencies in the clone before checking (default true). */
   install?: boolean | undefined;
+  /**
+   * Judge in the repo's persistent workspace, installing only when the
+   * dependencies changed (ignored with `workDir`).
+   */
+  persistent?: boolean | undefined;
+  /** Where persistent workspaces live (default: the user's cache). */
+  workspaceRoot?: string | undefined;
   now?: Date | undefined;
   /** Progress lines, e.g. to stderr. */
   log?: ((line: string) => void) | undefined;
@@ -175,19 +191,33 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
   const keep = new Set(allowedFindings.map((f) => f.path));
   const keepScripts = allowedFindings.some((f) => f.reason === "scripts");
 
-  // A unique directory per run (two judges on one task never collide), outside
-  // the repo so it never shows up in `git status` or the repo's own audits.
+  // The repo's persistent workspace when asked for and free; otherwise a
+  // unique directory per run (two judges on one task never collide). Both sit
+  // outside the repo, so they never show up in `git status` or its audits.
   await sweepStaleClones();
+  const workspace =
+    options.persistent && !options.workDir
+      ? await acquireWorkspace(options.repoPath, {
+          root: options.workspaceRoot,
+        })
+      : null;
   const workDir =
-    options.workDir ?? (await mkdtemp(join(tmpdir(), CLONE_PREFIX)));
+    workspace?.dir ??
+    options.workDir ??
+    (await mkdtemp(join(tmpdir(), CLONE_PREFIX)));
   const notes: string[] = [];
   try {
-    log(`cloning into ${workDir}`);
-    await simpleGit().clone(options.repoPath, workDir, [
-      "--quiet",
-      "--shared",
-      "--no-checkout",
-    ]);
+    if (!workspace) {
+      log(`cloning into ${workDir}`);
+      await simpleGit().clone(options.repoPath, workDir, [
+        "--quiet",
+        "--shared",
+        "--no-checkout",
+      ]);
+    } else
+      log(
+        `${workspace.created ? "cloning into" : "reusing"} the judge workspace ${workDir}`,
+      );
     // simple-git guards core.hooksPath against hook injection; here it points
     // at an empty directory we just made, which is the opposite of injection.
     const clone = simpleGit(workDir, {
@@ -198,14 +228,69 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     await mkdir(noHooks, { recursive: true });
     await clone.addConfig("core.hooksPath", noHooks);
 
-    // Baseline.
-    await clone.raw(["checkout", "--quiet", "--detach", mergeBase]);
+    // Baseline. A reused workspace keeps only its installed dependencies:
+    // everything else a past round left, ignored or not, goes.
+    await clone.raw(["checkout", "--quiet", "--force", "--detach", mergeBase]);
+    if (workspace) await clone.raw(["clean", "-fdxq", "-e", "node_modules"]);
     const install = options.install ?? true;
-    const baseInstall = install
-      ? await installDeps(workDir, log, options.env)
+    const key = workspace && install ? await dependencyKey(workDir) : null;
+    const reuse = key !== null && (await installedKey(workDir)) === key;
+    if (reuse)
+      log("dependencies unchanged since the last install: reusing them");
+    if (workspace && !reuse) await setInstalledKey(workDir, null);
+    const baseInstall =
+      install && !reuse ? await installDeps(workDir, log, options.env) : null;
+    if (key !== null && !reuse && baseInstall?.ok !== false)
+      await setInstalledKey(workDir, key);
+    // The base's results depend only on the base commit, the checks, the
+    // installed dependencies and the env the checks see, so every round and
+    // task on the same base shares one run.
+    const selected = await selectChecks(options);
+    const baseKey = options.persistent
+      ? createHash("sha256")
+          .update(
+            JSON.stringify({
+              mergeBase,
+              checks: selected,
+              deps: install
+                ? (key ?? (await dependencyKey(workDir)))
+                : "not installed",
+              env: options.env ?? [],
+            }),
+          )
+          .digest("hex")
       : null;
-    log("running checks at base");
-    const baseResults = await runChecks(workDir, options);
+    const cached = baseKey
+      ? await readBaseResults(options.repoPath, baseKey, options.workspaceRoot)
+      : null;
+    const kept = new Map((cached ?? []).map((r) => [r.controlId, r]));
+    // Coverage is read from the same side's test run, so it can't run alone.
+    const rerun = selected.filter(
+      (c) =>
+        !kept.has(c.id) ||
+        (runsTests(c) &&
+          selected.some((s) => s.id === COVERAGE && !kept.has(s.id))),
+    );
+    const reused = selected.filter((c) => !rerun.includes(c));
+    if (reused.length > 0)
+      log(
+        `checks at base ${mergeBase.slice(0, 12)} already ran green: reusing ${reused.map((c) => c.id).join(", ")}`,
+      );
+    let baseResults = reused.flatMap((c) => kept.get(c.id) ?? []);
+    if (rerun.length > 0) {
+      log("running checks at base");
+      baseResults = [
+        ...baseResults,
+        ...(await runChecks(workDir, rerun, options)),
+      ];
+      if (baseKey && (baseInstall?.ok ?? true))
+        await writeBaseResults(
+          options.repoPath,
+          baseKey,
+          baseResults,
+          options.workspaceRoot,
+        );
+    }
 
     // The change, judged by the base's rules. The base's checks may have
     // written into tracked or untracked files (a build into a committed dist);
@@ -221,14 +306,21 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     if (scriptsChanged && !keepScripts)
       await restoreScripts(workDir, baseScripts);
     const depsChanged = diff.some(
-      (e) => e.path === "package.json" || LOCKFILES.includes(e.path),
+      (e) =>
+        e.path === "package.json" ||
+        e.path.endsWith("/package.json") ||
+        LOCKFILES.includes(e.path),
     );
+    // The change's own dependencies replace the base's in the workspace, so
+    // the next round can't take them for the base's.
+    if (workspace && install && depsChanged)
+      await setInstalledKey(workDir, null);
     const headInstall =
       install && depsChanged
         ? await installDeps(workDir, log, options.env)
         : baseInstall;
     log("running checks on the change");
-    const headResults = await runChecks(workDir, options);
+    const headResults = await runChecks(workDir, selected, options);
 
     if (headInstall && !headInstall.ok) {
       notes.push(`dependency install failed: ${headInstall.message}`);
@@ -293,7 +385,8 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       workDir,
     };
   } finally {
-    if (!options.keep && !options.workDir) {
+    if (workspace) await workspace.release();
+    else if (!options.keep && !options.workDir) {
       await rm(workDir, { recursive: true, force: true }).catch(
         () => undefined,
       );
@@ -314,15 +407,19 @@ export async function changeChecks(): Promise<Control[]> {
   );
 }
 
-async function runChecks(
-  dir: string,
-  options: Tier1Options,
-): Promise<ControlResult[]> {
-  const selected: Control[] = options.checks
+async function selectChecks(options: Tier1Options): Promise<Control[]> {
+  return options.checks
     ? (await loadBundledCatalog()).controls.filter((c) =>
         options.checks?.includes(c.id),
       )
-    : await changeChecks();
+    : changeChecks();
+}
+
+async function runChecks(
+  dir: string,
+  selected: readonly Control[],
+  options: Tier1Options,
+): Promise<ControlResult[]> {
   // One at a time, test runs first: coverage is read from what *this* side's
   // test run wrote, so the previous side's report is removed before it starts.
   const ordered = [...selected].sort(
@@ -347,6 +444,8 @@ async function runChecks(
 function runsTests(control: Control): boolean {
   return control.id === "quality.tests.pass";
 }
+
+const COVERAGE = "quality.coverage.floor";
 
 function side(result: ControlResult | undefined): Side {
   if (!result || result.status === "n/a") return "n/a";
