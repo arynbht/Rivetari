@@ -85,13 +85,20 @@ describe("inferPackageManager", () => {
     ).toBe("npm");
     expect(
       await inferPackageManager(
-        repo({ "package.json": pkg({ scripts: { a: "rm pnpm-lock.yaml" } }) }),
+        repo({
+          "package.json": pkg({
+            scripts: { a: "rm pnpm-lock.yaml", b: "rm yarn.lock" },
+          }),
+        }),
       ),
     ).toBe("npm");
   });
 
   it("defaults to npm, never pnpm, and survives an unparseable package.json", async () => {
     expect(await inferPackageManager(repo({}))).toBe("npm");
+    expect(await inferPackageManager(repo({ "package.json": "null" }))).toBe(
+      "npm",
+    );
     expect(
       await inferPackageManager(repo({ "package.json": pkg({ name: "x" }) })),
     ).toBe("npm");

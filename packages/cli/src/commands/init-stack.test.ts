@@ -68,7 +68,7 @@ describe(
         dir,
         {
           type: "web-app",
-          stack: "nextjs, TypeScript, python, postgres",
+          stack: "nextjs, TypeScript, python, Postgres, postgres",
           yes: true,
         },
         { token: null },

@@ -34,7 +34,8 @@ export async function inferPackageManager(
 ): Promise<PackageManager> {
   let pkg: { packageManager?: unknown; scripts?: unknown } = {};
   try {
-    pkg = JSON.parse((await read("package.json")) ?? "{}") as typeof pkg;
+    const parsed: unknown = JSON.parse((await read("package.json")) ?? "{}");
+    if (parsed && typeof parsed === "object") pkg = parsed as typeof pkg;
   } catch {
     // An unparseable package.json says nothing; the files below still might.
   }
@@ -55,8 +56,8 @@ export async function inferPackageManager(
           .filter((s): s is string => typeof s === "string")
           .join("\n")
       : "";
-  const pnpm = /(?<![\w-])(pnpm|pnpx)(?![\w-])/.test(scripts);
-  const yarn = /(?<![\w-])yarn(?![\w-])/.test(scripts);
+  const pnpm = /(?<![\w-])(pnpm|pnpx)(?![\w.-])/.test(scripts);
+  const yarn = /(?<![\w-])yarn(?![\w.-])/.test(scripts);
   if (pnpm !== yarn) return pnpm ? "pnpm" : "yarn";
   return fallback;
 }

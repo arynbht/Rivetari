@@ -326,14 +326,16 @@ const splitList = (csv: string): string[] =>
 /**
  * The profile's `stack`: what the repo's manifests show, then what the person
  * named, mapped onto the stacks it implies (`nextjs` is node). A name that maps
- * onto nothing (`postgres`) is kept as given, since the profile's stack is free
- * text. The profile on disk is ignored, so a re-init with --force reflects the
+ * onto nothing (`Postgres`) is kept, lower-cased, since the profile's stack is
+ * free text. The profile on disk is ignored, so a re-init with --force reflects the
  * repo now rather than the old profile.
  */
 async function initStack(root: string, given: string[]): Promise<string[]> {
   const ctx = { ...buildContext(root), profile: () => Promise.resolve(null) };
   const detected = await detectStacks(ctx).catch(() => []);
-  const unmapped = given.filter((g) => declaredStacks([g]).length === 0);
+  const unmapped = given
+    .filter((g) => declaredStacks([g]).length === 0)
+    .map((g) => g.toLowerCase());
   return [
     ...new Set<string>([...detected, ...declaredStacks(given), ...unmapped]),
   ];
