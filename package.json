@@ -28,6 +28,7 @@
     "registry:scan": "tsx packages/registry/src/manifests.cli.ts scan",
     "schema:json": "tsx packages/catalog/src/schema.gen.ts",
     "action:build": "pnpm build && node scripts/build-action.mjs",
+    "version-packages": "changeset version && pnpm action:build",
     "prepare": "lefthook install"
   },
   "devDependencies": {

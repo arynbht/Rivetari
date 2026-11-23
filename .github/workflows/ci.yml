@@ -72,13 +72,20 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Check action bundle is current
+      - name: Build action bundle
         run: |
           pnpm action:build
+          test -s packages/action/dist/index.js
+
+      # Task PRs don't commit the bundle (AGENTS.md): two open PRs that both
+      # regenerate it always conflict. The release's Version Packages PR
+      # rebuilds it, so that's the one PR that has to carry a current bundle.
+      - name: Check action bundle is current
+        if: github.head_ref == 'changeset-release/main'
+        run: |
           # The bundle bytes vary by platform, so we don't diff them directly;
           # instead we diff the copied catalog and a deterministic source hash,
           # which catches a committed bundle that wasn't rebuilt after a change.
-          test -s packages/action/dist/index.js
           git diff --exit-code -- \
             packages/action/controls \
             packages/action/gates \
