@@ -19,6 +19,8 @@ export class AiError extends Error {
 export interface AiUsage {
   inputTokens: number;
   outputTokens: number;
+  cacheCreationTokens?: number | undefined;
+  cacheReadTokens?: number | undefined;
 }
 
 export interface CompleteParams {
