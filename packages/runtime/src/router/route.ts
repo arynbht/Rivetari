@@ -157,6 +157,8 @@ export function route(input: RouteInput): Routing {
   // 1–3. Score each sector: paths, keywords, manifest triggers, profile.
   const scores = new Map<Sector, SectorScore>();
   // Sectors that scored on something besides a word in the description.
+  // Only evidence from a description word passes `keywordOnly`; anything
+  // else added (paths, title words, IaC) holds a borderline sector.
   const beyondKeywords = new Set<Sector>();
   const add = (
     sector: Sector,
