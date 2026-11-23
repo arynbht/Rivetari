@@ -177,7 +177,7 @@ async function treeFiles(
     .map((p) => p.slice(prefix.length + 1));
 }
 
-async function readBlob(
+export async function readBlob(
   repo: string,
   rev: string,
   path: string,
@@ -273,7 +273,7 @@ async function branchFiles(
  * Is this machine's copy of a task a state the branch already has (or is
  * there no copy)? If not, it holds work no push has carried yet.
  */
-async function pushedBefore(
+export async function pushedBefore(
   repo: string,
   tip: string,
   id: string,
