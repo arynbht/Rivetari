@@ -21,6 +21,8 @@ describe("touches that could name any file", () => {
     "D:/work/a.ts",
     "\\\\server\\share\\a.ts",
     "../**",
+    "../other/a.ts",
+    "src/../../x.ts",
   ]) {
     it(`treats ${JSON.stringify(touch)} as overlapping every other card`, () => {
       for (const other of OTHERS) {
@@ -32,5 +34,10 @@ describe("touches that could name any file", () => {
 
   it("still keeps two plain relative paths apart", () => {
     expect(touchesOverlap(["src/a.ts"], ["src/b.ts"])).toBe(false);
+  });
+
+  it("reads a leading slash as repo-rooted, as .gitignore does", () => {
+    expect(touchesOverlap(["/src/app"], ["src/app/page.tsx"])).toBe(true);
+    expect(touchesOverlap(["/src/app"], ["docs/a.md"])).toBe(false);
   });
 });
