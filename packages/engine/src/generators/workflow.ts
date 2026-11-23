@@ -25,6 +25,7 @@ import {
   jobsWithoutTimeout,
   loadWorkflows,
   needsOf,
+  PAID_OS,
   paidOsJobs,
   runsOnPr,
   scansSecrets,
@@ -324,8 +325,6 @@ const addPathFilter: Edit = (doc, workflow) => {
   return true;
 };
 
-const PAID_OS = /\b(windows|macos)\b/i;
-
 const keepPaidOsOffPrs: Edit = (doc, workflow) => {
   const offending = paidOsJobs(workflow);
   const jobs = new Map(jobsOf(workflow));
@@ -360,8 +359,9 @@ const addSecretScan: Edit = (doc, workflow) => {
   const checkout = doc.createNode({
     name: "Checkout",
     uses: CHECKOUT,
-    // The scan reads the PR's commits, so their history has to be present.
-    with: { "fetch-depth": 0 },
+    // The scan reads the PR's commits, so their history has to be present;
+    // the token stays out of .git/config, away from the third-party action.
+    with: { "fetch-depth": 0, "persist-credentials": false },
   }) as YAMLMap;
   checkout.set("uses", pinned(doc, CHECKOUT, CHECKOUT_TAG));
   // TruffleHog needs no license on any account (gitleaks-action does on an
@@ -430,15 +430,23 @@ export async function pinActions(
     const value = String(node.value);
     if (PINNED.test(value)) continue;
     const match = /^([^/@\s]+)\/([^/@\s]+)((?:\/[^@\s]*)?)@(\S+)$/.exec(value);
-    const sha = match
-      ? await resolve(
-          match[1] as string,
-          match[2] as string,
-          match[4] as string,
-        )
-      : null;
-    if (!match || !sha) {
-      unresolved.push(value);
+    if (!match) {
+      unresolved.push(`${value} (not an owner/repo@ref)`);
+      continue;
+    }
+    let sha: string | null;
+    try {
+      sha = await resolve(
+        match[1] as string,
+        match[2] as string,
+        match[4] as string,
+      );
+    } catch (err) {
+      unresolved.push(`${value} (${(err as Error).message})`);
+      continue;
+    }
+    if (!sha) {
+      unresolved.push(`${value} (no such ref)`);
       continue;
     }
     node.value = `${match[1]}/${match[2]}${match[3]}@${sha}`;
@@ -457,7 +465,12 @@ function githubResolver(octokit: Octokit): ShaResolver {
       found = octokit.rest.repos
         .getCommit({ owner, repo, ref })
         .then(({ data }) => data.sha)
-        .catch(() => null);
+        .catch((err: unknown) => {
+          // Only a missing ref means "no such ref"; a bad token, a rate limit
+          // or the network is reported with its reason.
+          if ((err as { status?: number }).status === 404) return null;
+          throw err;
+        });
       cache.set(key, found);
     }
     return found;

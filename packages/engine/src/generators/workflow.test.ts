@@ -381,6 +381,37 @@ jobs:
     expect(await statusOf(dir, "ci.required-aggregator")).toBe("pass");
   });
 
+  it("doesn't count a self-hosted Windows runner as paid", async () => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request]
+jobs:
+  win:
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 5
+    steps:
+      - run: echo hi
+`,
+    });
+    expect(await statusOf(dir, "ci.pr-linux-only")).toBe("pass");
+  });
+
+  it("fails a group that's per commit on PRs too", async () => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request, push]
+concurrency:
+  group: ci-\${{ github.sha }}
+  cancel-in-progress: \${{ github.event_name == 'pull_request' }}
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo
+`,
+    });
+    expect(await statusOf(dir, "ci.concurrency-pr-only")).toBe("fail");
+  });
+
   it("adds a secret scan that needs no license", async () => {
     const dir = await repoWith({ [WF]: LEGACY });
     await fix(dir, "ci.secret-scan-on-pr");
@@ -436,15 +467,22 @@ describe("pinActions", () => {
       - uses: ./local
       - uses: github/codeql-action/init@v3
       - uses: nobody/missing@v1
+      - uses: limited/action@v2
   b:
     uses: o/r/.github/workflows/x.yml@main
 `);
     const { changed, unresolved } = await pinActions(
       doc,
-      async (_o, _r, ref) => (ref === "v1" ? null : SHA),
+      async (_o, _r, ref) => {
+        if (ref === "v2") throw new Error("API rate limit exceeded");
+        return ref === "v1" ? null : SHA;
+      },
     );
     expect(changed).toBe(true);
-    expect(unresolved).toEqual(["nobody/missing@v1"]);
+    expect(unresolved).toEqual([
+      "nobody/missing@v1 (no such ref)",
+      "limited/action@v2 (API rate limit exceeded)",
+    ]);
     const text = doc.toString();
     expect(text).toContain(`actions/checkout@${SHA} # v4`);
     expect(text).toContain(`github/codeql-action/init@${SHA} # v3`);

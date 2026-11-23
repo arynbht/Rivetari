@@ -145,8 +145,10 @@ export function aggregatorGap(workflow: Workflow): string | null {
 
 const READS_RESULTS = /needs\.(\*|[\w-]+)\.result/;
 const CANCEL_ON_PR = /github\.event_name\s*==\s*['"]pull_request['"]/;
-// A group with the commit or run in it never holds two runs of the default branch.
-const GROUP_PER_RUN = /github\.(sha|run_id)/;
+// PR runs share a group per PR, so a push supersedes the last; every other run
+// gets its own commit's or run's group, so none is ever replaced.
+const GROUP_PER_RUN =
+  /github\.event_name\s*==\s*['"]pull_request['"]\s*&&\s*(github\.ref|github\.head_ref|github\.event\.pull_request\.number)\s*\|\|\s*github\.(sha|run_id)/;
 
 /** Why a PR workflow's concurrency is wrong, or null when it's right. */
 export function concurrencyGap(workflow: Workflow): string | null {
@@ -174,7 +176,7 @@ export function concurrencyGap(workflow: Workflow): string | null {
   const group = concurrency.group;
   return typeof group === "string" && GROUP_PER_RUN.test(group)
     ? null
-    : "groups default-branch runs by ref, so a merge's pending run is replaced by the next";
+    : "doesn't group PR runs by PR and other runs by commit, so a superseded PR run is kept or a merge's pending run is replaced";
 }
 
 /** The jobs in a workflow that run with no `timeout-minutes`. */
@@ -207,7 +209,11 @@ export function filtersPaths(workflow: Workflow): boolean {
   );
 }
 
-const PAID_OS = /\b(windows|macos)\b/i;
+/**
+ * A GitHub-hosted Windows or macOS label (`windows-latest`, `macos-14`). A bare
+ * `windows` or `macOS` label is a self-hosted runner, whose minutes are free.
+ */
+export const PAID_OS = /^(windows|macos)-/i;
 
 function osValues(job: Job): unknown[] {
   const values: unknown[] = [];
@@ -230,6 +236,7 @@ export function paidOsJobs(workflow: Workflow): string[] {
   if (!runsOnPr(workflow)) return [];
   return jobsOf(workflow)
     .filter(([, job]) => !skipsPr(job))
+    .filter(([, job]) => !osValues(job).includes("self-hosted"))
     .filter(([, job]) =>
       osValues(job).some(
         (v) => typeof v === "string" && PAID_OS.test(v) && !v.includes("${{"),
