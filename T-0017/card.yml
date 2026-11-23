@@ -1,0 +1,49 @@
+id: T-0017
+title: Cap the build prompt's slice and the plan call
+type: fix
+source: prompt
+description: "The build and plan prompts pack every file the card's touches
+  globs match (prompt.ts sliceGlobs -> packContext), so a test glob such as
+  packages/**/*.test.ts pulls in tests from the whole repo: T-0011's 61k-token
+  slice was re-read on 48 turns and made up about 69% of its 4.26M tokens. The
+  slice becomes the card's source touches, the files those import directly by
+  relative path (one level, no bare package imports), and only the test files
+  beside those sources; a test glob in touches is never expanded into the slice.
+  The plan call gets the same capped slice and runs with a 4-turn limit (claude
+  --max-turns 4 in plan mode). The build-start ledger line records the assembled
+  prompt's approximate size in tokens next to the file count, so history can
+  read it later. First of three context-cap cards (the others: intake rejects
+  oversized touches globs; history and metrics report prompt size and low-risk
+  cost)."
+acceptance:
+  - id: A1
+    text: for a card touching packages/runtime/src/judge/diff-rules.ts and
+      packages/**/*.test.ts, the assembled prompt's files are diff-rules.ts, the
+      files it imports by relative path, and the test files beside
+      diff-rules.ts, and no other test file in the repo
+    verify: unit
+  - id: A2
+    text: a touched source file's direct relative imports are in the slice, their
+      own imports are not, and bare package imports are not followed
+    verify: unit
+  - id: A3
+    text: the plan call gets the same capped slice as the build and is run with a
+      4-turn limit
+    verify: unit
+  - id: A4
+    text: the build-start ledger line records the assembled prompt's approximate
+      token count next to the file count
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/runtime/src/agent/prompt.ts
+  - packages/runtime/src/agent/build.ts
+  - packages/runtime/src/agent/slice.ts
+  - packages/runtime/src/agent/slice-cap.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-23
