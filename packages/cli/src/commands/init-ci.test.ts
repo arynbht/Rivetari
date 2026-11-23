@@ -125,6 +125,25 @@ describe("renderCiWorkflow", () => {
     expect(wf.on.push.branches).toEqual(["trunk"]);
   });
 
+  it("gives pnpm/action-setup a version unless packageManager pins pnpm", () => {
+    for (const declared of ["pnpm", "pnpm@latest", undefined]) {
+      const wf = render(
+        {
+          packageManager: "pnpm",
+          declared,
+          scripts: { test: "vitest run" },
+          defaultBranch: "main",
+          lockfile: true,
+          workspace: false,
+        },
+        CHEAP,
+      );
+      expect(
+        wf.jobs.ci!.steps.find((s) => s.name === "Set up pnpm")!.with,
+      ).toEqual({ version: 9 });
+    }
+  });
+
   it("skips npm's placeholder test script and gives pnpm a version when nothing declares one", () => {
     const wf = render(
       {

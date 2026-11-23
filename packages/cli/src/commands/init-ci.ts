@@ -140,8 +140,12 @@ function steps(facts: CiFacts, pr: boolean): string {
   if (facts.packageManager === "pnpm")
     out.push(
       `      - name: Set up pnpm\n${ifLine}        uses: ${PNPM_SETUP}${
-        // action-setup reads the version from packageManager; without one it needs it.
-        facts.declared ? "" : "\n        with:\n          version: 9"
+        // action-setup reads the version from packageManager only when that
+        // field pins pnpm; otherwise (no field, or one naming another manager)
+        // it needs a version here.
+        /^pnpm@\d/.test(facts.declared ?? "")
+          ? ""
+          : "\n        with:\n          version: 9"
       }`,
     );
   if (
