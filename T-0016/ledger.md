@@ -19,6 +19,8 @@
 - 2026-11-23 06:37 prove: proof passed · test-run (the judge's tier 1 run) (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 06:38 judge: judge passed · round 2 · head 2e16a3a7171e · record sha256 f02249ca52e4d4061fa11e824be10f54fe4603a599b51dfbdbb0320156a58178 (rivetari judge (for arynbht@gmail.com))
 - 2026-11-23 06:39 ship: draft PR opened: #188 https://github.com/arynbht/Rivetari/pull/188 · fix/t-0016 at 2e16a3a7171e → main (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 06:51 close: worktree removed · branch fix/t-0016 deleted (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-23 06:51 close: ledger sealed · merged (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -67,3 +69,7 @@
 - 2026-11-23 06:38 acceptance A4: met — The config sets reportOnFailure: true and a config test asserts it. The coverage floor is judged on the summary the failing run wrote.
 - 2026-11-23 06:38 acceptance A5: met — The only test file in the diff is new.
 - 2026-11-23 06:39 judge review posted: https://github.com/arynbht/Rivetari/pull/188#pullrequestreview-6017459232
+
+## Outcome
+
+- 2026-11-23 06:51 PR #188 merged by arynbht 2026-11-23 06:51 · 1h05m · 6069k tokens · $4.59
