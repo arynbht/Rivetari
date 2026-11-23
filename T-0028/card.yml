@@ -1,0 +1,39 @@
+id: T-0028
+title: Have init ignore .rivetari/history.jsonl
+type: fix
+source: prompt
+description: "Bug 22. rivetari init writes .rivetari/.gitignore with tasks/,
+  ai-usage.log, cache/, *.bak and *.bak.*, but not history.jsonl, which task
+  close writes locally on every close (the same rows also go to the
+  rivetari/tasks branch). In every initialised repo the file then shows as
+  untracked in git status (seen in breathband-console and in this repo). Add
+  history.jsonl to the list init writes to .rivetari/.gitignore. One existing
+  test changes, and only its expected value:
+  packages/cli/src/commands/init.test.ts asserts the exact .rivetari/.gitignore
+  content at line 123 ('tasks/\\nai-usage.log\\ncache/\\n*.bak\\n*.bak.*\\n'),
+  which gains the history.jsonl line; nothing else in that test changes. Repos
+  initialised before this aren't touched."
+acceptance:
+  - id: A1
+    text: after rivetari init, .rivetari/.gitignore contains a history.jsonl line
+      along with the existing entries
+    verify: unit
+  - id: A2
+    text: in an initialised repo, a .rivetari/history.jsonl written by close doesn't
+      show in git status
+    verify: unit
+  - id: A3
+    text: the only existing test change is init.test.ts's expected
+      .rivetari/.gitignore content gaining history.jsonl
+    verify: review
+out_of_scope: []
+touches:
+  - packages/cli/src/commands/init.ts
+  - packages/cli/src/commands/init.test.ts
+  - packages/cli/src/commands/init-history-ignore.test.ts
+  - .changeset/init-ignore-history.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
