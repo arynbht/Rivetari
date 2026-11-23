@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-// Keep in step with the `code` filter in .github/workflows/ci-next.yml.
+// Keep in step with the `code` filter in .github/workflows/ci.yml.
 const isDocs = (path) =>
   path.startsWith("docs/") ||
   path.startsWith(".changeset/") ||

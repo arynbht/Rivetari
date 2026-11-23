@@ -1,4 +1,4 @@
-# The complete pipeline (what ci.yml ran on every PR before ci-next), on demand:
+# The complete pipeline (what ci.yml ran on every PR before the fast pipeline), on demand:
 # run it from the Actions tab, or label a PR `ci:full`. Its aggregator is
 # `ci-full`, never `ci`, so it can't stand in for the required check.
 name: ci-full
