@@ -30,7 +30,10 @@ export type StopTrigger =
   | "secret"
   | "database_url"
   | "history_rewritten"
-  | "timeout";
+  | "timeout"
+  // Asked by the judge, not found in the diff: at review-at-pr and above a
+  // criterion the reviewer couldn't confirm from the evidence goes to a person.
+  | "unverified_acceptance";
 
 export interface Stop {
   trigger: StopTrigger;

@@ -7,8 +7,10 @@
 // reproduction; without one it's downgraded to a suggestion.
 //
 // The model sees only what this module packs into the prompt: the diff (minus
-// sensitive paths and anything secret-shaped) and the contract files from the
-// base commit. The CLI transport runs locked down (no tools, empty cwd).
+// sensitive paths and anything secret-shaped), the contract files from the
+// base commit, the files changed docs cite, and the task's proof when the
+// judge beat passes it. The CLI transport runs locked down (no tools, empty
+// cwd).
 import { createHash } from "node:crypto";
 
 import {
@@ -22,6 +24,7 @@ import picomatch from "picomatch";
 import { type SimpleGit, simpleGit } from "simple-git";
 import { z } from "zod";
 
+import type { Shot } from "../proof/shoot.js";
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
 import { bannedSection, loadBanned } from "./banned.js";
@@ -137,7 +140,19 @@ const ReviewSchema = z.object({
       }),
     )
     .default([]),
+  /** Asked only on a fix card with a UI proof: does the "before" show the defect? */
+  before: z
+    .object({
+      // Anything but a plain yes means the before doesn't show it.
+      shows_defect: z.boolean().catch(false),
+      note: optionalText(),
+      criteria: z.array(z.string()).catch([]).default([]),
+    })
+    .nullish()
+    .catch(null),
 });
+
+export type BeforeCheck = NonNullable<z.infer<typeof ReviewSchema>["before"]>;
 
 const GateSchema = z.object({
   reproducible: z.boolean(),
@@ -154,6 +169,15 @@ export interface PackedChange {
   agents: string | null;
   constraints: string | null;
   banned?: string | null | undefined;
+  /** Repo files the changed Markdown cites, at head, so citations can be checked. */
+  cited?: CitedFile[] | undefined;
+}
+
+export interface CitedFile {
+  path: string;
+  /** The file at head, cut at the per-file cap; null when over the total cap. */
+  text: string | null;
+  truncated: boolean;
 }
 
 export interface Tier2Result {
@@ -161,6 +185,8 @@ export interface Tier2Result {
   blocking: Finding[];
   suggestions: Finding[];
   acceptance: z.infer<typeof ReviewSchema>["acceptance"];
+  /** The reviewer's answer on a fix card's "before" proof, when it was asked. */
+  before?: BeforeCheck | undefined;
   /**
    * Changed files the reviewer wasn't shown for a reason other than being
    * generated (sensitive, secret-shaped, binary, over budget). A change with
@@ -174,6 +200,19 @@ export interface Tier2Result {
   packed: Omit<PackedChange, "diff">;
 }
 
+/**
+ * The parts of a task's proof record (`proof/proof.json`) the reviewer is
+ * shown. Its own type, not the prove beat's: prove imports tier 1, which
+ * imports this module.
+ */
+export interface ReviewProof {
+  kind: string;
+  passed: boolean;
+  lines: string[];
+  shots?: (Shot & { side: "before" | "after" })[] | undefined;
+  tests?: { exitCode: number; added: string[]; output: string } | undefined;
+}
+
 export interface Tier2Options {
   repoPath: string;
   /** The merge-base (or base commit) and the change's head commit. */
@@ -183,6 +222,8 @@ export interface Tier2Options {
   model?: string | undefined;
   card?: Card | undefined;
   decisions?: readonly AllowedDecision[] | undefined;
+  /** The task's proof record, so criteria can be checked against it. */
+  proof?: ReviewProof | undefined;
   /** YYYY-MM-DD for the usage log; no log when omitted. */
   usageDate?: string | undefined;
   log?: ((line: string) => void) | undefined;
@@ -285,6 +326,7 @@ export async function packChange(
     files.push(entry.path);
     lines.set(entry.path, newSideLines(fileDiff));
   }
+  const docs = files.filter((f) => MARKDOWN.test(f));
   return {
     diff,
     files,
@@ -293,7 +335,69 @@ export async function packChange(
     agents: await showAt(git, base, "AGENTS.md"),
     constraints: await showAt(git, base, "CONSTRAINTS.md"),
     banned: bannedSection(await loadBanned(repoPath, base)).join("\n") || null,
+    ...(docs.length > 0
+      ? { cited: await citedFiles(git, head, docs, diff) }
+      : {}),
   };
+}
+
+const MARKDOWN = /\.(md|mdx)$/i;
+/** Caps on what changed docs bring along: per file, in all, and how many files. */
+export const CITED_FILE_CAP = 20_000;
+export const CITED_TOTAL_CAP = 60_000;
+const CITED_MAX_FILES = 20;
+
+/**
+ * The repo files the added lines of changed Markdown cite in backticks
+ * (`src/a.ts`, `src/a.ts:12`), at head. Only files that exist there, never a
+ * sensitive, generated, binary or secret-shaped one, and within the caps: a
+ * doc's claims about code can't be checked from the doc's own diff.
+ */
+export async function citedFiles(
+  git: SimpleGit,
+  head: string,
+  docs: readonly string[],
+  diff: string,
+): Promise<CitedFile[]> {
+  const tracked = new Set(
+    (await git.raw(["ls-tree", "-r", "--name-only", head]).catch(() => ""))
+      .split("\n")
+      .filter(Boolean),
+  );
+  const wanted: string[] = [];
+  for (const chunk of diff.split(/^(?=diff --git )/m)) {
+    const doc = docs.find((d) => chunk.includes(` b/${d}\n`));
+    if (!doc) continue;
+    const added = chunk
+      .split("\n")
+      .filter((l) => l.startsWith("+") && !l.startsWith("+++ "))
+      .join("\n");
+    for (const m of added.matchAll(/`([^`\s]+)`/g)) {
+      const path = (m[1] ?? "")
+        .replace(/^\.\//, "")
+        .replace(/(#L\d.*|:\d+(-\d+)?)$/, "");
+      if (path !== doc && tracked.has(path) && !wanted.includes(path))
+        wanted.push(path);
+    }
+  }
+  const generated = await generatedPaths(git, wanted);
+  const out: CitedFile[] = [];
+  let total = 0;
+  for (const path of wanted) {
+    if (out.length >= CITED_MAX_FILES) break;
+    if (isSensitivePath(path) || generated.has(path)) continue;
+    const text = await showAt(git, head, path);
+    if (text === null || text.includes("\0") || looksLikeSecret(text)) continue;
+    const truncated = text.length > CITED_FILE_CAP;
+    const kept = truncated ? text.slice(0, CITED_FILE_CAP) : text;
+    if (total + kept.length > CITED_TOTAL_CAP) {
+      out.push({ path, text: null, truncated: false });
+      continue;
+    }
+    total += kept.length;
+    out.push({ path, text: kept, truncated });
+  }
+  return out;
 }
 
 /** New-side line numbers covered by a file's hunks (added and context lines). */
@@ -320,7 +424,12 @@ const RUBRIC = `You are the judge in a Rivetari, reviewing one change (a diff) b
 You may raise exactly three kinds of BLOCKING finding:
 - "defect": a correctness bug, security issue, data loss, race, or unhandled failure path that this diff introduces or leaves reachable.
 - "contract": the diff violates AGENTS.md, CONSTRAINTS.md, or a stated house pattern (quote the rule).
-- "acceptance": an acceptance criterion on the task card is unmet or unverifiable from this change (give its id).
+- "acceptance": an acceptance criterion on the task card is unmet by this change (give its id).
+
+For every acceptance criterion on the card, report one status:
+- "met": the evidence shows it is met: the diff, a test in the diff that actually exercises it, or the proof given below.
+- "unmet": the evidence shows it is not met.
+- "unverified": you can't confirm it from the evidence. Use this rather than guessing "met": a manual or screenshot criterion the proof doesn't show, a test that doesn't really exercise the criterion, a claim about code you weren't shown. Say in the note what is missing. An unverified criterion isn't a finding; a person decides it.
 
 Everything else — style, naming, readability, "could be tighter", alternative designs, missing nice-to-haves, speculative risks — is a "suggestion". Suggestions never block.
 
@@ -331,7 +440,9 @@ Rules:
 - Be specific and brief. No praise, no summary of the change.
 
 Reply with ONLY a JSON object, no prose and no code fence:
-{"findings":[{"kind":"defect|contract|acceptance|suggestion","file":"path","line":12,"acceptance_id":"A1 or null","title":"one line","detail":"what is wrong and why","repro":"how to trigger it","fix":"the smallest change that fixes it"}],"acceptance":[{"id":"A1","status":"met|unmet|unverified","note":"short"}]}`;
+{"findings":[{"kind":"defect|contract|acceptance|suggestion","file":"path","line":12,"acceptance_id":"A1 or null","title":"one line","detail":"what is wrong and why","repro":"how to trigger it","fix":"the smallest change that fixes it"}],"acceptance":[{"id":"A1","status":"met|unmet|unverified","note":"short"}],"before":null}
+
+Only when the prompt has a section headed "The before proof", replace null with {"shows_defect":true|false,"note":"what the before evidence shows","criteria":["ids whose verification depends on the before showing the defect"]}.`;
 
 const GATE = `You are checking one code-review finding before it can block a merge. Default to rejecting it.
 
@@ -341,10 +452,65 @@ A contract finding must break a rule quoted from the contract given below; an ac
 
 Reply with ONLY a JSON object: {"reproducible": true|false, "repro": "exact steps, or empty", "reason": "one line"}`;
 
+/** A fix card proved with screenshots: its "before" has to show the defect. */
+export const needsBeforeCheck = (card?: Card, proof?: ReviewProof): boolean =>
+  card?.type === "fix" && proof?.kind === "ui-screenshots";
+
+function shotLine(shot: NonNullable<ReviewProof["shots"]>[number]): string {
+  const where = `${shot.side} · ${shot.page} at ${shot.breakpoint} · HTTP ${shot.status} · ${shot.file.replace(/\\/g, "/").split("/").pop() ?? ""}`;
+  const l = shot.layout;
+  if (!l) return `- ${where} · nothing measured`;
+  const overflow =
+    l.scrollWidth > l.viewport
+      ? `scrolls sideways: ${l.scrollWidth}px of content in a ${l.viewport}px viewport`
+      : `no sideways scroll (${l.scrollWidth}px in a ${l.viewport}px viewport)`;
+  const past =
+    l.overflowing.length > 0
+      ? `elements past the viewport's edge: ${l.overflowing.join("; ")}`
+      : "no element past the viewport's edge";
+  return `- ${where} · ${overflow} · ${past}${l.text ? ` · text starts: ${JSON.stringify(l.text)}` : ""}`;
+}
+
+function proofSection(proof: ReviewProof, card?: Card): string[] {
+  const parts = [
+    `## The proof\nProduced by a tool on the change, never written by the agent. Kind: ${proof.kind} · ${proof.passed ? "passed" : "failed"}.\n${proof.lines.map((l) => `- ${l}`).join("\n")}`,
+  ];
+  if (proof.tests) {
+    parts.push(
+      `### Test run\nExit ${proof.tests.exitCode} · new tests: ${proof.tests.added.join("; ") || "none"}\n\`\`\`\n${proof.tests.output.slice(-3000)}\n\`\`\``,
+    );
+  }
+  if (proof.shots?.length) {
+    parts.push(
+      `### Screenshots\nYou can't see the images. For each one you have its side (before = the base, after = the change), page, breakpoint (sm 375px, md 768px, lg 1280px wide), HTTP status, and what the proof runner measured on the page.\n${proof.shots.map(shotLine).join("\n")}`,
+    );
+  }
+  if (needsBeforeCheck(card, proof)) {
+    parts.push(
+      `## The before proof\nThis card is a fix, so its before screenshots (the base, before the change) must show the defect the card describes, or the proof shows nothing was fixed. Judge from what was measured on the before shots above, and answer in "before". If the before evidence doesn't show the defect, every criterion that depends on it is "unverified", not "met".`,
+    );
+  }
+  return parts;
+}
+
+function citedSection(cited: readonly CitedFile[]): string[] {
+  if (cited.length === 0) return [];
+  return [
+    `## Files the changed docs cite\nThe changed Markdown cites these repo files; here they are at the change's head. Check that what the docs say about them is true.\n\n${cited
+      .map((c) =>
+        c.text === null
+          ? `### ${c.path}\n(not shown: over the review's size cap for cited files)`
+          : `### ${c.path}${c.truncated ? ` (first ${CITED_FILE_CAP} characters)` : ""}\n\`\`\`\n${c.text}\n\`\`\``,
+      )
+      .join("\n\n")}`,
+  ];
+}
+
 function reviewPrompt(
   packed: PackedChange,
   card?: Card,
   decisions?: readonly AllowedDecision[],
+  proof?: ReviewProof,
 ): string {
   const parts: string[] = [];
   if (card) {
@@ -369,8 +535,36 @@ function reviewPrompt(
       `## Not shown to you\n${packed.omitted.map((o) => `- ${o.path}: ${o.why}`).join("\n")}`,
     );
   }
+  if (proof) parts.push(...proofSection(proof, card));
+  parts.push(...citedSection(packed.cited ?? []));
   parts.push(`## The diff\n${packed.diff || "(empty)"}`);
   return parts.join("\n\n");
+}
+
+/**
+ * On a fix card proved with screenshots, a before the reviewer didn't say
+ * shows the defect leaves every criterion that depends on it unverified (all
+ * of them when it named none). An unmet criterion stays unmet.
+ */
+export function applyBeforeCheck(
+  acceptance: Tier2Result["acceptance"],
+  card: Card,
+  before: BeforeCheck | null | undefined,
+): Tier2Result["acceptance"] {
+  if (before?.shows_defect === true) return acceptance;
+  const ids = card.acceptance.map((a) => a.id);
+  const named = (before?.criteria ?? []).filter((id) => ids.includes(id));
+  const depends = new Set(named.length > 0 ? named : ids);
+  const why = `the before proof doesn't show the defect${before?.note ? `: ${before.note}` : before ? "" : " (the reviewer didn't say it does)"}`;
+  const out = acceptance.map((a) =>
+    depends.has(a.id) && a.status === "met"
+      ? { ...a, status: "unverified" as const, note: why }
+      : a,
+  );
+  for (const id of depends)
+    if (!out.some((a) => a.id === id))
+      out.push({ id, status: "unverified", note: why });
+  return out;
 }
 
 /** What the gate sees: the finding, the rules it cites, and its file's diff. */
@@ -465,11 +659,16 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     extractJson(
       await complete(
         RUBRIC,
-        reviewPrompt(packed, options.card, options.decisions),
+        reviewPrompt(packed, options.card, options.decisions, options.proof),
         "judge-review",
       ),
     ),
   );
+  const checkBefore = needsBeforeCheck(options.card, options.proof);
+  const acceptance =
+    checkBefore && options.card
+      ? applyBeforeCheck(review.acceptance, options.card, review.before)
+      : review.acceptance;
 
   // An unmet criterion blocks like any acceptance finding, even when the
   // reviewer only marked it unmet.
@@ -563,7 +762,16 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     verdict: blocking.length > 0 ? "request-changes" : "approve",
     blocking,
     suggestions,
-    acceptance: review.acceptance,
+    acceptance,
+    ...(checkBefore
+      ? {
+          before: review.before ?? {
+            shows_defect: false,
+            note: "the reviewer didn't answer",
+            criteria: [],
+          },
+        }
+      : {}),
     unreviewed: packed.omitted
       .filter((o) => o.why !== "generated")
       .map((o) => o.path),
@@ -622,6 +830,11 @@ export function renderReview(
       ...result.acceptance.map(
         (a) => `- ${a.id}: ${a.status}${a.note ? ` — ${a.note}` : ""}`,
       ),
+      ...(result.before
+        ? [
+            `- before proof: ${result.before.shows_defect ? "shows the defect" : "doesn't show the defect"}${result.before.note ? ` — ${result.before.note}` : ""}`,
+          ]
+        : []),
     );
   }
   if (result.suggestions.length > 0) {
