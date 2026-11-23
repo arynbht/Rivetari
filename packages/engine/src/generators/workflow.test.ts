@@ -46,6 +46,7 @@ beforeEach(() => {
 
 const made: string[] = [];
 afterEach(async () => {
+  server.resetHandlers();
   for (const d of made) await rm(d, { recursive: true, force: true });
   made.length = 0;
 });
@@ -176,7 +177,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - run: echo done
+      - env:
+          RESULTS: \${{ join(needs.*.result, ' ') }}
+        run: for r in $RESULTS; do [ "$r" = success ] || [ "$r" = skipped ] || exit 1; done
 `;
 
 const WF = ".github/workflows/ci.yml";
@@ -245,6 +248,7 @@ describe("CI posture controls", () => {
     });
     for (const id of [
       "ci.required-aggregator",
+      "ci.concurrency",
       "ci.concurrency-pr-only",
       "ci.job-timeouts",
       "ci.actions-pinned-sha",
@@ -324,6 +328,82 @@ jobs:
 `,
     });
     expect(await statusOf(dir, "ci.concurrency-pr-only")).toBe("pass");
+  });
+
+  it.each([
+    [
+      "the inverse condition",
+      "ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}",
+      "${{ github.event_name != 'pull_request' }}",
+    ],
+    [
+      "default-branch runs grouped by ref",
+      "ci-${{ github.ref }}",
+      "${{ github.event_name == 'pull_request' }}",
+    ],
+  ])("fails concurrency with %s", async (_label, group, cancel) => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request, push]
+concurrency:
+  group: "${group}"
+  cancel-in-progress: "${cancel}"
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo
+`,
+    });
+    expect(await statusOf(dir, "ci.concurrency-pr-only")).toBe("fail");
+    await fix(dir, "ci.concurrency-pr-only");
+    expect(await statusOf(dir, "ci.concurrency-pr-only")).toBe("pass");
+  });
+
+  it("fails a `ci` job that runs after a failure but never reads the results", async () => {
+    const dir = await repoWith({
+      [WF]: `on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
+  ci:
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo done
+`,
+    });
+    expect(await statusOf(dir, "ci.required-aggregator")).toBe("fail");
+    await fix(dir, "ci.required-aggregator");
+    expect(await statusOf(dir, "ci.required-aggregator")).toBe("pass");
+  });
+
+  it("adds a secret scan that needs no license", async () => {
+    const dir = await repoWith({ [WF]: LEGACY });
+    await fix(dir, "ci.secret-scan-on-pr");
+    const text = await readFile(join(dir, WF), "utf8");
+    expect(text).toContain("trufflesecurity/trufflehog@");
+    expect(text).not.toContain("gitleaks");
+  });
+
+  it("notes a visibility it couldn't read instead of doing nothing", async () => {
+    server.use(http.get(REPO, () => new HttpResponse(null, { status: 403 })));
+    const dir = await repoWith({ [WF]: LEGACY });
+    const changes = await workflowGenerator(
+      ctx(dir),
+      control("ci.pr-linux-only"),
+    );
+    expect(changes).toEqual([
+      expect.objectContaining({
+        type: "note",
+        message: expect.stringContaining(
+          "couldn't read whether the repo is private",
+        ),
+      }),
+    ]);
   });
 
   it("doesn't count a reusable-workflow job as missing a timeout", async () => {

@@ -132,6 +132,7 @@ References:
 A secret scan that runs on the pull request reads every commit in it, so a key committed and then deleted in a later commit is still caught before it reaches the default branch's history.
 
 References:
+  - [TruffleHog — GitHub Action](https://github.com/trufflesecurity/trufflehog#octocat-trufflehog-github-action)
   - [gitleaks — GitHub Action](https://github.com/gitleaks/gitleaks-action)
 
 ### `ci.workflow-permissions` — Workflow token permissions declared

@@ -47,9 +47,9 @@ const CHECKOUT_TAG = "v4.4.0";
 const PATHS_FILTER =
   "dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d";
 const PATHS_FILTER_TAG = "v4.0.3";
-const GITLEAKS =
-  "gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7";
-const GITLEAKS_TAG = "v2.3.9";
+const TRUFFLEHOG =
+  "trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb";
+const TRUFFLEHOG_TAG = "v3.99.8";
 
 const CONCURRENCY = {
   // Main runs are grouped by commit, so a merge never replaces the run before it.
@@ -360,20 +360,23 @@ const addSecretScan: Edit = (doc, workflow) => {
   const checkout = doc.createNode({
     name: "Checkout",
     uses: CHECKOUT,
-    // gitleaks scans the PR's commits, so their history has to be present.
+    // The scan reads the PR's commits, so their history has to be present.
     with: { "fetch-depth": 0 },
   }) as YAMLMap;
   checkout.set("uses", pinned(doc, CHECKOUT, CHECKOUT_TAG));
+  // TruffleHog needs no license on any account (gitleaks-action does on an
+  // organization's), and on a pull request it scans base..head by itself.
   const scan = doc.createNode({
-    name: "gitleaks",
-    uses: GITLEAKS,
-    env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" },
+    name: "TruffleHog",
+    uses: TRUFFLEHOG,
+    with: { extra_args: "--results=verified,unknown" },
   }) as YAMLMap;
-  scan.set("uses", pinned(doc, GITLEAKS, GITLEAKS_TAG));
+  scan.set("uses", pinned(doc, TRUFFLEHOG, TRUFFLEHOG_TAG));
   const job = doc.createNode({
     name: "secret-scan",
     "runs-on": "ubuntu-latest",
     "timeout-minutes": 10,
+    permissions: { contents: "read" },
     steps: [],
   }) as YAMLMap;
   const steps = job.get("steps", true);
@@ -483,7 +486,13 @@ const patches: Record<Exclude<Patch, "pin-actions">, PatchFn> = {
     const gh = await ctx.github();
     // Only a private repo pays for Windows and macOS minutes.
     if (!gh) return "needs a GitHub token to read whether the repo is private";
-    if (!(await isPrivateRepo(gh).catch(() => false))) return [];
+    let isPrivate: boolean;
+    try {
+      isPrivate = await isPrivateRepo(gh);
+    } catch (err) {
+      return `couldn't read whether the repo is private: ${(err as Error).message}`;
+    }
+    if (!isPrivate) return [];
     return workflows
       .filter((w) => paidOsJobs(w).length > 0)
       .map((w) => ({ path: w.path, edit: keepPaidOsOffPrs }));

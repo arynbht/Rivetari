@@ -133,12 +133,20 @@ export function aggregatorGap(workflow: Workflow): string | null {
   }
   const upstream = upstreamOf(workflow, key);
   const missing = wanted.filter((j) => !upstream.has(j));
-  return missing.length > 0
-    ? `has a \`ci\` job that doesn't wait for ${missing.join(", ")}`
-    : null;
+  if (missing.length > 0) {
+    return `has a \`ci\` job that doesn't wait for ${missing.join(", ")}`;
+  }
+  // With `always()` the job runs after a failure too, so it has to read the
+  // results and fail on one itself.
+  return stepsOf(job).some((step) => READS_RESULTS.test(JSON.stringify(step)))
+    ? null
+    : "has a `ci` job that never reads its needs' results, so it passes when they fail";
 }
 
-const CANCEL_PR_ONLY = /pull_request/;
+const READS_RESULTS = /needs\.(\*|[\w-]+)\.result/;
+const CANCEL_ON_PR = /github\.event_name\s*==\s*['"]pull_request['"]/;
+// A group with the commit or run in it never holds two runs of the default branch.
+const GROUP_PER_RUN = /github\.(sha|run_id)/;
 
 /** Why a PR workflow's concurrency is wrong, or null when it's right. */
 export function concurrencyGap(workflow: Workflow): string | null {
@@ -147,14 +155,26 @@ export function concurrencyGap(workflow: Workflow): string | null {
     return "doesn't cancel superseded pull request runs";
   }
   const cancel = concurrency["cancel-in-progress"];
-  const prOnly = triggers(workflow).every((t) => t.startsWith("pull_request"));
-  if (cancel === true) {
-    return prOnly
+  // A manual run shares no group with a pull request's, so it doesn't count.
+  const prOnly = triggers(workflow)
+    .filter((t) => t !== "workflow_dispatch")
+    .every((t) => t.startsWith("pull_request"));
+  if (prOnly) {
+    return cancel === true ||
+      (typeof cancel === "string" && CANCEL_ON_PR.test(cancel))
       ? null
-      : "cancels in-progress runs on every event, main's too";
+      : "doesn't cancel superseded pull request runs";
   }
-  if (typeof cancel === "string" && CANCEL_PR_ONLY.test(cancel)) return null;
-  return "doesn't cancel superseded pull request runs";
+  if (cancel === true) {
+    return "cancels in-progress runs on every event, the default branch's too";
+  }
+  if (typeof cancel !== "string" || !CANCEL_ON_PR.test(cancel)) {
+    return "doesn't cancel superseded pull request runs, and only those";
+  }
+  const group = concurrency.group;
+  return typeof group === "string" && GROUP_PER_RUN.test(group)
+    ? null
+    : "groups default-branch runs by ref, so a merge's pending run is replaced by the next";
 }
 
 /** The jobs in a workflow that run with no `timeout-minutes`. */
