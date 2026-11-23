@@ -188,6 +188,15 @@ describe("detectCiPlan", () => {
     ).toBe("cheap");
     expect(await plan({})).toBe("cheap");
   });
+
+  it("reads a proxy's HTML page as an unreadable plan instead of throwing", async () => {
+    const html = vi.fn(() =>
+      Promise.resolve(new Response("<html>", { status: 200 })),
+    ) as unknown as typeof fetch;
+    expect((await detectCiPlan(slug, { token: "t", fetch: html })).tier).toBe(
+      "cheap",
+    );
+  });
 });
 
 describe("init writes CI", { timeout: 30_000 }, () => {
@@ -251,6 +260,13 @@ describe("init writes CI", { timeout: 30_000 }, () => {
     expect(await readFile(ciPath(dir), "utf8")).toContain(
       "visibility and plan couldn't be read",
     );
+    // Its own ci.yml is rewritten under --force, for the plan read now.
+    await runInit(
+      dir,
+      { type: "web-app", yes: true, force: true },
+      { token: null, detectCiPlan: () => Promise.resolve(FULL) },
+    );
+    expect(await readFile(ciPath(dir), "utf8")).toContain("macos-latest");
   });
 
   it("leaves a repo's own CI alone, and writes none for a repo without package.json", async () => {

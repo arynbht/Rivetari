@@ -40,7 +40,7 @@ import {
 import { parse as parseYaml } from "yaml";
 
 import { runAudit, type RunAuditOptions } from "./audit.js";
-import { type CiPlan, writeCi } from "./init-ci.js";
+import { type CiPlan, planCi } from "./init-ci.js";
 import {
   CLAUDE_MD,
   mergeRivetariHooks,
@@ -601,12 +601,16 @@ export async function runInit(
     beside.push(
       `${workflow}, then delete it (every file in .github/workflows runs on GitHub, so don't commit it)`,
     );
-  const ci = await writeCi(root, {
+  const ci = await planCi(root, {
     token: options.token,
     detectPlan: options.detectCiPlan,
     force: flags.force,
   });
-  if (ci) beside.push(ci);
+  if (ci.text !== null) {
+    await mkdir(resolve(root, ".github", "workflows"), { recursive: true });
+    await writeFile(resolve(root, ".github/workflows/ci.yml"), ci.text, "utf8");
+  }
+  if (ci.note) beside.push(ci.note);
 
   // Backups init leaves under .rivetari/ are for the person to look at, not commit.
   await ignoreInRivetari(root, [

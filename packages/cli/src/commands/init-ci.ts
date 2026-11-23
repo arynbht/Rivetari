@@ -4,7 +4,7 @@
 // docs-only changes skip the work but still report, superseded runs are
 // cancelled, and every job has a timeout. The default branch runs everything,
 // and the other OSes run where the repo's Actions plan can pay for them.
-import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -111,6 +111,8 @@ const AFFECTED_STEP = String.raw`      - name: Affected packages
           pkgs=$(pnpm ls -r --depth -1 --parseable | grep -vx "$root" | sed "s|^$root/||")
           all=false
           for f in $(git diff --name-only HEAD^1 HEAD); do
+            # What the path filter calls docs doesn't widen the run either.
+            case "$f" in docs/*|.changeset/*|*.md) continue ;; esac
             inside=false
             for p in $pkgs; do case "$f" in "$p"/*) inside=true ;; esac; done
             if [ "$inside" = false ]; then all=true; fi
@@ -299,7 +301,8 @@ export async function detectCiPlan(
       },
       signal: AbortSignal.timeout(10_000),
     }).catch(() => null);
-    return res?.ok ? ((await res.json()) as T) : null;
+    // A proxy's HTML page or a body that stalls past the timeout reads as nothing.
+    return res?.ok ? ((await res.json().catch(() => null)) as T | null) : null;
   };
   const repo = await api<{
     private?: boolean;
@@ -340,19 +343,30 @@ export interface WriteCiOptions {
 
 const CI_REL = ".github/workflows/ci.yml";
 
+export interface CiOutcome {
+  /** The ci.yml to write, or null for none. */
+  text: string | null;
+  /** A note for init's summary. */
+  note: string | null;
+}
+
 /**
- * Write `.github/workflows/ci.yml` into a Node repo with no CI of its own.
- * A repo with other workflows keeps them and gets none; a ci.yml an earlier
- * init wrote is rewritten under --force. Returns a note for init's summary.
+ * `.github/workflows/ci.yml` for a Node repo with no CI of its own; init
+ * writes it. A repo with other workflows keeps them and gets none, and a
+ * ci.yml an earlier init wrote is rewritten under --force.
  */
-export async function writeCi(
+export async function planCi(
   root: string,
   options: WriteCiOptions = {},
-): Promise<string | null> {
+): Promise<CiOutcome> {
+  const none = (note: string | null = null): CiOutcome => ({
+    text: null,
+    note,
+  });
   const pkgText = await readFile(join(root, "package.json"), "utf8").catch(
     () => null,
   );
-  if (pkgText === null) return null;
+  if (pkgText === null) return none();
   const dir = join(root, ".github", "workflows");
   const theirs = (await readdir(dir).catch(() => [] as string[])).filter(
     (f) => /\.ya?ml$/.test(f) && !/^rivetari(\.rivetari)?\.ya?ml$/.test(f),
@@ -360,9 +374,11 @@ export async function writeCi(
   const ours = await readFile(join(root, CI_REL), "utf8")
     .then((t) => isInitCiWorkflow(t))
     .catch(() => false);
-  if (ours && !options.force) return null;
+  if (ours && !options.force) return none();
   if (theirs.length > 0 && !ours)
-    return `the repo has CI of its own (${theirs.map((f) => `.github/workflows/${f}`).join(", ")}), so init wrote no ci.yml`;
+    return none(
+      `the repo has CI of its own (${theirs.map((f) => `.github/workflows/${f}`).join(", ")}), so init wrote no ci.yml`,
+    );
 
   let pkg: {
     packageManager?: unknown;
@@ -373,7 +389,7 @@ export async function writeCi(
     const parsed: unknown = JSON.parse(pkgText);
     if (parsed && typeof parsed === "object") pkg = parsed as typeof pkg;
   } catch {
-    return `package.json doesn't parse, so init wrote no ${CI_REL}`;
+    return none(`package.json doesn't parse, so init wrote no ${CI_REL}`);
   }
   const vars = await resolveTemplateVars(buildContext(root));
   const there = (rel: string) =>
@@ -406,13 +422,14 @@ export async function writeCi(
       ? CHEAP_UNKNOWN
       : await detectCiPlan(await resolveRepoSlug(root), {
           token: options.token ?? resolveToken(),
-        });
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(root, CI_REL), renderCiWorkflow(facts, plan), "utf8");
+        }).catch(() => CHEAP_UNKNOWN);
   const checked = checks(facts).map((c) => c.script);
-  return `wrote ${CI_REL} for ${plan.why}: ${
-    checked.length > 0
-      ? `PRs run ${checked.join(", ")} on Linux in one job, \`ci\`; make it the required check`
-      : "the repo has no lint, typecheck, test or build script yet, so `ci` only installs"
-  }`;
+  return {
+    text: renderCiWorkflow(facts, plan),
+    note: `wrote ${CI_REL} for ${plan.why}: ${
+      checked.length > 0
+        ? `PRs run ${checked.join(", ")} on Linux in one job, \`ci\`; make it the required check`
+        : "the repo has no lint, typecheck, test or build script yet, so `ci` only installs"
+    }`,
+  };
 }
