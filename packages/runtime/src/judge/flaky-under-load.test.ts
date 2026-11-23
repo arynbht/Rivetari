@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { simpleGit } from "simple-git";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { failingTestFiles, runTier1 } from "./tier1.js";
+import { failingTestFiles, failureBeyondFiles, runTier1 } from "./tier1.js";
 
 const made: string[] = [];
 afterEach(async () => {
@@ -27,7 +27,7 @@ fs.mkdirSync("coverage", { recursive: true });
 fs.writeFileSync("coverage/coverage-summary.json", ${JSON.stringify(SUMMARY)});
 `;
 
-function change(calls: string, failAlone: string[]) {
+function change(calls: string, failAlone: string[], extra: string[]) {
   return `const fs = require("fs");
 const calls = ${JSON.stringify(calls)};
 const file = process.argv[2];
@@ -38,6 +38,7 @@ if (!file) {
   console.log(" FAIL  src/a.test.ts > a > works under load");
   console.log(" FAIL  src/b.test.ts > b > works under load");
   console.log(" FAIL  src/a.test.ts > a > works again");
+  for (const line of ${JSON.stringify(extra)}) console.log(line);
   process.exit(1);
 }
 fs.appendFileSync(calls, "start " + file + " " + process.argv.slice(3).join(" ") + "\\n");
@@ -53,7 +54,7 @@ setTimeout(() => {
 `;
 }
 
-async function repo(failAlone: string[]) {
+async function repo(failAlone: string[], extra: string[] = []) {
   const dir = await tmp("rivetari-under-load-");
   const calls = join(await tmp("rivetari-under-load-calls-"), "calls.log");
   const git = simpleGit(dir);
@@ -82,7 +83,7 @@ async function repo(failAlone: string[]) {
   await git.commit("base", ["--no-verify"]);
   await git.branch(["base"]);
   await git.checkoutLocalBranch("change");
-  await write("check.cjs", change(calls, failAlone));
+  await write("check.cjs", change(calls, failAlone, extra));
   await git.add(["-A"]);
   await git.commit("change", ["--no-verify"]);
   return { dir, calls };
@@ -154,6 +155,36 @@ describe("tier 1 re-runs a change's failing test files alone", () => {
     expect(await callsIn(calls)).toContain("summary kept");
     expect(result.verdict).toBe("pass");
   }, 120_000);
+
+  it("re-runs nothing and keeps tests.pass failed when the run also reports unhandled errors", async () => {
+    const { dir, calls } = await repo(
+      [],
+      [
+        "⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯",
+        "Unhandled Rejection",
+        "      Errors  1 error",
+      ],
+    );
+    const result = await judge(dir);
+    expect(result.verdict).toBe("fail");
+    expect(testsPass(result)?.outcome).toBe("fail");
+    expect(await callsIn(calls)).toEqual(["suite"]);
+    expect(result.testRun?.output).toContain("Unhandled Rejection");
+    expect(result.notes).toEqual([
+      "src/a.test.ts, src/b.test.ts failed in the full run, which also reported unhandled errors: the named files don't account for every failure, so none were re-run alone",
+    ]);
+  }, 120_000);
+
+  it("re-runs nothing when the run also misses a coverage threshold", async () => {
+    const { dir, calls } = await repo(
+      [],
+      ["ERROR: Coverage for lines (40%) does not meet global threshold (50%)"],
+    );
+    const result = await judge(dir);
+    expect(testsPass(result)?.outcome).toBe("fail");
+    expect(await callsIn(calls)).toEqual(["suite"]);
+    expect(result.notes[0]).toContain("a coverage threshold miss");
+  }, 120_000);
 });
 
 describe("the repo's vitest config", () => {
@@ -193,5 +224,30 @@ describe("failingTestFiles", () => {
 
   it("finds nothing in output that names no failing file", () => {
     expect(failingTestFiles("broken\nnpm ERR! Test failed.")).toEqual([]);
+  });
+});
+
+describe("failureBeyondFiles", () => {
+  it("names failures vitest reports outside any test file", () => {
+    const output = [
+      "\u001b[31m⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯\u001b[39m",
+      "\u001b[2m      Errors \u001b[22m 2 errors",
+      "⎯⎯⎯ Type Errors 1 ⎯⎯⎯",
+      "ERROR: Coverage for lines (40%) does not meet global threshold (50%)",
+    ].join("\r\n");
+    expect(failureBeyondFiles(output)).toEqual([
+      "unhandled errors",
+      "type errors",
+      "a coverage threshold miss",
+    ]);
+  });
+
+  it("finds nothing when only test files failed", () => {
+    const output = [
+      " FAIL  packages/x/a.test.ts > works",
+      " Test Files  1 failed | 3 passed (4)",
+      "      Tests  1 failed | 20 passed (21)",
+    ].join("\n");
+    expect(failureBeyondFiles(output)).toEqual([]);
   });
 });

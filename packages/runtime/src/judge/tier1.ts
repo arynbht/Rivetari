@@ -343,7 +343,21 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       side(results.find((r) => r.controlId === tests?.id));
     const failing =
       testRun && testRun.exitCode !== 0 ? failingTestFiles(testRun.output) : [];
+    const beyond =
+      failing.length > 0 && testRun ? failureBeyondFiles(testRun.output) : [];
     if (
+      tests &&
+      beyond.length > 0 &&
+      sideOf(baseResults) === "green" &&
+      sideOf(headResults) === "red"
+    ) {
+      log(
+        `tests failed on the change and the run also reported ${beyond.join(", ")}: not re-running alone`,
+      );
+      notes.push(
+        `${failing.join(", ")} failed in the full run, which also reported ${beyond.join(", ")}: the named files don't account for every failure, so none were re-run alone`,
+      );
+    } else if (
       tests &&
       testRun &&
       failing.length > 0 &&
@@ -541,6 +555,21 @@ export function failingTestFiles(output: string): string[] {
     if (file && !files.includes(file)) files.push(file);
   }
   return files;
+}
+
+const BEYOND_FILES: readonly (readonly [RegExp, string])[] = [
+  [/\bUnhandled (?:Errors?|Rejections?)\b/, "unhandled errors"],
+  [/^\s*Errors\s+\d+\s+errors?\b/m, "unhandled errors"],
+  [/\bType Errors?\b/, "type errors"],
+  [/\bdoes not meet (?:global )?threshold/i, "a coverage threshold miss"],
+];
+
+export function failureBeyondFiles(output: string): string[] {
+  const text = stripVTControlCharacters(output);
+  const found: string[] = [];
+  for (const [pattern, reason] of BEYOND_FILES)
+    if (pattern.test(text) && !found.includes(reason)) found.push(reason);
+  return found;
 }
 
 interface AloneRun {
