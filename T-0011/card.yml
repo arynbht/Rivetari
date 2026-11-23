@@ -1,0 +1,42 @@
+id: T-0011
+title: Let diff.markdown-in-card skip generated docs and changesets
+type: fix
+source: prompt
+description: diff.markdown-in-card fails any Markdown file the change touches
+  that the card doesn't name. A change that regenerates docs (T-0008's new
+  catalog control rewrote docs/catalog/*.md, which CI requires) or adds a
+  changeset (AGENTS.md asks for one on every published package) then fails tier
+  1 unless the card happened to name those paths. The profile gets an optional
+  list of generated paths; the rule skips Markdown under those globs and under
+  .changeset/, and the build prompt's line for the rule says so. Editing this
+  repo's own .factory/profile.yml is out of scope (a person does that).
+acceptance:
+  - id: A1
+    text: the profile schema accepts an optional top-level generated list of globs,
+      and a profile without it still loads
+    verify: unit
+  - id: A2
+    text: diff.markdown-in-card passes a change whose only unnamed Markdown is under
+      a profile generated glob or .changeset/, and still fails an unnamed
+      README.md
+    verify: unit
+  - id: A3
+    text: the build prompt's rule line for diff.markdown-in-card names the paths it
+      skips
+    verify: unit
+out_of_scope: []
+touches:
+  - packages/catalog/src/profile.ts
+  - packages/catalog/schema/**
+  - packages/runtime/src/judge/diff-rules.ts
+  - packages/runtime/src/judge/tier1.ts
+  - packages/runtime/src/judge/task-judge.ts
+  - packages/runtime/src/agent/rules.ts
+  - packages/**/*.test.ts
+  - packages/action/dist/**
+  - .changeset/*.md
+pages: []
+constraints: []
+risk: low
+owner: arynbht@gmail.com
+created: 2026-11-23
