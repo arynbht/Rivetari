@@ -1,0 +1,122 @@
+{
+  "task": "T-0027",
+  "round": 1,
+  "verdict": "passed",
+  "head": "b937886bbdabe67291cf10073394b606189b7e6a",
+  "base": "29f786decd08b8c7adee8c12330ead862c672e1a",
+  "tier1": {
+    "verdict": "pass",
+    "checks": [
+      {
+        "id": "quality.tests.pass",
+        "title": "Tests pass",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm test` exited 0"
+      },
+      {
+        "id": "quality.boundaries.clean",
+        "title": "Module boundaries hold",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run boundaries` exited 0"
+      },
+      {
+        "id": "quality.coverage.floor",
+        "title": "Coverage at or above the floor",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "70.69% lines ≥ floor 53% (.rivetari/quality.json)"
+      },
+      {
+        "id": "quality.lint.clean",
+        "title": "Lint passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run lint` exited 0"
+      },
+      {
+        "id": "quality.typecheck.clean",
+        "title": "Typecheck passes",
+        "base": "green",
+        "head": "green",
+        "outcome": "pass",
+        "message": "`npm run typecheck` exited 0"
+      },
+      {
+        "id": "diff.no-banned-patterns",
+        "title": "The change adds nothing the repo has banned",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-comments",
+        "title": "The change adds no code comments",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.markdown-in-card",
+        "title": "Every Markdown file the change adds or edits is named in the card",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      },
+      {
+        "id": "diff.no-new-suppressions",
+        "title": "The change adds no check suppressions or skipped tests",
+        "base": "n/a",
+        "head": "green",
+        "outcome": "pass",
+        "message": ""
+      }
+    ],
+    "protected": [],
+    "notes": []
+  },
+  "review": {
+    "verdict": "approve",
+    "body": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — The old action:build/committed dist rule is replaced. The new bullet says task PRs don't commit packages/action/dist or the copied assets (controls, gates, templates, prompts, skill), CI builds the bundle on every PR, the Version Packages PR rebuilds and commits it, and the action is pinned to a release commit.\n- A2: met — The diff touches only AGENTS.md and has no changes under packages/action. The rest of AGENTS.md is unchanged.\n\n<details><summary>1 suggestion(s), non-blocking</summary>\n\n- Pin guidance is terse and doesn't say why `AGENTS.md:113` — Append: 'because only release commits carry a current bundle.'\n\n</details>\n\n_claude-sonnet-5-5 · 1 call(s) · Claude reviews, humans merge._",
+    "model": "claude-sonnet-5-5",
+    "blocking": [],
+    "suggestions": [
+      {
+        "kind": "suggestion",
+        "file": "AGENTS.md",
+        "line": 113,
+        "acceptance_id": null,
+        "title": "Pin guidance is terse and doesn't say why",
+        "detail": "'Anyone pinning the action pins a commit from a release' is accurate to the card, but it doesn't say that non-release commits have no rebuilt dist, so a pin to one would run a stale or missing bundle. A short why clause would match the file's 'say why' comment rule.",
+        "repro": "Not blocking; wording only.",
+        "fix": "Append: 'because only release commits carry a current bundle.'",
+        "pattern": "8a9d4336b94e"
+      }
+    ],
+    "acceptance": [
+      {
+        "id": "A1",
+        "status": "met",
+        "note": "The old action:build/committed dist rule is replaced. The new bullet says task PRs don't commit packages/action/dist or the copied assets (controls, gates, templates, prompts, skill), CI builds the bundle on every PR, the Version Packages PR rebuilds and commits it, and the action is pinned to a release commit."
+      },
+      {
+        "id": "A2",
+        "status": "met",
+        "note": "The diff touches only AGENTS.md and has no changes under packages/action. The rest of AGENTS.md is unchanged."
+      }
+    ],
+    "unreviewed": [],
+    "usage": {
+      "tokens": 7191,
+      "costUsd": 0.0285218
+    }
+  }
+}
