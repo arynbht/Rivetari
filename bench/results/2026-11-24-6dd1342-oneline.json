@@ -1,0 +1,554 @@
+{
+  "card": "oneline",
+  "date": "2026-11-24",
+  "dry": false,
+  "rivetari": {
+    "sha": "6dd1342",
+    "head": "6dd1342",
+    "branch": "chore/bench-harness"
+  },
+  "fixture": {
+    "repo": "BreathBand/breathband-console",
+    "pilotTask": "T-0019",
+    "dir": "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958",
+    "base": "44e6ffb292b5e8694d42498dcb8a3909f27f9e75",
+    "head": "91fc1e7a7df26a630101b57b597b06da1cd5abc5",
+    "origin": "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\origin.git"
+  },
+  "maxUsd": 8,
+  "setup": [
+    {
+      "name": "base from the pilot's ledger",
+      "status": "ok",
+      "seconds": 0,
+      "detail": "44e6ffb292b5 → 44e6ffb292b5e8694d42498dcb8a3909f27f9e75"
+    },
+    {
+      "name": "fixture clone",
+      "status": "ok",
+      "seconds": 1,
+      "detail": "hooks removed from .claude/settings.json"
+    },
+    {
+      "name": "npm ci",
+      "status": "ok",
+      "seconds": 19
+    },
+    {
+      "name": "claude shim",
+      "status": "ok",
+      "seconds": 0,
+      "detail": "C:\\Users\\arynb\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe\\claude.exe"
+    },
+    {
+      "name": "rivetari skills sync",
+      "status": "ok",
+      "seconds": 7.9
+    },
+    {
+      "name": "rivetari doctor (recorded, not gating)",
+      "status": "failed",
+      "seconds": 1.1,
+      "detail": "✓ git      a git repository\n✓ profile  .rivetari/profile.yml\n✗ hooks    .claude/settings.json has no rivetari guard hook: run `rivetari init` to merge it in\n✓ claude   2.1.302 (Claude Code)\n! github   no GitHub origin remote: ship and close can't run\n✓ skills   installed skills match the lock"
+    }
+  ],
+  "network": [
+    "npm ci in the fixture (npm registry, unless npm's cache has every package)",
+    "rivetari skills sync (fetches pinned skills from GitHub unless cached)",
+    "the judge's npm ci in its workspace (npm registry, unless npm's cache has every package)"
+  ],
+  "manual": [],
+  "errors": [],
+  "commands": [
+    {
+      "label": "skills-sync",
+      "args": [
+        "skills",
+        "sync",
+        "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo"
+      ],
+      "exit": 0,
+      "started": "2026-11-24T21:40:18.797Z",
+      "ended": "2026-11-24T21:40:26.677Z",
+      "seconds": 7.9,
+      "calls": [],
+      "log": "logs\\01-skills-sync.log",
+      "stdout": "12 installed, 11 staged for tasks, 0 blocked",
+      "stderr": "· staged a11y-core (task scope)\n· staged accessibility-lead (task scope)\n· staged animate (task scope)\n· installed code-review-and-quality\n· installed constraint-driven-development\n· installed differential-review\n· staged floorplan (task scope)\n· installed fp-check\n· staged frontend-design (task scope)\n· staged impeccable (task scope)\n· staged improve-animations (task scope)\n· installed incremental-implementation\n· staged insecure-defaults (task scope)\n· staged native-writing (task scope)\n· installed planning-and-task-breakdown\n· installed playwright-cli\n· staged review-animations (task scope)\n· installed shipping-and-launch\n· installed skill-creator\n· installed spec-driven-development\n· installed test-driven-development\n· staged ui-ux-pro-max (task scope)\n· installed webapp-testing"
+    },
+    {
+      "label": "doctor",
+      "args": [
+        "doctor",
+        "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo"
+      ],
+      "exit": 1,
+      "started": "2026-11-24T21:40:26.677Z",
+      "ended": "2026-11-24T21:40:27.758Z",
+      "seconds": 1.1,
+      "calls": ["20261124T214027193-33844"],
+      "log": "logs\\02-doctor.log",
+      "stdout": "✓ git      a git repository\n✓ profile  .rivetari/profile.yml\n✗ hooks    .claude/settings.json has no rivetari guard hook: run `rivetari init` to merge it in\n✓ claude   2.1.302 (Claude Code)\n! github   no GitHub origin remote: ship and close can't run\n✓ skills   installed skills match the lock",
+      "stderr": ""
+    },
+    {
+      "label": "task-new",
+      "args": [
+        "task",
+        "new",
+        "--from",
+        "C:\\Users\\arynb\\Documents\\Projects\\Rivetari\\.claude\\worktrees\\agent-a76c61fa51ca9c0e6\\bench\\cards\\oneline.yml",
+        "--path",
+        "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo"
+      ],
+      "exit": 0,
+      "started": "2026-11-24T21:40:28.103Z",
+      "ended": "2026-11-24T21:40:32.169Z",
+      "seconds": 4.1,
+      "calls": [],
+      "log": "logs\\03-task-new.log",
+      "stdout": "drafted T-0001: Spell out the duration column header in the sessions CSV\ncard confirmed without asking (autonomy review-at-pr)\nroute approved without asking (autonomy review-at-pr)\nnext: `rivetari task run T-0001`",
+      "stderr": ""
+    },
+    {
+      "label": "isolate",
+      "args": [
+        "task",
+        "isolate",
+        "T-0001",
+        "--path",
+        "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo"
+      ],
+      "exit": 0,
+      "started": "2026-11-24T21:40:32.187Z",
+      "ended": "2026-11-24T21:40:34.911Z",
+      "seconds": 2.7,
+      "calls": [],
+      "log": "logs\\04-isolate.log",
+      "stdout": "T-0001: worktree C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo\\.worktrees\\T-0001 on chore/t-0001 from origin/main · port 5174 · db repo_t0001\nnext: `rivetari task build T-0001`",
+      "stderr": ""
+    },
+    {
+      "label": "build",
+      "args": [
+        "task",
+        "build",
+        "T-0001",
+        "--path",
+        "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo"
+      ],
+      "exit": 0,
+      "started": "2026-11-24T21:40:34.917Z",
+      "ended": "2026-11-24T21:41:08.560Z",
+      "seconds": 33.6,
+      "calls": ["20261124T214036873-39732"],
+      "log": "logs\\05-build.log",
+      "stdout": "next: prove",
+      "stderr": ""
+    },
+    {
+      "label": "prove",
+      "args": [
+        "task",
+        "prove",
+        "T-0001",
+        "--path",
+        "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo"
+      ],
+      "exit": 0,
+      "started": "2026-11-24T21:41:08.578Z",
+      "ended": "2026-11-24T21:41:31.662Z",
+      "seconds": 23.1,
+      "calls": [],
+      "log": "logs\\06-prove.log",
+      "stdout": "tests passed (npm run test, exit 0) · new tests: src/lib/domain/sessions-csv.test.ts: starts with the header\noutput: …[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 107\u001b[2mms\u001b[22m\u001b[39m \u001b[32m✓\u001b[39m src/lib/backend/local/local.test.ts \u001b[2m(\u001b[22m\u001b[2m27 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 76\u001b[2mms\u001b[22m\u001b[39m \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m \u001b[2m Tests \u001b[22m \u001b[1m\u001b[32m94 passed\u001b[39m\u001b[22m\u001b[90m (94)\u001b[39m \u001b[2m Start at \u001b[22m 16:41:30 \u001b[2m Duration \u001b[22m 403ms\u001b[2m (import 45%, transform 34%, tests 19%, worker 2%)\u001b[22m\nevidence: the test run in .rivetari/tasks/T-0001/proof/test-run.txt (not pushed: no GitHub token or origin remote)\nproof passed; next: judge",
+      "stderr": ""
+    },
+    {
+      "label": "judge",
+      "args": [
+        "task",
+        "judge",
+        "T-0001",
+        "--path",
+        "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo"
+      ],
+      "exit": 0,
+      "started": "2026-11-24T21:41:31.669Z",
+      "ended": "2026-11-24T21:42:21.179Z",
+      "seconds": 49.5,
+      "calls": ["20261124T214215675-6200"],
+      "log": "logs\\07-judge.log",
+      "stdout": "<!-- rivetari-judge-review round=1 -->\n### Rivetari judge · round 1 · approve\n\n#### Acceptance\n- A1: met — The diff changes only the \"Duration (s)\" header line in csv.ts to \"Duration (seconds)\". The rows, the other headers and compareCsv are untouched.\n- A2: met — New src/lib/domain/sessions-csv.test.ts asserts the first line of sessionsCsv([]) equals the exact 12-column header from the card. The test run passes, including the new test, and lint and typecheck pass. The diff changes no existing test.\n\n_claude-sonnet-5-5 (medium effort) · 1 call(s) · 8878 tokens · $0.04 · Claude reviews, humans merge._\n\njudge passed (round 1); next: ship",
+      "stderr": "· tier 1: quality.boundaries.clean, quality.coverage.floor, quality.lint.clean, quality.tests.pass, quality.typecheck.clean\n· cloning into the judge workspace C:\\Users\\arynb\\.cache\\rivetari\\judge\\63572339cfaf4492\n· installing dependencies: npm ci --no-audit --no-fund\n· running checks at base\n· running checks on the change\n· reviewing 2 file(s) with claude-sonnet-5-5 at medium effort\n· review: 1 call(s) · 8878 tokens · $0.04"
+    }
+  ],
+  "task": {
+    "id": "T-0001",
+    "risk": "low",
+    "confirmed": true,
+    "approved": true,
+    "sectors": ["testing"],
+    "skills": [],
+    "proof": "test-run",
+    "next": "ship",
+    "problems": []
+  },
+  "beats": [
+    {
+      "beat": "intake",
+      "calls": 0,
+      "turns": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheCreation": 0,
+        "cacheRead": 0,
+        "total": 0
+      },
+      "usd": 0,
+      "seconds": 3,
+      "models": []
+    },
+    {
+      "beat": "route",
+      "calls": 0,
+      "turns": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheCreation": 0,
+        "cacheRead": 0,
+        "total": 0
+      },
+      "usd": 0,
+      "seconds": 1,
+      "models": []
+    },
+    {
+      "beat": "isolate",
+      "calls": 0,
+      "turns": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheCreation": 0,
+        "cacheRead": 0,
+        "total": 0
+      },
+      "usd": 0,
+      "seconds": 3,
+      "models": []
+    },
+    {
+      "beat": "build round 1",
+      "calls": 1,
+      "turns": 8,
+      "tokens": {
+        "input": 12,
+        "output": 1622,
+        "cacheCreation": 42747,
+        "cacheRead": 288857,
+        "total": 333238
+      },
+      "usd": 0.4322,
+      "seconds": 34,
+      "models": ["claude-opus-5-5[1m]"]
+    },
+    {
+      "beat": "prove",
+      "calls": 0,
+      "turns": 0,
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheCreation": 0,
+        "cacheRead": 0,
+        "total": 0
+      },
+      "usd": 0,
+      "seconds": 23,
+      "models": []
+    },
+    {
+      "beat": "judge round 1",
+      "calls": 1,
+      "turns": 1,
+      "tokens": {
+        "input": 2,
+        "output": 486,
+        "cacheCreation": 7732,
+        "cacheRead": 658,
+        "total": 8878
+      },
+      "usd": 0.0359,
+      "seconds": 50,
+      "models": ["claude-sonnet-5-5"]
+    }
+  ],
+  "totals": {
+    "calls": 2,
+    "turns": 9,
+    "tokens": {
+      "input": 14,
+      "output": 2108,
+      "cacheCreation": 50479,
+      "cacheRead": 289515,
+      "total": 342116
+    },
+    "usd": 0.4681,
+    "seconds": 114,
+    "stops": 0
+  },
+  "stops": [],
+  "buildRounds": 1,
+  "judgeRounds": 1,
+  "verdict": "passed",
+  "committed": {
+    "committed": true,
+    "commits": 1,
+    "uncommitted": [],
+    "diffstat": "src/lib/domain/csv.ts               |  2 +-\n src/lib/domain/sessions-csv.test.ts | 11 +++++++++++\n 2 files changed, 12 insertions(+), 1 deletion(-)"
+  },
+  "outcome": "reached ship (not run)",
+  "calls": [
+    {
+      "id": "20261124T214027193-33844",
+      "kind": "probe",
+      "cwd": "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo",
+      "started": "2026-11-24T21:40:27.1938686Z",
+      "ended": "2026-11-24T21:40:27.2182544Z",
+      "exit": 0,
+      "seconds": 0.025,
+      "usage": null,
+      "error": null
+    },
+    {
+      "id": "20261124T214036873-39732",
+      "kind": "build",
+      "cwd": "C:\\Users\\arynb\\AppData\\Local\\Temp\\bench-work\\bench-oneline-20261124T213958\\repo\\.worktrees\\T-0001",
+      "started": "2026-11-24T21:40:36.8731288Z",
+      "ended": "2026-11-24T21:41:07.2343836Z",
+      "exit": 0,
+      "seconds": 30.361,
+      "usage": {
+        "tokens": {
+          "input": 12,
+          "output": 1622,
+          "cacheCreation": 42747,
+          "cacheRead": 288857,
+          "total": 333238
+        },
+        "usd": 0.4322354,
+        "turns": 8,
+        "models": ["claude-opus-5-5[1m]"],
+        "subtype": "success",
+        "isError": false,
+        "durationMs": 29536
+      },
+      "error": null
+    },
+    {
+      "id": "20261124T214215675-6200",
+      "kind": "review",
+      "cwd": "C:\\Users\\arynb\\AppData\\Local\\Temp\\rivetari-claude-sGcraV",
+      "started": "2026-11-24T21:42:15.6756955Z",
+      "ended": "2026-11-24T21:42:20.4830891Z",
+      "exit": 0,
+      "seconds": 4.808,
+      "usage": {
+        "tokens": {
+          "input": 2,
+          "output": 486,
+          "cacheCreation": 7732,
+          "cacheRead": 658,
+          "total": 8878
+        },
+        "usd": 0.0358578,
+        "turns": 1,
+        "models": ["claude-sonnet-5-5"],
+        "subtype": "success",
+        "isError": false,
+        "durationMs": 3772
+      },
+      "error": null
+    }
+  ],
+  "ledger": [
+    {
+      "seq": 1,
+      "at": "2026-11-24T21:40:29.361Z",
+      "beat": "intake",
+      "section": "timeline",
+      "text": "card drafted with 2 acceptance criteria; awaiting confirmation"
+    },
+    {
+      "seq": 2,
+      "at": "2026-11-24T21:40:29.361Z",
+      "beat": "intake",
+      "section": "decision",
+      "text": "risk low: no high or medium signal in the touches"
+    },
+    {
+      "seq": 3,
+      "at": "2026-11-24T21:40:31.329Z",
+      "beat": "intake",
+      "section": "timeline",
+      "text": "intake confirmed; card sha256 d5f8339d86005fcdc19b3366a9efb77640dbd8aa323b8eeeb2b707f17b6b2fc3"
+    },
+    {
+      "seq": 4,
+      "at": "2026-11-24T21:40:31.444Z",
+      "beat": "route",
+      "section": "decision",
+      "text": "routed to testing: testing (touches src/lib/domain/sessions-csv.test.ts; \"test\" in the description)"
+    },
+    {
+      "seq": 5,
+      "at": "2026-11-24T21:40:31.452Z",
+      "beat": "route",
+      "section": "timeline",
+      "text": "assembly proposed; sha256 9ceeacbee36ff35a88907c50e1b65f1e75a053f5763af45726b93c7f90f20b6e; skills none; proof test-run; awaiting approval"
+    },
+    {
+      "seq": 6,
+      "at": "2026-11-24T21:40:31.545Z",
+      "beat": "route",
+      "section": "timeline",
+      "text": "route approved; assembly sha256 9ceeacbee36ff35a88907c50e1b65f1e75a053f5763af45726b93c7f90f20b6e"
+    },
+    {
+      "seq": 7,
+      "at": "2026-11-24T21:40:34.301Z",
+      "beat": "isolate",
+      "section": "timeline",
+      "text": "worktree .worktrees/T-0001 · branch chore/t-0001 from origin/main (91fc1e7a7df2) · port 5174 · db repo_t0001 · env sha256 dffa561010a0880018ccb2190fedda65f9e9f18b92cf04a603b04f59420d2bc2"
+    },
+    {
+      "seq": 8,
+      "at": "2026-11-24T21:40:36.545Z",
+      "beat": "build",
+      "section": "timeline",
+      "text": "build started · fast path (low risk, 2 source file(s)): planned from the card's criteria, no plan call · budget 8 steps / 15k ctx"
+    },
+    {
+      "seq": 9,
+      "at": "2026-11-24T21:40:36.552Z",
+      "beat": "build",
+      "section": "plan",
+      "text": "1. A1: In src/lib/domain/csv.ts the sessionsCsv header \"Duration (s)\" becomes \"Duration (seconds)\". That is the only changed line in csv.ts; the rows, the other headers and compareCsv are unchanged"
+    },
+    {
+      "seq": 10,
+      "at": "2026-11-24T21:40:36.583Z",
+      "beat": "build",
+      "section": "plan",
+      "text": "2. A2: New test src/lib/domain/sessions-csv.test.ts asserts that the first line of sessionsCsv([]) is exactly \"Started (UTC),Type,Duration (seconds),Scoring,Total Breath Score,Timing in,Timing out,Depth in,Depth out,Legacy overall (%),Breathing rate (br/min),Note\". npm run test, lint and typecheck pass, and no existing test changes"
+    },
+    {
+      "seq": 11,
+      "at": "2026-11-24T21:41:07.902Z",
+      "beat": "build",
+      "section": "timeline",
+      "text": "build done · commit 13aae0ceb263 · 2 file(s) this round · 333238 tokens · $0.43 · 8 turns · The sessions CSV now heads its duration column \"Duration (seconds)\" instead of \"Duration (s)\". The new test and the other domain tests pass, and typecheck and lint are clean."
+    },
+    {
+      "seq": 12,
+      "at": "2026-11-24T21:41:30.980Z",
+      "beat": "prove",
+      "section": "proof",
+      "text": "tests passed (npm run test, exit 0) · new tests: src/lib/domain/sessions-csv.test.ts: starts with the header"
+    },
+    {
+      "seq": 13,
+      "at": "2026-11-24T21:41:30.988Z",
+      "beat": "prove",
+      "section": "proof",
+      "text": "output: …[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 107\u001b[2mms\u001b[22m\u001b[39m \u001b[32m✓\u001b[39m src/lib/backend/local/local.test.ts \u001b[2m(\u001b[22m\u001b[2m27 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 76\u001b[2mms\u001b[22m\u001b[39m \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m \u001b[2m Tests \u001b[22m \u001b[1m\u001b[32m94 passed\u001b[39m\u001b[22m\u001b[90m (94)\u001b[39m \u001b[2m Start at \u001b[22m 16:41:30 \u001b[2m Duration \u001b[22m 403ms\u001b[2m (import 45%, transform 34%, tests 19%, worker"
+    },
+    {
+      "seq": 14,
+      "at": "2026-11-24T21:41:30.993Z",
+      "beat": "prove",
+      "section": "proof",
+      "text": "evidence: the test run in .rivetari/tasks/T-0001/proof/test-run.txt (not pushed: no GitHub token or origin remote)"
+    },
+    {
+      "seq": 15,
+      "at": "2026-11-24T21:41:31.002Z",
+      "beat": "prove",
+      "section": "timeline",
+      "text": "proof passed · test-run"
+    },
+    {
+      "seq": 16,
+      "at": "2026-11-24T21:42:15.229Z",
+      "beat": "judge",
+      "section": "judge",
+      "text": "tier 1 round 1: pass · 7/8 pass · 1 pre-existing"
+    },
+    {
+      "seq": 17,
+      "at": "2026-11-24T21:42:20.475Z",
+      "beat": "judge",
+      "section": "judge",
+      "text": "review round 1: approve; 0 blocking, 0 suggestion(s) (claude-sonnet-5-5, medium effort) · 8878 tokens · $0.04"
+    },
+    {
+      "seq": 18,
+      "at": "2026-11-24T21:42:20.482Z",
+      "beat": "judge",
+      "section": "judge",
+      "text": "acceptance A1: met — The diff changes only the \"Duration (s)\" header line in csv.ts to \"Duration (seconds)\". The rows, the other headers and compareCsv are untouched."
+    },
+    {
+      "seq": 19,
+      "at": "2026-11-24T21:42:20.489Z",
+      "beat": "judge",
+      "section": "judge",
+      "text": "acceptance A2: met — New src/lib/domain/sessions-csv.test.ts asserts the first line of sessionsCsv([]) equals the exact 12-column header from the card. The test run passes, including the new test, and lint and typecheck p…"
+    },
+    {
+      "seq": 20,
+      "at": "2026-11-24T21:42:20.496Z",
+      "beat": "judge",
+      "section": "timeline",
+      "text": "judge passed · round 1 · head 13aae0ceb263 · record sha256 cb4b4042849ccc3bde575201511dfde536127b5051391fc947f56f1f2b90fa99"
+    }
+  ],
+  "ledgerUsage": [
+    {
+      "seq": 11,
+      "beat": "build",
+      "tokens": 333238,
+      "usd": 0.43,
+      "turns": 8,
+      "text": "build done · commit 13aae0ceb263 · 2 file(s) this round · 333238 tokens · $0.43 · 8 turns · The sessions CSV now heads its duration column \"Duration (seconds)\" "
+    },
+    {
+      "seq": 17,
+      "beat": "judge",
+      "tokens": 8878,
+      "usd": 0.04,
+      "turns": null,
+      "text": "review round 1: approve; 0 blocking, 0 suggestion(s) (claude-sonnet-5-5, medium effort) · 8878 tokens · $0.04"
+    }
+  ],
+  "ledgerTotals": {
+    "tokens": 342116,
+    "usd": 0.47
+  },
+  "history": {
+    "row": null,
+    "why": "close never runs in the bench, so no history row exists"
+  },
+  "stopsCount": 0,
+  "file": "2026-11-24-6dd1342-oneline.json",
+  "pauses": [],
+  "judgeWorkspaces": [
+    "C:\\Users\\arynb\\.cache\\rivetari\\judge\\63572339cfaf4492"
+  ],
+  "buildCommands": 1,
+  "planCalls": 0,
+  "rescored": "2026-11-24T22:00:44.133Z"
+}
