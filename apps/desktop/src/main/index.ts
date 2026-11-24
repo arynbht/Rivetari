@@ -2,7 +2,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Notification,
+  session,
+  shell,
+} from "electron";
 
 import {
   FLAG_KEYS,
@@ -44,6 +52,18 @@ import {
   SettingsView,
   MapGetRequest,
   MapView,
+  type NeedsYouItem,
+  NowActionRequest,
+  NowActionResult,
+  NowBadges,
+  NowCi,
+  type NowFocus,
+  NowHealth,
+  NowJudge,
+  NowRepoRequest,
+  NowSelectRequest,
+  NowState,
+  NowTaskRequest,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskLedger,
@@ -88,6 +108,14 @@ import {
   MAP_PARTITION,
   mapRequestAllowed,
 } from "./engine/map";
+import { NowHub } from "./engine/now";
+import {
+  approveAssembly,
+  confirmCard,
+  judgeFindings,
+  openNowPr,
+} from "./engine/now-actions";
+import { mainCi, nowHealth } from "./engine/now-health";
 import {
   answerTask,
   openTaskPr,
@@ -215,6 +243,91 @@ function sendAuthUpdate(update: AuthUpdate): void {
   mainWindow?.webContents.send(IpcChannel.AuthUpdate, update);
 }
 
+/** What each kind of item asks of the person, in the notification's title. */
+const NEEDS_YOU_ASK: Record<NeedsYouItem["kind"], string> = {
+  intake: "confirm the card",
+  route: "approve the route",
+  stop: "answer a stop",
+  judge: "the judge wants a person",
+  merge: "a PR to merge",
+  record: "its record fails verification",
+};
+
+/** Bring the window up on a Needs-you item (a clicked notification). */
+function focusItem(focus: NowFocus): void {
+  const window = mainWindow;
+  if (!window) return;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+  window.webContents.send(IpcChannel.NowFocus, focus);
+}
+
+/**
+ * Notifications raised under E2E, which shows none on the desktop: the suite
+ * reads them, and clicks one, through `globalThis.rivetariE2E`.
+ */
+const e2eNotices: { repoPath: string; id: string; title: string }[] = [];
+if (isE2E)
+  (globalThis as unknown as { rivetariE2E: unknown }).rivetariE2E = {
+    notices: e2eNotices,
+    click: (i: number) => {
+      const notice = e2eNotices[i];
+      if (notice) focusItem({ repoPath: notice.repoPath, id: notice.id });
+    },
+  };
+
+const shownNotices = new Set<Notification>();
+
+/** Tell the person, through the OS, that something new waits on them. */
+function notifyNeedsYou(repoPath: string, item: NeedsYouItem): void {
+  const title = `${item.id} needs you: ${NEEDS_YOU_ASK[item.kind]}`;
+  if (isE2E) {
+    e2eNotices.push({ repoPath, id: item.id, title });
+    return;
+  }
+  if (!Notification.isSupported()) return;
+  const notice = new Notification({ title, body: item.title });
+  // Held until it's done with, or it can be collected before it's clicked.
+  shownNotices.add(notice);
+  notice.on("click", () => {
+    shownNotices.delete(notice);
+    focusItem({ repoPath, id: item.id });
+  });
+  notice.on("close", () => shownNotices.delete(notice));
+  notice.show();
+}
+
+/** Every sidebar repo's tasks, watched while the window is open (see engine/now). */
+const nowHub = new NowHub({
+  onState: (state) =>
+    mainWindow?.webContents.send(IpcChannel.NowUpdate, NowState.parse(state)),
+  onBadges: (badges) =>
+    mainWindow?.webContents.send(
+      IpcChannel.NowBadgesUpdate,
+      NowBadges.parse(badges),
+    ),
+  onNew: notifyNeedsYou,
+});
+
+/** Watch exactly these repos (the sidebar's list); a failure is said, not thrown. */
+function watchRepos(repos: { path: string }[]): void {
+  nowHub
+    .setRepos(repos.map((r) => r.path))
+    .catch((err: unknown) =>
+      console.error(
+        `[main] couldn't watch the sidebar's repos: ${String(err)}`,
+      ),
+    );
+}
+
+/** Watch the repos in the sidebar now; a failure to list them is said, not thrown. */
+function watchSidebarRepos(): void {
+  listRepos().then(watchRepos, (err: unknown) =>
+    console.error(`[main] couldn't list the repos to watch: ${String(err)}`),
+  );
+}
+
 /** Hosts `shell.openExternal` is allowed to hand to the OS browser. */
 const ALLOWED_EXTERNAL_HOSTS = new Set([
   "github.com",
@@ -294,7 +407,9 @@ function createWindow(): void {
     if (mainWindow === window) mainWindow = null;
     // Nobody is left to show the tasks to.
     void unwatchTasks();
+    void nowHub.stop();
   });
+  watchSidebarRepos();
 
   // Show as soon as the first paint is ready; in E2E show immediately so a slow or
   // non-painting headless renderer can't keep the window (and Playwright) waiting.
@@ -384,12 +499,63 @@ function registerIpcHandlers(): void {
     if (result.canceled || !chosen) {
       return RepoList.parse(await listRepos());
     }
-    return RepoList.parse(await addRepo(chosen));
+    const repos = RepoList.parse(await addRepo(chosen));
+    watchRepos(repos);
+    return repos;
   });
 
   ipcMain.handle(IpcChannel.ReposRemove, async (_event, raw: unknown) => {
     const { path } = RepoRemoveRequest.parse(raw);
-    return RepoList.parse(await removeRepo(path));
+    const repos = RepoList.parse(await removeRepo(path));
+    watchRepos(repos);
+    return repos;
+  });
+
+  ipcMain.handle(IpcChannel.NowGet, (_event, raw: unknown) => {
+    const { repoPath } = NowRepoRequest.parse(raw);
+    return NowState.parse(nowHub.state(repoPath));
+  });
+
+  ipcMain.handle(IpcChannel.NowSelect, async (_event, raw: unknown) => {
+    const { repoPath } = NowSelectRequest.parse(raw);
+    await nowHub.select(repoPath);
+  });
+
+  ipcMain.handle(IpcChannel.NowBadges, () => NowBadges.parse(nowHub.badges()));
+
+  ipcMain.handle(IpcChannel.NowConfirm, async (_event, raw: unknown) => {
+    const { repoPath, ...request } = NowActionRequest.parse(raw);
+    return NowActionResult.parse(await confirmCard(repoPath, request));
+  });
+
+  ipcMain.handle(IpcChannel.NowApprove, async (_event, raw: unknown) => {
+    const { repoPath, ...request } = NowActionRequest.parse(raw);
+    return NowActionResult.parse(await approveAssembly(repoPath, request));
+  });
+
+  ipcMain.handle(IpcChannel.NowJudge, async (_event, raw: unknown) => {
+    const { repoPath, id } = NowTaskRequest.parse(raw);
+    return NowJudge.parse(await judgeFindings(repoPath, id));
+  });
+
+  ipcMain.handle(IpcChannel.NowOpenPr, async (_event, raw: unknown) => {
+    const { repoPath, id } = NowTaskRequest.parse(raw);
+    // As with tasks:openPr, the URL is the one the task's ledger records.
+    return TaskOpenPrResult.parse(
+      await openNowPr(nowHub.views(repoPath), id, (url) =>
+        isE2E ? Promise.resolve() : shell.openExternal(url),
+      ),
+    );
+  });
+
+  ipcMain.handle(IpcChannel.NowHealth, async (_event, raw: unknown) => {
+    const { repoPath } = NowRepoRequest.parse(raw);
+    return NowHealth.parse(await nowHealth(repoPath, nowHub.views(repoPath)));
+  });
+
+  ipcMain.handle(IpcChannel.NowCi, async (_event, raw: unknown) => {
+    const { repoPath } = NowRepoRequest.parse(raw);
+    return NowCi.parse(await mainCi(repoPath, await loadToken()));
   });
 
   ipcMain.handle(IpcChannel.AuditRun, async (_event, raw: unknown) => {
@@ -707,6 +873,10 @@ app.whenReady().then(
           mainWindow?.webContents.send(IpcChannel.MapBlocked, blocked);
       },
     );
+
+    // Windows shows an app's notifications only under its app id.
+    if (process.platform === "win32")
+      app.setAppUserModelId("io.github.arynbht.rivetari");
 
     registerIpcHandlers();
     createWindow();

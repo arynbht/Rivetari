@@ -51,6 +51,21 @@ export const IpcChannel = {
   MapGet: "map:get",
   /** Push channel (main → renderer): requests the map's session cancelled. */
   MapBlocked: "map:blocked",
+  NowGet: "now:get",
+  NowSelect: "now:select",
+  NowConfirm: "now:confirm",
+  NowApprove: "now:approve",
+  NowJudge: "now:judge",
+  NowOpenPr: "now:openPr",
+  NowHealth: "now:health",
+  NowCi: "now:ci",
+  NowBadges: "now:badges",
+  /** Push channel (main → renderer): one repo's Now state after a change. */
+  NowUpdate: "now:update",
+  /** Push channel (main → renderer): how many items wait on you, per repo. */
+  NowBadgesUpdate: "now:badgesUpdate",
+  /** Push channel (main → renderer): a notification was clicked; show its item. */
+  NowFocus: "now:focus",
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -579,6 +594,232 @@ export const TaskLedgerRequest = z.object({
   id: z.string().regex(/^T-\d{4,}$/),
 });
 export const TaskLedger = z.array(TaskEntry);
+
+// Now — a repo's living reflection: what's running, everything that waits on a
+// person, what just happened, and how healthy the repo is. The main process
+// watches every repo in the sidebar while the window is open, so the queue and
+// the badges stay current whichever tab is on show. All of it is read from
+// the runtime's records; the only writes are confirm, approve and answer.
+const TaskId = z.string().regex(/^T-\d{4,}$/);
+const PrLink = z.object({ number: z.number().int(), url: z.string() });
+
+/** A task with a beat running on this machine now. */
+export const NowRunning = z.object({
+  id: z.string(),
+  title: z.string(),
+  beat: z.string(),
+  startedAt: z.string(),
+  lastActivityAt: z.string(),
+  turns: z.number().int().optional(),
+  lastTool: z.string().optional(),
+  costUsd: z.number(),
+});
+export type NowRunning = z.infer<typeof NowRunning>;
+
+/** The card as recorded, for the person confirming it. */
+export const NowCard = z.object({
+  type: z.string(),
+  risk: z.string(),
+  description: z.string(),
+  acceptance: z.array(
+    z.object({ id: z.string(), text: z.string(), verify: z.string() }),
+  ),
+  outOfScope: z.array(z.string()),
+  touches: z.array(z.string()),
+});
+export type NowCard = z.infer<typeof NowCard>;
+
+/** assembly.yml as proposed, for the person approving the route. */
+export const NowAssembly = z.object({
+  sectors: z.array(z.string()),
+  skills: z.array(z.string()),
+  spine: z.array(z.string()),
+  gaps: z.array(z.string()),
+  checks: z.array(z.string()),
+  proof: z.string(),
+  budget: z.object({
+    skillTokens: z.number(),
+    contextTokens: z.number(),
+    steps: z.number(),
+  }),
+  stopAndAsk: z.array(z.string()),
+  review: z.object({ designPass: z.boolean(), security: z.boolean() }),
+});
+export type NowAssembly = z.infer<typeof NowAssembly>;
+
+const NeedsBase = {
+  id: z.string(),
+  title: z.string(),
+  why: z.string(),
+  /** What happens next, as the runtime says it. */
+  next: z.string(),
+  pr: PrLink.nullable(),
+  ledgerSeq: z.number().int(),
+};
+
+/**
+ * One thing waiting on a person. `shown` on intake and route is the digest of
+ * what was put in front of them; the action is refused if it changed since.
+ */
+export const NeedsYouItem = z.discriminatedUnion("kind", [
+  z.object({
+    ...NeedsBase,
+    kind: z.literal("intake"),
+    card: NowCard,
+    shown: z.string(),
+  }),
+  z.object({
+    ...NeedsBase,
+    kind: z.literal("route"),
+    /** Null when assembly.yml can't be read as one; `problems` says why. */
+    assembly: NowAssembly.nullable(),
+    problems: z.array(z.string()),
+    /** The router's reasons, from the route beat's ledger entries. */
+    reasons: z.array(z.string()),
+    shown: z.string(),
+  }),
+  z.object({ ...NeedsBase, kind: z.literal("stop") }),
+  z.object({ ...NeedsBase, kind: z.literal("judge") }),
+  z.object({ ...NeedsBase, kind: z.literal("merge") }),
+  z.object({ ...NeedsBase, kind: z.literal("record") }),
+]);
+export type NeedsYouItem = z.infer<typeof NeedsYouItem>;
+export type NeedsYouKind = NeedsYouItem["kind"];
+
+export const RecentKind = z.enum([
+  "merged",
+  "closed",
+  "abandoned",
+  "judged",
+  "stopped",
+  "answered",
+  "shipped",
+]);
+export type RecentKind = z.infer<typeof RecentKind>;
+
+/** A ledger event worth seeing in the feed. */
+export const RecentEvent = z.object({
+  id: z.string(),
+  title: z.string(),
+  seq: z.number().int(),
+  at: z.string(),
+  kind: RecentKind,
+  text: z.string(),
+  by: z.string(),
+});
+export type RecentEvent = z.infer<typeof RecentEvent>;
+
+export const NowState = z.object({
+  repoPath: z.string(),
+  /** The first read has landed. */
+  ready: z.boolean(),
+  taskCount: z.number().int(),
+  running: z.array(NowRunning),
+  needsYou: z.array(NeedsYouItem),
+  recent: z.array(RecentEvent),
+  /** What the open tasks have cost so far, from their ledgers. */
+  openCostUsd: z.number(),
+  error: z.string().nullable(),
+});
+export type NowState = z.infer<typeof NowState>;
+
+export const NowRepoRequest = z.object({ repoPath: z.string().min(1) });
+export const NowSelectRequest = z.object({
+  repoPath: z.string().min(1).nullable(),
+});
+export const NowTaskRequest = z.object({
+  repoPath: z.string().min(1),
+  id: TaskId,
+});
+export const NowActionRequest = NowTaskRequest.extend({
+  shown: z.string().min(1),
+});
+export type NowActionRequest = z.infer<typeof NowActionRequest>;
+
+/** What a confirm or approve recorded; `warning` is set when only its push failed. */
+export const NowActionResult = z.object({
+  id: z.string(),
+  by: z.string(),
+  next: z.string(),
+  warning: z.string().nullable(),
+});
+export type NowActionResult = z.infer<typeof NowActionResult>;
+
+export const NowFinding = z.object({
+  kind: z.string(),
+  title: z.string(),
+  file: z.string().nullable(),
+  line: z.number().nullable(),
+  detail: z.string().nullable(),
+});
+export type NowFinding = z.infer<typeof NowFinding>;
+
+/** The judge's latest round, as sealed in the ledger; null before any verdict. */
+export const NowJudge = z
+  .object({
+    round: z.number().int(),
+    verdict: z.string(),
+    blocking: z.array(NowFinding),
+    suggestions: z.array(NowFinding),
+    /** Acceptance criteria the review didn't find met. */
+    acceptance: z.array(
+      z.object({ id: z.string(), status: z.string(), note: z.string() }),
+    ),
+    protectedPaths: z.array(z.string()),
+    notes: z.array(z.string()),
+  })
+  .nullable();
+export type NowJudge = z.infer<typeof NowJudge>;
+
+export const NowHealth = z.object({
+  repoPath: z.string(),
+  /** The profile's autonomy level; null when the repo has no profile. */
+  autonomy: z.object({
+    configured: z.string().nullable(),
+    error: z.string().nullable(),
+  }),
+  spend: z.object({
+    todayUsd: z.number(),
+    weekUsd: z.number(),
+    openUsd: z.number(),
+    error: z.string().nullable(),
+  }),
+  skills: z.object({
+    locked: z.number().int(),
+    installed: z.number().int(),
+    /** What `rivetari skills status` would complain about. */
+    problems: z.array(z.string()),
+    /** Sectors the open tasks' routes found no skill for. */
+    gaps: z.array(z.string()),
+    error: z.string().nullable(),
+  }),
+});
+export type NowHealth = z.infer<typeof NowHealth>;
+
+/** main's CI on GitHub, or why it isn't shown. */
+export const NowCi = z.object({
+  state: z.enum([
+    "signed-out",
+    "unavailable",
+    "passing",
+    "failing",
+    "running",
+    "none",
+  ]),
+  branch: z.string().nullable(),
+  url: z.string().nullable(),
+  detail: z.string(),
+});
+export type NowCi = z.infer<typeof NowCi>;
+
+export const NowBadges = z.array(
+  z.object({ repoPath: z.string(), count: z.number().int() }),
+);
+export type NowBadges = z.infer<typeof NowBadges>;
+
+/** now:focus push payload — the item a clicked notification was about. */
+export const NowFocus = z.object({ repoPath: z.string(), id: z.string() });
+export type NowFocus = z.infer<typeof NowFocus>;
 
 // Settings — personal preferences in `userData` (never the repo). The Anthropic
 // API key is NOT in this object: like the GitHub token it lives in safeStorage and

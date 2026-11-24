@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { errorMessage } from "@/lib/errors";
+import { span, useNow, when } from "@/lib/time";
 
 import type {
   TaskAnswerResult,
@@ -28,9 +29,6 @@ const NEEDS_LABEL: Record<TaskNeedsYou["kind"], string> = {
   route: "Route to approve",
 };
 
-/** The ledger's own time format (ledger.md uses it too). */
-const when = (iso: string) => iso.slice(0, 16).replace("T", " ");
-
 function leaseText(task: TaskSummary): string {
   if (!task.lease) return "—";
   return Date.parse(task.lease.expires) > Date.now()
@@ -39,7 +37,7 @@ function leaseText(task: TaskSummary): string {
 }
 
 /** The ledger is the repo's text: only an https link is made clickable. */
-function isHttps(url: string): boolean {
+export function isHttps(url: string): boolean {
   try {
     return new URL(url).protocol === "https:";
   } catch {
@@ -58,25 +56,7 @@ const cost = (task: TaskSummary) => `$${task.costUsd.toFixed(2)}`;
 const beat = (task: TaskSummary) => (task.done ? "closed" : task.beat);
 
 /** A running beat this long without an event, a step or a ledger entry looks stuck. */
-const QUIET_MS = 5 * 60_000;
-
-/** "40 s" under a minute, "12 min" after. */
-const span = (ms: number) =>
-  ms < 60_000
-    ? `${Math.max(0, Math.floor(ms / 1000))} s`
-    : `${Math.floor(ms / 60_000)} min`;
-
-/** The clock, ticking each second while something is running, so the times stay live. */
-function useNow(ticking: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!ticking) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [ticking]);
-  return now;
-}
+export const QUIET_MS = 5 * 60_000;
 
 /**
  * "Running: build · 12 min · turn 18 · last activity 20 s ago", or, once the
@@ -285,12 +265,13 @@ function OutcomeLine({ outcome }: { outcome: Outcome | null }) {
   );
 }
 
-function AnswerForm({
-  task,
+/** Allow or deny a stop with a note; the Now view's queue uses it too. */
+export function AnswerForm({
+  why,
   busy,
   onAnswer,
 }: {
-  task: TaskSummary;
+  why: string;
   busy: boolean;
   onAnswer: (allow: boolean, note: string) => void;
 }) {
@@ -306,7 +287,7 @@ function AnswerForm({
       <h4 id={headingId} className="text-xs font-semibold text-amber-400">
         Answer the stop
       </h4>
-      <p className="text-xs">{task.needsYou?.why}</p>
+      <p className="text-xs">{why}</p>
       <label htmlFor={noteId} className="block text-xs text-muted-foreground">
         Note (recorded with the answer; a denied build round is told it)
       </label>
@@ -489,7 +470,11 @@ function TaskDetail({
           </ul>
         )}
         {answerable(task) && (
-          <AnswerForm task={task} busy={busy} onAnswer={answer} />
+          <AnswerForm
+            why={task.needsYou?.why ?? ""}
+            busy={busy}
+            onAnswer={answer}
+          />
         )}
         <OutcomeLine outcome={outcome} />
       </Card>
@@ -529,10 +514,21 @@ function TaskDetail({
   );
 }
 
-export function Tasks({ repoPath }: { repoPath: string }) {
+export function Tasks({
+  repoPath,
+  focus,
+}: {
+  repoPath: string;
+  /** A task to open, from elsewhere (the Now view's feed); `seq` reopens it. */
+  focus?: { id: string; seq: number } | null;
+}) {
   const [state, setState] = useState<TasksState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(focus?.id ?? null);
+
+  useEffect(() => {
+    if (focus) setSelected(focus.id);
+  }, [focus]);
 
   useEffect(() => {
     let active = true;

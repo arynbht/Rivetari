@@ -133,6 +133,7 @@ export {
 } from "./router/route.js";
 export {
   approveRoute,
+  parseAssembly,
   type RouteContext,
   routeTask,
   routingContext,
@@ -282,3 +283,12 @@ export {
   repoAutonomy,
   routeConcerns,
 } from "./task/autonomy.js";
+// The skills' lock and sync state, for the desktop shell's health strip: the
+// shell reaches the registry only through the runtime.
+export {
+  type Lock,
+  readLock,
+  readState,
+  skillsStatus,
+  type SyncState,
+} from "@arynbht/rivetari-registry";

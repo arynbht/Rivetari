@@ -24,6 +24,7 @@ import {
 } from "../task/tasks.js";
 import {
   type Assembly,
+  AssemblySchema,
   KEYWORD_ONLY_REASON,
   route,
   type RouteInput,
@@ -161,6 +162,33 @@ export async function routeTask(
     "timeline",
   );
   return { task: await loadTask(repoPath, id), routing };
+}
+
+/**
+ * assembly.yml's text read as an assembly, or why it can't be, for showing it
+ * to the person who approves it. Only its shape is checked: approval checks it
+ * again against the repo's skills and the judge's checks.
+ */
+export function parseAssembly(text: string): {
+  assembly?: Assembly;
+  problems: string[];
+} {
+  let input: unknown;
+  try {
+    input = parse(text);
+  } catch (err) {
+    return {
+      problems: [`assembly.yml isn't valid YAML: ${(err as Error).message}`],
+    };
+  }
+  const parsed = AssemblySchema.safeParse(input);
+  return parsed.success
+    ? { assembly: parsed.data, problems: [] }
+    : {
+        problems: parsed.error.issues.map(
+          (i) => `${i.path.join(".") || "(assembly)"}: ${i.message}`,
+        ),
+      };
 }
 
 /**
