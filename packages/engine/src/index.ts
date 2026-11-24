@@ -172,7 +172,11 @@ export {
 } from "./ai/call-limit.js";
 export { packContext } from "./ai/context.js";
 export type { PackedContext, PackContextOptions } from "./ai/context.js";
-export { isSensitivePath, looksLikeSecret } from "./ai/redact.js";
+export {
+  isEnvTemplate,
+  isSensitivePath,
+  looksLikeSecret,
+} from "./ai/redact.js";
 export {
   generateArtifact,
   loadPrompt,

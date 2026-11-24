@@ -62,6 +62,10 @@ export {
 } from "./task/tasks.js";
 export { checkTouches, TOUCHES_CAP } from "./task/touches.js";
 export {
+  profileConflicts,
+  type ProfileConflicts,
+} from "./task/profile-check.js";
+export {
   commitTask,
   type CommitOptions,
   holderName,

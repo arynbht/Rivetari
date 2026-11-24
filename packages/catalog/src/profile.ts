@@ -67,6 +67,14 @@ export const ProfileSchema = z.strictObject({
   project: ProjectSchema,
   generated: z.array(z.string().min(1)).optional(),
   /**
+   * Files other systems read as a contract (globs from the repo root), such as
+   * a domain types file a mobile app mirrors. A build that changes one stops
+   * to ask, as a schema change does, on top of the built-in schema and
+   * contract files (migrations, SQL, Prisma, OpenAPI, protobuf, GraphQL,
+   * JSON Schema).
+   */
+  contracts: z.array(z.string().min(1)).optional(),
+  /**
    * Keep a floorplan, the floorplan skill's map of the codebase in
    * floorplan/: drawn at init, updated when a task merges. `rivetari init`
    * writes true; absent (every profile from before it) is off.

@@ -207,7 +207,10 @@ describe("build", () => {
       agent: scripted(addDep).agent,
     });
     expect(first.stops).toEqual([
-      { trigger: "new_dependency", detail: "package.json adds left-pad" },
+      {
+        trigger: "new_dependency",
+        detail: "package.json adds left-pad@^1.3.0",
+      },
     ]);
     expect(nextStep(first.task)).toMatch(/^stop-and-ask: /);
     await expect(

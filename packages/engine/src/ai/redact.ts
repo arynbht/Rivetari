@@ -24,10 +24,20 @@ const SENSITIVE_PATH = [
   /\.(pem|key|pfx|p12|keystore|jks|ppk|asc|gpg|crt|cer|der|p8|p7b|p7c|kdbx|ovpn)$/i,
 ];
 
+// A template lists the variables an app reads, with placeholders, and is
+// committed so people know what to set. Its name says nothing about holding
+// a secret, so it's judged by its contents like any other file.
+const ENV_TEMPLATE = /(^|\/)\.env\.(example|sample|template)$/i;
+
+/** True for an env template (`.env.example`, `.env.sample`, `.env.template`). */
+export function isEnvTemplate(relPath: string): boolean {
+  return ENV_TEMPLATE.test(relPath.replace(/\\/g, "/"));
+}
+
 /** True if a file should be excluded from AI context based on its path alone. */
 export function isSensitivePath(relPath: string): boolean {
   const p = relPath.replace(/\\/g, "/");
-  return SENSITIVE_PATH.some((re) => re.test(p));
+  return !isEnvTemplate(p) && SENSITIVE_PATH.some((re) => re.test(p));
 }
 
 /**

@@ -18,6 +18,8 @@ import { loadIsolation } from "../agent/isolate.js";
 import { type Finding, findingPattern } from "../judge/tier2.js";
 import { AssemblySchema } from "../router/route.js";
 import { isSeal, SEAL_TEXT } from "../task/ledger.js";
+import { readProgress } from "../task/progress.js";
+import { holderName, localLease } from "../task/store.js";
 import {
   judgeVerdicts,
   loadTask,
@@ -40,6 +42,11 @@ export interface CloseOptions {
   now?: Date | undefined;
   /** Close without a merged PR, saying why. */
   abandon?: string | undefined;
+  /**
+   * Abandon even while the task's PR is open or a run is going: both are left
+   * as they are, and the run then fails on the sealed ledger.
+   */
+  force?: boolean | undefined;
   /** The PR's state (default: asked of the repo's GitHub). */
   prState?: ((pr: number) => Promise<PrState>) | undefined;
   /**
@@ -221,15 +228,59 @@ async function githubPrState(repoPath: string, pr: number): Promise<PrState> {
 }
 
 /**
+ * What an abandon would leave running or open: the task's PR (asked of
+ * GitHub, or taken from the ledger's ship record when GitHub can't be asked),
+ * a beat a process on this machine is still running, or a lease someone
+ * else holds. One line each, for the refusal.
+ */
+async function stillOut(
+  repoPath: string,
+  id: string,
+  pr: number | null,
+  options: CloseOptions,
+  now: Date,
+): Promise<string[]> {
+  const out: string[] = [];
+  if (pr !== null) {
+    const state = await (
+      options.prState ?? ((n: number) => githubPrState(repoPath, n))
+    )(pr).catch(() => null);
+    if (state === null)
+      out.push(
+        `PR #${pr}: the ledger says it was opened, and GitHub couldn't be asked whether it's still open`,
+      );
+    else if (state.merged)
+      out.push(
+        `PR #${pr} is merged: close the task without --abandon to record that`,
+      );
+    else if (state.state === "open") out.push(`PR #${pr} is open`);
+  }
+  const running = await readProgress(repoPath, id, { now });
+  if (running && running.pid !== process.pid)
+    out.push(
+      `its ${running.beat} beat is running (${running.pid ? `pid ${running.pid}, ` : ""}since ${running.startedAt.slice(0, 16).replace("T", " ")})`,
+    );
+  const lease = await localLease(repoPath, id);
+  if (
+    lease &&
+    lease.holder !== holderName(options.by) &&
+    Date.parse(lease.expires) > now.getTime()
+  )
+    out.push(`${lease.holder} holds its lease until ${lease.expires}`);
+  return out;
+}
+
+/**
  * `rivetari task close <id>`: after a person merges or closes the PR, or with
  * `abandon` at any point. Refuses while the PR is open: Rivetari never
- * merges, and a task isn't over until a person has decided.
+ * merges, and a task isn't over until a person has decided. An abandon
+ * refuses too while the PR is open or a run holds the task, unless forced.
  */
 export async function closeTask(
   repoPath: string,
   id: string,
   options: CloseOptions,
-): Promise<{ task: Task; row: TaskHistoryRow }> {
+): Promise<{ task: Task; row: TaskHistoryRow; cleanup?: string | undefined }> {
   const task = await loadTask(repoPath, id);
   if (task.problems.length > 0)
     throw new TaskError(`task ${id} fails verification; not closing`);
@@ -262,6 +313,13 @@ export async function closeTask(
         ? "merged"
         : "closed";
   } else if (abandon !== undefined) {
+    const out = options.force
+      ? []
+      : await stillOut(repoPath, id, pr, options, now);
+    if (out.length > 0)
+      throw new TaskError(
+        `task ${id} still has work out there, so it isn't abandoned:\n${out.map((o) => `  - ${o}`).join("\n")}\nClose the PR and let the run finish (or stop it) first, or abandon anyway with --force, which leaves them as they are.`,
+      );
     outcome = "abandoned";
     said = `abandoned${abandon ? `: ${abandon}` : ""}${pr ? ` (PR #${pr} is left as it is)` : ""}`;
   } else {
@@ -297,6 +355,7 @@ export async function closeTask(
   // those are a person's, and they're kept. (Untracked files after the last
   // round are install and proof output.) The branch goes only when merged.
   const isolation = await loadIsolation(repoPath, id).catch(() => null);
+  let cleanup: string | undefined;
   const present =
     isolation !== null &&
     (await access(isolation.worktree)
@@ -324,10 +383,20 @@ export async function closeTask(
         .raw(["branch", "-D", isolation.branch])
         .then(() => true)
         .catch(() => false));
-    await append(
-      "timeline",
-      `${removed ? "worktree removed" : `worktree ${isolation.worktree} kept: ${edited ? "it has uncommitted edits" : "it couldn't be removed"}; remove it by hand`} · branch ${isolation.branch} ${deleted ? "deleted" : "kept"}`,
-    );
+    cleanup = `${removed ? "worktree removed" : `worktree ${isolation.worktree} kept: ${edited ? "it has uncommitted edits" : "it couldn't be removed"}; remove it by hand`} · branch ${isolation.branch} ${deleted ? "deleted" : "kept"}`;
+    await append("timeline", cleanup);
+  } else if (isolation && outcome === "merged") {
+    // The worktree went some other way; the merged branch it held can go now.
+    const deleted = await simpleGit(repoPath)
+      .raw(["branch", "-D", isolation.branch])
+      .then(
+        () => true,
+        () => false,
+      );
+    if (deleted) {
+      cleanup = `worktree already gone · branch ${isolation.branch} deleted`;
+      await append("timeline", cleanup);
+    }
   }
 
   // A merged change belongs on the map. Its failure is a line in the ledger,
@@ -393,5 +462,5 @@ export async function closeTask(
     await appendFile(historyPath, `${JSON.stringify(row)}\n`, "utf8");
   }
   await append("timeline", `${SEAL_TEXT} · ${outcome}`);
-  return { task: await loadTask(repoPath, id), row };
+  return { task: await loadTask(repoPath, id), row, cleanup };
 }

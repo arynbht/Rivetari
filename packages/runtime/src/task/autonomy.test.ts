@@ -145,10 +145,12 @@ describe("autonomy levels", () => {
   });
 
   it("splits stops into soft ones it flags and hard ones it asks about", () => {
-    expect(isSoftStop({ trigger: "schema_change", detail: "x" })).toBe(true);
+    expect(
+      isSoftStop({ trigger: "schema_change", detail: "x", additive: true }),
+    ).toBe(true);
     expect(
       isSoftStop({ trigger: "new_dependency", detail: "x", osi: true }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isSoftStop({ trigger: "new_dependency", detail: "x", osi: false }),
     ).toBe(false);
@@ -361,11 +363,11 @@ describe("a review-at-pr run", { timeout: 180_000 }, () => {
     expect(outcome.next).toMatch(/^stop-and-ask/);
     const task = await loadTask(repo, id);
     expect(task.entries.map((e) => e.text)).toContain(
-      "asked: new_dependency: package.json adds left-pad, mystery (left-pad: MIT, mystery: license unknown; not all on the OSI list)",
+      "asked: new_dependency: package.json adds left-pad@^1.3.0, mystery@^1.0.0 (left-pad: MIT, mystery: license unknown; not all on the OSI list)",
     );
   });
 
-  it("flags a new dependency when every installed license is on the OSI list", async () => {
+  it("asks about a new dependency even when every installed license is on the OSI list", async () => {
     const { repo, context } = await repoWith("review-at-pr", {
       ".gitignore": "node_modules\n",
     });
@@ -404,10 +406,10 @@ describe("a review-at-pr run", { timeout: 180_000 }, () => {
       },
     });
     expect(outcome.task.entries.map((e) => e.text)).toContain(
-      "flagged: new_dependency: package.json adds left-pad",
+      "asked: new_dependency: package.json adds left-pad@^1.3.0",
     );
     expect(
-      outcome.task.entries.filter((e) => e.text.startsWith("asked: ")),
+      outcome.task.entries.filter((e) => e.text.startsWith("flagged: ")),
     ).toEqual([]);
   });
 });
