@@ -130,6 +130,9 @@ export function App() {
   const [floorPlanVersion, setFloorPlanVersion] = useState(0);
   const [floorPlanError, setFloorPlanError] = useState<string | null>(null);
   const floorPlanRun = useRef(0);
+  // Counts repo picks, so a Run audit that settles after the person has moved
+  // to another repo can't put the old repo's scorecard on the new one.
+  const auditRun = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("scorecard");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -235,6 +238,8 @@ export function App() {
     setSettingsOpen(false);
     setSelected(path);
     setSelectSeq((n) => n + 1);
+    auditRun.current++;
+    setRunning(false);
     setScorecard(null);
     setError(null);
     setView("scorecard");
@@ -272,14 +277,16 @@ export function App() {
 
   async function handleAudit(): Promise<void> {
     if (!selected) return;
+    const run = auditRun.current;
     setRunning(true);
     setError(null);
     try {
-      setScorecard(await window.rivetari.audit.run(selected));
+      const card = await window.rivetari.audit.run(selected);
+      if (run === auditRun.current) setScorecard(card);
     } catch (err) {
-      setError(errorMessage(err));
+      if (run === auditRun.current) setError(errorMessage(err));
     } finally {
-      setRunning(false);
+      if (run === auditRun.current) setRunning(false);
     }
   }
 

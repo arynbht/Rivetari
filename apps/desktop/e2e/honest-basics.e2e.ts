@@ -144,6 +144,79 @@ test.describe("honest basics", () => {
     expect(await swarmRuns()).toBe(0);
   });
 
+  test("a Run audit that lands after a repo switch stays off the new repo", async () => {
+    const first = copyFixtureRepo();
+    const second = copyFixtureRepo();
+    writeFileSync(
+      join(second, ".rivetari", "state.json"),
+      JSON.stringify({
+        version: 1,
+        generatedAt: "2026-11-23T02:17:38.576Z",
+        controls: [
+          {
+            id: "repo.readme.present",
+            status: "pass",
+            lane: "hygiene",
+            phase: "discovery",
+            severity: "low",
+          },
+        ],
+      }),
+    );
+    launched = await launchApp({
+      repos: [
+        { path: first, name: "first-repo" },
+        { path: second, name: "second-repo" },
+      ],
+    });
+    const { app, page } = launched;
+    // A slow audit for the first repo, so the switch happens while it runs.
+    await app.evaluate(({ ipcMain }, repoPath) => {
+      ipcMain.removeHandler("audit:run");
+      ipcMain.handle(
+        "audit:run",
+        () =>
+          new Promise((done) =>
+            setTimeout(
+              () =>
+                done({
+                  repoPath,
+                  generatedAt: "2026-11-24T00:00:00.000Z",
+                  totals: {
+                    pass: 0,
+                    fail: 7,
+                    needsEvidence: 0,
+                    waived: 0,
+                    skip: 0,
+                    na: 0,
+                    total: 7,
+                  },
+                  lanes: [],
+                }),
+              1500,
+            ),
+          ),
+      );
+    }, first);
+
+    await page
+      .getByRole("button", { name: /first-repo/ })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Run audit" }).click();
+    await page
+      .getByRole("button", { name: /second-repo/ })
+      .first()
+      .click();
+
+    const panel = page.locator("#panel-scorecard");
+    await expect(panel.getByText(/^1 controls · recorded /)).toBeVisible();
+    // Long enough for the first repo's audit to have landed.
+    await page.waitForTimeout(2000);
+    await expect(panel.getByText(/^1 controls · recorded /)).toBeVisible();
+    await expect(panel.getByText(/^7 controls/)).toHaveCount(0);
+  });
+
   test("Refresh floor plan says it costs money and asks first", async () => {
     const repoPath = copyFixtureRepo();
     launched = await launchApp({
