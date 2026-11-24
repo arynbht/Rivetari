@@ -184,7 +184,9 @@ export {
 export {
   type AxeViolation,
   BREAKPOINTS,
+  breakpointFor,
   browserAvailable,
+  DEFAULT_WIDTHS,
   pageSlug,
   shoot,
   type Shot,

@@ -458,8 +458,15 @@ export const needsBeforeCheck = (card?: Card, proof?: ReviewProof): boolean =>
 
 function shotLine(shot: NonNullable<ReviewProof["shots"]>[number]): string {
   const where = `${shot.side} · ${shot.page} at ${shot.breakpoint} · HTTP ${shot.status} · ${shot.file.replace(/\\/g, "/").split("/").pop() ?? ""}`;
+  // Whether the page rendered, and the image's size, go last: a shot of a
+  // loading state reads as one, and a skeleton is far smaller than the page.
+  const rendered = `${
+    shot.ready === false
+      ? ` · NOT RENDERED, the image is of the loading state: ${shot.notReady ?? "it never settled"}`
+      : ""
+  }${shot.bytes !== undefined ? ` · ${shot.bytes} bytes` : ""}`;
   const l = shot.layout;
-  if (!l) return `- ${where} · nothing measured`;
+  if (!l) return `- ${where} · nothing measured${rendered}`;
   const overflow =
     l.scrollWidth > l.viewport
       ? `scrolls sideways: ${l.scrollWidth}px of content in a ${l.viewport}px viewport`
@@ -468,7 +475,7 @@ function shotLine(shot: NonNullable<ReviewProof["shots"]>[number]): string {
     l.overflowing.length > 0
       ? `elements past the viewport's edge: ${l.overflowing.join("; ")}`
       : "no element past the viewport's edge";
-  return `- ${where} · ${overflow} · ${past}${l.text ? ` · text starts: ${JSON.stringify(l.text)}` : ""}`;
+  return `- ${where} · ${overflow} · ${past}${l.text ? ` · text starts: ${JSON.stringify(l.text)}` : ""}${rendered}`;
 }
 
 /** Proof text goes to the model like the diff does: never secret-shaped. */
@@ -486,7 +493,7 @@ function proofSection(proof: ReviewProof, card?: Card): string[] {
   }
   if (proof.shots?.length) {
     parts.push(
-      `### Screenshots\nYou can't see the images. For each one you have its side (before = the base, after = the change), page, breakpoint (sm 375px, md 768px, lg 1280px wide), HTTP status, and what the proof runner measured on the page.\n${proof.shots.map(shotLine).join("\n")}`,
+      `### Screenshots\nYou can't see the images. For each one you have its side (before = the base, after = the change), page, breakpoint (sm 375px, md 768px, lg 1280px wide, w<n> n px wide), HTTP status, and what the proof runner measured on the page.\n${proof.shots.map(shotLine).join("\n")}`,
     );
   }
   if (needsBeforeCheck(card, proof)) {

@@ -1,8 +1,12 @@
 // The prove beat: the proof the assembly names, produced by a tool,
 // never described by the agent. UI: the base and the change served side by
-// side, shot at three breakpoints, axe on the change, the images on the
-// `evidence` branch. Everything else: the test run, with the new tests named.
-// The result goes to the ledger and `.rivetari/tasks/<id>/proof/proof.json`.
+// side, each page shot at the repo's widths once it has really rendered, axe
+// at each width on both sides so the base's own violations aren't blamed on
+// the change, the images on the `evidence` branch. A UI proof for a change
+// that touches nothing that renders is the test run instead. Infra: the test
+// run, plus the container built, run and checked when the profile says how.
+// Everything else: the test run, with the new tests named. The result goes to
+// the ledger and `.rivetari/tasks/<id>/proof/proof.json`.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -38,9 +42,26 @@ import {
   TASKS_DIR,
 } from "../task/tasks.js";
 import { AuthError, signIn } from "./auth.js";
+import { baseKey, loadBase, saveBase } from "./cache.js";
+import {
+  compareViolations,
+  identicalPairs,
+  uiFiles,
+  violationCount,
+  violationList,
+} from "./compare.js";
+import { dockerProof, isContainerFile } from "./docker.js";
 import { type EvidenceClient, publishEvidence } from "./evidence.js";
+import { readySelectorFor } from "./ready.js";
 import { startServer } from "./server.js";
-import { type AxeViolation, shoot, type Shot } from "./shoot.js";
+import {
+  type AxeViolation,
+  breakpointFor,
+  DEFAULT_WIDTHS,
+  RENDER_TIMEOUT_S,
+  shoot,
+  type Shot,
+} from "./shoot.js";
 
 /** The "before" server runs this far above the task's own port. */
 const BEFORE_PORT_OFFSET = 1000;
@@ -52,7 +73,15 @@ export interface ProofRecord {
   /** What the ledger says, one line each. */
   lines: string[];
   shots?: (Shot & { side: "before" | "after"; url?: string })[];
+  /** The change's new serious and critical axe violations, at every width. */
   violations?: AxeViolation[];
+  /** Violations the base had too: reported, not blamed on the change. */
+  preExistingViolations?: AxeViolation[];
+  /**
+   * Checks the proof should have made but couldn't here (e.g. "docker" with
+   * no Docker): never counted as passed, and named in the timeline.
+   */
+  unverified?: string[];
   tests?: {
     exitCode: number;
     added: string[];
@@ -75,6 +104,8 @@ export interface ProveOptions {
    * its own: record that here, and the judge publishes its run as the proof.
    */
   deferTestRun?: boolean | undefined;
+  /** The docker binary for an infra-plan proof (default `docker`). */
+  docker?: string | undefined;
 }
 
 export const DEFERRED =
@@ -257,10 +288,13 @@ async function testRun(
   kind: ProofType,
   publish: Publish,
   proofDir: string,
+  /** The first line, when there's more to say than the default. */
+  note?: string,
 ): Promise<ProofRecord> {
   const dir = isolation.worktree;
   const lines: string[] = [];
-  if (kind !== "test-run")
+  if (note) lines.push(note);
+  else if (kind !== "test-run")
     lines.push(
       `${kind} has no proof runner yet; the test run stands in, and a person attaches the ${kind} proof`,
     );
@@ -369,12 +403,17 @@ async function uiProof(
     );
   const timeoutMs = (profile?.proof?.ready_timeout ?? 90) * 1000;
   const auth = profile?.proof?.auth;
+  const widths = profile?.proof?.widths ?? DEFAULT_WIDTHS;
+  const ready = profile?.proof?.ready;
+  const renderTimeoutMs =
+    (profile?.proof?.render_timeout ?? RENDER_TIMEOUT_S) * 1000;
   const pages = task.card.pages.length > 0 ? task.card.pages : ["/"];
   const outDir = join(repoPath, TASKS_DIR, task.card.id, "proof");
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
 
   const shots: NonNullable<ProofRecord["shots"]> = [];
+  let beforeViolations: AxeViolation[] = [];
   let violations: AxeViolation[] = [];
   /** Serve one side and shoot it; the server is always stopped. */
   const side = async (which: "before" | "after", dir: string) => {
@@ -407,16 +446,23 @@ async function uiProof(
           stateFile: storageState,
         });
       }
+      // axe runs on the base too, so what it already failed isn't blamed
+      // on the change.
       const result = await shoot({
         baseUrl: server.url,
         pages,
         outDir,
         prefix: which,
-        axe: which === "after",
+        axe: true,
         storageState,
+        widths,
+        ready,
+        renderTimeoutMs,
       });
       shots.push(...result.shots.map((s) => ({ ...s, side: which })));
       if (which === "after") violations = result.violations;
+      else beforeViolations = result.violations;
+      return result;
     } finally {
       await server.stop();
       if (stateDir)
@@ -426,23 +472,57 @@ async function uiProof(
     }
   };
 
-  // The base failing to serve is the setup's problem: throw. The change
-  // failing to serve is the change's: a failed proof, sent back to build.
-  const before = await baseCheckout(repoPath, isolation.base);
-  try {
-    await side("before", before);
-  } catch (err) {
-    if (err instanceof AuthError)
-      throw new TaskError(
-        `signing in on the base failed, so proof.auth in .rivetari/profile.yml needs fixing: ${err.message}`,
-      );
-    throw err;
-  } finally {
-    await simpleGit(repoPath)
-      .raw(["worktree", "remove", "--force", before])
-      .catch(() => "");
-    // Best-effort: Windows can hold a file open a moment after the server stops.
-    await rm(before, { recursive: true, force: true }).catch(() => undefined);
+  // The base side depends only on the base tree and how it's shot: reuse it
+  // when an earlier round already shot exactly that.
+  const key = await baseKey(repoPath, isolation.base, {
+    widths,
+    pages,
+    ready: ready ?? null,
+    renderTimeoutMs,
+    start,
+    url: profile?.proof?.url ?? null,
+    auth: auth
+      ? {
+          script: auth.script,
+          text: await readFile(join(repoPath, auth.script), "utf8").catch(
+            () => null,
+          ),
+        }
+      : null,
+  });
+  const notes: string[] = [];
+  const cached = await loadBase(repoPath, key, outDir);
+  if (cached) {
+    shots.push(...cached.shots.map((s) => ({ ...s, side: "before" as const })));
+    beforeViolations = cached.violations;
+    notes.push(
+      "before: reused this base tree's images from an earlier proof at the same widths and pages",
+    );
+  } else {
+    // The base failing to serve is the setup's problem: throw. The change
+    // failing to serve is the change's: a failed proof, sent back to build.
+    const before = await baseCheckout(repoPath, isolation.base);
+    try {
+      const result = await side("before", before);
+      // Only a base that fully rendered is worth keeping: a slow first
+      // load shouldn't stand as the base for every later round.
+      if (result.shots.every((s) => s.ready !== false))
+        await saveBase(repoPath, key, result).catch((err: Error) =>
+          notes.push(`before: images not cached: ${tail(err.message, 200)}`),
+        );
+    } catch (err) {
+      if (err instanceof AuthError)
+        throw new TaskError(
+          `signing in on the base failed, so proof.auth in .rivetari/profile.yml needs fixing: ${err.message}`,
+        );
+      throw err;
+    } finally {
+      await simpleGit(repoPath)
+        .raw(["worktree", "remove", "--force", before])
+        .catch(() => "");
+      // Best-effort: Windows can hold a file open a moment after the server stops.
+      await rm(before, { recursive: true, force: true }).catch(() => undefined);
+    }
   }
   try {
     await side("after", isolation.worktree);
@@ -476,17 +556,79 @@ async function uiProof(
   // A page the change serves as an error isn't a page (a new page can 404 on
   // the base, so only the change's side counts).
   const broken = shots.filter((s) => s.side === "after" && s.status >= 400);
-  const passed = violations.length === 0 && broken.length === 0;
+  // A shot of a page that never rendered is a shot of its loading state:
+  // on the change's side that fails the proof; on the base's it's noted.
+  const unrendered = (which: "before" | "after") =>
+    shots
+      .filter((s) => s.side === which && s.ready === false)
+      .map(
+        (s) =>
+          `${s.page} at ${s.breakpoint}: ${s.notReady ?? "never rendered"}`,
+      );
+  const notRendered = unrendered("after");
+  const { added, preExisting } = compareViolations(
+    beforeViolations,
+    violations,
+  );
+  const identical = await identicalPairs(shots);
+  const passed =
+    added.length === 0 && broken.length === 0 && notRendered.length === 0;
+  const names = widths.map((w) => breakpointFor(w).name).join("/");
+  const selectors = [...new Set(pages.map((p) => readySelectorFor(p, ready)))];
+  const sizes = pages.map((page) => {
+    const per = widths.map((w) => {
+      const bp = breakpointFor(w).name;
+      const size = (which: "before" | "after") =>
+        shots.find(
+          (s) => s.side === which && s.page === page && s.breakpoint === bp,
+        )?.bytes ?? "—";
+      return `${bp} ${size("before")} → ${size("after")}`;
+    });
+    return `${page} ${per.join(", ")}`;
+  });
+  const preNote =
+    preExisting.length > 0
+      ? `; pre-existing on the base too, not blamed on this change: ${violationList(preExisting)}`
+      : "";
   const lines = [
-    `screenshots: ${pages.join(", ")} at sm/md/lg, before and after (${shots.length} images) ${
+    `screenshots: ${pages.join(", ")} at ${names} (${widths.join("/")}px), before and after, axe at every width (${shots.length} images) ${
       published
         ? `on the evidence branch: ${task.card.id}/`
         : `in ${TASKS_DIR}/${task.card.id}/proof/ (not pushed: ${notPushed})`
     }`,
-    violations.length === 0
-      ? "axe: 0 serious or critical violations"
-      : `axe: ${violations.length} serious or critical violation(s): ${violations.map((v) => `${v.id} on ${v.page} (${v.impact}, ${v.nodes})`).join("; ")}`,
+    added.length > 0
+      ? `axe: ${violationCount(added)} serious or critical violation(s): ${violationList(added)}${preNote}`
+      : preExisting.length > 0
+        ? `axe: 0 new serious or critical violations${preNote}`
+        : "axe: 0 serious or critical violations",
     "visual diff: not automated yet; the before/after images are the comparison",
+    `rendered: each shot waited for ${selectors
+      .map((s) =>
+        s === undefined
+          ? "network idle, no loading marker and a settled DOM"
+          : `"${s}" (proof.ready)`,
+      )
+      .join(" or ")}`,
+    ...(notRendered.length > 0
+      ? [
+          `not rendered, so these shots are of the loading state and the proof fails: ${notRendered.join("; ")}`,
+        ]
+      : []),
+    ...unrendered("before").map(
+      (u) =>
+        `before: never rendered on the base, ${u}; its image is what the base showed at the timeout`,
+    ),
+    `image sizes in bytes, before → after: ${sizes.join("; ")}`,
+    ...(identical.length > 0
+      ? [
+          `unchanged: the before and after images are byte-identical for ${identical
+            .map((i) => `${i.page} at ${i.breakpoint}`)
+            .join(
+              ", ",
+            )}, though the change touches UI files: either these pages don't show it, or the shots aren't of the change`,
+        ]
+      : []),
+    ...notes,
     ...(auth
       ? [`signed in: ${auth.script} ran on each side before its shots`]
       : []),
@@ -502,7 +644,92 @@ async function uiProof(
     passed,
     lines,
     shots,
-    violations,
+    violations: added,
+    ...(preExisting.length > 0 ? { preExistingViolations: preExisting } : {}),
+  };
+}
+
+/** The files a task's change touches, both sides of a rename. */
+async function changedPaths(isolation: Isolation): Promise<string[]> {
+  const out = await simpleGit(isolation.worktree).raw([
+    "diff",
+    "--name-only",
+    "--no-renames",
+    isolation.base,
+    "HEAD",
+  ]);
+  return out
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+const few = (paths: readonly string[], n = 5) =>
+  paths.length > n
+    ? `${paths.slice(0, n).join(", ")} and ${paths.length - n} more`
+    : paths.join(", ");
+
+/**
+ * The infra-plan proof: the test run, then, when the profile says how, the
+ * container built, run and checked over HTTP. A container change with no
+ * way to check it, or no Docker to check it with, is unverified, not passed.
+ */
+async function infraProof(
+  repoPath: string,
+  isolation: Isolation,
+  publish: Publish,
+  proofDir: string,
+  docker: string | undefined,
+): Promise<ProofRecord> {
+  const profile = await buildContext(repoPath)
+    .profile()
+    .catch(() => null);
+  const config = profile?.proof?.docker;
+  if (!config) {
+    const record = await testRun(
+      repoPath,
+      isolation,
+      "infra-plan",
+      publish,
+      proofDir,
+      "infra-plan: no proof.docker in .rivetari/profile.yml, so the test run stands in, and a person attaches the infra-plan proof",
+    );
+    const containers = (await changedPaths(isolation)).filter(isContainerFile);
+    if (containers.length === 0) return record;
+    return {
+      ...record,
+      lines: [
+        ...record.lines,
+        `docker: not run: the change touches ${few(containers)}, but .rivetari/profile.yml has no proof.docker to build and check it with; unverified`,
+      ],
+      unverified: ["docker"],
+    };
+  }
+  const record = await testRun(
+    repoPath,
+    isolation,
+    "infra-plan",
+    publish,
+    proofDir,
+    "infra-plan: the test run, then the container built, run and checked over HTTP (proof.docker)",
+  );
+  if (!record.passed)
+    return {
+      ...record,
+      lines: [...record.lines, "docker: not run: the tests failed first"],
+    };
+  const result = await dockerProof({
+    cwd: isolation.worktree,
+    config,
+    hostPort: isolation.port,
+    tag: isolation.task,
+    docker,
+  });
+  return {
+    ...record,
+    passed: result.status !== "failed",
+    lines: [...record.lines, result.line],
+    ...(result.status === "unverified" ? { unverified: ["docker"] } : {}),
   };
 }
 
@@ -557,10 +784,57 @@ export async function proveTask(
 
   const proofDir = join(repoPath, TASKS_DIR, id, "proof");
   const publish = options.publish ?? githubPublisher(repoPath, id);
-  const record =
-    assembly.proof === "ui-screenshots"
-      ? await uiProof(repoPath, task, isolation, publish)
-      : await testRun(repoPath, isolation, assembly.proof, publish, proofDir);
+  const by = `rivetari runtime (for ${options.by})`;
+  let record: ProofRecord;
+  if (assembly.proof === "ui-screenshots") {
+    // Screenshots of a docs-only or tests-only change would show the same
+    // pages twice, at the cost of serving the app on both sides: the test
+    // run is the proof that means something there.
+    const changed = await changedPaths(isolation);
+    const skip =
+      changed.length > 0 && uiFiles(changed).length === 0
+        ? `ui-screenshots skipped: the change touches no file that renders (${few(changed)}), so the test run stands in`
+        : undefined;
+    if (skip && options.deferTestRun) {
+      await task.ledger.append({
+        beat: "prove",
+        section: "proof",
+        text: skip,
+        by,
+        at: options.now,
+      });
+      await task.ledger.append({
+        beat: "prove",
+        section: "timeline",
+        text: DEFERRED,
+        by,
+        at: options.now,
+      });
+      return {
+        task: await loadTask(repoPath, id),
+        record: { task: id, kind: "test-run", passed: true, lines: [skip] },
+      };
+    }
+    record = skip
+      ? await testRun(repoPath, isolation, "test-run", publish, proofDir, skip)
+      : await uiProof(repoPath, task, isolation, publish);
+  } else if (assembly.proof === "infra-plan") {
+    record = await infraProof(
+      repoPath,
+      isolation,
+      publish,
+      proofDir,
+      options.docker,
+    );
+  } else {
+    record = await testRun(
+      repoPath,
+      isolation,
+      assembly.proof,
+      publish,
+      proofDir,
+    );
+  }
 
   await mkdir(proofDir, { recursive: true });
   await writeFile(
@@ -568,7 +842,6 @@ export async function proveTask(
     `${JSON.stringify(record, null, 2)}\n`,
     "utf8",
   );
-  const by = `rivetari runtime (for ${options.by})`;
   for (const line of record.lines)
     await task.ledger.append({
       beat: "prove",
@@ -577,10 +850,16 @@ export async function proveTask(
       by,
       at: options.now,
     });
+  // What couldn't be checked rides on the verdict, so "passed" never reads
+  // as covering it.
   await task.ledger.append({
     beat: "prove",
     section: "timeline",
-    text: `proof ${record.passed ? "passed" : "failed"} · ${record.kind}`,
+    text: `proof ${record.passed ? "passed" : "failed"} · ${record.kind}${
+      record.unverified?.length
+        ? ` · unverified: ${record.unverified.join(", ")}`
+        : ""
+    }`,
     by,
     at: options.now,
   });

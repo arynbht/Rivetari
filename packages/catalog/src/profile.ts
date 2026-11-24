@@ -90,6 +90,60 @@ export const ProfileSchema = z.strictObject({
       /** Seconds to wait for the URL to answer (default 90). */
       ready_timeout: z.number().int().positive().optional(),
       /**
+       * Viewport widths in CSS pixels the UI proof shoots and runs axe at,
+       * before and after (default 375, 768 and 1280). 375, 768 and 1280 are
+       * named sm, md and lg in file names; any other width is w<width>.
+       */
+      widths: z
+        .array(z.number().int().min(200).max(3840))
+        .min(1)
+        .max(8)
+        .refine((w) => new Set(w).size === w.length, "widths repeat")
+        .optional(),
+      /**
+       * What shows a page has really rendered, so no screenshot is of a
+       * loading state: a Playwright selector (CSS, or `text=Session summary`)
+       * that only exists once the page's real data is on screen. One string
+       * applies to every page; a map names one per page, keyed by the page's
+       * path (`/cloud/trends`), a glob of it (`/cloud/sessions/*`), or `*`
+       * for every other page. An exact path wins, then the first glob that
+       * matches. Unset for a page, the proof waits for the network to go
+       * idle, then for no visible loading marker (aria-busy, a skeleton,
+       * spinner or loading class, an indeterminate progressbar, "Loading…"
+       * text), then for the DOM to stop changing for half a second. A page
+       * that never gets there fails the proof; it is never shot and passed.
+       */
+      ready: z
+        .union([
+          z.string().min(1),
+          z.record(z.string().min(1), z.string().min(1)),
+        ])
+        .optional(),
+      /** Seconds each page has to really render once it loads (default 30). */
+      render_timeout: z.number().int().positive().max(600).optional(),
+      /**
+       * Build and check the container for an infra-plan proof: `docker build`
+       * of `file` in `context`, then `docker run` with `port` published on
+       * the task's port, then a GET of `path` that must answer below 400
+       * within `timeout` seconds. Without `port` the image is built but not
+       * run. With no Docker on the machine the proof says it wasn't run and
+       * counts it unverified, never passed. Unset: no container is built.
+       */
+      docker: z
+        .strictObject({
+          /** The Dockerfile, from the repo root (default Dockerfile). */
+          file: z.string().min(1).optional(),
+          /** The build context, from the repo root (default the root). */
+          context: z.string().min(1).optional(),
+          /** The port the container serves on. */
+          port: z.number().int().min(1).max(65535).optional(),
+          /** The path to GET (default /). */
+          path: z.string().startsWith("/").optional(),
+          /** Seconds for the container to answer (default 60). */
+          timeout: z.number().int().positive().max(600).optional(),
+        })
+        .optional(),
+      /**
        * Signing in, for pages behind it. Once the URL answers and before any
        * screenshot, the proof runner opens a browser at the app and runs
        * `script`, then saves the browser's cookies and local storage (a
