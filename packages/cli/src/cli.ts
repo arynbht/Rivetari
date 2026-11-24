@@ -159,6 +159,10 @@ export function buildProgram(): Command {
     .option("--pr <number>", "review this pull request and post one review")
     .option("--dry-run", "with --pr: print the review instead of posting it")
     .option(
+      "--fresh",
+      "with --pr: review the head even when an earlier verdict on the same tree could carry",
+    )
+    .option(
       "--base <ref>",
       "local mode: the base the change targets",
       "origin/main",
@@ -223,6 +227,10 @@ export function buildProgram(): Command {
     )
     .option("--source <source>", "issue#88, or prompt")
     .option("--from <file>", "start from a card YAML file")
+    .option(
+      "--force",
+      "draft it even when a criterion contradicts the profile (the ledger says so)",
+    )
     .option("--path <path>", "path to the repo", ".")
     .action(async (title: string | undefined, flags: TaskNewFlags) => {
       process.exitCode = await runTaskNew(title, flags);
@@ -365,11 +373,15 @@ export function buildProgram(): Command {
     )
     .argument("<id>", "task id")
     .option("--abandon [why]", "close without a merged PR, saying why")
+    .option(
+      "--force",
+      "abandon even while its PR is open or a run holds it (both are left as they are)",
+    )
     .option("--path <path>", "path to the repo", ".")
     .action(
       async (
         id: string,
-        flags: { abandon?: string | boolean; path?: string },
+        flags: { abandon?: string | boolean; force?: boolean; path?: string },
       ) => {
         process.exitCode = await runTaskClose(id, flags);
       },

@@ -26,6 +26,7 @@ import {
   type Assembly,
   AssemblySchema,
   KEYWORD_ONLY_REASON,
+  reasonSummary,
   route,
   type RouteInput,
   type Routing,
@@ -83,6 +84,7 @@ export async function routingContext(
     available: new Set(
       lock.skills.length > 0 ? (state?.skills.map((s) => s.name) ?? []) : [],
     ),
+    locked: new Set(lock.skills.map((s) => s.name)),
     flags: profile?.flags ?? {},
     files,
     checks: (await changeChecks()).map((c) => c.id),
@@ -127,6 +129,12 @@ export async function routeTask(
   const text = `${HEADER}${stringify(routing.assembly)}`;
   await writeFile(assemblyPath(repoPath, id), text, "utf8");
 
+  // Routing again to the same assembly, with nothing in between, has nothing
+  // new to record: the ledger already says why.
+  const last = task.entries[task.entries.length - 1];
+  if (last && PROPOSED.exec(last.text)?.[1] === sha256(text))
+    return { task, routing };
+
   const a = routing.assembly;
   const entry = (text: string, section: "decision" | "timeline") =>
     task.ledger.append({
@@ -140,7 +148,7 @@ export async function routeTask(
     a.sectors.length > 0
       ? `routed to ${a.sectors.join(", ")}: ${routing.scores
           .filter((s) => a.sectors.includes(s.sector))
-          .map((s) => `${s.sector} (${s.reasons.join("; ")})`)
+          .map((s) => `${s.sector} (${reasonSummary(s.reasons)})`)
           .join(", ")}`
       : "routed to no sector: nothing in the card or its paths matched one; the agent works from the spine",
     "decision",
@@ -152,7 +160,7 @@ export async function routeTask(
     );
   for (const sector of routing.decidedOut)
     await entry(
-      `decided not in: ${sector} (${KEYWORD_ONLY_REASON})`,
+      `decided not in: ${sector} (${routing.outReasons[sector] ?? KEYWORD_ONLY_REASON})`,
       "decision",
     );
   for (const note of [...routing.notes, ...a.gaps])

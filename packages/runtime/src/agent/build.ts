@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 import {
   agentEnv,
   BUILD_TOOLS,
+  buildContext,
   claudeCommand,
   DENIED_BUILD_TOOLS,
   extractJson,
@@ -564,11 +565,15 @@ export async function buildTask(
 
   task = await loadTask(repoPath, id);
   const allowed = allowedStops(task);
+  const profile = await buildContext(repoPath)
+    .profile()
+    .catch(() => null);
   const found = await findStops(
     isolation.worktree,
     isolation.base,
     head,
     assembly,
+    { contracts: profile?.contracts },
   );
   const level = await autonomyFor(repoPath, task.card);
   const raised = (

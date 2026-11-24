@@ -61,6 +61,9 @@ import {
   PostureDraftRequest,
   PostureDraftResult,
   PostureRequest,
+  ProjectDraftRequest,
+  ProjectRequest,
+  ProjectView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskDetail,
@@ -230,6 +233,44 @@ const api = {
         PostureDraftRequest.parse({ repoPath, draft }),
       );
       return PostureDraftResult.parse(raw);
+    },
+  },
+
+  project: {
+    /** profile.yml against the repo, as last checked, with what it records. */
+    async get(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.ProjectGet,
+        ProjectRequest.parse({ repoPath }),
+      );
+      return ProjectView.parse(raw);
+    },
+    /** Check the repo against profile.yml now. */
+    async refresh(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.ProjectRefresh,
+        ProjectRequest.parse({ repoPath }),
+      );
+      return ProjectView.parse(raw);
+    },
+    /** Draft a task card that brings the picked rows of profile.yml in line. */
+    async draft(repoPath: string, keys: string[]) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.ProjectDraft,
+        ProjectDraftRequest.parse({ repoPath, keys }),
+      );
+      return PostureDraftResult.parse(raw);
+    },
+    /** Hears a repo's view after a check main ran by itself; returns an unsubscribe fn. */
+    onUpdate(callback: (view: ProjectView) => void) {
+      const listener = (_event: unknown, payload: unknown): void => {
+        const parsed = ProjectView.safeParse(payload);
+        if (parsed.success) callback(parsed.data);
+      };
+      ipcRenderer.on(IpcChannel.ProjectUpdate, listener);
+      return () => {
+        ipcRenderer.removeListener(IpcChannel.ProjectUpdate, listener);
+      };
     },
   },
 

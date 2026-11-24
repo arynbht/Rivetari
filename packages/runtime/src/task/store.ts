@@ -114,6 +114,11 @@ export interface Lease {
   holder: string;
   /** ISO time; a lease past it can be taken by anyone. */
   expires: string;
+  /**
+   * The process that took it. One person on one machine is one holder, so
+   * this is what keeps a second run of the task off it while the first runs.
+   */
+  pid?: number | undefined;
 }
 
 /** What `commitTask` was refused for, so the caller can say who has the task. */
@@ -121,13 +126,27 @@ export class LeaseError extends StoreError {
   constructor(
     readonly id: string,
     readonly lease: Lease,
+    /** Refused for a live process of the same holder, on this machine. */
+    readonly running = false,
   ) {
     super(
-      `${id} is held by ${lease.holder} until ${lease.expires}. It can be taken over after that, or sooner if they run \`rivetari task release ${id}\`.`,
+      running
+        ? `${id} is being run by process ${lease.pid} on this machine (${lease.holder}) until ${lease.expires}. Wait for it to finish, or stop it; if it's already gone, \`rivetari task release ${id}\` frees the task.`
+        : `${id} is held by ${lease.holder} until ${lease.expires}. It can be taken over after that, or sooner if they run \`rivetari task release ${id}\`.`,
     );
     this.name = "LeaseError";
   }
 }
+
+/** Whether `pid` is a process on this machine (EPERM: it is, just not ours to signal). */
+const running = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === "EPERM";
+  }
+};
 
 /**
  * Fetch the branch and point the local one at origin's. Returns the tip, or
@@ -343,6 +362,15 @@ export interface CommitOptions {
    * mustn't push files the beat is half-way through writing.
    */
   leaseOnly?: boolean;
+  /**
+   * A beat is running in this process: the lease names the process, and a
+   * second run of the task on this machine is refused until it ends. A
+   * write that finishes a beat leaves it out, so an app that stays open
+   * after a quick action doesn't keep the task.
+   */
+  running?: boolean;
+  /** The process writing (default: this one). */
+  pid?: number;
 }
 
 /**
@@ -367,11 +395,13 @@ export async function commitTask(
     ))
   )
     throw new StoreError(`no task ${id} here (no ${TASKS_DIR}/${id}/card.yml)`);
+  const pid = options.pid ?? process.pid;
   const lease: Lease = {
     holder: options.holder,
     expires: new Date(
       now.getTime() + (options.release ? 0 : LEASE_MS),
     ).toISOString(),
+    ...(options.running && !options.release ? { pid } : {}),
   };
 
   const origin = await hasOrigin(repo);
@@ -389,6 +419,19 @@ export async function commitTask(
         Date.parse(held.expires) > now.getTime()
       )
         throw new LeaseError(id, held);
+      // Two runs of one task on one machine are the same holder: the live
+      // process that took the lease keeps it. Releasing stays open, so a
+      // person can free a task whose run they know is gone.
+      if (
+        held &&
+        held.holder === options.holder &&
+        !options.release &&
+        typeof held.pid === "number" &&
+        held.pid !== pid &&
+        Date.parse(held.expires) > now.getTime() &&
+        running(held.pid)
+      )
+        throw new LeaseError(id, held, true);
       // Taking a task over from whoever wrote it last: this machine's copy
       // has to be the branch's, or it would overwrite what they pushed.
       if (

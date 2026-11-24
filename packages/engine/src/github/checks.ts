@@ -14,6 +14,12 @@ export interface JudgeCheckParams {
   recordSha256: string;
   /** The ledger's chain head (the last entry's MAC) when the check is posted. */
   ledgerHash: string;
+  /**
+   * The judged head's tree (`git rev-parse <head>^{tree}`): a later head with
+   * the same tree, such as a merge commit that brings nothing new, carries the
+   * verdict.
+   */
+  tree?: string | undefined;
 }
 
 /**
@@ -54,6 +60,51 @@ export async function postJudgeCheck(
         "",
         `- Judge record sha256: \`${params.recordSha256}\``,
         `- Ledger hash: \`${params.ledgerHash}\``,
+        ...(params.tree ? [`- Tree: \`${params.tree}\``] : []),
+      ].join("\n"),
+    },
+  });
+  return created.html_url ?? null;
+}
+
+/**
+ * Carry a green `rivetari/judge` check from `from` to `head`, which the
+ * caller has checked has the identical tree: what the judge ran on is
+ * byte for byte what `head` holds, so CI may skip on it the same way. The
+ * new check says where it came from. Returns its URL, or null when `from`
+ * has no green check or `head` already has one.
+ */
+export async function carryJudgeCheck(
+  gh: GitHubClient,
+  params: { from: string; head: string; tree: string },
+): Promise<string | null> {
+  const { octokit, owner, repo } = gh;
+  const runs = async (ref: string) =>
+    (
+      await octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref,
+        check_name: JUDGE_CHECK_NAME,
+        per_page: 100,
+      })
+    ).data.check_runs.filter((c) => c.conclusion === "success");
+  const source = (await runs(params.from))[0];
+  if (!source || (await runs(params.head)).length > 0) return null;
+  const { data: created } = await octokit.rest.checks.create({
+    owner,
+    repo,
+    name: JUDGE_CHECK_NAME,
+    head_sha: params.head,
+    ...(source.external_id ? { external_id: source.external_id } : {}),
+    status: "completed",
+    conclusion: "success",
+    output: {
+      title: `${source.output.title ?? "Judge passed"} (carried: identical tree)`,
+      summary: [
+        `Carried from \`${params.from}\`: this commit's tree \`${params.tree}\` is identical to the judged one, so the judge's pass holds for it unchanged.`,
+        "",
+        source.output.summary ?? "",
       ].join("\n"),
     },
   });

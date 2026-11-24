@@ -62,6 +62,10 @@ export {
 } from "./task/tasks.js";
 export { checkTouches, TOUCHES_CAP } from "./task/touches.js";
 export {
+  profileConflicts,
+  type ProfileConflicts,
+} from "./task/profile-check.js";
+export {
   commitTask,
   type CommitOptions,
   holderName,
@@ -111,12 +115,15 @@ export {
   type Tier2Result,
 } from "./judge/tier2.js";
 export {
+  type CarriedVerdict,
+  type FindJudged,
   MAX_ROUNDS,
   reviewLocal,
   reviewPullRequest,
   type ReviewOutcome,
   roundVerdict,
   type ReviewVerdict,
+  treeOf,
 } from "./judge/review.js";
 export {
   type Assembly,
@@ -125,6 +132,7 @@ export {
   MAX_TASK_SKILLS,
   PROOF_TYPES,
   type ProofType,
+  reasonSummary,
   route,
   type RouteInput,
   type Routing,
@@ -140,6 +148,7 @@ export {
   routeTask,
   routingContext,
 } from "./router/task-route.js";
+export { lockShortfall, type LockShortfall } from "./router/lock-check.js";
 export { SECTOR_SIGNALS, SENSITIVE_PATHS } from "./router/signals.js";
 export {
   FIRST_PORT,
@@ -191,12 +200,15 @@ export {
 export {
   type AxeViolation,
   BREAKPOINTS,
+  breakpointFor,
   browserAvailable,
+  DEFAULT_WIDTHS,
   pageSlug,
   shoot,
   type Shot,
 } from "./proof/shoot.js";
 export {
+  findJudgedTree,
   type JudgeRecord,
   type JudgeRound,
   judgeTask,
@@ -279,6 +291,7 @@ export {
   AUTONOMY_DIR,
   type AutonomyEntry,
   autonomyEntries,
+  autonomyLedger,
   enforceFallback,
   ladder,
   type LadderNumbers,

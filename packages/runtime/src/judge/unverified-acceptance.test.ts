@@ -1,6 +1,5 @@
-// An acceptance criterion the reviewer couldn't verify: at review-at-pr and
-// above the judge stops for a person with the reason; at supervised it's
-// recorded for the person reviewing the PR.
+// An acceptance criterion the reviewer couldn't verify: at every autonomy
+// level the judge stops for a person with the reason.
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -252,15 +251,14 @@ describe("unverified acceptance", { timeout: 180_000 }, () => {
     );
   });
 
-  it("records it at supervised and lets the round pass", async () => {
+  it("stops at supervised too: an unverified criterion is never a pass", async () => {
     const { repo, id } = await approvedTask(null);
     const outcome = await runTask(repo, id, options(approving(UNVERIFIED)));
-    expect(outcome.ran.at(-1)).toBe("ship");
+    expect(outcome.ran.at(-1)).toBe("judge");
     const texts = (await loadTask(repo, id)).entries.map((e) => e.text);
     expect(texts).toContain(
-      "unverified acceptance, left to the person reviewing the PR (autonomy supervised): A2 (no test calls total with an empty list)",
+      "asked: unverified_acceptance: A2 (no test calls total with an empty list)",
     );
-    expect(texts.some((t) => t.startsWith("asked: "))).toBe(false);
   });
 
   it("stops on a proof record it can't read, and says so when there is none", async () => {

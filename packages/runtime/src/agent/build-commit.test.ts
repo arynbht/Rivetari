@@ -234,12 +234,15 @@ describe("build commits the round's work", () => {
     });
     expect(outcome.stops).toEqual([
       { trigger: "agent_question", detail: "Is left-pad acceptable here?" },
-      { trigger: "new_dependency", detail: "package.json adds left-pad" },
+      {
+        trigger: "new_dependency",
+        detail: "package.json adds left-pad@^1.3.0",
+      },
     ]);
     expect(outcome.commit).toBe(await head(worktree));
     expect(openStops(await loadTask(repo, id))).toEqual([
       "agent_question: Is left-pad acceptable here?",
-      "new_dependency: package.json adds left-pad",
+      "new_dependency: package.json adds left-pad@^1.3.0",
     ]);
   });
 });

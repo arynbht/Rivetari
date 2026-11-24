@@ -69,6 +69,9 @@ import {
   PostureDraftRequest,
   PostureDraftResult,
   PostureRequest,
+  ProjectDraftRequest,
+  ProjectRequest,
+  ProjectView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskDetail,
@@ -127,6 +130,9 @@ import {
 import { mainCi, nowHealth } from "./engine/now-health";
 import { readPosture } from "./engine/posture";
 import { draftPostureTask } from "./engine/posture-task";
+import { checkProject, readRecords } from "./engine/project";
+import { ProjectChecks } from "./engine/project-checks";
+import { draftProfileTask } from "./engine/project-task";
 import { taskDetail } from "./engine/task-detail";
 import { prState } from "./engine/task-pr";
 import {
@@ -336,15 +342,34 @@ function push(channel: string, schema: ZodType, payload: unknown): void {
     );
 }
 
+/**
+ * Each repo's Project view, checked against the repo again when it's opened,
+ * after a task in it merges, and once a day (see engine/project-checks).
+ */
+const projectChecks = new ProjectChecks({
+  check: (repoPath) => checkProject(repoPath),
+  records: readRecords,
+  views: (repoPath) => nowHub.views(repoPath),
+  onUpdate: (view) => push(IpcChannel.ProjectUpdate, ProjectView, view),
+  onError: (repoPath, err) =>
+    console.error(
+      `[main] couldn't check ${repoPath} against its profile: ${String(err)}`,
+    ),
+});
+
 /** Every sidebar repo's tasks, watched while the window is open (see engine/now). */
 const nowHub = new NowHub({
   onState: (state) => push(IpcChannel.NowUpdate, NowState, state),
   onBadges: (badges) => push(IpcChannel.NowBadgesUpdate, NowBadges, badges),
   onNew: notifyNeedsYou,
   onGone: withdrawNotice,
+  onMerged: (repoPath) => projectChecks.recheck(repoPath),
 });
 // The Tasks tab listens to the same watchers, so no repo is polled twice.
 shareHub(nowHub);
+
+/** How often held Project checks are looked at to see if a day has passed. */
+const PROJECT_DUE_EVERY_MS = 60 * 60 * 1000;
 
 /** Watch exactly these repos (the sidebar's list); a failure is said, not thrown. */
 function watchRepos(repos: { path: string }[]): void {
@@ -543,6 +568,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.ReposRemove, async (_event, raw: unknown) => {
     const { path } = RepoRemoveRequest.parse(raw);
     const repos = RepoList.parse(await removeRepo(path));
+    projectChecks.forget(path);
     watchRepos(repos);
     return repos;
   });
@@ -555,6 +581,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.NowSelect, async (_event, raw: unknown) => {
     const { repoPath } = NowSelectRequest.parse(raw);
     await nowHub.select(repoPath);
+    // Opening a repo is one of the times its profile is checked again.
+    if (repoPath !== null) projectChecks.recheck(repoPath);
   });
 
   ipcMain.handle(IpcChannel.NowBadges, () => NowBadges.parse(nowHub.badges()));
@@ -613,6 +641,21 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.PostureDraft, async (_event, raw: unknown) => {
     const { repoPath, draft } = PostureDraftRequest.parse(raw);
     return PostureDraftResult.parse(await draftPostureTask(repoPath, draft));
+  });
+
+  ipcMain.handle(IpcChannel.ProjectGet, async (_event, raw: unknown) => {
+    const { repoPath } = ProjectRequest.parse(raw);
+    return ProjectView.parse(await projectChecks.view(repoPath));
+  });
+
+  ipcMain.handle(IpcChannel.ProjectRefresh, async (_event, raw: unknown) => {
+    const { repoPath } = ProjectRequest.parse(raw);
+    return ProjectView.parse(await projectChecks.view(repoPath, true));
+  });
+
+  ipcMain.handle(IpcChannel.ProjectDraft, async (_event, raw: unknown) => {
+    const { repoPath, keys } = ProjectDraftRequest.parse(raw);
+    return PostureDraftResult.parse(await draftProfileTask(repoPath, keys));
   });
 
   ipcMain.handle(IpcChannel.FloorPlanGet, async (_event, raw: unknown) => {
@@ -938,6 +981,7 @@ app.whenReady().then(
 
     registerIpcHandlers();
     createWindow();
+    setInterval(() => projectChecks.due(), PROJECT_DUE_EVERY_MS);
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

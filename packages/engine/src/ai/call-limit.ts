@@ -35,6 +35,53 @@ export class CallTimeoutError extends Error {
   }
 }
 
+/** How much of a failed call's output its error keeps. */
+const DETAIL_CHARS = 800;
+
+/**
+ * A call that exited non-zero, with what it said. `claude -p --output-format
+ * json` reports its own failures as JSON on stdout and leaves stderr empty, so
+ * stderr alone made "claude exited with code 1" with nothing to go on.
+ */
+export class CallExitError extends Error {
+  readonly code: number | null;
+  readonly stderr: string;
+  readonly stdout: string;
+  /** What the call said about its failure: stderr, else stdout's result. */
+  readonly detail: string;
+  constructor(code: number | null, stderr: string, stdout: string) {
+    const detail = exitDetail(stderr, stdout);
+    super(
+      detail
+        ? `claude exited with code ${code}: ${detail}`
+        : `claude exited with code ${code} and printed nothing`,
+    );
+    this.name = "CallExitError";
+    this.code = code;
+    this.stderr = stderr;
+    this.stdout = stdout;
+    this.detail = detail;
+  }
+}
+
+function exitDetail(stderr: string, stdout: string): string {
+  const tail = (s: string) => {
+    const t = s.trim();
+    return t.length > DETAIL_CHARS ? `…${t.slice(-DETAIL_CHARS)}` : t;
+  };
+  if (stderr.trim()) return tail(stderr);
+  try {
+    const data = JSON.parse(stdout) as Record<string, unknown>;
+    const said = [data.subtype, data.result, data.error]
+      .filter((v): v is string => typeof v === "string" && v.length > 0)
+      .join(": ");
+    if (said) return tail(said);
+  } catch {
+    // not JSON: the raw tail says more than nothing
+  }
+  return tail(stdout);
+}
+
 /** A positive number of minutes from `name`, or `fallback` when unset or invalid. */
 export function minutesFromEnv(
   name: string,
@@ -192,9 +239,7 @@ export function spawnWithLimit(
       finish(() =>
         code === 0 || options.accept?.(stdout)
           ? resolve(stdout)
-          : reject(
-              new Error(stderr.trim() || `claude exited with code ${code}`),
-            ),
+          : reject(new CallExitError(code, stderr, stdout)),
       );
     });
     // A child that exits early closes stdin; its exit code says why, not EPIPE.

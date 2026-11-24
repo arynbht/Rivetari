@@ -1,0 +1,67 @@
+id: T-0014
+title: Fit the Compare page's Side by side table on phones
+type: fix
+source: prompt
+description: "On /cloud/trends/ at 375px the Side by side table is clipped.
+  T-0005 (#10) fixed the Measure buttons above it; the table is still broken on
+  main. src/app/cloud/trends/page.tsx:215-235 puts an 8-column table (Athlete,
+  Sessions, A week, Average score, Change, On target, Breathing rate, Weakest
+  part) in a .table-scroll, which is only overflow-x: auto
+  (src/app/globals.css:482-484), and .table th / .table td are white-space:
+  nowrap (globals.css:452-466). The table is 576px wide inside a 309px scroller.
+  Change is cut to 'Chang', the last three columns are hidden, nothing shows
+  that the table scrolls, and the scroller can't take keyboard focus
+  (screens/coach__cloud_trends__375.png; probe: table 576 / wrapper 309). The
+  <=640px block at src/app/cloud/console.css:2583-2597 only covers
+  .compare-controls .seg. The console already turns wide tables into cards on
+  phones: .roster at console.css:1150-1198 and .sessions at
+  console.css:2163-2211, both ending with .table-scroll:has(...) { overflow:
+  visible; }. Do the same for this table at <=640px: one card per athlete, each
+  value labelled with its column name. Above 640px the table stays as it is."
+acceptance:
+  - id: A1
+    text: at 375px on /cloud/trends/, document.documentElement.scrollWidth is 375,
+      and for every picked athlete the name and all seven values (Sessions, A
+      week, Average score, Change, On target, Breathing rate, Weakest part) are
+      fully visible inside the Side by side pane, each with its column name and
+      with no horizontal scrolling inside the pane
+    verify: screenshot
+  - id: A2
+    text: before and after screenshots at 768px and 1280px show the Side by side
+      table unchanged (8 columns, same headers, same values) and the CSV button
+      in the same place
+    verify: screenshot
+  - id: A3
+    text: in the phone layout every value still has its column name for screen
+      readers (the header cells stay in the DOM, or each value carries its label
+      as text), the athlete name is still the link to their Trends tab, and the
+      score keeps its word (Good, Fair) next to the dot
+    verify: review
+  - id: A4
+    text: axe reports 0 serious or critical violations on /cloud/trends/
+    verify: screenshot
+out_of_scope:
+  - The Measure and Period controls above the table (fixed by T-0005,
+  - The main nav scrolling sideways at 375px (S4 in 03-console-inventory.md)
+  - Making other .table-scroll wrappers focusable (B1-9) and chart text
+    alternatives, including a values table for the Compare chart (B1-10)
+  - Top bar layout (B1-8) and swapping console.css literals for tokens (B1-12)
+  - The CSV contents and src/lib/domain/csv.ts
+touches:
+  - src/app/cloud/trends/page.tsx
+  - src/app/cloud/console.css
+pages:
+  - /cloud/trends/
+constraints:
+  - no new dependencies
+  - no new code comments (quality.no-new-comments)
+  - do not modify existing tests; add new test files
+  - follow DESIGN.md; colours come from tokens in src/app/globals.css
+  - "static export only (output: export): no server actions, route handlers or
+    dynamic routes"
+  - "the new rules go in an existing @media (max-width: 640px) block of
+    console.css; no new breakpoint"
+  - the change only applies at 640px and below
+risk: low
+owner: dev@example.com
+created: 2026-11-24

@@ -90,6 +90,7 @@ export {
   prCiMinutes,
 } from "./github/actions.js";
 export {
+  carryJudgeCheck,
   JUDGE_CHECK_NAME,
   type JudgeCheckParams,
   postJudgeCheck,
@@ -144,12 +145,14 @@ export type {
   AiUsage,
   CompleteParams,
   CompleteResult,
+  Effort,
   TransportRequest,
 } from "./ai/client.js";
 export {
   claudeCliTransport,
   claudeCliAvailable,
   claudeCommand,
+  isTransientFailure,
   parseClaudeJson,
   type ClaudeCliOptions,
   type ClaudeRunner,
@@ -157,6 +160,7 @@ export {
 export {
   budgetSpent,
   CALL_TIMEOUT_ENV,
+  CallExitError,
   CallTimeoutError,
   callTimeoutMinutes,
   DEFAULT_CALL_TIMEOUT_MINUTES,
@@ -168,7 +172,11 @@ export {
 } from "./ai/call-limit.js";
 export { packContext } from "./ai/context.js";
 export type { PackedContext, PackContextOptions } from "./ai/context.js";
-export { isSensitivePath, looksLikeSecret } from "./ai/redact.js";
+export {
+  isEnvTemplate,
+  isSensitivePath,
+  looksLikeSecret,
+} from "./ai/redact.js";
 export {
   generateArtifact,
   loadPrompt,
@@ -210,6 +218,8 @@ export { planFeature } from "./orchestrate/plan.js";
 export type { PlanOptions } from "./orchestrate/plan.js";
 export { runBuild, BuildError } from "./orchestrate/build.js";
 export type { BuildOptions, GitOps } from "./orchestrate/build.js";
+export { inferProjectType } from "./project-type.js";
+export { type InferredFlag, inferFlags } from "./flags.js";
 export {
   inferPackageManager,
   type PackageManager,

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { confirm, isCancel } from "@clack/prompts";
+import { AiError } from "@arynbht/rivetari-engine";
 import { RegistryError } from "@arynbht/rivetari-registry";
 import {
   advanceTask,
@@ -34,8 +35,10 @@ import {
   parallelExitCode,
   parseAcceptanceFlag,
   parseCard,
+  profileConflicts,
   proveTask,
   pullTasks,
+  reasonSummary,
   repoAutonomy,
   reserveTaskId,
   routeTask,
@@ -62,6 +65,7 @@ export interface TaskNewFlags {
   risk?: string;
   source?: string;
   from?: string;
+  force?: boolean;
   path?: string;
 }
 
@@ -78,7 +82,9 @@ async function guarded(action: () => Promise<number>): Promise<number> {
       err instanceof TaskError ||
       err instanceof LedgerError ||
       err instanceof RegistryError ||
-      err instanceof StoreError
+      err instanceof StoreError ||
+      // A failed AI call says what went wrong; a stack trace adds nothing.
+      err instanceof AiError
     ) {
       console.error(`rivetari task: ${err.message}`);
       return 1;
@@ -131,7 +137,13 @@ async function onTask<T>(
   const by = await whoami(repo);
   const holder = holderName(by);
   if (!options.pulled) await pull(repo);
-  await commitTask(repo, id, { holder, message: `${id}: ${beat}` });
+  // The lease names this process while the beat runs, so a second run of
+  // the task on this machine is refused until this one ends.
+  await commitTask(repo, id, {
+    holder,
+    message: `${id}: ${beat}`,
+    running: true,
+  });
   // One write at a time: the heartbeat and the final push never overlap.
   let writes: Promise<unknown> = Promise.resolve();
   const heartbeat = setInterval(() => {
@@ -141,6 +153,7 @@ async function onTask<T>(
           holder,
           message: `${id}: ${beat} running`,
           leaseOnly: true,
+          running: true,
         }),
       )
       .catch(() => undefined);
@@ -240,10 +253,19 @@ export function runTaskNew(
       created: "2000-01-01",
     });
     await checkTouches(repo, card.touches);
+    // A criterion the profile rules out would cost a build round at the judge.
+    const conflicts = await profileConflicts(repo, card);
+    if (conflicts.refuse.length > 0 && !flags.force)
+      throw new CardError([
+        ...conflicts.refuse,
+        "(--force drafts it anyway, and the ledger says so)",
+      ]);
     const holder = holderName(by);
     const id = await reserveTaskId(repo, { holder });
-    const task = await newTask(repo, input, { by, id });
+    const task = await newTask(repo, input, { by, id, force: flags.force });
     await commitTask(repo, id, { holder, message: `${id}: drafted` });
+    for (const c of [...conflicts.refuse, ...conflicts.warn])
+      process.stderr.write(`rivetari task new: heads-up: ${c}\n`);
     if ((await autonomyFor(repo, task.card)) === "supervised") {
       process.stdout.write(
         `drafted ${task.card.id}: ${task.card.title}\n` +
@@ -393,7 +415,7 @@ export function runTaskRoute(
     const out: string[] = ["sectors:"];
     for (const s of routing.scores) {
       const mark = routing.assembly.sectors.includes(s.sector) ? "in" : "  ";
-      out.push(`  ${mark} ${s.sector} ${s.score}: ${s.reasons.join("; ")}`);
+      out.push(`  ${mark} ${s.sector} ${s.score}: ${reasonSummary(s.reasons)}`);
     }
     if (routing.borderline.length > 0)
       out.push(
@@ -583,14 +605,14 @@ export function runTaskShip(
   });
 }
 
-/** `rivetari task close <id> [--abandon "<why>"]`: record the outcome and seal the ledger. */
+/** `rivetari task close <id> [--abandon "<why>"] [--force]`: record the outcome and seal the ledger. */
 export function runTaskClose(
   id: string,
-  flags: { abandon?: string | boolean; path?: string },
+  flags: { abandon?: string | boolean; force?: boolean; path?: string },
 ): Promise<number> {
   return guarded(async () => {
     const repo = resolve(flags.path ?? ".");
-    const { row } = await onTask(
+    const { row, cleanup } = await onTask(
       repo,
       id,
       "close",
@@ -604,6 +626,7 @@ export function runTaskClose(
               : flags.abandon
                 ? ""
                 : undefined,
+          force: flags.force,
           // "Update the floorplan" when the profile keeps one.
           floorplan: () => floorplanOnMerge(repo),
         }),
@@ -620,6 +643,12 @@ export function runTaskClose(
     process.stdout.write(
       `${id} closed: ${row.outcome}${row.pr ? ` (PR #${row.pr})` : ""} · ${row.minutes} min · ${row.tokens} tokens · $${row.cost_usd.toFixed(2)}; ledger sealed\n`,
     );
+    // `gh pr merge --delete-branch` can't delete the local branch while the
+    // task's worktree holds it, so close is where that happens.
+    if (cleanup)
+      process.stdout.write(
+        `${cleanup}\n(close removes the task's worktree first, then deletes its local branch once the PR is merged; \`gh pr merge --delete-branch\` can't while the worktree holds it, so merge, then close)\n`,
+      );
     return 0;
   });
 }
@@ -635,7 +664,7 @@ export function runTaskRun(
 ): Promise<number> {
   return guarded(async () => {
     const repo = resolve(flags.path ?? ".");
-    let outcome;
+    let outcome: Awaited<ReturnType<typeof runTask>>;
     try {
       outcome = await onTask(repo, id, "run", async (by) =>
         runTask(repo, id, {
@@ -649,17 +678,35 @@ export function runTaskRun(
         }),
       );
     } catch (err) {
-      if (!(err instanceof BeatError)) throw err;
-      // The run's last word, so whatever launched it reads a failure, not
-      // a run that stopped quietly.
-      process.stdout.write(
-        `failed: ${err.message}\nnext: ${nextStep(await loadTask(repo, id))}\n`,
-      );
-      return 1;
+      if (err instanceof BeatError) {
+        // The run's last word, so whatever launched it reads a failure, not
+        // a run that stopped quietly.
+        process.stdout.write(
+          `failed: ${err.message}\nnext: ${nextStep(await loadTask(repo, id))}\n`,
+        );
+        return 1;
+      }
+      // A run that dies part-way still ends with where the task stands, so
+      // whoever (or whatever) started it knows what to run next.
+      process.stdout.write(`${await stoppedLine(repo, id, err)}\n`);
+      throw err;
     }
     process.stdout.write(`next: ${outcome.next}\n`);
     return outcome.ran.at(-1) === "ship" ? 0 : 2;
   });
+}
+
+/** The summary for a run an error stopped: what failed, and the step it left. */
+export async function stoppedLine(
+  repo: string,
+  id: string,
+  err: unknown,
+): Promise<string> {
+  const message = err instanceof Error ? err.message : String(err);
+  const next = await loadTask(repo, id)
+    .then((t) => nextStep(t))
+    .catch(() => "unknown (the task couldn't be read)");
+  return `run stopped: ${message.replace(/\s+/g, " ").slice(0, 600)}\nnext: ${next}`;
 }
 
 /** `--parallel`'s value, or null (said why) when it isn't a whole number from 1. */

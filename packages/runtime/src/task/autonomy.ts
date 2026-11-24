@@ -26,9 +26,15 @@ export async function autonomyFor(
   return card.risk === "high" ? "supervised" : repoAutonomy(repoPath);
 }
 
+/**
+ * Stops autonomy may flag for the PR instead of asking. A new dependency is
+ * never one: it's asked on its own, naming each package, so it can't ride on
+ * the allow a person gives another stop. A schema change is one only when it
+ * just adds optional fields or new types; removing, renaming or retyping
+ * anything, or adding what a reader must now supply, is always asked.
+ */
 export function isSoftStop(stop: Stop): boolean {
-  if (stop.trigger === "new_dependency") return stop.osi === true;
-  if (stop.trigger === "schema_change") return true;
+  if (stop.trigger === "schema_change") return stop.additive === true;
   return stop.trigger === "protected_path" && stop.reason === "existing-test";
 }
 

@@ -61,7 +61,7 @@ describe("a card whose touches are all Markdown", () => {
 
 describe("a card with other touches, or none", () => {
   it("routes ui in on the same wording when it also touches code", () => {
-    const { assembly } = routeFor(["docs/guide.md", "src/app/main.ts"]);
+    const { assembly } = routeFor(["docs/guide.md", "src/app/main.tsx"]);
     expect(assembly.sectors).toContain("ui");
     expect(assembly.sectors).toContain("a11y");
     expect(assembly.proof).toBe("ui-screenshots");

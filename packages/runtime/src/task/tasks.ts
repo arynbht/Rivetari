@@ -7,7 +7,13 @@ import { simpleGit } from "simple-git";
 
 import { parse, stringify } from "yaml";
 
-import { type Card, type CardInput, parseCard, TASK_ID } from "./card.js";
+import {
+  type Card,
+  CardError,
+  type CardInput,
+  parseCard,
+  TASK_ID,
+} from "./card.js";
 import {
   type Beat,
   BEATS,
@@ -21,6 +27,7 @@ import {
   intakeRiskNote,
   touchedPaths,
 } from "./risk.js";
+import { profileConflicts } from "./profile-check.js";
 import { checkTouches } from "./touches.js";
 
 export const TASKS_DIR = ".rivetari/tasks";
@@ -208,6 +215,8 @@ export async function newTask(
     now?: Date | undefined;
     /** An id reserved on the tasks branch; the next local one otherwise. */
     id?: string | undefined;
+    /** Draft a card whose criteria the profile rules out, saying so in the ledger. */
+    force?: boolean | undefined;
   },
 ): Promise<Task> {
   const now = options.now ?? new Date();
@@ -219,6 +228,9 @@ export async function newTask(
     created: now.toISOString().slice(0, 10),
   });
   await checkTouches(repoPath, drafted.touches);
+  const conflicts = await profileConflicts(repoPath, drafted);
+  if (conflicts.refuse.length > 0 && !options.force)
+    throw new CardError(conflicts.refuse);
   const declared = input.risk === undefined ? undefined : drafted.risk;
   const derived = deriveRisk({
     paths: await touchedPaths(repoPath, drafted.touches),
@@ -248,6 +260,19 @@ export async function newTask(
     by: options.by,
     at: now,
   });
+  for (const text of [
+    ...conflicts.refuse.map(
+      (c) => `drafted despite the profile (--force): ${c}`,
+    ),
+    ...conflicts.warn.map((c) => `heads-up: ${c}`),
+  ])
+    await ledger.append({
+      beat: "intake",
+      section: "decision",
+      text,
+      by: options.by,
+      at: now,
+    });
   return loadTask(repoPath, id);
 }
 
