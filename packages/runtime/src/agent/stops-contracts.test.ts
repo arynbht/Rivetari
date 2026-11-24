@@ -193,6 +193,37 @@ describe("the schema stop on contract files", () => {
     expect(stop?.additive).toBe(false);
   });
 
+  it("asks about a field moved between two types that were already there", async () => {
+    const { dir, from, to } = await change(
+      {
+        "src/types.ts":
+          "export interface User {\n  id: string;\n  name: string;\n}\n\nexport interface Team {\n  title: string;\n}\n",
+      },
+      {
+        "src/types.ts":
+          "export interface User {\n  id: string;\n}\n\nexport interface Team {\n  title: string;\n  name: string;\n}\n",
+      },
+    );
+    const [stop] = await findStops(dir, from, to, assembly, {
+      contracts: ["src/types.ts"],
+    });
+    expect(stop?.additive).toBe(false);
+    expect(stop?.detail).toContain("removes or changes `name: string;`");
+  });
+
+  it("reads a Prisma field called type as a field, not a new model", async () => {
+    const model = "model Event {\n  id Int @id\n}\n";
+    const { dir, from, to } = await change(
+      { "prisma/schema.prisma": model },
+      {
+        "prisma/schema.prisma": model.replace("@id\n", "@id\n  type String\n"),
+      },
+    );
+    const [stop] = await findStops(dir, from, to, assembly);
+    expect(stop?.additive).toBe(false);
+    expect(stop?.detail).toContain("adds `type String`, which isn't optional");
+  });
+
   it("asks about a field moved out of a type into a new one", async () => {
     const user = "export interface User {\n  id: string;\n  name: string;\n}\n";
     const { dir, from, to } = await change(

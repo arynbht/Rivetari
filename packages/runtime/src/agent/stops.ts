@@ -199,11 +199,19 @@ async function dependencyStops(
         try {
           return text === null ? EMPTY_LOCK() : lockfile(text);
         } catch {
-          return EMPTY_LOCK();
+          return null;
         }
       };
-      const before = await read(base, was);
+      const before = (await read(base, was)) ?? EMPTY_LOCK();
       const after = await read(head, entry.path);
+      // A lockfile that can't be read can't show it adds nothing.
+      if (after === null) {
+        stops.push({
+          trigger: "new_dependency",
+          detail: `${entry.path} changed, and couldn't be read`,
+        });
+        continue;
+      }
       const dir = posix.dirname(entry.path);
       const added: { name: string; version: string }[] = [];
       for (const [importer, declared] of after) {

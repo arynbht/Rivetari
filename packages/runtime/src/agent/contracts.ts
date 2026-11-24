@@ -104,6 +104,15 @@ const OPTIONAL: Record<Kind, (line: string) => boolean> = {
 const depth = (line: string) =>
   (line.match(/[{([]/g)?.length ?? 0) - (line.match(/[})\]]/g)?.length ?? 0);
 
+/**
+ * A declaration opens a block or is a one-line alias (`type X = …`, a
+ * GraphQL scalar, a one-line CREATE). The keyword alone isn't enough: a
+ * Prisma field can be called `type` or `model`.
+ */
+const opensDeclaration = (kind: Kind, t: string) =>
+  DECLARATION[kind].test(t) &&
+  (kind === "sql" || depth(t) > 0 || t.includes("=") || /^scalar\s/.test(t));
+
 const quoted = (line: string) => {
   const t = line.trim().replace(/\s+/g, " ");
   return `\`${t.length > 80 ? `${t.slice(0, 79)}…` : t}\``;
@@ -155,7 +164,7 @@ export function contractChange(
         inside += depth(t);
         return { line, fresh: true };
       }
-      if (kind && meaningful(line) && DECLARATION[kind].test(t)) {
+      if (kind && meaningful(line) && opensDeclaration(kind, t)) {
         inside = Math.max(0, depth(t));
         opened = line;
         return { line, fresh: true };
@@ -172,36 +181,38 @@ export function contractChange(
       );
     return marked;
   });
-  // A line removed in one place and added back in another only moved, unless
-  // it came back inside a new type: `name: string;` taken out of User and
-  // declared in a new Team is still gone from User.
-  const kept = new Set(
-    lines
-      .flat()
-      .flatMap(({ line, fresh }) =>
+  // A line the same hunk takes out and puts back (whitespace, a trailing
+  // comma) is unchanged. One that leaves a hunk and turns up elsewhere has
+  // moved between declarations, out of one type and into another, or into a
+  // new type, so it's a removal from the first and an addition to the second.
+  const same = hunks.map((hunk, i) => {
+    const kept = new Set(
+      (lines[i] ?? []).flatMap(({ line, fresh }) =>
         !fresh && meaningful(line) ? [normal(line)] : [],
       ),
+    );
+    const removed = new Set(hunk.removed.filter(meaningful).map(normal));
+    for (const line of hunk.removed.filter(meaningful))
+      if (!kept.has(normal(line)))
+        breaking.push(`removes or changes ${quoted(line)}`);
+    return removed;
+  });
+  const added = lines.flatMap((marked, i) =>
+    marked.filter(
+      ({ line, fresh }) =>
+        !fresh && meaningful(line) && !same[i]?.has(normal(line)),
+    ),
   );
-  const removedSet = new Set(
-    hunks.flatMap((h) => h.removed.filter(meaningful).map(normal)),
-  );
-  for (const line of hunks.flatMap((h) => h.removed.filter(meaningful)))
-    if (!kept.has(normal(line)))
-      breaking.push(`removes or changes ${quoted(line)}`);
   if (!kind) {
-    const first = hunks
-      .flatMap((h) => h.added)
-      .find((l) => meaningful(l) && !removedSet.has(normal(l)));
+    const first = added[0];
     if (first !== undefined)
       breaking.push(
-        `adds ${quoted(first)} to a file whose additions can't be told optional`,
+        `adds ${quoted(first.line)} to a file whose additions can't be told optional`,
       );
     return { path, breaking };
   }
-  for (const { line, fresh } of lines.flat()) {
-    if (fresh || !meaningful(line) || removedSet.has(normal(line))) continue;
+  for (const { line } of added)
     if (!OPTIONAL[kind](line.trim()))
       breaking.push(`adds ${quoted(line)}, which isn't optional`);
-  }
   return { path, breaking };
 }
