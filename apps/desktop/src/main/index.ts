@@ -72,6 +72,9 @@ import {
   ProjectDraftRequest,
   ProjectRequest,
   ProjectView,
+  HistoryOpenPrRequest,
+  HistoryRequest,
+  HistoryView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskDetail,
@@ -109,6 +112,7 @@ import {
 import { clearToken, loadToken, saveToken } from "./auth/token-store";
 import { readScorecard, runAudit } from "./engine/audit";
 import { getFloorPlan, runFloorPlan } from "./engine/floorplan";
+import { openHistoryPr, readHistory } from "./engine/history";
 import { listDocs, readDoc } from "./engine/docs";
 import { applyFix, openFixPrForRepo, planFix } from "./engine/fix";
 import { attachEvidence, computeGates, waiveControl } from "./engine/gates";
@@ -656,6 +660,21 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.ProjectDraft, async (_event, raw: unknown) => {
     const { repoPath, keys } = ProjectDraftRequest.parse(raw);
     return PostureDraftResult.parse(await draftProfileTask(repoPath, keys));
+  });
+
+  ipcMain.handle(IpcChannel.HistoryGet, async (_event, raw: unknown) => {
+    const { repoPath } = HistoryRequest.parse(raw);
+    return HistoryView.parse(await readHistory(repoPath));
+  });
+
+  ipcMain.handle(IpcChannel.HistoryOpenPr, async (_event, raw: unknown) => {
+    const { repoPath, id } = HistoryOpenPrRequest.parse(raw);
+    // As with tasks:openPr, the URL is the one the task's ledger records.
+    return TaskOpenPrResult.parse(
+      await openHistoryPr(repoPath, id, (url) =>
+        isE2E ? Promise.resolve() : shell.openExternal(url),
+      ),
+    );
   });
 
   ipcMain.handle(IpcChannel.FloorPlanGet, async (_event, raw: unknown) => {

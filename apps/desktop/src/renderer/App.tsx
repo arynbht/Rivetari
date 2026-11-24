@@ -13,6 +13,7 @@ import { Docs } from "@/components/Docs";
 import { Fix } from "@/components/Fix";
 import { FloorPlan } from "@/components/FloorPlan";
 import { Gates } from "@/components/Gates";
+import { History } from "@/components/History";
 import { Now } from "@/components/Now";
 import { Posture } from "@/components/Posture";
 import { Project } from "@/components/Project";
@@ -29,6 +30,7 @@ type View =
   | "now"
   | "posture"
   | "project"
+  | "history"
   | "scorecard"
   | "floorplan"
   | "profile"
@@ -43,6 +45,7 @@ const TABS: { id: View; label: string }[] = [
   { id: "now", label: "Now" },
   { id: "posture", label: "Posture" },
   { id: "project", label: "Project" },
+  { id: "history", label: "History" },
   { id: "scorecard", label: "Scorecard" },
   { id: "floorplan", label: "Floor Plan" },
   { id: "profile", label: "Profile" },
@@ -570,6 +573,26 @@ export function App() {
               >
                 {/* key checks the newly selected repo afresh. */}
                 <Project
+                  key={selectedRepo.path}
+                  repoPath={selectedRepo.path}
+                  onOpenTask={(id) => {
+                    setTasksFocus({ id, seq: ++focusSeq.current });
+                    showView("tasks");
+                  }}
+                />
+              </div>
+            )}
+
+            {opened.has("history") && (
+              <div
+                id="panel-history"
+                role="tabpanel"
+                aria-labelledby="tab-history"
+                tabIndex={0}
+                hidden={view !== "history"}
+              >
+                {/* key reads the newly selected repo's history afresh. */}
+                <History
                   key={selectedRepo.path}
                   repoPath={selectedRepo.path}
                   onOpenTask={(id) => {
