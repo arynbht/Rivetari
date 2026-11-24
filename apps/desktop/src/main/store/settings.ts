@@ -1,6 +1,10 @@
-// Personal settings (theme, default org, AI transport preference, update prefs).
-// Lives in `app.getPath('userData')`, never the repo, per the plan's state split.
-// The Anthropic API key is NOT kept here — see auth/anthropic-key-store.ts.
+// Personal settings (theme, AI transport preference, update prefs). Lives in
+// `app.getPath('userData')`, never the repo, per the plan's state split. The
+// Anthropic API key is NOT kept here — see auth/anthropic-key-store.ts.
+//
+// Older files may still carry `defaultOrg`, a setting nothing ever read. The
+// schema drops keys it doesn't know, so those files load as before and the key
+// is gone after the next save.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -11,7 +15,6 @@ import { Settings, type SettingsSaveRequest } from "../../shared/ipc";
 /** The defaults a fresh install starts from (and the fallback for a bad file). */
 const DEFAULTS: Settings = {
   theme: "dark",
-  defaultOrg: "",
   aiPreferApiKey: false,
   autoCheckUpdates: true,
 };
@@ -24,7 +27,6 @@ function storePath(): string {
 function merge(base: Settings, patch: SettingsSaveRequest): Settings {
   return {
     theme: patch.theme ?? base.theme,
-    defaultOrg: patch.defaultOrg ?? base.defaultOrg,
     aiPreferApiKey: patch.aiPreferApiKey ?? base.aiPreferApiKey,
     autoCheckUpdates: patch.autoCheckUpdates ?? base.autoCheckUpdates,
   };

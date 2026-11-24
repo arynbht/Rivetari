@@ -2,9 +2,17 @@
 // private repo's releases, so we query the GitHub Releases API with the user's
 // token and report whether a newer release exists. Pure: `fetch` is injectable so
 // the version comparison is unit-tested without the network.
+//
+// Rivetari's release repo also carries the CLI's releases (v2.0.0 and so on),
+// which have no desktop download, so the app passes a tag prefix and only
+// releases tagged `desktop-v*` count. Until one is published there is nothing to
+// update to.
 import type { UpdateInfo } from "../../shared/ipc";
 
 const GITHUB_API = "https://api.github.com";
+
+/** The tag prefix desktop releases are published under. */
+export const DESKTOP_TAG_PREFIX = "desktop-v";
 
 export interface UpdateCheckDeps {
   fetch: typeof globalThis.fetch;
@@ -14,6 +22,12 @@ export interface UpdateCheckDeps {
   repo: string;
   /** GitHub token; private release repos require it. */
   token: string | undefined;
+  /**
+   * Only releases whose tag starts with this count, and the version is the rest
+   * of the tag. Without it the repo's latest release is taken, which suits a
+   * repo that releases nothing but the desktop app.
+   */
+  tagPrefix?: string;
 }
 
 interface Release {
@@ -51,6 +65,28 @@ export function isNewer(latest: string, current: string): boolean {
   return false;
 }
 
+/**
+ * The newest published release in a releases listing whose tag starts with
+ * `prefix`, with the prefix stripped from its version. Drafts and prereleases
+ * never count. Null when there is none.
+ */
+export function latestTaggedRelease(
+  releases: unknown[],
+  prefix: string,
+): { version: string; release: Release } | null {
+  let best: { version: string; release: Release } | null = null;
+  for (const item of releases) {
+    if (!item || typeof item !== "object") continue;
+    const release = item as Release;
+    if (release.draft === true || release.prerelease === true) continue;
+    const tag = typeof release.tag_name === "string" ? release.tag_name : "";
+    if (!tag.startsWith(prefix)) continue;
+    const version = tag.slice(prefix.length);
+    if (!best || isNewer(version, best.version)) best = { version, release };
+  }
+  return best;
+}
+
 export async function checkForUpdate(
   deps: UpdateCheckDeps,
 ): Promise<UpdateInfo> {
@@ -68,8 +104,13 @@ export async function checkForUpdate(
   };
   if (deps.token) headers.Authorization = `Bearer ${deps.token}`;
 
+  // `releases/latest` is whatever the repo released last, so with a prefix the
+  // releases are listed and filtered instead. A page of 100 reaches back far
+  // enough for this repo.
   const res = await deps.fetch(
-    `${GITHUB_API}/repos/${deps.repo}/releases/latest`,
+    deps.tagPrefix === undefined
+      ? `${GITHUB_API}/repos/${deps.repo}/releases/latest`
+      : `${GITHUB_API}/repos/${deps.repo}/releases?per_page=100`,
     { headers },
   );
 
@@ -83,17 +124,29 @@ export async function checkForUpdate(
     );
   }
 
-  const data = (await res.json()) as Release;
-  if (data.draft === true) return base;
-  const tag = typeof data.tag_name === "string" ? data.tag_name : null;
-  if (!tag) return base;
+  let version: string;
+  let release: Release;
+  if (deps.tagPrefix === undefined) {
+    release = (await res.json()) as Release;
+    if (release.draft === true) return base;
+    if (typeof release.tag_name !== "string" || !release.tag_name) return base;
+    version = release.tag_name;
+  } else {
+    const data: unknown = await res.json();
+    const latest = latestTaggedRelease(
+      Array.isArray(data) ? data : [],
+      deps.tagPrefix,
+    );
+    if (!latest) return base;
+    ({ version, release } = latest);
+  }
 
   return {
     currentVersion: deps.currentVersion,
-    latestVersion: tag,
-    updateAvailable: isNewer(tag, deps.currentVersion),
-    url: typeof data.html_url === "string" ? data.html_url : null,
+    latestVersion: version,
+    updateAvailable: isNewer(version, deps.currentVersion),
+    url: typeof release.html_url === "string" ? release.html_url : null,
     publishedAt:
-      typeof data.published_at === "string" ? data.published_at : null,
+      typeof release.published_at === "string" ? release.published_at : null,
   };
 }

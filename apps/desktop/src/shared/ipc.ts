@@ -12,6 +12,7 @@ export const IpcChannel = {
   ReposAdd: "repos:add",
   ReposRemove: "repos:remove",
   AuditRun: "audit:run",
+  AuditRecorded: "audit:recorded",
   AuthStatus: "auth:status",
   AuthSignIn: "auth:signIn",
   AuthSignOut: "auth:signOut",
@@ -125,15 +126,17 @@ export const ScorecardLane = z.object({
 });
 export type ScorecardLane = z.infer<typeof ScorecardLane>;
 
+/** The audit recorded in `.rivetari/state.json`, shaped as lanes. */
 export const Scorecard = z.object({
   repoPath: z.string(),
-  /** ISO timestamp the audit was produced. */
-  generatedAt: z.string(),
+  /** ISO timestamp the audit was recorded; null if state.json doesn't say. */
+  generatedAt: z.string().nullable(),
   totals: StatusCounts.extend({ total: z.number().int() }),
   lanes: z.array(ScorecardLane),
 });
 export type Scorecard = z.infer<typeof Scorecard>;
 
+/** audit:run and audit:recorded both name just the repo. */
 export const AuditRunRequest = z.object({ repoPath: z.string().min(1) });
 export type AuditRunRequest = z.infer<typeof AuditRunRequest>;
 
@@ -205,13 +208,18 @@ export const GatePhase = z.object({
   phase: z.string(),
   title: z.string(),
   status: GateStatus.nullable(),
+  /** The lowest phase whose gate isn't green, worked out from the controls. */
   inferred: z.boolean(),
+  /** The phase the profile declares: the repo's current phase. */
+  declared: z.boolean(),
   blockers: z.array(GateBlocker),
 });
 export type GatePhase = z.infer<typeof GatePhase>;
 
 export const GatesReport = z.object({
   repoPath: z.string(),
+  /** profile.yml's `phase`, or null when the profile doesn't declare one. */
+  declaredPhase: z.string().nullable(),
   inferredPhase: z.string().nullable(),
   phases: z.array(GatePhase),
 });
@@ -581,8 +589,6 @@ export type Theme = z.infer<typeof Theme>;
 export const Settings = z.object({
   /** UI theme; "system" follows the OS preference. */
   theme: Theme,
-  /** Default GitHub org, prefilled where an owner is needed. */
-  defaultOrg: z.string(),
   /** Force the metered Anthropic API over the Claude CLI for AI tasks. */
   aiPreferApiKey: z.boolean(),
   /** Check for a newer release on launch. */

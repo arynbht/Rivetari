@@ -42,7 +42,7 @@ export async function computeGates(
   const results = await evaluateControls(selected, ctx, { profile, waivers });
 
   const gateByPhase = new Map(gates.map((g) => [g.phase, g]));
-  const phases: Omit<GatePhase, "inferred">[] = PHASES.map((p) => {
+  const phases: Omit<GatePhase, "inferred" | "declared">[] = PHASES.map((p) => {
     const gate = gateByPhase.get(p.key);
     const evaluated = gate ? evaluateGate(gate, results) : null;
     // A gate that selects no controls is "undefined for this profile", not a
@@ -66,11 +66,20 @@ export async function computeGates(
   const anyDefined = phases.some((p) => p.status);
   const lastPhase = PHASES[PHASES.length - 1]?.key ?? null;
   const inferredPhase = firstBlocked?.phase ?? (anyDefined ? lastPhase : null);
+  // The profile's phase is the one the repo is in; the inferred one is shown
+  // beside it, labelled as such, rather than in its place.
+  const declaredPhase =
+    PHASES.find((p) => p.key === profile?.phase)?.key ?? null;
 
   return {
     repoPath,
+    declaredPhase,
     inferredPhase,
-    phases: phases.map((p) => ({ ...p, inferred: p.phase === inferredPhase })),
+    phases: phases.map((p) => ({
+      ...p,
+      inferred: p.phase === inferredPhase,
+      declared: p.phase === declaredPhase,
+    })),
   };
 }
 

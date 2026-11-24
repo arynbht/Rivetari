@@ -173,12 +173,12 @@ function PhaseCard({
   onWaive: (control: string, reason: string, expires: string) => Promise<void>;
   onEvidence: (control: string, url: string, note: string) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(phase.inferred);
+  const [open, setOpen] = useState(phase.declared || phase.inferred);
   const dot = phase.status ? GATE_DOT[phase.status] : "bg-slate-600";
   const hasBlockers = phase.blockers.length > 0;
 
   return (
-    <Card className={phase.inferred ? "ring-1 ring-sky-500/60" : ""}>
+    <Card className={phase.declared ? "ring-1 ring-sky-500/60" : ""}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -200,9 +200,14 @@ function PhaseCard({
           aria-hidden
         />
         <span className="flex-1 font-medium capitalize">{phase.title}</span>
-        {phase.inferred && (
+        {phase.declared && (
           <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs text-sky-300">
-            inferred phase
+            current phase
+          </span>
+        )}
+        {phase.inferred && (
+          <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+            inferred from controls
           </span>
         )}
         <span className="text-xs text-muted-foreground">
@@ -282,15 +287,32 @@ export function Gates({ repoPath }: { repoPath: string }) {
     return <p className="text-sm text-muted-foreground">Evaluating gates…</p>;
   }
 
+  const phaseTitle = (key: string): string =>
+    report.phases.find((p) => p.phase === key)?.title ?? key;
+
   return (
     <div className="space-y-3">
       <div>
         <h2 className="text-lg font-semibold">Gates</h2>
+        <p className="text-sm text-muted-foreground">
+          Current phase:{" "}
+          {report.declaredPhase ? (
+            <>
+              <span className="capitalize text-foreground">
+                {phaseTitle(report.declaredPhase)}
+              </span>{" "}
+              (declared in the profile)
+            </>
+          ) : (
+            "not declared in the profile"
+          )}
+        </p>
         <p className="text-xs text-muted-foreground">
-          Inferred phase:{" "}
+          Inferred from controls:{" "}
           <span className="capitalize text-foreground">
-            {report.inferredPhase ?? "—"}
-          </span>
+            {report.inferredPhase ? phaseTitle(report.inferredPhase) : "—"}
+          </span>{" "}
+          (the earliest phase whose gate isn&apos;t green)
         </p>
       </div>
       {report.phases.map((phase) => (

@@ -72,7 +72,6 @@ export function Settings({
   const [view, setView] = useState<SettingsView | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [org, setOrg] = useState("");
   const [keyInput, setKeyInput] = useState("");
   const [savingKey, setSavingKey] = useState(false);
 
@@ -83,11 +82,7 @@ export function Settings({
   useEffect(() => {
     let active = true;
     window.rivetari.settings.load().then(
-      (v) => {
-        if (!active) return;
-        setView(v);
-        setOrg(v.defaultOrg);
-      },
+      (v) => active && setView(v),
       (err: unknown) => active && setError(errorMessage(err)),
     );
     return () => {
@@ -186,22 +181,6 @@ export function Settings({
             <option value="dark">Dark</option>
           </select>
         </Field>
-        <Field
-          label="Default GitHub org"
-          htmlFor="setting-org"
-          hint="Prefilled where an owner is needed."
-        >
-          <input
-            id="setting-org"
-            className={inputClass}
-            value={org}
-            placeholder="my-org"
-            onChange={(e) => setOrg(e.target.value)}
-            onBlur={() => {
-              if (org !== view.defaultOrg) void patch({ defaultOrg: org });
-            }}
-          />
-        </Field>
       </Card>
 
       <Card className="space-y-3 p-4">
@@ -275,17 +254,25 @@ export function Settings({
             )}
             Check for updates
           </Button>
-          {update && !update.updateAvailable && (
+          {update && !update.updateAvailable && update.latestVersion && (
             <span className="flex items-center gap-1 text-sm text-emerald-400">
               <Check className="h-4 w-4" />
               Up to date (v{update.currentVersion.replace(/^v/, "")})
             </span>
           )}
+          {/* No desktop release has been published, so there's nothing to
+              compare with; "up to date" would claim more than we know. */}
+          {update && update.latestVersion === null && (
+            <span className="text-sm text-muted-foreground" role="status">
+              No desktop release yet (you have v
+              {update.currentVersion.replace(/^v/, "")}).
+            </span>
+          )}
         </div>
         {update?.updateAvailable && (
           <p className="text-sm text-sky-400">
-            Update available: {update.latestVersion} (you have v
-            {update.currentVersion.replace(/^v/, "")}).{" "}
+            Update available: v{update.latestVersion?.replace(/^v/, "")} (you
+            have v{update.currentVersion.replace(/^v/, "")}).{" "}
             {update.url && (
               <a
                 href={update.url}
@@ -296,11 +283,6 @@ export function Settings({
                 Download
               </a>
             )}
-          </p>
-        )}
-        {update && !update.updateAvailable && update.latestVersion === null && (
-          <p className="text-sm text-muted-foreground">
-            No published release found.
           </p>
         )}
         {updateError && (

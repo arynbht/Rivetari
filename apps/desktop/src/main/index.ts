@@ -75,7 +75,7 @@ import {
   runAiTask,
 } from "./engine/ai";
 import { clearToken, loadToken, saveToken } from "./auth/token-store";
-import { runAudit } from "./engine/audit";
+import { readScorecard, runAudit } from "./engine/audit";
 import { getFloorPlan, runFloorPlan } from "./engine/floorplan";
 import { listDocs, readDoc } from "./engine/docs";
 import { applyFix, openFixPrForRepo, planFix } from "./engine/fix";
@@ -97,7 +97,7 @@ import {
 } from "./engine/tasks";
 import { addRepo, listRepos, removeRepo } from "./store/repos";
 import { loadSettings, saveSettings } from "./store/settings";
-import { checkForUpdate } from "./update/check";
+import { checkForUpdate, DESKTOP_TAG_PREFIX } from "./update/check";
 
 /** Enum lists that drive the renderer's Profile form (keeps the catalog out of it). */
 function buildProfileMeta(): ProfileMeta {
@@ -398,6 +398,11 @@ function registerIpcHandlers(): void {
     return Scorecard.parse(await runAudit(repoPath, token));
   });
 
+  ipcMain.handle(IpcChannel.AuditRecorded, async (_event, raw: unknown) => {
+    const { repoPath } = AuditRunRequest.parse(raw);
+    return Scorecard.nullable().parse(await readScorecard(repoPath));
+  });
+
   ipcMain.handle(IpcChannel.FloorPlanGet, async (_event, raw: unknown) => {
     const { repoPath } = FloorPlanGetRequest.parse(raw);
     return FloorPlanView.parse(await getFloorPlan(repoPath));
@@ -405,7 +410,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannel.FloorPlanRun, async (_event, raw: unknown) => {
     const { repoPath } = FloorPlanRunRequest.parse(raw);
-    // Supersede any swarm already running (e.g. a second Run audit click).
+    // Supersede any swarm already running (e.g. a second confirmed refresh).
     floorPlanAbort?.abort();
     const controller = new AbortController();
     floorPlanAbort = controller;
@@ -673,6 +678,7 @@ function registerIpcHandlers(): void {
       currentVersion: app.getVersion(),
       repo: UPDATE_REPO,
       token: (await loadToken()) ?? undefined,
+      tagPrefix: DESKTOP_TAG_PREFIX,
     });
     return UpdateInfo.parse(info);
   });

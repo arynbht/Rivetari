@@ -86,6 +86,16 @@ const api = {
   },
 
   audit: {
+    /** The audit recorded in .rivetari/state.json, or null when there's none. */
+    async recorded(repoPath: string) {
+      const request = AuditRunRequest.parse({ repoPath });
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.AuditRecorded,
+        request,
+      );
+      return Scorecard.nullable().parse(raw);
+    },
+    /** Run the audit as `rivetari audit` does, record it, and return it. */
     async run(repoPath: string) {
       const request = AuditRunRequest.parse({ repoPath });
       const raw: unknown = await ipcRenderer.invoke(
