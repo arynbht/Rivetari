@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { installDeps } from "@arynbht/rivetari-engine";
 import { loadManifests } from "@arynbht/rivetari-registry";
 import { simpleGit } from "simple-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -213,6 +214,11 @@ describe("runTask", { timeout: 180_000 }, () => {
 
   it("a round that changes nothing after a failed proof ends the run with the agent's question", async () => {
     const { repo, id } = await approvedTask();
+    // A committed lockfile, as a real repo has, so the proof's install leaves
+    // nothing for the next round to commit.
+    await installDeps(repo);
+    await simpleGit(repo).add(["package-lock.json"]);
+    await simpleGit(repo).commit("lockfile", ["--no-verify"]);
     let builds = 0;
     const question =
       "The proof fails on a stray package.json outside the worktree. Can someone move it, then run again?";
@@ -240,7 +246,7 @@ describe("runTask", { timeout: 180_000 }, () => {
     ).toHaveLength(1);
   });
 
-  it("an agent that ends with RIVETARI_STOP stops the run before anything is committed or proved", async () => {
+  it("an agent that ends with RIVETARI_STOP commits its work and stops the run before anything is proved", async () => {
     const { repo, id } = await approvedTask();
     const calls: AgentCall[] = [];
     let worktree = "";
@@ -262,9 +268,12 @@ describe("runTask", { timeout: 180_000 }, () => {
       "asked: agent_question: Should total([]) return 0 or throw?",
     );
     const wt = simpleGit(worktree);
-    expect((await wt.revparse(["HEAD"])).trim()).toBe(
-      (await wt.revparse(["main"])).trim(),
-    );
+    expect(
+      (await wt.raw(["diff", "--name-only", "main", "HEAD"]))
+        .split("\n")
+        .filter(Boolean)
+        .sort(),
+    ).toEqual(["src/total.js", "src/total.test.js"]);
     expect(calls[1]?.system).toContain("RIVETARI_STOP: <your question>");
     expect(calls[1]?.prompt).toContain("RIVETARI_STOP: <your question>");
   });
