@@ -62,6 +62,7 @@ import {
   NowHealth,
   NowJudge,
   NowRepoRequest,
+  HomeView,
   NowSelectRequest,
   NowState,
   NowTaskRequest,
@@ -113,6 +114,7 @@ import { clearToken, loadToken, saveToken } from "./auth/token-store";
 import { readScorecard, runAudit } from "./engine/audit";
 import { getFloorPlan, runFloorPlan } from "./engine/floorplan";
 import { openHistoryPr, readHistory } from "./engine/history";
+import { defaultHomeDeps, readHome } from "./engine/home";
 import { listDocs, readDoc } from "./engine/docs";
 import { applyFix, openFixPrForRepo, planFix } from "./engine/fix";
 import { attachEvidence, computeGates, waiveControl } from "./engine/gates";
@@ -586,6 +588,19 @@ function registerIpcHandlers(): void {
     watchRepos(repos);
     return repos;
   });
+
+  ipcMain.handle(IpcChannel.HomeGet, async () =>
+    // The sidebar's own list, never a path the renderer sends.
+    HomeView.parse(
+      await readHome(
+        defaultHomeDeps({
+          listRepos,
+          state: (repoPath) => nowHub.state(repoPath),
+          views: (repoPath) => nowHub.views(repoPath),
+        }),
+      ),
+    ),
+  );
 
   ipcMain.handle(IpcChannel.NowGet, async (_event, raw: unknown) => {
     const { repoPath: asked } = NowRepoRequest.parse(raw);
