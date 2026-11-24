@@ -111,12 +111,15 @@ export {
   type Tier2Result,
 } from "./judge/tier2.js";
 export {
+  type CarriedVerdict,
+  type FindJudged,
   MAX_ROUNDS,
   reviewLocal,
   reviewPullRequest,
   type ReviewOutcome,
   roundVerdict,
   type ReviewVerdict,
+  treeOf,
 } from "./judge/review.js";
 export {
   type Assembly,
@@ -190,6 +193,7 @@ export {
   type Shot,
 } from "./proof/shoot.js";
 export {
+  findJudgedTree,
   type JudgeRecord,
   type JudgeRound,
   judgeTask,

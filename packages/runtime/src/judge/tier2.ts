@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import {
   type AiClient,
   appendUsage,
+  type Effort,
   estimateCost,
   isSensitivePath,
   looksLikeSecret,
@@ -29,6 +30,11 @@ import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
 import { bannedSection, loadBanned } from "./banned.js";
 import { isTestFile, parseNameStatus } from "./protected.js";
+import {
+  type Tier1Checks,
+  tier1Section,
+  tier1Status,
+} from "./tier1-criteria.js";
 
 export const BLOCKING_KINDS = ["defect", "contract", "acceptance"] as const;
 export const FINDING_KINDS = [...BLOCKING_KINDS, "suggestion"] as const;
@@ -36,8 +42,23 @@ export type FindingKind = (typeof FINDING_KINDS)[number];
 
 /** Default judge model, deliberately not the drafting default (independence). */
 export const JUDGE_DEFAULT_MODEL = "claude-opus-5-5";
-/** Max characters of diff packed into the prompt (~35k tokens). */
+/** Max characters of diff packed into the prompt (~100k tokens). */
 const DIFF_BUDGET = 400_000;
+/**
+ * A test file's diff past this many characters is sent as its first part and
+ * the names of the tests in the rest. Large test diffs are mostly fixtures and
+ * golden rows; the review needs their shape and what they assert, not every
+ * row, and a criterion they leave unshown comes back unverified for a person.
+ */
+export const TEST_FILE_CAP = 12_000;
+/** Test diff sent in full across all files before every further one is cut too. */
+export const TEST_TOTAL_CAP = 60_000;
+/**
+ * The diff a finding with no file is checked against. The gate re-reads the
+ * whole change otherwise, once per finding, which multiplied a big review's
+ * cost by its findings.
+ */
+export const GATE_DIFF_CAP = 60_000;
 
 /** Machine-written files: reviewing them wastes the budget and finds nothing. */
 const GENERATED = picomatch(
@@ -163,7 +184,10 @@ const GateSchema = z.object({
 export interface PackedChange {
   diff: string;
   files: string[];
-  omitted: { path: string; why: string }[];
+  /** `stats` is the file's added and removed line counts, when git has them. */
+  omitted: { path: string; why: string; stats?: string | undefined }[];
+  /** Test files sent only in part, and how much of each was left out. */
+  trimmed?: { path: string; note: string }[] | undefined;
   /** New-side line numbers that appear in the diff, per file (for inline comments). */
   lines: Map<string, Set<number>>;
   agents: string | null;
@@ -193,7 +217,15 @@ export interface Tier2Result {
    * any can't be approved by the judge: a person looks at them.
    */
   unreviewed: string[];
+  /**
+   * The card's criteria nobody confirmed: marked unverified, or not reported
+   * at all. Set when there's a card; a change with any can't be approved
+   * without a person.
+   */
+  unverified?: { id: string; note: string }[] | undefined;
   model: string;
+  /** The effort the review ran at, when one was set. */
+  effort?: Effort | undefined;
   calls: number;
   /** Tokens and estimated cost across every call. */
   usage: { tokens: number; costUsd: number };
@@ -224,9 +256,30 @@ export interface Tier2Options {
   decisions?: readonly AllowedDecision[] | undefined;
   /** The task's proof record, so criteria can be checked against it. */
   proof?: ReviewProof | undefined;
+  /** Tier 1's checks on the same change, this round: shown, and settling criteria about them. */
+  tier1?: Tier1Checks | undefined;
+  /** How hard the reviewer thinks (the CLI's `--effort`); its default when unset. */
+  effort?: Effort | undefined;
   /** YYYY-MM-DD for the usage log; no log when omitted. */
   usageDate?: string | undefined;
   log?: ((line: string) => void) | undefined;
+}
+
+/**
+ * The card's criteria the reviewer didn't confirm: marked unverified, or not
+ * reported at all (silence isn't a verification).
+ */
+export function unverifiedCriteria(
+  card: Pick<Card, "acceptance">,
+  acceptance: Tier2Result["acceptance"],
+): { id: string; note: string }[] {
+  return card.acceptance.flatMap((c) => {
+    const a = acceptance.find((r) => r.id === c.id);
+    if (!a) return [{ id: c.id, note: "the reviewer didn't report on it" }];
+    return a.status === "unverified"
+      ? [{ id: c.id, note: a.note || "no reason given" }]
+      : [];
+  });
 }
 
 function decisionsSection(
@@ -282,16 +335,25 @@ export async function packChange(
     )
     .map(({ entry }) => entry);
   const omitted: PackedChange["omitted"] = [];
+  const trimmed: NonNullable<PackedChange["trimmed"]> = [];
   const files: string[] = [];
   const lines = new Map<string, Set<number>>();
   let diff = "";
+  let testChars = 0;
   for (const entry of entries) {
     if (isSensitivePath(entry.path)) {
       omitted.push({ path: entry.path, why: "sensitive path" });
       continue;
     }
     if (generated.has(entry.path)) {
-      omitted.push({ path: entry.path, why: "generated" });
+      // Counts, not text: a lockfile's churn says how big a dependency change
+      // is without spending the budget on it.
+      const stats = await numstat(git, base, head, entry.path);
+      omitted.push({
+        path: entry.path,
+        why: "generated",
+        ...(stats ? { stats } : {}),
+      });
       continue;
     }
     const fileDiff = await git.raw([
@@ -318,19 +380,33 @@ export async function packChange(
       omitted.push({ path: entry.path, why: "looks like it holds a secret" });
       continue;
     }
-    if (diff.length + fileDiff.length > DIFF_BUDGET) {
+    let sent = fileDiff;
+    if (isTestFile(entry.path)) {
+      const allowance = Math.max(
+        TEST_FILE_CAP / 6,
+        Math.min(TEST_FILE_CAP, TEST_TOTAL_CAP - testChars),
+      );
+      if (fileDiff.length > allowance) {
+        const cut = trimTestDiff(fileDiff, allowance);
+        sent = cut.diff;
+        trimmed.push({ path: entry.path, note: cut.note });
+      }
+      testChars += sent.length;
+    }
+    if (diff.length + sent.length > DIFF_BUDGET) {
       omitted.push({ path: entry.path, why: "over the review's size budget" });
       continue;
     }
-    diff += fileDiff;
+    diff += sent;
     files.push(entry.path);
-    lines.set(entry.path, newSideLines(fileDiff));
+    lines.set(entry.path, newSideLines(sent));
   }
   const docs = files.filter((f) => MARKDOWN.test(f));
   return {
     diff,
     files,
     omitted,
+    ...(trimmed.length > 0 ? { trimmed } : {}),
     lines,
     agents: await showAt(git, base, "AGENTS.md"),
     constraints: await showAt(git, base, "CONSTRAINTS.md"),
@@ -339,6 +415,47 @@ export async function packChange(
       ? { cited: await citedFiles(git, head, docs, diff) }
       : {}),
   };
+}
+
+/** A file's "+added −removed" from git, or null when git can't count it. */
+async function numstat(
+  git: SimpleGit,
+  base: string,
+  head: string,
+  path: string,
+): Promise<string | null> {
+  const out = await git
+    .raw(["diff", "--numstat", "--no-renames", base, head, "--", path])
+    .catch(() => "");
+  const m = /^(\d+)\t(\d+)\t/.exec(out);
+  return m ? `+${m[1]} −${m[2]} lines` : null;
+}
+
+const TEST_NAME = /\b(?:it|test|describe)(?:\.\w+)?\(\s*(["'`])(.+?)\1/;
+/** How many cut-off test names the note lists. */
+const MAX_TEST_NAMES = 40;
+
+/**
+ * A test file's diff cut at a line boundary near `allowance` characters, and
+ * a note naming the tests in the part left out, so the reviewer knows what
+ * exists even where it can't read the body.
+ */
+export function trimTestDiff(
+  fileDiff: string,
+  allowance: number,
+): { diff: string; note: string } {
+  const end = fileDiff.lastIndexOf("\n", allowance);
+  const kept = fileDiff.slice(0, end > 0 ? end + 1 : allowance);
+  const rest = fileDiff.slice(kept.length).split("\n").filter(Boolean);
+  const names = rest
+    .filter((l) => l.startsWith("+"))
+    .flatMap((l) => {
+      const name = TEST_NAME.exec(l)?.[2];
+      return name ? [name] : [];
+    });
+  const shown = names.slice(0, MAX_TEST_NAMES);
+  const note = `first ${kept.length} of ${fileDiff.length} characters; ${rest.length} more line(s) not shown${shown.length > 0 ? `; tests in them: ${shown.map((n) => JSON.stringify(n)).join(", ")}${names.length > shown.length ? ` and ${names.length - shown.length} more` : ""}` : ""}`;
+  return { diff: `${kept}… (trimmed: ${note})\n`, note };
 }
 
 const MARKDOWN = /\.(md|mdx)$/i;
@@ -448,7 +565,7 @@ const GATE = `You are checking one code-review finding before it can block a mer
 
 Decide whether the finding is real and reproducible in THIS diff, and how. It is reproducible only if you can name concrete inputs, state or steps that trigger the problem given the code shown. Style, preference and speculative concerns are not reproducible.
 
-A contract finding must break a rule quoted from the contract given below; an acceptance finding must leave a criterion given below unmet. A rule or criterion that isn't in the text given doesn't exist.
+A contract finding must break a rule quoted from the contract given below; a rule that isn't in the text given doesn't exist. An acceptance finding must leave a criterion unmet: every criterion on the task card is listed below, in full, whatever the finding's kind. When the prompt says there is no task card, judge a finding that names a criterion on the code alone: don't reject it because the criterion's text isn't shown.
 
 Reply with ONLY a JSON object: {"reproducible": true|false, "repro": "exact steps, or empty", "reason": "one line"}`;
 
@@ -515,11 +632,12 @@ function reviewPrompt(
   card?: Card,
   decisions?: readonly AllowedDecision[],
   proof?: ReviewProof,
+  tier1?: Tier1Checks,
 ): string {
   const parts: string[] = [];
   if (card) {
     parts.push(
-      `## Task card ${card.id}: ${card.title}\n${card.description}\n\nAcceptance criteria:\n${card.acceptance.map((a) => `- ${a.id} (${a.verify}): ${a.text}`).join("\n")}` +
+      `## Task card ${card.id}: ${card.title}\n${card.description}\n\nAcceptance criteria:\n${criteriaLines(card)}` +
         (card.out_of_scope.length
           ? `\n\nOut of scope:\n${card.out_of_scope.map((o) => `- ${o}`).join("\n")}`
           : "") +
@@ -536,9 +654,15 @@ function reviewPrompt(
   parts.push(...decisionsSection(decisions));
   if (packed.omitted.length) {
     parts.push(
-      `## Not shown to you\n${packed.omitted.map((o) => `- ${o.path}: ${o.why}`).join("\n")}`,
+      `## Not shown to you\n${packed.omitted.map((o) => `- ${o.path}: ${o.why}${o.stats ? ` (${o.stats})` : ""}`).join("\n")}`,
     );
   }
+  if (packed.trimmed?.length) {
+    parts.push(
+      `## Test files shown in part\nThese are cut to keep the review's size down; a criterion that rests on the part not shown is unverified, not met.\n${packed.trimmed.map((t) => `- ${t.path}: ${t.note}`).join("\n")}`,
+    );
+  }
+  if (tier1) parts.push(...tier1Section(tier1));
   if (proof) parts.push(...proofSection(proof, card));
   parts.push(...citedSection(packed.cited ?? []));
   parts.push(`## The diff\n${packed.diff || "(empty)"}`);
@@ -590,17 +714,21 @@ function gatePrompt(
       ...(packed.banned ? [packed.banned] : []),
     );
   }
-  if (finding.kind === "acceptance") {
-    const criteria = card
-      ? card.acceptance
-          .map((a) => `- ${a.id} (${a.verify}): ${a.text}`)
-          .join("\n")
-      : "(no task card)";
-    parts.push(`## Acceptance criteria\n${criteria}`);
-  }
-  parts.push(`## The diff\n${fileDiff}`);
+  // Every finding, not only an acceptance one: a defect tied to a criterion
+  // was rejected because "no A5 text is given" when the runtime hadn't sent it.
+  parts.push(
+    card
+      ? `## Acceptance criteria (task card ${card.id}: ${card.title})\n${criteriaLines(card)}`
+      : "## Acceptance criteria\nThere is no task card for this change: neither you nor the reviewer were given criteria.",
+  );
+  parts.push(
+    `## The diff\n${fileDiff.length > GATE_DIFF_CAP ? `${fileDiff.slice(0, GATE_DIFF_CAP)}\n… (the rest of the diff isn't shown here)` : fileDiff}`,
+  );
   return parts.join("\n\n");
 }
+
+const criteriaLines = (card: Pick<Card, "acceptance">) =>
+  card.acceptance.map((a) => `- ${a.id} (${a.verify}): ${a.text}`).join("\n");
 
 /** The last JSON object in a reply (models sometimes add text around it). */
 export function extractJson(text: string): unknown {
@@ -619,14 +747,46 @@ export function extractJson(text: string): unknown {
   throw new Error("the reviewer did not reply with JSON");
 }
 
+/** An unmet criterion as a finding, so it blocks and shows like one. */
+const unmetFinding = (id: string, note: string): Finding => ({
+  kind: "acceptance",
+  file: "",
+  line: null,
+  acceptance_id: id,
+  title: `${id} is unmet`,
+  detail: note,
+  repro: note,
+  fix: "",
+});
+
+/** Criteria that only say tier 1's checks pass take their status from tier 1. */
+function applyTier1(
+  acceptance: Tier2Result["acceptance"],
+  card: Pick<Card, "acceptance">,
+  checks: Tier1Checks,
+): Tier2Result["acceptance"] {
+  const out = [...acceptance];
+  for (const c of card.acceptance) {
+    const settled = tier1Status(c.text, checks);
+    if (!settled) continue;
+    const i = out.findIndex((a) => a.id === c.id);
+    if (i === -1) out.push({ id: c.id, ...settled });
+    else out[i] = { id: c.id, ...settled };
+  }
+  return out;
+}
+
 /**
  * Run the review: one call for findings, then one fresh-context call per
  * blocking finding (up to a cap) to confirm it reproduces. Findings that fail
- * the gate, or exceed the cap, become suggestions.
+ * the gate, or exceed the cap, become suggestions. A criterion marked unmet
+ * blocks without the gate: the card says what done is, and the gate only
+ * filters findings, so it can't turn "not done" into a suggestion.
  */
 export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
   const log = options.log ?? (() => undefined);
   const model = options.model ?? JUDGE_DEFAULT_MODEL;
+  const card = options.card;
   const packed = await packChange(options.repoPath, options.base, options.head);
   let calls = 0;
   const usage = { tokens: 0, costUsd: 0 };
@@ -637,6 +797,7 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
       prompt,
       model,
       maxTokens: 8000,
+      ...(options.effort ? { effort: options.effort } : {}),
     });
     const cost = res.costUsd ?? estimateCost(res.model, res.usage);
     usage.tokens +=
@@ -657,47 +818,98 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     }
     return res.text;
   };
+  const unreviewed = packed.omitted
+    .filter((o) => o.why !== "generated")
+    .map((o) => o.path);
+  const packedOut: Tier2Result["packed"] = {
+    files: packed.files,
+    omitted: packed.omitted,
+    ...(packed.trimmed ? { trimmed: packed.trimmed } : {}),
+    lines: packed.lines,
+    agents: packed.agents,
+    constraints: packed.constraints,
+  };
+  const effort = options.effort ? { effort: options.effort } : {};
 
-  log(`reviewing ${packed.files.length} file(s) with ${model}`);
+  // Nothing to read means nothing a card asks for can be met, and no call to
+  // pay for. An empty change is unmet; one whose files were all held back
+  // (generated, sensitive, secret-shaped) is unverified, for a person.
+  if (card && packed.files.length === 0) {
+    const empty = packed.omitted.length === 0;
+    const note = empty
+      ? "the change is empty: no file differs from the base"
+      : `no file was shown to the reviewer: ${packed.omitted.map((o) => `${o.path} (${o.why})`).join(", ")}`;
+    log(`reviewing 0 file(s): ${note}`);
+    const acceptance = card.acceptance.map((a) => ({
+      id: a.id,
+      status: empty ? ("unmet" as const) : ("unverified" as const),
+      note,
+    }));
+    const blocking = empty
+      ? card.acceptance.map((a) => ({
+          ...unmetFinding(a.id, note),
+          pattern: findingPattern("acceptance", `${a.id} is unmet`),
+        }))
+      : [];
+    return {
+      verdict: blocking.length > 0 ? "request-changes" : "approve",
+      blocking,
+      suggestions: [],
+      acceptance,
+      unreviewed,
+      unverified: unverifiedCriteria(card, acceptance),
+      model,
+      ...effort,
+      calls,
+      usage,
+      packed: packedOut,
+    };
+  }
+
+  log(
+    `reviewing ${packed.files.length} file(s) with ${model}${options.effort ? ` at ${options.effort} effort` : ""}`,
+  );
   const review = ReviewSchema.parse(
     extractJson(
       await complete(
         RUBRIC,
-        reviewPrompt(packed, options.card, options.decisions, options.proof),
+        reviewPrompt(
+          packed,
+          card,
+          options.decisions,
+          options.proof,
+          options.tier1,
+        ),
         "judge-review",
       ),
     ),
   );
-  const checkBefore = needsBeforeCheck(options.card, options.proof);
-  const acceptance =
-    checkBefore && options.card
-      ? applyBeforeCheck(review.acceptance, options.card, review.before)
+  const checkBefore = needsBeforeCheck(card, options.proof);
+  let acceptance =
+    checkBefore && card
+      ? applyBeforeCheck(review.acceptance, card, review.before)
       : review.acceptance;
+  if (card && options.tier1)
+    acceptance = applyTier1(acceptance, card, options.tier1);
 
   // An unmet criterion blocks like any acceptance finding, even when the
   // reviewer only marked it unmet.
+  const cardIds = new Set(card?.acceptance.map((a) => a.id) ?? []);
+  const unmetIds = new Set(
+    acceptance
+      .filter((a) => a.status === "unmet" && cardIds.has(a.id))
+      .map((a) => a.id),
+  );
   const cited = new Set(
     review.findings
       .filter((f) => f.kind === "acceptance" && f.acceptance_id)
       .map((f) => f.acceptance_id),
   );
-  const unmet: Finding[] = review.acceptance
-    .filter(
-      (a) =>
-        a.status === "unmet" &&
-        !cited.has(a.id) &&
-        options.card?.acceptance.some((c) => c.id === a.id),
-    )
-    .map((a) => ({
-      kind: "acceptance",
-      file: "",
-      line: null,
-      acceptance_id: a.id,
-      title: `${a.id} is unmet`,
-      detail: a.note,
-      repro: a.note,
-      fix: "",
-    }));
+  const unmet: Finding[] = [...unmetIds]
+    .filter((id) => !cited.has(id))
+    .map((id) =>
+      unmetFinding(id, acceptance.find((a) => a.id === id)?.note ?? ""),
+    );
 
   const blocking: Finding[] = [];
   const suggestions: Finding[] = [];
@@ -709,6 +921,18 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     };
     if (finding.kind === "suggestion") {
       suggestions.push(finding);
+      continue;
+    }
+    // Not through the gate, the file check or the budget: those filter false
+    // positives, and an unmet criterion isn't one. The pilot's empty diff
+    // passed when each unmet criterion was downgraded for naming a file the
+    // change didn't have.
+    if (
+      finding.kind === "acceptance" &&
+      finding.acceptance_id &&
+      unmetIds.has(finding.acceptance_id)
+    ) {
+      blocking.push(finding);
       continue;
     }
     // A finding about a file the reviewer wasn't shown can't be confirmed.
@@ -738,7 +962,7 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     // A failed call is an error, not a verdict: it must never turn into an approval.
     const reply = await complete(
       GATE,
-      gatePrompt(finding, fileDiff, packed, options.card, options.decisions),
+      gatePrompt(finding, fileDiff, packed, card, options.decisions),
       "judge-fp-gate",
     );
     let gate: z.infer<typeof GateSchema>;
@@ -762,6 +986,27 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
     }
   }
 
+  // A criterion with a confirmed blocking finding against it isn't met,
+  // whatever the reviewer marked: T-0012's A5 was "met" beside the defect
+  // that broke it.
+  for (const f of blocking) {
+    if (!f.acceptance_id || !cardIds.has(f.acceptance_id)) continue;
+    const i = acceptance.findIndex((a) => a.id === f.acceptance_id);
+    const unmetNote = `a blocking ${f.kind} finding: ${f.title}`;
+    if (i === -1)
+      acceptance = [
+        ...acceptance,
+        { id: f.acceptance_id, status: "unmet", note: unmetNote },
+      ];
+    else if (acceptance[i]?.status !== "unmet")
+      acceptance = acceptance.map((a, j) =>
+        j === i ? { ...a, status: "unmet" as const, note: unmetNote } : a,
+      );
+  }
+
+  log(
+    `review: ${calls} call(s) · ${usage.tokens} tokens · $${usage.costUsd.toFixed(2)}`,
+  );
   return {
     verdict: blocking.length > 0 ? "request-changes" : "approve",
     blocking,
@@ -776,43 +1021,55 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
           },
         }
       : {}),
-    unreviewed: packed.omitted
-      .filter((o) => o.why !== "generated")
-      .map((o) => o.path),
+    unreviewed,
+    ...(card ? { unverified: unverifiedCriteria(card, acceptance) } : {}),
     model,
+    ...effort,
     calls,
     usage,
-    packed: {
-      files: packed.files,
-      omitted: packed.omitted,
-      lines: packed.lines,
-      agents: packed.agents,
-      constraints: packed.constraints,
-    },
+    packed: packedOut,
   };
 }
 
 /** Marker in every review body, so later rounds can be counted. */
 export const REVIEW_MARKER = "<!-- rivetari-judge-review";
 
+/** What the marker line carries besides the round, for a later review to read. */
+export interface ReviewMarks {
+  /** The reviewed head's tree, so a head with the same tree can carry this verdict. */
+  tree?: string | undefined;
+  /** Set on a review that carried an earlier verdict instead of reviewing. */
+  carried?: { from: string; url?: string | undefined } | undefined;
+}
+
 /** The review as Markdown: blocking findings first, then one block of suggestions. */
 export function renderReview(
   result: Tier2Result,
   round: number,
   verdict: "approve" | "request-changes" | "needs-human",
+  marks: ReviewMarks = {},
 ): string {
   const where = (f: Finding) =>
     f.file ? `\`${f.file}${f.line ? `:${f.line}` : ""}\`` : "";
   const lines = [
-    `${REVIEW_MARKER} round=${round} -->`,
+    `${REVIEW_MARKER} round=${round}${marks.tree ? ` verdict=${verdict} tree=${marks.tree}` : ""}${marks.carried ? ` carried=${marks.carried.from}` : ""} -->`,
     `### Rivetari judge · round ${round} · ${verdict === "approve" ? "approve" : verdict === "needs-human" ? "needs a human" : `${result.blocking.length} blocking`}`,
   ];
+  if (marks.carried) {
+    lines.push(
+      "",
+      `Carried from \`${marks.carried.from.slice(0, 12)}\`${marks.carried.url ? ` (${marks.carried.url})` : ""}: this head's tree${marks.tree ? ` \`${marks.tree.slice(0, 12)}\`` : ""} is identical to the one reviewed there, so its verdict holds unchanged and no new review ran.`,
+    );
+  }
   if (verdict === "needs-human") {
+    const unverified = result.unverified ?? [];
     lines.push(
       "",
       result.blocking.length > 0
         ? "Two review rounds have run and blocking findings remain, so this goes to a person instead of another automated round."
-        : "Some changed files weren't shown to the reviewer (listed at the end), so a person has to look at them: the judge doesn't approve what it hasn't seen.",
+        : result.unreviewed.length > 0
+          ? "Some changed files weren't shown to the reviewer (listed at the end), so a person has to look at them: the judge doesn't approve what it hasn't seen."
+          : `Acceptance the reviewer couldn't verify, so a person decides it: ${unverified.map((u) => `${u.id} (${u.note})`).join("; ")}.`,
     );
   }
   if (result.blocking.length > 0) {
@@ -857,12 +1114,18 @@ export function renderReview(
   if (result.packed.omitted.length > 0) {
     lines.push(
       "",
-      `_Not reviewed: ${result.packed.omitted.map((o) => `\`${o.path}\` (${o.why})`).join(", ")}._`,
+      `_Not reviewed: ${result.packed.omitted.map((o) => `\`${o.path}\` (${o.why}${o.stats ? `, ${o.stats}` : ""})`).join(", ")}._`,
+    );
+  }
+  if (result.packed.trimmed?.length) {
+    lines.push(
+      "",
+      `_Shown in part: ${result.packed.trimmed.map((t) => `\`${t.path}\``).join(", ")}._`,
     );
   }
   lines.push(
     "",
-    `_${result.model} · ${result.calls} call(s) · Claude reviews, humans merge._`,
+    `_${result.model}${result.effort ? ` (${result.effort} effort)` : ""} · ${result.calls} call(s) · ${result.usage.tokens} tokens · $${result.usage.costUsd.toFixed(2)} · Claude reviews, humans merge._`,
   );
   return lines.join("\n");
 }

@@ -159,6 +159,10 @@ export function buildProgram(): Command {
     .option("--pr <number>", "review this pull request and post one review")
     .option("--dry-run", "with --pr: print the review instead of posting it")
     .option(
+      "--fresh",
+      "with --pr: review the head even when an earlier verdict on the same tree could carry",
+    )
+    .option(
       "--base <ref>",
       "local mode: the base the change targets",
       "origin/main",
