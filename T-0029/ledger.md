@@ -16,6 +16,8 @@
 - 2026-11-23 23:48 build: build paused: 1 thing(s) to ask about · commit 23bd9207f91a · 64615 tokens · $0.18 · 2 turns · retry (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-23 23:59 prove: proof failed · api-contract (rivetari runtime (for arynbht@gmail.com))
 - 2026-11-24 00:00 build: build paused: 1 thing(s) to ask about · commit 23bd9207f91a · 386263 tokens · $0.22 · 11 turns · retry (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-24 00:00 close: worktree removed · branch fix/t-0029 kept (rivetari runtime (for arynbht@gmail.com))
+- 2026-11-24 00:00 close: ledger sealed · abandoned (rivetari runtime (for arynbht@gmail.com))
 
 ## Plan
 
@@ -43,3 +45,7 @@
 - 2026-11-23 23:01 tests couldn't run: "pnpm" did not finish within 600s
 - 2026-11-23 23:59 api-contract has no proof runner yet; the test run stands in, and a person attaches the api-contract proof
 - 2026-11-23 23:59 tests couldn't run: "pnpm" did not finish within 600s
+
+## Outcome
+
+- 2026-11-24 00:00 abandoned: proof can't run: api-contract has no runner, and its fallback full test run passes the 600s cap on Windows (twice); the commit ships as a plain PR · 1h14m · 2185k tokens · $1.79
