@@ -17,6 +17,7 @@ import {
   type ProcessSnapshot,
   stopTaskServers,
   taskServers,
+  teardownLine,
 } from "./processes.js";
 
 const made: string[] = [];
@@ -197,6 +198,54 @@ describe("taskServers", () => {
   ): ProcessSnapshot => ({
     processes: rows.map(([pid, ppid, command]) => ({ pid, ppid, command })),
     listening: listening.map(([port, pid]) => ({ port, pid })),
+  });
+
+  it("never climbs onto a person's shell, editor or terminal in the worktree, nor kills one that listens", () => {
+    const sep = process.platform === "win32" ? "\\" : "/";
+    const next = `node ${wt}${sep}node_modules${sep}next${sep}dist${sep}bin${sep}next dev`;
+    const { servers, strangers } = taskServers(
+      {
+        processes: [
+          {
+            pid: 200,
+            ppid: 1,
+            command: `"C:\\Program Files\\Microsoft VS Code\\Code.exe" ${wt}`,
+          },
+          { pid: 201, ppid: 200, command: `/bin/bash --login`, cwd: wt },
+          { pid: 202, ppid: 201, command: `bash -c "cd ${wt} && npm run dev"` },
+          { pid: 203, ppid: 202, command: next },
+          { pid: 204, ppid: 203, command: "node start-server.js" },
+        ],
+        listening: [
+          { port: 5181, pid: 204 },
+          { port: 5182, pid: 200 },
+        ],
+      },
+      wt,
+      [5181, 5182],
+    );
+    expect(servers).toEqual([
+      { pid: 203, listener: 204, port: 5181, command: next },
+    ]);
+    // The editor is left running, and said to hold the task's port.
+    expect(strangers.map((s) => s.pid)).toEqual([200]);
+  });
+
+  it("says which of the task's servers it couldn't stop, and why", () => {
+    expect(
+      teardownLine({
+        stopped: [],
+        survived: [
+          {
+            server: { pid: 7, listener: 8, port: 5181, command: "next dev" },
+            why: "ERROR: Access is denied.",
+          },
+        ],
+        strangers: [],
+      }),
+    ).toBe(
+      "couldn't stop the task's server on port 5181 (pid 7: next dev): ERROR: Access is denied.",
+    );
   });
 
   it("roots each server at the highest process above it that names the worktree", () => {

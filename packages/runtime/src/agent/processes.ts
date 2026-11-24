@@ -3,9 +3,11 @@
 // port, so the next round and the proof can't bind it, and they outlive an
 // abandoned task. A server is the task's when it, or a process above it,
 // names the task's worktree on its command line (or, on Linux, runs in it);
-// the runtime stops each such server with its whole process tree after every
-// build round and proof, and on close. A server it can't tie to the worktree
-// is never killed: it is reported, and isolate skips its port.
+// the runtime stops each such server, with the chain that started it from
+// the worktree and everything under that, after every build round and proof,
+// and on close. A person's shell, editor or terminal is never part of that
+// chain. A server it can't tie to the worktree is never killed: it is
+// reported, and isolate skips its port.
 import { execFile } from "node:child_process";
 import { readlink } from "node:fs/promises";
 import { createConnection, createServer } from "node:net";
@@ -145,8 +147,22 @@ const inWorktree = (p: ProcessRow, worktree: string) =>
   namesWorktree(p.command, worktree) ||
   (p.cwd !== undefined && namesWorktree(`${p.cwd}/`, worktree));
 
+/** A person's session: a shell, an editor or a terminal is never part of a server. */
+const SESSION =
+  /^(bash|sh|zsh|fish|dash|ksh|tcsh|csh|cmd|powershell|pwsh|code|code - insiders|cursor|windsurf|vim|nvim|vi|emacs|nano|tmux|screen|login|sshd|explorer|windowsterminal|conhost|openconsole)$/;
+
+/** The program a command line runs, without its directory or `.exe`. */
+export function programOf(command: string): string {
+  const first = command.trim().startsWith('"')
+    ? (/^"([^"]*)"/.exec(command.trim())?.[1] ?? "")
+    : (command.trim().split(/\s+/)[0] ?? "");
+  return (first.split(/[\\/]/).pop() ?? "").toLowerCase().replace(/\.exe$/, "");
+}
+
+export const isSession = (command: string) => SESSION.test(programOf(command));
+
 export interface TaskServer {
-  /** The process stopped: the highest one above the server that is the task's. */
+  /** The process stopped: the server, or the highest of the chain that started it from the worktree. */
   pid: number;
   /** The listening process and its port. */
   listener: number;
@@ -156,10 +172,13 @@ export interface TaskServer {
 
 /**
  * The task's servers in a snapshot: each listening process that is in the
- * worktree or sits under a process that is, rooted at the highest such
- * process so the tree kill takes the whole chain (`npm run dev` → `next dev`
- * → its server). Plus what holds `ports` without being the task's, which
- * is reported and left alone. This process and its parents are never chosen.
+ * worktree or sits under a process that is. The kill starts from the server
+ * and climbs only through the unbroken chain above it whose command lines
+ * name the worktree (`next dev` → its server), never onto a shell, an
+ * editor or a terminal, so a person's session in the worktree survives with
+ * everything else under it. Plus what holds `ports` without being the
+ * task's, which is reported and left alone. This process and its parents
+ * are never chosen.
  */
 export function taskServers(
   snap: ProcessSnapshot,
@@ -180,16 +199,23 @@ export function taskServers(
   const strangers: { port: number; pid: number; command: string }[] = [];
   for (const { port, pid } of snap.listening) {
     // 0 and 4 are Windows' idle and System processes.
-    if (pid <= 4 || ours.has(pid)) continue;
-    let root: ProcessRow | undefined;
-    const seen = new Set<number>();
+    const listener = byPid.get(pid);
+    if (pid <= 4 || ours.has(pid) || !listener) continue;
+    const chain: ProcessRow[] = [];
     for (
-      let p = byPid.get(pid);
-      p && !seen.has(p.pid) && !ours.has(p.pid) && p.pid > 4;
+      let p: ProcessRow | undefined = listener;
+      p && !chain.includes(p) && !ours.has(p.pid) && p.pid > 4;
       p = byPid.get(p.ppid)
-    ) {
-      seen.add(p.pid);
-      if (inWorktree(p, worktree)) root = p;
+    )
+      chain.push(p);
+    // An editor or a shell that listens is a person's, wherever it runs.
+    const owned =
+      !isSession(listener.command) &&
+      chain.some((p) => inWorktree(p, worktree));
+    let root: ProcessRow | undefined = owned ? listener : undefined;
+    for (const p of chain.slice(1)) {
+      if (isSession(p.command) || !namesWorktree(p.command, worktree)) break;
+      root = p;
     }
     if (root) {
       if (!servers.has(root.pid))
@@ -227,20 +253,28 @@ async function waitGone(pids: number[], ms: number): Promise<number[]> {
   return left;
 }
 
-/** Kill each root with everything under it: taskkill /T on Windows, the snapshot's tree elsewhere. */
+/**
+ * Kill each root with everything under it: taskkill /T on Windows, the
+ * snapshot's tree elsewhere. Returns the roots still alive, with why.
+ */
 async function killTrees(
   roots: number[],
   snap: ProcessSnapshot,
-): Promise<void> {
-  if (roots.length === 0) return;
+): Promise<{ left: number[]; why: string }> {
+  if (roots.length === 0) return { left: [], why: "" };
   if (process.platform === "win32") {
-    await exec(
+    // taskkill exits non-zero when any of them was already gone, so its
+    // error only says why when a root is still alive afterwards.
+    const why = await exec(
       "taskkill",
       [...roots.flatMap((pid) => ["/PID", String(pid)]), "/T", "/F"],
       { windowsHide: true },
-    ).catch(() => undefined);
-    await waitGone(roots, 5000);
-    return;
+    ).then(
+      () => "",
+      (err: { stderr?: string; message: string }) =>
+        (err.stderr || err.message).replace(/\s+/g, " ").trim(),
+    );
+    return { left: await waitGone(roots, 5000), why };
   }
   const children = new Map<number, number[]>();
   for (const p of snap.processes)
@@ -252,12 +286,15 @@ async function killTrees(
     for (const c of children.get(pid) ?? []) walk(c);
   };
   roots.forEach(walk);
+  const refused = new Set<string>();
   const signal = (sig: NodeJS.Signals) => {
     for (const pid of tree)
       try {
         process.kill(pid, sig);
-      } catch {
-        // already gone
+      } catch (err) {
+        // ESRCH is one that already exited; anything else is kept to say why.
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code !== "ESRCH") refused.add(`pid ${pid}: ${code ?? String(err)}`);
       }
   };
   signal("SIGTERM");
@@ -265,6 +302,7 @@ async function killTrees(
     signal("SIGKILL");
     await waitGone(tree, 2000);
   }
+  return { left: roots.filter(alive), why: [...refused].join(", ") };
 }
 
 /** Whether anything accepts a connection on `port` at `host`. */
@@ -303,6 +341,8 @@ export async function portFree(port: number): Promise<boolean> {
 
 export interface Teardown {
   stopped: TaskServer[];
+  /** The task's servers still running after the kill, with why when it's known. */
+  survived?: { server: TaskServer; why: string }[] | undefined;
   /** Ports still held by a process that isn't the task's. */
   strangers: { port: number; pid: number; command: string }[];
   /** Set when the processes couldn't be listed; nothing was stopped. */
@@ -321,16 +361,25 @@ export async function stopTaskServers(
   try {
     const snap = await (options.snapshot ?? snapshot)();
     const { servers, strangers } = taskServers(snap, worktree, ports);
-    await killTrees(
+    const { why } = await killTrees(
       servers.map((s) => s.pid),
       snap,
     );
-    const freed = [...new Set(servers.map((s) => s.port))];
+    // Stopped means the server itself is gone, not just the process above it.
+    const gone = (s: TaskServer) => !alive(s.pid) && !alive(s.listener);
+    const stopped = servers.filter(gone);
+    const survived = servers
+      .filter((s) => !gone(s))
+      .map((server) => ({ server, why }));
     const deadline = Date.now() + 5000;
-    for (const port of freed)
+    for (const port of new Set(stopped.map((s) => s.port)))
       while (Date.now() < deadline && (await answers("127.0.0.1", port)))
         await sleep(100);
-    return { stopped: servers, strangers };
+    return {
+      stopped,
+      strangers,
+      ...(survived.length > 0 ? { survived } : {}),
+    };
   } catch (err) {
     return {
       stopped: [],
@@ -347,6 +396,10 @@ export function teardownLine(t: Teardown): string | null {
     ...t.stopped.map(
       (s) =>
         `stopped the task's server on port ${s.port} (pid ${s.pid}: ${cut(s.command)})`,
+    ),
+    ...(t.survived ?? []).map(
+      ({ server: s, why }) =>
+        `couldn't stop the task's server on port ${s.port} (pid ${s.pid}: ${cut(s.command)})${why ? `: ${cut(why)}` : ""}`,
     ),
     ...t.strangers.map(
       (s) =>

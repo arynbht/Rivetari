@@ -84,7 +84,8 @@ export async function playwrightPin(
   const name = PACKAGES.find((n) => deps[n] !== undefined);
   if (!name) return undefined;
   const locked = await lockedVersion(dir);
-  if (locked) return { version: locked };
+  // Checked like the spec: it becomes an npx package argument.
+  if (locked && SEMVERISH.test(locked)) return { version: locked };
   const spec = deps[name]?.trim() ?? "";
   if (SEMVERISH.test(spec)) return { version: spec };
   return {
