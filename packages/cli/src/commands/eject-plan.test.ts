@@ -6,14 +6,18 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 
 import { newTask } from "@arynbht/rivetari-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runEject, stripRivetari } from "./eject.js";
 import { SETTINGS_JSON } from "./init-files.js";
+
+const run = promisify(execFile);
 
 const there = (path: string) =>
   access(path).then(
@@ -154,22 +158,42 @@ describe("runEject's plan", () => {
     await mkdir(join(dir, ".rivetari", "evidence"));
     await writeFile(join(dir, ".rivetari", "evidence", "pentest.pdf"), "x");
     await mkdir(join(dir, "docs", "evidence"), { recursive: true });
-    await writeFile(join(dir, "docs", "evidence", "evidence"), "theirs");
+    await writeFile(join(dir, "docs", "evidence", "pentest.pdf"), "theirs");
     expect(await runEject(dir, { yes: true })).toBe(1);
     expect(err.join("")).toContain(
-      "docs/evidence/evidence is already there, so .rivetari/evidence has nowhere to go",
+      "docs/evidence/pentest.pdf is already there, so .rivetari/evidence/pentest.pdf has nowhere to go",
+    );
+    expect(await there(join(dir, ".rivetari", "evidence", "pentest.pdf"))).toBe(
+      true,
     );
     await rm(join(dir, "docs"), { recursive: true });
     expect(await runEject(dir, { yes: true })).toBe(0);
     expect(
-      await readFile(
-        join(dir, "docs", "evidence", "evidence", "pentest.pdf"),
-        "utf8",
-      ),
+      await readFile(join(dir, "docs", "evidence", "pentest.pdf"), "utf8"),
     ).toBe("x");
     expect(out.join("")).toContain(
-      "Moved .rivetari/evidence to docs/evidence/evidence",
+      "Moved .rivetari/evidence/pentest.pdf to docs/evidence/pentest.pdf",
     );
+  });
+
+  it("refuses when the tasks branch can't be fetched, rather than trust the local copy", async () => {
+    const dir = await repo();
+    await run("git", ["init", "-q"], { cwd: dir });
+    await run("git", ["remote", "add", "origin", join(dir, "no-such-remote")], {
+      cwd: dir,
+    });
+    expect(await runEject(dir, { yes: true })).toBe(1);
+    expect(err.join("")).toContain("couldn't read the task records");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
+  });
+
+  it("names the task records that go with .rivetari/", async () => {
+    const dir = await repo();
+    await mkdir(join(dir, ".rivetari", "tasks", "T-0004"), { recursive: true });
+    expect(
+      await runEject(dir, {}, { openTasks: () => Promise.resolve([]) }),
+    ).toBe(0);
+    expect(out.join("")).toContain(".rivetari/ holds the records of T-0004");
   });
 
   it("leaves a repo's own skills and workflows where they are", async () => {

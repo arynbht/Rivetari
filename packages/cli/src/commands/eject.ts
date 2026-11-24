@@ -6,6 +6,7 @@ import {
   rename,
   rm,
   rmdir,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -103,13 +104,12 @@ const exists = (path: string): Promise<boolean> =>
 const mentions = (s: string) => /rivetari/i.test(s);
 
 /** The open tasks, from this checkout's records brought up to the tasks branch. */
+// pullTasks already settles for the local copy when there's no origin or no
+// tasks branch; any other failure means a task opened elsewhere could be
+// missed, so it propagates and eject refuses.
 async function openTasks(root: string): Promise<string[]> {
-  try {
-    await pullTasks(root);
-  } catch {
-    // No remote or no branch: the local copy is all there is to go on.
-  }
-  const tasks = await listTasks(root, () => undefined);
+  await pullTasks(root);
+  const tasks = await listTasks(root);
   return tasks.filter((t) => nextStep(t) !== "done").map((t) => t.card.id);
 }
 
@@ -346,12 +346,19 @@ async function planEject(root: string): Promise<Plan> {
   // Evidence is a person's record: it moves out of .rivetari/ before that goes.
   const rivetariThere = await exists(at(".rivetari"));
   if (rivetariThere) {
+    const moves: string[] = [];
     for (const name of (await readdir(at(".rivetari"))).sort()) {
       if (!name.startsWith("evidence")) continue;
       const from = `.rivetari/${name}`;
-      if (emptySeed(name, await readIfThere(at(from)))) continue;
-      const to = `${EVIDENCE_HOME}/${name}`;
-      if (await exists(at(to)))
+      // A folder of evidence is emptied into docs/evidence/, not nested in it.
+      if ((await stat(at(from))).isDirectory())
+        for (const entry of (await readdir(at(from))).sort())
+          moves.push(`${from}/${entry}`);
+      else if (!emptySeed(name, await readIfThere(at(from)))) moves.push(from);
+    }
+    for (const from of moves) {
+      const to = `${EVIDENCE_HOME}/${from.slice(from.lastIndexOf("/") + 1)}`;
+      if ((await exists(at(to))) || plan.move.some((m) => m.to === to))
         plan.blocked.push(
           `${to} is already there, so ${from} has nowhere to go`,
         );
@@ -507,6 +514,15 @@ async function planEject(root: string): Promise<Plan> {
 
   if (rivetariThere) {
     plan.remove.push(".rivetari/");
+    // Task records aren't committed, so on a repo without the tasks branch
+    // this copy is the only one: name them before they go.
+    const ids = (
+      await readdir(at(".rivetari/tasks")).catch(() => [] as string[])
+    ).filter((n) => /^T-\d+$/.test(n));
+    if (ids.length > 0)
+      plan.notes.push(
+        `.rivetari/ holds the records of ${ids.sort().join(", ")}; they go with it unless the rivetari/tasks branch has them`,
+      );
     plan.notes.push(
       "the rivetari/tasks and evidence branches, where the repo has them, are left as they are: they're the record of past tasks",
     );
@@ -586,7 +602,15 @@ export async function runEject(
     );
     return 1;
   }
-  const plan = await planEject(root);
+  let plan: Plan;
+  try {
+    plan = await planEject(root);
+  } catch (err) {
+    console.error(
+      `rivetari eject: couldn't work out what to remove, so nothing was changed: ${(err as Error).message}`,
+    );
+    return 1;
+  }
   const nothing =
     plan.remove.length === 0 &&
     plan.edit.length === 0 &&
