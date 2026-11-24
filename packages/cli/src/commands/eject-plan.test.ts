@@ -262,4 +262,54 @@ describe("stripRivetari", () => {
       "# A\r\n\r\nKept.\r\n",
     );
   });
+
+  it("drops an item with its sub-items and indented continuation", () => {
+    expect(
+      stripRivetari(
+        "# A\n\n- Use Rivetari for:\n  - lint\n  - tests\n\n  Then wait.\n- Keep it small\n  - really\n",
+      ),
+    ).toBe("# A\n\n- Keep it small\n  - really\n");
+  });
+
+  it("skips a fenced block in a dropped section, # lines and all", () => {
+    expect(
+      stripRivetari(
+        "# Doc\n\n## Using Rivetari\n\n```sh\n# set up\nrivetari init\n```\n\n## Other\n\nText.\n",
+      ),
+    ).toBe("# Doc\n\n## Other\n\nText.\n");
+  });
+
+  it("leaves # lines in a kept fenced block alone", () => {
+    const doc = "# Doc\n\n```sh\n# one\n# two\nmake\n```\n";
+    expect(stripRivetari(doc)).toBe(doc);
+  });
+});
+
+describe("the dry run", () => {
+  it("shows the lines it would take out of a kept doc", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "eject-diff-"));
+    try {
+      await writeFile(
+        join(dir, "DESIGN.md"),
+        "# Design\n\nRun /rivetari first.\n\nUse the tokens.\n",
+      );
+      const out: string[] = [];
+      vi.spyOn(process.stdout, "write").mockImplementation((s) => {
+        out.push(String(s));
+        return true;
+      });
+      expect(
+        await runEject(dir, {}, { openTasks: () => Promise.resolve([]) }),
+      ).toBe(0);
+      expect(out.join("")).toContain(
+        "Would edit:\n  DESIGN.md (drop what refers to Rivetari)\n      - Run /rivetari first.\n",
+      );
+      expect(await readFile(join(dir, "DESIGN.md"), "utf8")).toContain(
+        "/rivetari",
+      );
+    } finally {
+      vi.restoreAllMocks();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

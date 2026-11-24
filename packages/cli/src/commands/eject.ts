@@ -39,6 +39,7 @@ export interface EjectOptions {
 interface Edit {
   rel: string;
   why: string;
+  before: string;
   text: string | null;
 }
 
@@ -92,6 +93,13 @@ const SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const readIfThere = (path: string): Promise<string | null> =>
   readFile(path, "utf8").catch((err: NodeJS.ErrnoException) => {
     if (err.code === "ENOENT" || err.code === "EISDIR") return null;
+    throw err;
+  });
+
+/** A directory's entries; none when it isn't there. */
+const listDir = (path: string): Promise<string[]> =>
+  readdir(path).catch((err: NodeJS.ErrnoException) => {
+    if (err.code === "ENOENT" || err.code === "ENOTDIR") return [];
     throw err;
   });
 
@@ -161,6 +169,17 @@ function ejectAgentsContract(text: string): string {
 const LIST_ITEM = /^(\s*)([-*+]|\d+[.)])\s/;
 const FENCE = /^\s*(`{3,}|~{3,})/;
 
+/** The line that closes the fence opened at `start` with `marker`, or the last line. */
+function fenceEnd(lines: string[], start: number, marker: string): number {
+  for (let j = start + 1; j < lines.length; j++)
+    if (
+      /^\s*(`{3,}|~{3,})\s*$/.test(lines[j]!) &&
+      lines[j]!.trim().startsWith(marker)
+    )
+      return j;
+  return lines.length - 1;
+}
+
 /**
  * `text` with what refers to Rivetari taken out: the sentences of an HTML
  * comment, the list items, paragraphs, fenced blocks and whole sections that
@@ -190,9 +209,19 @@ export function stripRivetari(text: string): string {
   // Then blocks: a heading opens a section, a blank line ends a paragraph.
   const lines = s.split("\n");
   const out: string[] = [];
+  const indent = (l: string) => /^\s*/.exec(l)![0].length;
   let dropLevel = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
+    // A fence goes first, so a `#` line inside one is never read as a heading.
+    const fence = FENCE.exec(line)?.[1];
+    if (fence) {
+      const end = fenceEnd(lines, i, fence);
+      const block = lines.slice(i, end + 1);
+      if (!dropLevel && !block.some(mentions)) out.push(...block);
+      i = end;
+      continue;
+    }
     const heading = /^(#{1,6})\s/.exec(line);
     if (heading) {
       const level = heading[1]!.length;
@@ -202,31 +231,24 @@ export function stripRivetari(text: string): string {
       continue;
     }
     if (dropLevel) continue;
-    const fence = FENCE.exec(line)?.[1];
-    if (fence) {
-      let end = i + 1;
-      while (end < lines.length && !lines[end]!.trim().startsWith(fence)) end++;
-      const block = lines.slice(i, end + 1);
-      if (!block.some(mentions)) out.push(...block);
-      i = end;
-      continue;
-    }
     if (line.trim() === "") {
       out.push(line);
       continue;
     }
     const item = LIST_ITEM.exec(line);
     if (item) {
-      // An item runs on through lines indented under it.
+      // An item takes everything indented under it, its sub-items and
+      // continuation paragraphs too, so they're kept or dropped together.
+      const own = item[1]!.length;
       let end = i + 1;
-      while (
-        end < lines.length &&
-        lines[end]!.trim() !== "" &&
-        !LIST_ITEM.test(lines[end]!) &&
-        /^\s/.test(lines[end]!) &&
-        !/^#/.test(lines[end]!)
-      )
-        end++;
+      for (let j = i + 1; j < lines.length; j++) {
+        const next = lines[j]!;
+        if (next.trim() === "") continue;
+        if (indent(next) <= own) break;
+        const inner = FENCE.exec(next)?.[1];
+        if (inner) j = fenceEnd(lines, j, inner);
+        end = j + 1;
+      }
       const block = lines.slice(i, end);
       if (!block.some(mentions)) out.push(...block);
       i = end - 1;
@@ -249,6 +271,13 @@ export function stripRivetari(text: string): string {
   // A heading with nothing under it before the next of its rank goes.
   const tidy: string[] = [];
   for (let i = 0; i < out.length; i++) {
+    const fence = FENCE.exec(out[i]!)?.[1];
+    if (fence) {
+      const end = fenceEnd(out, i, fence);
+      tidy.push(...out.slice(i, end + 1));
+      i = end;
+      continue;
+    }
     const heading = /^(#{1,6})\s/.exec(out[i]!);
     if (heading && i > 0) {
       let j = i + 1;
@@ -282,8 +311,13 @@ function editFor(
 ): Edit | null {
   if (next === text) return null;
   return next.trim() === ""
-    ? { rel, why: `${why}; nothing else is in it, so it goes`, text: null }
-    : { rel, why, text: next };
+    ? {
+        rel,
+        why: `${why}; nothing else is in it, so it goes`,
+        before: text,
+        text: null,
+      }
+    : { rel, why, before: text, text: next };
 }
 
 /** .claude/settings.json without Rivetari's hooks; undefined when it won't parse. */
@@ -375,9 +409,7 @@ async function planEject(root: string): Promise<Plan> {
     await removeIfThere(`.claude/skills/${name}`, true);
     await removeIfThere(`.agents/skills/${name}`, true);
   }
-  const agentsSkills = await readdir(at(".agents/skills")).catch(
-    () => [] as string[],
-  );
+  const agentsSkills = await listDir(at(".agents/skills"));
   const theirSkills = agentsSkills.filter(
     (n) => n !== ".gitignore" && !synced.includes(n),
   );
@@ -422,12 +454,14 @@ async function planEject(root: string): Promise<Plan> {
       plan.edit.push({
         rel: settingsRel,
         why: "drop Rivetari's hooks; nothing else is in it, so it goes",
+        before: settings,
         text: null,
       });
     else if (next !== settings)
       plan.edit.push({
         rel: settingsRel,
         why: "drop Rivetari's hooks, keep the other settings",
+        before: settings,
         text: next,
       });
   }
@@ -487,9 +521,7 @@ async function planEject(root: string): Promise<Plan> {
     );
     if (edit) plan.edit.push(edit);
   }
-  const workflows = (
-    await readdir(at(".github/workflows")).catch(() => [] as string[])
-  )
+  const workflows = (await listDir(at(".github/workflows")))
     .filter(
       (f) => /\.ya?ml$/.test(f) && !/^rivetari(\.rivetari)?\.ya?ml$/.test(f),
     )
@@ -516,9 +548,9 @@ async function planEject(root: string): Promise<Plan> {
     plan.remove.push(".rivetari/");
     // Task records aren't committed, so on a repo without the tasks branch
     // this copy is the only one: name them before they go.
-    const ids = (
-      await readdir(at(".rivetari/tasks")).catch(() => [] as string[])
-    ).filter((n) => /^T-\d+$/.test(n));
+    const ids = (await listDir(at(".rivetari/tasks"))).filter((n) =>
+      /^T-\d+$/.test(n),
+    );
     if (ids.length > 0)
       plan.notes.push(
         `.rivetari/ holds the records of ${ids.sort().join(", ")}; they go with it unless the rivetari/tasks branch has them`,
@@ -538,20 +570,63 @@ async function removePath(root: string, rel: string): Promise<void> {
   await rm(abs, { recursive: !stat.isSymbolicLink(), force: true });
 }
 
-async function applyPlan(root: string, plan: Plan): Promise<void> {
+/** Carry out `plan`, recording each step in `done` as it finishes. */
+async function applyPlan(
+  root: string,
+  plan: Plan,
+  done: string[],
+): Promise<void> {
   for (const { from, to } of plan.move) {
     await mkdir(dirname(resolve(root, to)), { recursive: true });
     await rename(resolve(root, from), resolve(root, to));
+    done.push(`moved ${from} to ${to}`);
   }
   for (const e of plan.edit) {
     const abs = resolve(root, e.rel);
     if (e.text === null) await rm(abs, { force: true });
     else await writeFile(abs, e.text, "utf8");
+    done.push(`edited ${e.rel}`);
   }
   // Links before the folders they point into.
-  for (const rel of plan.remove) await removePath(root, rel);
+  for (const rel of plan.remove) {
+    await removePath(root, rel);
+    done.push(`removed ${rel}`);
+  }
   for (const rel of PRUNE)
     await rmdir(resolve(root, rel)).catch(() => undefined);
+}
+
+/** The lines `after` drops from `before` ("- ") and adds ("+ "), in order. */
+export function lineDiff(before: string, after: string): string[] {
+  const a = before.split(/\r?\n/);
+  const b = after.split(/\r?\n/);
+  // Longest common subsequence; the files eject edits are short.
+  const lcs = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0),
+  );
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      lcs[i]![j] =
+        a[i] === b[j]
+          ? lcs[i + 1]![j + 1]! + 1
+          : Math.max(lcs[i + 1]![j]!, lcs[i]![j + 1]!);
+  const out: string[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) {
+      i++;
+      j++;
+    } else if (
+      j < b.length &&
+      (i === a.length || lcs[i]![j + 1]! >= lcs[i + 1]![j]!)
+    ) {
+      out.push(`+ ${b[j++]}`);
+    } else {
+      out.push(`- ${a[i++]}`);
+    }
+  }
+  return out.filter((l) => l.trim() !== "-" && l.trim() !== "+");
 }
 
 function render(plan: Plan, dryRun: boolean): string {
@@ -566,10 +641,19 @@ function render(plan: Plan, dryRun: boolean): string {
     dryRun ? "Would move" : "Moved",
     plan.move.map((m) => `${m.from} to ${m.to}`),
   );
-  list(
-    dryRun ? "Would edit" : "Edited",
-    plan.edit.map((e) => `${e.rel} (${e.why})`),
-  );
+  if (dryRun && plan.edit.length > 0) {
+    // Each edit's lines, so the dry run shows exactly what changes in a kept file.
+    lines.push("Would edit:");
+    for (const e of plan.edit) {
+      lines.push(`  ${e.rel} (${e.why})`);
+      if (e.text !== null)
+        lines.push(...lineDiff(e.before, e.text).map((l) => `      ${l}`));
+    }
+  } else
+    list(
+      "Edited",
+      plan.edit.map((e) => `${e.rel} (${e.why})`),
+    );
   list(dryRun ? "Would keep" : "Kept", plan.keep);
   for (const n of plan.notes) lines.push(`Note: ${n}`);
   return lines.length > 0 ? `${lines.join("\n")}\n` : "";
@@ -645,7 +729,15 @@ export async function runEject(
     );
     return 0;
   }
-  await applyPlan(root, plan);
+  const done: string[] = [];
+  try {
+    await applyPlan(root, plan, done);
+  } catch (err) {
+    console.error(
+      `rivetari eject: stopped part-way: ${(err as Error).message}. Done so far: ${done.length > 0 ? done.join("; ") : "nothing"}. Fix that and run it again; it picks up what's left.`,
+    );
+    return 1;
+  }
   process.stdout.write(render(plan, false));
   return 0;
 }
