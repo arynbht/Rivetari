@@ -629,7 +629,7 @@ export async function sessionStartText(root: string): Promise<string> {
     () => null,
   );
   if (!agents) lines.push("(AGENTS.md is missing: run `rivetari init`.)");
-  const trust = await ladder(root).catch(() => null);
+  const trust = await ladder(root, { readOnly: true }).catch(() => null);
   if (trust) lines.push(...verificationLines(trust));
   const open = await listTasks(root)
     .then((tasks) => tasks.filter((t) => nextStep(t) !== "done"))
