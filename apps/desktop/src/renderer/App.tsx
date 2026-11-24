@@ -14,6 +14,7 @@ import { Fix } from "@/components/Fix";
 import { FloorPlan } from "@/components/FloorPlan";
 import { Gates } from "@/components/Gates";
 import { Now } from "@/components/Now";
+import { Posture } from "@/components/Posture";
 import { ProfileForm } from "@/components/ProfileForm";
 import { RepoMap } from "@/components/RepoMap";
 import { Scorecard } from "@/components/Scorecard";
@@ -25,6 +26,7 @@ import { applyTheme } from "@/lib/theme";
 
 type View =
   | "now"
+  | "posture"
   | "scorecard"
   | "floorplan"
   | "profile"
@@ -37,6 +39,7 @@ type View =
 
 const TABS: { id: View; label: string }[] = [
   { id: "now", label: "Now" },
+  { id: "posture", label: "Posture" },
   { id: "scorecard", label: "Scorecard" },
   { id: "floorplan", label: "Floor Plan" },
   { id: "profile", label: "Profile" },
@@ -320,8 +323,8 @@ export function App() {
 
   /**
    * Run the deep-audit swarm for a repo. The swarm runs Claude agents and costs
-   * money, so only the Floor Plan tab's own refresh, after the person confirms
-   * it, calls this; nothing else starts it. Non-blocking and independent of the
+   * money, so only the Floor Plan tab's refresh and Posture's Deep audit, each
+   * after the person confirms it, call this; nothing else starts it. Non-blocking and independent of the
    * scorecard; main persists the model, so we just bump the version to reload
    * it. Errors are shown inside the Floor Plan tab.
    */
@@ -523,6 +526,29 @@ export function App() {
                   key={selectedRepo.path}
                   repoPath={selectedRepo.path}
                   focus={nowFocus}
+                  onOpenTask={(id) => {
+                    setTasksFocus({ id, seq: ++focusSeq.current });
+                    showView("tasks");
+                  }}
+                />
+              </div>
+            )}
+
+            {opened.has("posture") && (
+              <div
+                id="panel-posture"
+                role="tabpanel"
+                aria-labelledby="tab-posture"
+                tabIndex={0}
+                hidden={view !== "posture"}
+              >
+                {/* key reads the newly selected repo's record afresh. */}
+                <Posture
+                  key={selectedRepo.path}
+                  repoPath={selectedRepo.path}
+                  deepAuditRunning={floorPlanRunning}
+                  deepAuditError={floorPlanError}
+                  onDeepAudit={() => triggerFloorPlan(selectedRepo.path)}
                   onOpenTask={(id) => {
                     setTasksFocus({ id, seq: ++focusSeq.current });
                     showView("tasks");

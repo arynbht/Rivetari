@@ -2,19 +2,15 @@ import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import {
-  EFFORTS,
   loadBundledCatalog,
   loadBundledGates,
-  PHASES,
-  SEVERITIES,
 } from "@arynbht/rivetari-catalog";
 import {
   buildContext,
-  type ControlResult,
   evaluateControls,
-  evaluateGate,
   EvidenceError,
   type GateStatus,
+  inferPhase,
   ProfileError,
   resolveToken,
   WaiverError,
@@ -92,48 +88,17 @@ export async function runStatus(
     waivers,
   });
 
-  // Evaluate each phase's gate (where one is defined), in phase order. A gate that
-  // selects zero controls is "undefined for this profile", not a blocker — treat it
-  // like an absent gate so it never pins phase inference (an empty discovery gate
-  // must not make every repo look stuck at "discovery").
-  const gateByPhase = new Map(gates.map((g) => [g.phase, g]));
-  const perPhase = PHASES.map((p) => {
-    const gate = gateByPhase.get(p.key);
-    const evaluated = gate ? evaluateGate(gate, results) : null;
-    return {
-      phase: p.key,
-      title: p.title,
-      status:
-        evaluated && evaluated.controls.length > 0 ? evaluated.status : null,
-      gate,
-    };
-  });
-
-  // Inferred phase = the lowest-order phase whose gate is defined and not green,
-  // but never below the profile's declared phase: that is a floor the user set
-  // (e.g. a shipped product without a discovery brief is not "in discovery").
-  const floorOrder = PHASES.find((p) => p.key === profile?.phase)?.order ?? 0;
-  const atOrAboveFloor = (key: string) =>
-    (PHASES.find((p) => p.key === key)?.order ?? 0) >= floorOrder;
-  const firstBlocked = perPhase.find(
-    (p) => p.status && p.status !== "green" && atOrAboveFloor(p.phase),
-  );
-  const defined = perPhase.filter((p) => p.status);
-  const allGreen = defined.length > 0 && !firstBlocked;
-
-  // When every defined gate is green the project is at the furthest phase; derive
-  // it from the phase list rather than hardcoding "operate".
-  const lastPhase = PHASES[PHASES.length - 1]?.key ?? null;
+  // The phase, the gates and what blocks them come from the engine, which the
+  // desktop's Posture view asks too, so the two can't disagree.
+  const inference = inferPhase(gates, results, profile?.phase);
   const report: StatusReport = {
-    inferredPhase: firstBlocked?.phase ?? (allGreen ? lastPhase : null),
-    allGreen,
+    inferredPhase: inference.inferredPhase,
+    allGreen: inference.allGreen,
     declaredPhase: profile?.phase ?? null,
-    gates: perPhase
-      .filter((p): p is typeof p & { status: GateStatus } => p.status !== null)
-      .map((p) => ({ phase: p.phase, title: p.title, status: p.status })),
-    blockers: firstBlocked?.gate
-      ? blockersFor(evaluateGate(firstBlocked.gate, results).controls)
-      : [],
+    gates: inference.phases.filter(
+      (p): p is typeof p & { status: GateStatus } => p.status !== null,
+    ),
+    blockers: inference.blockers,
   };
 
   if (flags.json) {
@@ -143,22 +108,4 @@ export async function runStatus(
   const color = flags.color !== false && process.stdout.isTTY === true;
   process.stdout.write(`${renderStatus(report, color)}\n`);
   return 0;
-}
-
-/** Blocking controls (fail / needs-evidence) ordered by severity then effort. */
-function blockersFor(controls: ControlResult[]): StatusReport["blockers"] {
-  return controls
-    .filter((c) => c.status === "fail" || c.status === "needs-evidence")
-    .map((c) => ({
-      controlId: c.controlId,
-      title: c.title,
-      status: c.status,
-      severity: c.severity,
-      effort: c.effort ?? "medium",
-    }))
-    .sort(
-      (a, b) =>
-        SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) ||
-        EFFORTS.indexOf(a.effort) - EFFORTS.indexOf(b.effort),
-    );
 }
