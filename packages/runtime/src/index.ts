@@ -171,9 +171,16 @@ export {
   buildTask,
   type BuildOutcome,
   claudeAgent,
+  MAX_PLAN_TURNS,
+  PLAN_TURNS,
+  PLAN_TURNS_ENV,
+  planTurns,
   taskPlan,
   usageNote,
 } from "./agent/build.js";
+export { ensurePlaywrightBrowser, playwrightPin } from "./agent/browsers.js";
+export { grantedCommands, type Grants } from "./agent/grants.js";
+export { portFree, stopTaskServers, type Teardown } from "./agent/processes.js";
 export {
   type ProofRecord,
   type ProveOptions,
@@ -226,6 +233,24 @@ export {
   usageTotals,
 } from "./ship/close.js";
 export {
+  costFlags,
+  type MetricsFlags,
+  renderCost,
+  renderFindings,
+  renderLadder,
+  runMetrics,
+  type RunMetricsOptions,
+  verificationLines,
+} from "./metrics/report.js";
+export {
+  type ClosedTask,
+  closedTasks,
+  judgeUsage,
+  type SpendDay,
+  type TaskMetrics,
+  taskMetrics,
+} from "./metrics/tasks.js";
+export {
   drawFloorplan,
   FLOORPLAN_DIR,
   FLOORPLAN_IGNORE,
@@ -243,6 +268,7 @@ export {
   type ScriptRunner,
 } from "./map/floorplan-skill.js";
 export {
+  BeatError,
   MAX_BUILDS_PER_RUN,
   type RunOutcome,
   runnable,
