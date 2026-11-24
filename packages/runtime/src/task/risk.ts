@@ -3,7 +3,7 @@
 // the higher one counts. A declared risk can raise it but never lower it. The
 // signals are generic globs, so they mean the same thing in any repo, plus the
 // repo's own sensitive list.
-import { isSensitivePath } from "@arynbht/rivetari-engine";
+import { isEnvTemplate, isSensitivePath } from "@arynbht/rivetari-engine";
 import picomatch from "picomatch";
 
 import { PROTECTED } from "../judge/protected.js";
@@ -24,6 +24,8 @@ interface Signal {
   globs: readonly string[];
   /** Paths the globs miss that still carry the signal. */
   also?: ((path: string) => boolean) | undefined;
+  /** Paths the globs match that don't carry it. */
+  except?: ((path: string) => boolean) | undefined;
 }
 
 const SIGNALS: readonly Signal[] = [
@@ -95,6 +97,9 @@ const SIGNALS: readonly Signal[] = [
     what: "secrets handling",
     globs: ["**/*{secret,credential}*", "**/.env*", "**/redact.*"],
     also: isSensitivePath,
+    // A template holds placeholders; a real value in one is still a secret
+    // stop at build and left out of the review, from its contents.
+    except: isEnvTemplate,
   },
   {
     risk: "medium",
@@ -174,7 +179,10 @@ export function deriveRisk(input: RiskInput): DerivedRisk {
     add(
       s.risk,
       s.what,
-      input.paths.filter((p) => s.isMatch(p) || (s.also?.(p) ?? false)),
+      input.paths.filter(
+        (p) =>
+          (s.isMatch(p) || (s.also?.(p) ?? false)) && !(s.except?.(p) ?? false),
+      ),
     );
   add(
     "high",

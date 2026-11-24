@@ -37,6 +37,8 @@ export interface DiffRuleOptions {
 export const MARKDOWN_ALWAYS_SKIPPED = [".changeset/**"] as const;
 
 const CODE = /\.(?:[cm]?[jt]sx?|py|go|rs|java|kt|rb|sh|cs|swift|php)$/i;
+/** Files diff.no-new-comments reads: code, not data, config or prose. */
+export const isCodePath = (path: string) => CODE.test(path);
 const HASH_COMMENTS = /\.(?:py|rb|sh)$/i;
 const MARKDOWN = /\.mdx?$/i;
 const SKIPPED_TEST =

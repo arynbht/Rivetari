@@ -2,7 +2,7 @@
 // to before the task moves on. Found from the committed diff, not the agent's
 // account of it, so an agent can't talk its way past one.
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, posix } from "node:path";
 
 import { looksLikeSecret } from "@arynbht/rivetari-engine";
 import { OSI_ALLOWED } from "@arynbht/rivetari-registry";
@@ -10,14 +10,27 @@ import picomatch from "picomatch";
 import { type SimpleGit, simpleGit } from "simple-git";
 
 import {
+  type DiffEntry,
   findProtected,
   isTestFile,
   protectedDetail,
   type ProtectedReason,
 } from "../judge/protected.js";
-import { parseAddedLines, parseNameStatus } from "../judge/tier1.js";
+import {
+  parseAddedLines,
+  parseHunks,
+  parseNameStatus,
+} from "../judge/tier1.js";
 import { generatedPaths } from "../judge/tier2.js";
 import type { Assembly } from "../router/route.js";
+import { CONTRACT_DEFAULTS, contractChange } from "./contracts.js";
+import {
+  addedDeps,
+  formatDeps,
+  LOCKFILES,
+  manifestParser,
+  packageJsonDeps,
+} from "./dependencies.js";
 
 export type StopTrigger =
   | "new_dependency"
@@ -42,6 +55,11 @@ export interface Stop {
   manifest?: string | undefined;
   packages?: string[] | undefined;
   osi?: boolean | undefined;
+  /**
+   * A schema change that only adds optional fields or new types: nothing that
+   * read the old shape breaks, so autonomy may flag it instead of asking.
+   */
+  additive?: boolean | undefined;
 }
 
 const DATABASE_URL =
@@ -100,13 +118,6 @@ export async function withLicenses(
   };
 }
 
-const DEPENDENCY_KEYS = [
-  "dependencies",
-  "devDependencies",
-  "optionalDependencies",
-  "peerDependencies",
-] as const;
-
 /** Other ecosystems' manifests: any change to one is a dependency change. */
 const OTHER_MANIFESTS = picomatch(
   [
@@ -124,10 +135,17 @@ const OTHER_MANIFESTS = picomatch(
   { dot: true },
 );
 
-const SCHEMA = picomatch(
-  ["**/migrations/**", "**/*.sql", "**/schema.prisma", "**/migrate/**"],
-  { dot: true },
-);
+async function textAt(
+  git: SimpleGit,
+  rev: string,
+  path: string,
+): Promise<string | null> {
+  try {
+    return await git.show([`${rev}:${path}`]);
+  } catch {
+    return null;
+  }
+}
 
 async function jsonAt(
   git: SimpleGit,
@@ -135,7 +153,7 @@ async function jsonAt(
   path: string,
 ): Promise<Record<string, unknown> | null> {
   try {
-    return JSON.parse(await git.show([`${rev}:${path}`])) as Record<
+    return JSON.parse((await textAt(git, rev, path)) ?? "") as Record<
       string,
       unknown
     >;
@@ -144,23 +162,85 @@ async function jsonAt(
   }
 }
 
-/** Package names a package.json gains between base and head. */
-async function addedPackages(
+const EMPTY_LOCK = (): Map<string, Map<string, string>> => new Map();
+
+/**
+ * The new-dependency stops in a diff: one per manifest, naming each package
+ * it adds and the version, so the allow a person gives covers exactly those.
+ * A lockfile that gains a direct dependency no package.json declares is one
+ * too: the dependency is installed all the same.
+ */
+async function dependencyStops(
   git: SimpleGit,
   base: string,
   head: string,
-  path: string,
-): Promise<string[]> {
-  const before = (await jsonAt(git, base, path)) ?? {};
-  const after = (await jsonAt(git, head, path)) ?? {};
-  const names = (pkg: Record<string, unknown>) =>
-    new Set(
-      DEPENDENCY_KEYS.flatMap((k) =>
-        Object.keys((pkg[k] as Record<string, unknown> | undefined) ?? {}),
-      ),
-    );
-  const had = names(before);
-  return [...names(after)].filter((n) => !had.has(n)).sort();
+  diff: readonly DiffEntry[],
+): Promise<Stop[]> {
+  const stops: Stop[] = [];
+  for (const entry of diff) {
+    if (entry.status === "D") continue;
+    const was = entry.oldPath ?? entry.path;
+    const lockfile = LOCKFILES[posix.basename(entry.path)];
+    if (entry.path.endsWith("package.json")) {
+      const added = addedDeps(
+        packageJsonDeps(await jsonAt(git, base, was)),
+        packageJsonDeps(await jsonAt(git, head, entry.path)),
+      );
+      if (added.length > 0)
+        stops.push({
+          trigger: "new_dependency",
+          detail: `${entry.path} adds ${formatDeps(added)}`,
+          manifest: entry.path,
+          packages: added.map((d) => d.name),
+        });
+    } else if (lockfile) {
+      const read = async (rev: string, path: string) => {
+        const text = await textAt(git, rev, path);
+        try {
+          return text === null ? EMPTY_LOCK() : lockfile(text);
+        } catch {
+          return EMPTY_LOCK();
+        }
+      };
+      const before = await read(base, was);
+      const after = await read(head, entry.path);
+      const dir = posix.dirname(entry.path);
+      const added: { name: string; version: string }[] = [];
+      for (const [importer, declared] of after) {
+        // What a package.json declares is its own stop's to name, or not new.
+        const manifest = posix.join(dir, importer, "package.json");
+        const own = packageJsonDeps(await jsonAt(git, head, manifest));
+        added.push(
+          ...addedDeps(before.get(importer) ?? new Map(), declared).filter(
+            (d) => !own.has(d.name),
+          ),
+        );
+      }
+      if (added.length > 0)
+        stops.push({
+          trigger: "new_dependency",
+          detail: `${entry.path} adds ${formatDeps(added)}, which no package.json declares`,
+          manifest: entry.path,
+          packages: added.map((d) => d.name),
+        });
+    } else if (OTHER_MANIFESTS(entry.path)) {
+      const parse = manifestParser(entry.path);
+      const added = parse
+        ? addedDeps(
+            parse((await textAt(git, base, was)) ?? ""),
+            parse((await textAt(git, head, entry.path)) ?? ""),
+          )
+        : [];
+      stops.push({
+        trigger: "new_dependency",
+        detail:
+          added.length > 0
+            ? `${entry.path} adds ${formatDeps(added)}`
+            : `${entry.path} changed`,
+      });
+    }
+  }
+  return stops;
 }
 
 /**
@@ -172,6 +252,10 @@ export async function findStops(
   base: string,
   head: string,
   assembly: Assembly,
+  options: {
+    /** The profile's own contract files, on top of `CONTRACT_DEFAULTS`. */
+    contracts?: readonly string[] | undefined;
+  } = {},
 ): Promise<Stop[]> {
   const git = simpleGit(worktree);
   const diff = parseNameStatus(
@@ -182,34 +266,35 @@ export async function findStops(
     assembly.stop_and_ask.flatMap((s) => (typeof s === "string" ? [s] : [])),
   );
 
-  if (asks.has("new_dependency")) {
-    for (const entry of diff) {
-      if (entry.status === "D") continue;
-      if (entry.path.endsWith("package.json")) {
-        const added = await addedPackages(git, base, head, entry.path);
-        if (added.length > 0)
-          stops.push({
-            trigger: "new_dependency",
-            detail: `${entry.path} adds ${added.join(", ")}`,
-            manifest: entry.path,
-            packages: added,
-          });
-      } else if (OTHER_MANIFESTS(entry.path)) {
-        stops.push({
-          trigger: "new_dependency",
-          detail: `${entry.path} changed`,
-        });
-      }
-    }
-  }
+  if (asks.has("new_dependency"))
+    stops.push(...(await dependencyStops(git, base, head, diff)));
 
+  const unified = await git.raw(["diff", "-U0", "--no-color", base, head]);
   if (asks.has("schema_change")) {
-    const schema = diff.filter((e) => SCHEMA(e.path)).map((e) => e.path);
-    if (schema.length > 0)
+    const isContract = picomatch(
+      [...CONTRACT_DEFAULTS, ...(options.contracts ?? [])],
+      { dot: true },
+    );
+    const hunks = parseHunks(unified);
+    const changes = diff
+      .filter((e) => [e.path, e.oldPath].some((p) => p && isContract(p)))
+      .map((e) => contractChange(e, hunks.get(e.path) ?? []));
+    if (changes.length > 0) {
+      const breaking = changes.flatMap((c) =>
+        c.breaking.map((why) => `${c.path} ${why}`),
+      );
+      const more =
+        breaking.length > 3 ? `; and ${breaking.length - 3} more` : "";
       stops.push({
         trigger: "schema_change",
-        detail: `touches ${schema.join(", ")}`,
+        detail: `touches ${changes.map((c) => c.path).join(", ")}${
+          breaking.length > 0
+            ? ` — ${breaking.slice(0, 3).join("; ")}${more}`
+            : ""
+        }`,
+        additive: breaking.length === 0,
       });
+    }
   }
 
   for (const ask of assembly.stop_and_ask) {
@@ -223,9 +308,7 @@ export async function findStops(
       });
   }
 
-  const added = parseAddedLines(
-    await git.raw(["diff", "-U0", "--no-color", base, head]),
-  );
+  const added = parseAddedLines(unified);
   // Scripts are the commands the checks run, in any package of a workspace.
   const scripts = async (rev: string, path: string) =>
     JSON.stringify((await jsonAt(git, rev, path))?.scripts ?? null);
