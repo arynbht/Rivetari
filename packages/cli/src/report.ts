@@ -1,9 +1,11 @@
-import type {
-  ChangeResult,
-  ControlResult,
-  ControlStatus,
-  GateResult,
-  GateStatus,
+import {
+  type AuditSummary,
+  type ChangeResult,
+  type ControlResult,
+  type ControlStatus,
+  type GateResult,
+  type GateStatus,
+  summarizeResults,
 } from "@arynbht/rivetari-engine";
 import pc from "picocolors";
 
@@ -64,35 +66,11 @@ export function renderStatus(report: StatusReport, color = true): string {
   return lines.join("\n");
 }
 
-export interface Summary {
-  pass: number;
-  fail: number;
-  needsEvidence: number;
-  waived: number;
-  skip: number;
-  na: number;
-  total: number;
-}
+export type Summary = AuditSummary;
 
+/** The status counts; the engine's, so state.json and every report agree. */
 export function summarize(results: ControlResult[]): Summary {
-  const summary: Summary = {
-    pass: 0,
-    fail: 0,
-    needsEvidence: 0,
-    waived: 0,
-    skip: 0,
-    na: 0,
-    total: results.length,
-  };
-  for (const r of results) {
-    if (r.status === "pass") summary.pass++;
-    else if (r.status === "fail") summary.fail++;
-    else if (r.status === "needs-evidence") summary.needsEvidence++;
-    else if (r.status === "waived") summary.waived++;
-    else if (r.status === "n/a") summary.na++;
-    else summary.skip++;
-  }
-  return summary;
+  return summarizeResults(results);
 }
 
 /** Exit non-zero if any critical control failed. */

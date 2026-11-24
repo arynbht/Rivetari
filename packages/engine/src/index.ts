@@ -29,6 +29,17 @@ export {
   sha256,
 } from "./state.js";
 export type { RivetariState } from "./state.js";
+export {
+  readRecordedAudit,
+  recordAudit,
+  summarizeResults,
+  writeAuditState,
+} from "./audit-record.js";
+export type {
+  AuditSummary,
+  RecordedAudit,
+  RecordedControl,
+} from "./audit-record.js";
 export * from "./generators/index.js";
 export {
   upsertStickyComment,
