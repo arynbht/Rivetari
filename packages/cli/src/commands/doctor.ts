@@ -220,6 +220,8 @@ async function lockShortDetail(root: string): Promise<string | null> {
     .map((f) => f.trim())
     .filter(Boolean);
   const short = lockShortfall({ manifests, locked, files });
+  // A missing or broken profile is the profile check's to report; it
+  // shouldn't hide what the lock is short of.
   const profile = await loadProfile(root).catch(() => null);
   const floorplan = profile?.floorplan === true && !locked.has("floorplan");
   const gaps: string[] = [];

@@ -273,6 +273,34 @@ describe("the skill cap counts what's left after removals (R-32)", () => {
   });
 });
 
+describe("UI words on a card that touches no UI code (R-18)", () => {
+  it("leave ui and a11y out, where description words used to bring them in", () => {
+    const routing = route({
+      card: parseCard({
+        id: "T-0002",
+        title: "Write up the settings",
+        type: "chore",
+        description:
+          "Describe the settings page layout: the sidebar, the modal, each button component and the dark mode theme.",
+        acceptance: [{ id: "A1", text: "It reads well", verify: "review" }],
+        touches: ["docs/guide.md", "src/app/main.ts"],
+        risk: "low",
+        owner: "dev@example.com",
+        created: "2026-11-23",
+      }),
+      manifests,
+      available: new Set(PILOT_LOCK),
+      flags: { "public-facing": true },
+      files: ["README.md", "docs/guide.md", "src/app/main.ts"],
+      checks: ["quality.tests.pass"],
+    });
+    expect(routing.assembly.sectors).toEqual(["docs"]);
+    expect(routing.assembly.proof).not.toBe("ui-screenshots");
+    expect(routing.decidedOut).toContain("ui");
+    expect(routing.outReasons.ui).toBe("scored only on description keywords");
+  });
+});
+
 describe("the route's reasons", () => {
   it("group the words by where they were found, and skip a skill path that repeats a touch", async () => {
     const { scores } = await routed("T-0014");

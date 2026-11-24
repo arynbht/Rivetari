@@ -449,8 +449,8 @@ export function route(input: RouteInput): Routing {
     for (const { m } of candidates)
       unloadedNotes.set(m.name, `${m.name} matched but ${unloaded(m.name)}`);
   }
-  // Picked before the cap, so a skill removed for being unavailable, for a
-  // conflict or as the critique fallback never holds a place under it.
+  // Picked before the cap, so a skill removed as unavailable or for a
+  // conflict never holds a place under it.
   const picked: string[][] = [];
   const pickedNames = () => picked.flat();
   const conflicting = (name: string) =>
@@ -483,23 +483,33 @@ export function route(input: RouteInput): Routing {
     }
     picked.push(group);
   }
-  const fallback = picked.findIndex((g) => g.at(-1) === CRITIQUE_FALLBACK);
-  if (fallback !== -1 && pickedNames().some((s) => CRITIQUE.includes(s))) {
-    picked.splice(fallback, 1);
-    notes.push(
-      `${CRITIQUE_FALLBACK} left out: a critique skill is already in the assembly`,
-    );
-  }
-  const skills: string[] = [];
-  for (const group of picked) {
-    if (skills.length + group.length > MAX_TASK_SKILLS) {
-      notes.push(
-        `${group.at(-1) ?? ""} left out: it would take the assembly past ${MAX_TASK_SKILLS} skills`,
-      );
-      continue;
+  const cap = (groups: readonly string[][]) => {
+    const kept: string[] = [];
+    const cut: string[] = [];
+    for (const group of groups) {
+      if (kept.length + group.length > MAX_TASK_SKILLS)
+        cut.push(
+          `${group.at(-1) ?? ""} left out: it would take the assembly past ${MAX_TASK_SKILLS} skills`,
+        );
+      else kept.push(...group);
     }
-    skills.push(...group);
+    return { kept, cut };
+  };
+  // The fallback steps aside only for a critique skill that survives the
+  // cap without it; otherwise it keeps its place.
+  let capped = cap(picked);
+  const fallback = picked.findIndex((g) => g.at(-1) === CRITIQUE_FALLBACK);
+  if (fallback !== -1) {
+    const without = cap(picked.filter((_, i) => i !== fallback));
+    if (without.kept.some((s) => CRITIQUE.includes(s))) {
+      capped = without;
+      notes.push(
+        `${CRITIQUE_FALLBACK} left out: a critique skill is already in the assembly`,
+      );
+    }
   }
+  notes.push(...capped.cut);
+  const skills = capped.kept;
 
   const spine = [...manifests.values()]
     .filter(
