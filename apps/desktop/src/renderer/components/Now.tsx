@@ -504,7 +504,21 @@ function ItemCard({
           <PrLink repoPath={repoPath} item={item} />
           <NextLine next={item.next} />
         </div>
-      ) : (
+      ) : null}
+      {(item.kind === "intake" ||
+        item.kind === "route" ||
+        item.kind === "stop" ||
+        item.kind === "merge") && (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onOpenTask(item.id)}
+        >
+          Open {item.id} in Tasks
+        </Button>
+      )}
+      {item.kind === "record" && (
         <div className="space-y-2">
           <p className="text-sm text-rose-300">{item.why}</p>
           <Button

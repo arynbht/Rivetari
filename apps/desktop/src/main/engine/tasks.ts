@@ -1,23 +1,20 @@
-// Tasks adapter: the runtime's read-only task watcher, kept as a whole list so
-// the renderer gets the repo's tasks in one piece after every change. One repo is
-// watched at a time (the Tasks tab shows one); watching another, or closing the
-// window, stops the last watcher. The watcher writes nothing; the two actions
-// here are the person's own: answering a stop, which goes through the same
-// runtime calls as `rivetari task answer` (task-beat.ts), and opening a task's PR.
-// The Now view keeps watchers of its own (now.ts) for every repo in the sidebar.
-// The list the renderer gets leaves each ledger out: a running task's progress
-// changes every couple of seconds, and sending every task's whole ledger each
-// time would be most of the payload. The open task's ledger is asked for alone.
-// Electron-free except the push callback and the open function passed in.
-import { resolve } from "node:path";
-
+// Tasks adapter: the Tasks tab's view of one repo's tasks, kept as a whole
+// list so the renderer gets them in one piece after every change. The tasks
+// come from the Now hub's watcher (now.ts), the same one the Now view and the
+// badges read, so the repo on show is polled once; showing another repo, or
+// closing the window, lets the hub drop a repo only the tab kept watched. The
+// two actions here are the person's own: answering a stop, which goes through
+// the same runtime calls as `rivetari task answer` (task-beat.ts), and opening
+// a task's PR. The list the renderer gets leaves each ledger out: a running
+// task's progress changes every couple of seconds, and sending every task's
+// whole ledger each time would be most of the payload. The open task's ledger
+// is asked for alone. Electron-free except the push callback and the open
+// function passed in.
 import {
   answerStops,
   nextStep,
-  type TaskEvent,
   type TaskView,
-  type TaskWatcher,
-  watchTasks,
+  WATCH_INTERVAL_MS,
 } from "@arynbht/rivetari-runtime";
 
 import type {
@@ -27,28 +24,10 @@ import type {
   TasksState,
   TaskSummary,
 } from "../../shared/ipc";
+import { applyTaskEvent, needsYouItems, NowHub } from "./now";
 import { beatDeps, type BeatDeps, recordBeat } from "./task-beat";
 
-/** The list after one watcher event; a read error leaves the list as it was. */
-export function applyTaskEvent(
-  tasks: TaskView[],
-  event: TaskEvent,
-): TaskView[] {
-  switch (event.kind) {
-    case "snapshot":
-      return event.tasks;
-    case "added":
-      return [...tasks, event.task].sort(
-        (a, b) => Number(a.id.slice(2)) - Number(b.id.slice(2)),
-      );
-    case "changed":
-      return tasks.map((t) => (t.id === event.task.id ? event.task : t));
-    case "removed":
-      return tasks.filter((t) => t.id !== event.id);
-    case "error":
-      return tasks;
-  }
-}
+export { applyTaskEvent };
 
 /** A task as the tab lists it: no ledger, only where it ends. */
 export function taskSummary(view: TaskView): TaskSummary {
@@ -56,6 +35,8 @@ export function taskSummary(view: TaskView): TaskSummary {
   return {
     ...rest,
     ledgerSeq: entries.at(-1)?.seq ?? 0,
+    // What the Now view's queue would say it waits on, a PR to merge included.
+    waiting: needsYouItems([view])[0]?.kind ?? null,
     progress: progress
       ? {
           beat: progress.beat,
@@ -71,73 +52,68 @@ export function taskSummary(view: TaskView): TaskSummary {
   };
 }
 
-let active: TaskWatcher | null = null;
-/**
- * The tasks the tab was last sent, whole: opening a PR goes by the record, not
- * the renderer, and the open task's ledger comes from here.
- */
-let shown: { repoPath: string; tasks: TaskView[] } | null = null;
+/** The hub the tab listens to: the app's own (shareHub), or one made on first use. */
+let hub: NowHub | null = null;
+
+/** Listen to the app's hub, which also feeds the Now view, rather than a second watcher. */
+export function shareHub(shared: NowHub): void {
+  hub = shared;
+}
+
+const hubFor = (intervalMs?: number): NowHub =>
+  (hub ??= new NowHub({
+    onState: () => undefined,
+    onBadges: () => undefined,
+    onNew: () => undefined,
+    intervals: {
+      shown: intervalMs ?? WATCH_INTERVAL_MS,
+      others: intervalMs ?? WATCH_INTERVAL_MS,
+    },
+  }));
+
+const stateOf = (
+  repoPath: string,
+  views: TaskView[],
+  error: string | null,
+): TasksState => ({ repoPath, tasks: views.map(taskSummary), error });
 
 /**
- * Watch `repoPath`'s tasks, replacing any earlier watch. Resolves with the first
- * state; every later change is handed to `onState`.
+ * Show `repoPath`'s tasks, replacing any repo shown before. Resolves with the
+ * first state; every later change is handed to `onState`. `intervalMs` only
+ * sets how often a hub made here reads (a test's); the app's hub has its own.
  */
 export async function watchRepoTasks(
   repoPath: string,
   onState: (state: TasksState) => void,
   intervalMs?: number,
 ): Promise<TasksState> {
-  let tasks: TaskView[] = [];
-  let error: string | null = null;
-  const state = (): TasksState => ({
+  const { views, error } = await hubFor(intervalMs).watchTab(
     repoPath,
-    tasks: tasks.map(taskSummary),
-    error,
-  });
-  let settled = false;
-  const watcher = watchTasks(
-    repoPath,
-    (event) => {
-      tasks = applyTaskEvent(tasks, event);
-      // An error stays on show until the next read that changes something.
-      error = event.kind === "error" ? event.message : null;
-      if (active === watcher) shown = { repoPath, tasks };
-      // The first snapshot is the reply to the watch call itself.
-      if (settled) onState(state());
-    },
-    // This machine's copies list at once; the branch's view follows as changes.
-    { localFirst: true, ...(intervalMs === undefined ? {} : { intervalMs }) },
+    (next, nextError) => onState(stateOf(repoPath, next, nextError)),
   );
-  // Swap first, then stop the one replaced: two watch calls racing each other
-  // can't both see no watcher and leave one running.
-  const replaced = active;
-  active = watcher;
-  await replaced?.stop();
-  try {
-    tasks = await watcher.ready;
-  } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
-  }
-  settled = true;
-  if (active === watcher) shown = { repoPath, tasks };
-  return state();
+  return stateOf(repoPath, views, error);
 }
+
+/** The tasks on show in the tab, whole, when it shows `repoPath`. */
+const shownTasks = (repoPath: string): TaskView[] | undefined =>
+  hub?.tabViews(repoPath);
 
 /** Task `id`'s ledger as the watcher last read it, for the task the tab has open. */
 export function taskLedger(repoPath: string, id: string): TaskEntry[] {
-  const task =
-    shown && resolve(shown.repoPath) === resolve(repoPath)
-      ? shown.tasks.find((t) => t.id === id)
-      : undefined;
+  const task = shownTasks(repoPath)?.find((t) => t.id === id);
   if (!task) throw new Error(`${id} isn't one of the tasks on show`);
   return task.entries;
 }
 
+/** Task `id`'s view as the tab was last told of it, or why there's none. */
+export function shownTask(repoPath: string, id: string): TaskView {
+  const task = shownTasks(repoPath)?.find((t) => t.id === id);
+  if (!task) throw new Error(`${id} isn't one of the tasks on show`);
+  return task;
+}
+
 export async function unwatchTasks(): Promise<void> {
-  const watcher = active;
-  active = null;
-  shown = null;
-  await watcher?.stop();
+  await hub?.unwatchTab();
 }
 
 /** The runtime calls an answer makes; a test hands in its own. */
@@ -207,9 +183,7 @@ export async function openTaskPr(
   open: (url: string) => Promise<void>,
 ): Promise<{ url: string }> {
   const url = prUrlOf(
-    shown && resolve(shown.repoPath) === resolve(repoPath)
-      ? shown.tasks.find((t) => t.id === id)
-      : undefined,
+    shownTasks(repoPath)?.find((t) => t.id === id),
     id,
   );
   await open(url);

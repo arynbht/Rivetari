@@ -41,6 +41,8 @@ export {
   SEAL_TEXT,
 } from "./task/ledger.js";
 export {
+  type AllowedDecision,
+  allowedDecisions,
   APPROVED,
   assemblyPath,
   confirmTask,
@@ -160,6 +162,7 @@ export {
   buildTask,
   type BuildOutcome,
   claudeAgent,
+  taskPlan,
   usageNote,
 } from "./agent/build.js";
 export {
@@ -188,9 +191,11 @@ export {
 } from "./proof/shoot.js";
 export {
   type JudgeRecord,
+  type JudgeRound,
   judgeTask,
   type JudgeTaskOptions,
   loadJudgeRecord,
+  loadJudgeRounds,
 } from "./judge/task-judge.js";
 export {
   PR_MARKER,

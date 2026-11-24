@@ -11,6 +11,7 @@ import {
   session,
   shell,
 } from "electron";
+import type { ZodType } from "zod";
 
 import {
   FLAG_KEYS,
@@ -66,15 +67,19 @@ import {
   NowTaskRequest,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
+  TaskDetail,
   TaskLedger,
   TaskLedgerRequest,
   TaskOpenPrRequest,
   TaskOpenPrResult,
+  TaskPrState,
+  TaskRequest,
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
   WaiveRequest,
 } from "../shared/ipc";
+import { APP_ID } from "./app-id";
 import {
   clearAnthropicKey,
   hasAnthropicKey,
@@ -108,7 +113,7 @@ import {
   MAP_PARTITION,
   mapRequestAllowed,
 } from "./engine/map";
-import { NowHub } from "./engine/now";
+import { itemKey, NowHub } from "./engine/now";
 import {
   approveAssembly,
   confirmCard,
@@ -116,9 +121,13 @@ import {
   openNowPr,
 } from "./engine/now-actions";
 import { mainCi, nowHealth } from "./engine/now-health";
+import { taskDetail } from "./engine/task-detail";
+import { prState } from "./engine/task-pr";
 import {
   answerTask,
   openTaskPr,
+  shareHub,
+  shownTask,
   taskLedger,
   unwatchTasks,
   watchRepoTasks,
@@ -277,7 +286,13 @@ if (isE2E)
     },
   };
 
-const shownNotices = new Set<Notification>();
+/**
+ * Notifications shown, by repo and item. Each is held until it's clicked or
+ * its item leaves Needs you: on Windows a notice moved to the Action Center
+ * has fired 'close' but can still be clicked, and a collected one can't.
+ */
+const shownNotices = new Map<string, Notification>();
+const noticeKey = (repoPath: string, key: string) => `${repoPath}\0${key}`;
 
 /** Tell the person, through the OS, that something new waits on them. */
 function notifyNeedsYou(repoPath: string, item: NeedsYouItem): void {
@@ -287,28 +302,43 @@ function notifyNeedsYou(repoPath: string, item: NeedsYouItem): void {
     return;
   }
   if (!Notification.isSupported()) return;
+  const key = noticeKey(repoPath, itemKey(item));
   const notice = new Notification({ title, body: item.title });
-  // Held until it's done with, or it can be collected before it's clicked.
-  shownNotices.add(notice);
+  shownNotices.set(key, notice);
   notice.on("click", () => {
-    shownNotices.delete(notice);
+    if (shownNotices.get(key) === notice) shownNotices.delete(key);
     focusItem({ repoPath, id: item.id });
   });
-  notice.on("close", () => shownNotices.delete(notice));
   notice.show();
+}
+
+/** An item left Needs you: its notice has nothing left to open, so it goes. */
+function withdrawNotice(repoPath: string, key: string): void {
+  const notice = shownNotices.get(noticeKey(repoPath, key));
+  if (!notice) return;
+  shownNotices.delete(noticeKey(repoPath, key));
+  notice.close();
+}
+
+/** A push that doesn't match the contract is said and dropped, never thrown into the watcher. */
+function push(channel: string, schema: ZodType, payload: unknown): void {
+  const parsed = schema.safeParse(payload);
+  if (parsed.success) mainWindow?.webContents.send(channel, parsed.data);
+  else
+    console.error(
+      `[main] dropped a ${channel} push that doesn't match the contract: ${String(parsed.error)}`,
+    );
 }
 
 /** Every sidebar repo's tasks, watched while the window is open (see engine/now). */
 const nowHub = new NowHub({
-  onState: (state) =>
-    mainWindow?.webContents.send(IpcChannel.NowUpdate, NowState.parse(state)),
-  onBadges: (badges) =>
-    mainWindow?.webContents.send(
-      IpcChannel.NowBadgesUpdate,
-      NowBadges.parse(badges),
-    ),
+  onState: (state) => push(IpcChannel.NowUpdate, NowState, state),
+  onBadges: (badges) => push(IpcChannel.NowBadgesUpdate, NowBadges, badges),
   onNew: notifyNeedsYou,
+  onGone: withdrawNotice,
 });
+// The Tasks tab listens to the same watchers, so no repo is polled twice.
+shareHub(nowHub);
 
 /** Watch exactly these repos (the sidebar's list); a failure is said, not thrown. */
 function watchRepos(repos: { path: string }[]): void {
@@ -596,11 +626,23 @@ function registerIpcHandlers(): void {
     const { repoPath } = TasksWatchRequest.parse(raw);
     return TasksState.parse(
       await watchRepoTasks(repoPath, (state) =>
-        mainWindow?.webContents.send(
-          IpcChannel.TasksUpdate,
-          TasksState.parse(state),
-        ),
+        push(IpcChannel.TasksUpdate, TasksState, state),
       ),
+    );
+  });
+
+  ipcMain.handle(IpcChannel.TasksDetail, async (_event, raw: unknown) => {
+    const { repoPath, id } = TaskRequest.parse(raw);
+    return TaskDetail.parse(
+      await taskDetail(repoPath, shownTask(repoPath, id)),
+    );
+  });
+
+  ipcMain.handle(IpcChannel.TasksPr, async (_event, raw: unknown) => {
+    const { repoPath, id } = TaskRequest.parse(raw);
+    // The PR is the one the task's ledger records, never one the renderer sends.
+    return TaskPrState.parse(
+      await prState(repoPath, shownTask(repoPath, id).pr, await loadToken()),
     );
   });
 
@@ -874,9 +916,9 @@ app.whenReady().then(
       },
     );
 
-    // Windows shows an app's notifications only under its app id.
-    if (process.platform === "win32")
-      app.setAppUserModelId("io.github.arynbht.rivetari");
+    // Windows shows an app's notifications only under its app id, the one
+    // the installer registers (electron-builder.yml's appId).
+    if (process.platform === "win32") app.setAppUserModelId(APP_ID);
 
     registerIpcHandlers();
     createWindow();

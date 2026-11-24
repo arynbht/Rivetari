@@ -58,10 +58,13 @@ import {
   NowTaskRequest,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
+  TaskDetail,
   TaskLedger,
   TaskLedgerRequest,
   TaskOpenPrRequest,
   TaskOpenPrResult,
+  TaskPrState,
+  TaskRequest,
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
@@ -354,6 +357,22 @@ const api = {
         TaskLedgerRequest.parse({ repoPath, id }),
       );
       return TaskLedger.parse(raw);
+    },
+    /** A watched task in full: card and criteria, route, plan, proof, judge rounds. */
+    async detail(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.TasksDetail,
+        TaskRequest.parse({ repoPath, id }),
+      );
+      return TaskDetail.parse(raw);
+    },
+    /** A watched task's PR as GitHub has it now; reads GitHub only when signed in. */
+    async pr(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.TasksPr,
+        TaskRequest.parse({ repoPath, id }),
+      );
+      return TaskPrState.parse(raw);
     },
     /** Subscribe to task changes; returns an unsubscribe fn. */
     onUpdate(callback: (state: TasksState) => void) {

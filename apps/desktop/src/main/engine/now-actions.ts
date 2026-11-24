@@ -21,7 +21,7 @@ import type {
   NowJudge,
 } from "../../shared/ipc";
 import { cardDigest } from "./now";
-import { beatDeps, type BeatDeps, recordBeat } from "./task-beat";
+import { beatDeps, type BeatDeps, plain, recordBeat } from "./task-beat";
 import { prUrlOf } from "./tasks";
 
 export interface ConfirmDeps extends BeatDeps {
@@ -139,7 +139,7 @@ export async function judgeFindings(
     const task = await deps.loadTask(repoPath, id, { readOnly: true });
     return judgeView(await deps.loadJudgeRecord(repoPath, task));
   } catch (err) {
-    throw new Error(err instanceof Error ? err.message : String(err));
+    throw plain(err);
   }
 }
 

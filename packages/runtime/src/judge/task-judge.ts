@@ -29,6 +29,7 @@ import {
 import { AssemblySchema } from "../router/route.js";
 import { autonomyFor } from "../task/autonomy.js";
 import type { Card } from "../task/card.js";
+import type { LedgerEntry } from "../task/ledger.js";
 import {
   allowedDecisions,
   allowedStops,
@@ -120,6 +121,26 @@ const oneLine = (s: string, n = 300) => {
   return t.length > n ? `${t.slice(0, n)}…` : t;
 };
 
+const isVerdict = (e: LedgerEntry) =>
+  e.beat === "judge" && e.section === "timeline" && JUDGE_VERDICT.test(e.text);
+
+/** The round a verdict entry seals, read and checked against its hash. */
+async function sealedRecord(
+  repoPath: string,
+  id: string,
+  entry: LedgerEntry,
+): Promise<JudgeRecord> {
+  const round = Number(JUDGE_VERDICT.exec(entry.text)?.[2]);
+  const text = await readFile(recordPath(repoPath, id, round), "utf8").catch(
+    () => null,
+  );
+  if (text === null || sha256(text) !== SEALED.exec(entry.text)?.[1])
+    throw new TaskError(
+      `${TASKS_DIR}/${id}/judge/round-${round}.json doesn't match the record sealed in the ledger`,
+    );
+  return JSON.parse(text) as JudgeRecord;
+}
+
 /**
  * The latest judge round's record, checked against the hash in its verdict
  * entry. Null before the first verdict.
@@ -128,25 +149,46 @@ export async function loadJudgeRecord(
   repoPath: string,
   task: Task,
 ): Promise<JudgeRecord | null> {
-  const entry = [...task.entries]
-    .reverse()
-    .find(
-      (e) =>
-        e.beat === "judge" &&
-        e.section === "timeline" &&
-        JUDGE_VERDICT.test(e.text),
-    );
-  if (!entry) return null;
-  const round = Number(JUDGE_VERDICT.exec(entry.text)?.[2]);
-  const text = await readFile(
-    recordPath(repoPath, task.card.id, round),
-    "utf8",
-  ).catch(() => null);
-  if (text === null || sha256(text) !== SEALED.exec(entry.text)?.[1])
-    throw new TaskError(
-      `${TASKS_DIR}/${task.card.id}/judge/round-${round}.json doesn't match the record sealed in the ledger`,
-    );
-  return JSON.parse(text) as JudgeRecord;
+  const entry = task.entries.findLast(isVerdict);
+  return entry ? sealedRecord(repoPath, task.card.id, entry) : null;
+}
+
+/** One judge round as its verdict entry and its record tell it. */
+export interface JudgeRound {
+  round: number;
+  verdict: string;
+  /** When the verdict was written. */
+  at: string;
+  /** Null when the record isn't there or doesn't match its seal; `problem` says which. */
+  record: JudgeRecord | null;
+  problem: string | null;
+}
+
+/**
+ * Every judge round so far, oldest first, each record checked against the
+ * hash in its own verdict entry. A round whose record can't be trusted is
+ * kept, with why, so one bad file doesn't hide the others. Only the ledger
+ * and the round files are read, so a task's view from the watcher will do.
+ */
+export async function loadJudgeRounds(
+  repoPath: string,
+  task: { card: Pick<Card, "id">; entries: LedgerEntry[] },
+): Promise<JudgeRound[]> {
+  const rounds: JudgeRound[] = [];
+  for (const e of task.entries.filter(isVerdict)) {
+    const [, verdict = "", round = "0"] = JUDGE_VERDICT.exec(e.text) ?? [];
+    const base = { round: Number(round), verdict, at: e.at };
+    try {
+      rounds.push({
+        ...base,
+        record: await sealedRecord(repoPath, task.card.id, e),
+        problem: null,
+      });
+    } catch (err) {
+      rounds.push({ ...base, record: null, problem: (err as Error).message });
+    }
+  }
+  return rounds;
 }
 
 /**

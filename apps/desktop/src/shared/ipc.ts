@@ -46,6 +46,8 @@ export const IpcChannel = {
   TasksAnswer: "tasks:answer",
   TasksOpenPr: "tasks:openPr",
   TasksLedger: "tasks:ledger",
+  TasksDetail: "tasks:detail",
+  TasksPr: "tasks:pr",
   /** Push channel (main → renderer): the watched repo's tasks after a change. */
   TasksUpdate: "tasks:update",
   MapGet: "map:get",
@@ -507,6 +509,10 @@ export const TaskSummary = z.object({
    * it's fetched (tasks:ledger) for the task that's open, again when this moves.
    */
   ledgerSeq: z.number().int(),
+  /** What it waits on a person for, as the Now view's queue says it; a PR to merge too. */
+  waiting: z
+    .enum(["intake", "route", "stop", "judge", "merge", "record"])
+    .nullable(),
   /** The beat running now, from its progress file; null when none is. */
   progress: z
     .object({
@@ -820,6 +826,204 @@ export type NowBadges = z.infer<typeof NowBadges>;
 /** now:focus push payload — the item a clicked notification was about. */
 export const NowFocus = z.object({ repoPath: z.string(), id: z.string() });
 export type NowFocus = z.infer<typeof NowFocus>;
+
+// Task detail — one task in full: the card with each criterion's status from
+// the latest judge round, the route, the plan, the proof, every judge round
+// and the PR's live state on GitHub. Read from the records (the watcher's view,
+// and this machine's judge and proof files); nothing here writes.
+
+export const TaskRequest = z.object({
+  repoPath: z.string().min(1),
+  id: TaskId,
+});
+
+/** How a criterion stands after the latest judge round. */
+export const CriterionStatus = z.enum([
+  "met",
+  "unmet",
+  "unverified",
+  "hand-checked",
+  "not judged",
+]);
+export type CriterionStatus = z.infer<typeof CriterionStatus>;
+
+export const TaskCriterion = z.object({
+  id: z.string(),
+  text: z.string(),
+  verify: z.string(),
+  status: CriterionStatus,
+  /** The reviewer's note, or who checked it by hand. */
+  note: z.string(),
+});
+export type TaskCriterion = z.infer<typeof TaskCriterion>;
+
+export const TaskFinding = z.object({
+  kind: z.string(),
+  title: z.string(),
+  file: z.string().nullable(),
+  line: z.number().nullable(),
+  acceptanceId: z.string().nullable(),
+  detail: z.string(),
+  repro: z.string(),
+  fix: z.string(),
+  /** Set when a blocking finding was turned into a suggestion, and why. */
+  downgraded: z.string().nullable(),
+});
+export type TaskFinding = z.infer<typeof TaskFinding>;
+
+export const TaskJudgeRound = z.object({
+  round: z.number().int(),
+  verdict: z.string(),
+  at: z.string(),
+  /** Why the round's record can't be shown; null when it verified. */
+  problem: z.string().nullable(),
+  head: z.string().nullable(),
+  tier1: z
+    .object({
+      verdict: z.string(),
+      checks: z.array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          outcome: z.string(),
+          message: z.string(),
+        }),
+      ),
+      protectedPaths: z.array(z.string()),
+      notes: z.array(z.string()),
+    })
+    .nullable(),
+  /** Null when tier 1 didn't leave the decision to the review. */
+  review: z
+    .object({
+      verdict: z.string(),
+      model: z.string(),
+      blocking: z.array(TaskFinding),
+      suggestions: z.array(TaskFinding),
+      acceptance: z.array(
+        z.object({ id: z.string(), status: z.string(), note: z.string() }),
+      ),
+      unreviewed: z.array(z.string()),
+    })
+    .nullable(),
+  risk: z
+    .object({
+      card: z.string(),
+      effective: z.string(),
+      reasons: z.array(z.string()),
+    })
+    .nullable(),
+});
+export type TaskJudgeRound = z.infer<typeof TaskJudgeRound>;
+
+export const TaskProofShot = z.object({
+  side: z.string(),
+  page: z.string(),
+  breakpoint: z.string(),
+  /** The page's HTTP status when it was shot. */
+  status: z.number(),
+  file: z.string(),
+  bytes: z.number().nullable(),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  /** The PNG as a data: URL (the page's CSP allows no other image source). */
+  dataUrl: z.string().nullable(),
+  problem: z.string().nullable(),
+});
+export type TaskProofShot = z.infer<typeof TaskProofShot>;
+
+export const TaskProof = z.object({
+  kind: z.string(),
+  passed: z.boolean(),
+  lines: z.array(z.string()),
+  tests: z
+    .object({
+      exitCode: z.number(),
+      added: z.array(z.string()),
+      outcome: z.string().nullable(),
+    })
+    .nullable(),
+  violations: z.array(
+    z.object({
+      id: z.string(),
+      impact: z.string(),
+      page: z.string(),
+      nodes: z.number(),
+    }),
+  ),
+  shots: z.array(TaskProofShot),
+  /** test-run.txt, its tail when it's long; null when there's none. */
+  testRun: z.string().nullable(),
+  /** A UI screenshot proof, which carries the R-25 warning. */
+  ui: z.boolean(),
+});
+export type TaskProof = z.infer<typeof TaskProof>;
+
+export const TaskDetail = z.object({
+  id: z.string(),
+  title: z.string(),
+  /** Null when the card couldn't be read from the record. */
+  card: z
+    .object({
+      description: z.string(),
+      type: z.string(),
+      risk: z.string(),
+      outOfScope: z.array(z.string()),
+      touches: z.array(z.string()),
+      acceptance: z.array(TaskCriterion),
+    })
+    .nullable(),
+  /** The judge round the criteria's statuses come from. */
+  judgedRound: z.number().int().nullable(),
+  /** Null before the card has been routed. */
+  route: z
+    .object({
+      assembly: NowAssembly.nullable(),
+      problems: z.array(z.string()),
+      reasons: z.array(z.string()),
+      approved: z.boolean(),
+    })
+    .nullable(),
+  plan: z.array(z.string()),
+  judge: z.object({
+    rounds: z.array(TaskJudgeRound),
+    error: z.string().nullable(),
+  }),
+  proof: z.object({
+    /** Null before the prove beat has written proof.json on this machine. */
+    record: TaskProof.nullable(),
+    error: z.string().nullable(),
+  }),
+});
+export type TaskDetail = z.infer<typeof TaskDetail>;
+
+/** A task's PR on GitHub, live, or why it isn't shown. */
+export const TaskPrState = z.object({
+  state: z.enum([
+    "signed-out",
+    "unavailable",
+    "none",
+    "open",
+    "merged",
+    "closed",
+  ]),
+  number: z.number().int().nullable(),
+  draft: z.boolean().nullable(),
+  /** GitHub's own answer, null while it's still working it out. */
+  mergeable: z.boolean().nullable(),
+  mergeableState: z.string().nullable(),
+  headSha: z.string().nullable(),
+  checks: z.array(
+    z.object({
+      name: z.string(),
+      status: z.string(),
+      conclusion: z.string().nullable(),
+      headSha: z.string(),
+    }),
+  ),
+  detail: z.string(),
+});
+export type TaskPrState = z.infer<typeof TaskPrState>;
 
 // Settings — personal preferences in `userData` (never the repo). The Anthropic
 // API key is NOT in this object: like the GitHub token it lives in safeStorage and
