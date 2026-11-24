@@ -75,6 +75,8 @@ export const IpcChannel = {
   NowBadgesUpdate: "now:badgesUpdate",
   /** Push channel (main → renderer): a notification was clicked; show its item. */
   NowFocus: "now:focus",
+  /** Home: one line per registered repo, before a repo is picked. */
+  HomeGet: "home:get",
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -1084,6 +1086,55 @@ export type NowBadges = z.infer<typeof NowBadges>;
 /** now:focus push payload — the item a clicked notification was about. */
 export const NowFocus = z.object({ repoPath: z.string(), id: z.string() });
 export type NowFocus = z.infer<typeof NowFocus>;
+
+// Home — one line per registered repo: what's running and what needs the
+// owner (from the Now watchers), spend this week, the posture gate (declared
+// vs inferred phase) and the configured autonomy level. main's CI is read
+// apart, per repo, through now:ci, so it never holds the rest up.
+export const HomeNeed = z.object({
+  id: z.string(),
+  title: z.string(),
+  kind: z.enum(["intake", "route", "stop", "judge", "merge", "record"]),
+  why: z.string(),
+});
+export type HomeNeed = z.infer<typeof HomeNeed>;
+
+export const HomeRepo = z.object({
+  repoPath: z.string(),
+  name: z.string(),
+  /** The watcher's first read has landed. */
+  ready: z.boolean(),
+  /** Why the watcher couldn't read the tasks, if it couldn't. */
+  error: z.string().nullable(),
+  running: z.array(NowRunning),
+  needsYou: z.array(HomeNeed),
+  spend: z.object({
+    weekUsd: z.number(),
+    openUsd: z.number(),
+    error: z.string().nullable(),
+  }),
+  autonomy: z.object({
+    configured: z.string().nullable(),
+    error: z.string().nullable(),
+  }),
+  /** The phase lens; null with no audit recorded, or when it can't be read. */
+  phase: z
+    .object({
+      declared: z.string().nullable(),
+      inferred: z.string().nullable(),
+      allGreen: z.boolean(),
+      nextPhase: z.string().nullable(),
+      /** How many controls hold the inferred phase's gate shut. */
+      blockers: z.number().int(),
+    })
+    .nullable(),
+  /** Why there's no phase: no audit recorded yet, or the read failed. */
+  phaseNote: z.string().nullable(),
+});
+export type HomeRepo = z.infer<typeof HomeRepo>;
+
+export const HomeView = z.object({ repos: z.array(HomeRepo) });
+export type HomeView = z.infer<typeof HomeView>;
 
 // Task detail — one task in full: the card with each criterion's status from
 // the latest judge round, the route, the plan, the proof, every judge round

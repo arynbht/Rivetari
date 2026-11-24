@@ -234,3 +234,26 @@ export async function readPosture(
     problems,
   };
 }
+
+/**
+ * Only the phase lens, for Home's line per repo: the same read readPosture
+ * makes of the recorded audit and the gates, without the trend, waivers or
+ * evidence. Null when no audit is recorded yet.
+ */
+export async function readPhase(
+  repoPath: string,
+  declaredPhase: string | null,
+): Promise<PostureLens | null> {
+  const [controls, recorded, bundled] = await Promise.all([
+    bundledControls(),
+    readRecordedAudit(repoPath),
+    loadBundledGates(),
+  ]);
+  if (bundled.errors.length > 0)
+    throw new Error(
+      `Gate catalog is invalid: ${bundled.errors[0]?.message ?? "unknown error"}`,
+    );
+  return recorded
+    ? postureLens(recorded, controls, bundled.gates, declaredPhase)
+    : null;
+}

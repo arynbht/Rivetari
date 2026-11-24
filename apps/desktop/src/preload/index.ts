@@ -53,6 +53,7 @@ import {
   NowHealth,
   NowJudge,
   NowRepoRequest,
+  HomeView,
   NowSelectRequest,
   NowState,
   NowTaskRequest,
@@ -450,6 +451,14 @@ const api = {
       return () => {
         ipcRenderer.removeListener(IpcChannel.TasksUpdate, listener);
       };
+    },
+  },
+
+  home: {
+    /** One line per registered repo; main reads its own list, not a path from here. */
+    async get() {
+      const raw: unknown = await ipcRenderer.invoke(IpcChannel.HomeGet);
+      return HomeView.parse(raw);
     },
   },
 

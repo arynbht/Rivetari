@@ -1,5 +1,6 @@
 import {
   FolderPlus,
+  House,
   Play,
   RefreshCw,
   Settings as SettingsIcon,
@@ -13,6 +14,7 @@ import { Docs } from "@/components/Docs";
 import { Fix } from "@/components/Fix";
 import { FloorPlan } from "@/components/FloorPlan";
 import { Gates } from "@/components/Gates";
+import { Home } from "@/components/Home";
 import { Now } from "@/components/Now";
 import { Posture } from "@/components/Posture";
 import { Project } from "@/components/Project";
@@ -390,6 +392,22 @@ export function App() {
             Add
           </Button>
         </div>
+        <div className="px-2 pb-1">
+          <Button
+            size="sm"
+            variant={!selected && !settingsOpen ? "secondary" : "ghost"}
+            className="w-full justify-start"
+            onClick={() => {
+              setSettingsOpen(false);
+              setSelected(null);
+              setScorecard(null);
+            }}
+            aria-current={!selected && !settingsOpen ? "page" : undefined}
+          >
+            <House className="h-4 w-4" />
+            Home
+          </Button>
+        </div>
         <nav className="flex-1 overflow-y-auto px-2 pb-2">
           {repos.length === 0 ? (
             <p className="px-2 py-4 text-xs text-muted-foreground">
@@ -725,12 +743,13 @@ export function App() {
             )}
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center p-6 text-center">
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Select a repository on the left, or add a local folder to get
-              started.
-            </p>
-          </div>
+          <Home
+            repos={repos}
+            onOpenRepo={(path) => {
+              handleSelect(path);
+              showView("now");
+            }}
+          />
         )}
       </main>
     </div>

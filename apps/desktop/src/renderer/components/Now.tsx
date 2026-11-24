@@ -24,7 +24,7 @@ import type {
 // route, answer a stop. What an action changes shows up from the watcher, not
 // from the action's reply. Merging a waiting PR stays on GitHub for now.
 
-const KIND_LABEL: Record<NeedsYouItem["kind"], string> = {
+export const KIND_LABEL: Record<NeedsYouItem["kind"], string> = {
   intake: "Card to confirm",
   route: "Route to approve",
   stop: "Stop-and-ask",
