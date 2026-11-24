@@ -17,13 +17,14 @@ const SPAN = /`([^`\n]+)`/g;
 /** `PORT=5178 npm run e2e`: the assignments before the command. */
 const ENV = /^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*/;
 /** What a program's name looks like: `npm`, `./node_modules/.bin/next`. */
-const PROGRAM = /^[\w@./\\:-]+$/;
+const PROGRAM = /^[\w@./:-]+$/;
 /**
  * Anything that would let one rule run more than the command it names:
- * chaining, pipes, redirects, substitution, globs, and the characters the
- * tool list and its rule syntax split on.
+ * chaining, pipes, redirects, substitution, globs, escapes (a shell reads
+ * `g\it push` as `git push`), and the characters the tool list and its
+ * rule syntax split on.
  */
-const UNSAFE = /[;&|<>`$(){}*,\n]|:\*/;
+const UNSAFE = /[;&|<>`$(){}*,\\\n]|:\*/;
 /** The deny list's command prefixes, from its `Bash(<prefix>:*)` rules. */
 const DENIED = DENIED_BUILD_TOOLS.flatMap((rule) => {
   const m = /^Bash\((.+):\*\)$/.exec(rule);
@@ -51,7 +52,10 @@ const programName = (word: string) =>
  * them (`git -C . push` is `git push`).
  */
 function deniedBy(run: string): string | undefined {
-  const [program = "", ...rest] = run.split(" ");
+  // A shell drops quotes, so `git "push"` is `git push`.
+  const [program = "", ...rest] = run
+    .split(" ")
+    .map((w) => w.replace(/["']/g, ""));
   return DENIED.find((prefix) => {
     const [head = "", ...words] = prefix.split(" ");
     if (programName(program) !== head) return false;

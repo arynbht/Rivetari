@@ -214,7 +214,8 @@ describe(
       expect(first.stops.map((s) => s.trigger)).toEqual(["agent_question"]);
       await answerStops(repo, id, {
         allow: true,
-        note: "yes to both; `git push origin HEAD` too",
+        // A command the note names is never granted: here it's forbidden.
+        note: "yes to both, but never `npm publish --access public`",
         by: "dev@example.com",
       });
 
@@ -234,16 +235,15 @@ describe(
         ]),
       );
       expect(allowed).not.toContain("npm exec");
-      expect(allowed).not.toContain("git push");
+      expect(allowed).not.toContain("npm publish");
       expect(second?.prompt).toContain(
         "run each exactly as written: `npx playwright install chromium`, `PORT=5178 npm run e2e`",
       );
-      expect(second?.prompt).toContain(
-        "`git push origin HEAD` stays blocked: the build never runs `git push`",
+      const ledger = await ledgerOf(id);
+      expect(ledger).toMatch(
+        /granted for this round: Bash\(npx playwright install chromium\), Bash\(PORT=5178 npm run e2e\)$/m,
       );
-      expect(await ledgerOf(id)).toContain(
-        "granted for this round: Bash(npx playwright install chromium), Bash(PORT=5178 npm run e2e) · not granted: `git push origin HEAD` (the build never runs `git push`)",
-      );
+      expect(ledger).not.toContain("Bash(npm publish");
     });
 
     it("grants nothing when the answer is a denial", async () => {
@@ -283,7 +283,7 @@ describe(
     it("never grants a denied command behind a wrapper or an option", () => {
       expect(
         grantedCommands([
-          'Can I run `env git push origin HEAD`, `git -C . push origin HEAD`, `node --eval x`, `bash -c "npm test"` and `npm --yes exec foo`?',
+          'Can I run `env git push origin HEAD`, `git -C . push origin HEAD`, `node --eval x`, `bash -c "npm test"`, `npm --yes exec foo`, `git "push" origin` and `g\\it push`?',
         ]),
       ).toEqual({
         commands: [],
@@ -308,6 +308,11 @@ describe(
             command: "npm --yes exec foo",
             why: "the build never runs `npm exec`",
           },
+          {
+            command: 'git "push" origin',
+            why: "the build never runs `git push`",
+          },
+          // `g\it push` isn't read as a command at all, so it's neither.
         ],
       });
     });

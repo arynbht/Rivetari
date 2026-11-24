@@ -498,10 +498,11 @@ export async function buildTask(
       (e) => e.section === "timeline" && ROUND_END.test(e.text),
     );
   // An "allowed" to a build stop that names commands lets this round run
-  // exactly those.
+  // exactly those. Only the stop's: a note can say "not `npm publish`", so a
+  // command it names is never read as granted.
   const grants =
     answer?.allowed && task.beat === "build"
-      ? grantedCommands([...answer.stops, answer.note])
+      ? grantedCommands(answer.stops)
       : { commands: [], refused: [] };
   const granted = grantLine(grants);
   if (granted) await log("decision", granted);
