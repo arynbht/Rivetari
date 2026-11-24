@@ -4,9 +4,12 @@
 // only part of floorplan that reaches the network and is never started; the page
 // itself still has buttons that would ("Notify me" posts to the waitlist), so
 // the map's session cancels every request that isn't a file inside that repo's
-// floorplan/. Electron-free: the session and webview hooks take what they use.
+// floorplan/. The fence goes by real paths, so a link or junction can't lead
+// out of the folder while every name on the way looks inside it.
+// Electron-free: the session and webview hooks take what they use.
+import { realpathSync } from "node:fs";
 import { access } from "node:fs/promises";
-import { join, relative, isAbsolute } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadProfile } from "@arynbht/rivetari-engine";
@@ -20,10 +23,42 @@ export { MAP_PARTITION };
 /** How many blocked requests are kept to show; a chatty page can't grow it without end. */
 const BLOCKED_KEPT = 50;
 
+/** True when `path` is below `dir`, by the names alone. */
+const below = (dir: string, path: string) => {
+  const rel = relative(dir, path);
+  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+};
+
+/** The same place by the names alone (case-insensitive where the OS is). */
+const same = (a: string, b: string) => relative(a, b) === "";
+
+/**
+ * The real path of `path`, links and junctions followed. A path that doesn't
+ * exist keeps its missing tail on the real path of what does, since a missing
+ * name can't be a link. Null when nothing along it can be read.
+ */
+export function realPath(path: string): string | null {
+  const missing: string[] = [];
+  let at = path;
+  for (;;) {
+    try {
+      return join(realpathSync.native(at), ...missing);
+    } catch {
+      const up = dirname(at);
+      if (up === at) return null;
+      missing.unshift(basename(at));
+      at = up;
+    }
+  }
+}
+
 /**
  * True only for a file:// URL naming a file inside `mapDir`: no other scheme
  * (http, https, ws, data, a custom one), no file on another host (a UNC share)
- * and no path that leaves the directory.
+ * and no path that leaves the directory, by its names or by where its links
+ * lead. A floorplan/ that is itself a link isn't the repo's own, so nothing
+ * through it is let through; links above the repo (a linked projects or temp
+ * folder) are followed like any other part of the path.
  */
 export function mapRequestAllowed(url: string, mapDir: string | null): boolean {
   if (!mapDir) return false;
@@ -40,8 +75,13 @@ export function mapRequestAllowed(url: string, mapDir: string | null): boolean {
   } catch {
     return false;
   }
-  const rel = relative(mapDir, path);
-  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+  if (!below(mapDir, path)) return false;
+  const realDir = realPath(mapDir);
+  const realParent = realPath(dirname(mapDir));
+  const real = realPath(path);
+  if (!realDir || !realParent || !real) return false;
+  if (!same(realDir, join(realParent, basename(mapDir)))) return false;
+  return below(realDir, real);
 }
 
 const exists = (path: string) =>

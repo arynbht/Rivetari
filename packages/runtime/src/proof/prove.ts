@@ -14,6 +14,7 @@ import { join } from "node:path";
 import {
   allowlistedEnv,
   buildContext,
+  type CommandRunner,
   githubToken,
   installDeps,
   Octokit,
@@ -32,7 +33,9 @@ import {
   parseNameStatus,
   type Side,
 } from "../judge/tier1.js";
+import { ensurePlaywrightBrowser } from "../agent/browsers.js";
 import { loadIsolation, type Isolation } from "../agent/isolate.js";
+import { stopTaskServers, teardownLine } from "../agent/processes.js";
 import { AssemblySchema, type ProofType } from "../router/route.js";
 import {
   loadTask,
@@ -104,6 +107,8 @@ export interface ProveOptions {
    * its own: record that here, and the judge publishes its run as the proof.
    */
   deferTestRun?: boolean | undefined;
+  /** Replaceable in tests: runs the Playwright browser install. */
+  run?: CommandRunner | undefined;
   /** The docker binary for an infra-plan proof (default `docker`). */
   docker?: string | undefined;
 }
@@ -770,8 +775,24 @@ export async function proveTask(
   const isolation = await loadIsolation(repoPath, id);
   if (!isolation) throw new TaskError(`task ${id} has no worktree`);
   const assembly = AssemblySchema.parse(parse(task.assemblyText ?? ""));
+  const decision = (text: string) =>
+    task.ledger.append({
+      beat: "prove",
+      section: "decision",
+      text,
+      by: `rivetari runtime (for ${options.by})`,
+      at: options.now,
+    });
+  // The build may have added Playwright since isolate; the judge's run shares
+  // the browser cache, so a deferred proof needs it too. Its line is written
+  // with the proof's, so a proof that throws leaves the ledger as it was.
+  const browser = await ensurePlaywrightBrowser(
+    isolation.worktree,
+    options.run,
+  );
 
   if (options.deferTestRun && assembly.proof === "test-run") {
+    if (browser) await decision(browser);
     await task.ledger.append({
       beat: "prove",
       section: "timeline",
@@ -788,56 +809,75 @@ export async function proveTask(
   const proofDir = join(repoPath, TASKS_DIR, id, "proof");
   const publish = options.publish ?? githubPublisher(repoPath, id);
   const by = `rivetari runtime (for ${options.by})`;
+  // What the proof's own run left up (a test's server, a stop() that missed
+  // a child) would hold the port the next round needs.
+  const stopServers = () =>
+    stopTaskServers(isolation.worktree, [isolation.port]);
   let record: ProofRecord;
-  if (assembly.proof === "ui-screenshots") {
-    // Screenshots of a docs-only or tests-only change would show the same
-    // pages twice, at the cost of serving the app on both sides: the test
-    // run is the proof that means something there.
-    const changed = await changedPaths(isolation);
-    const skip =
-      changed.length > 0 && uiFiles(changed).length === 0
-        ? `ui-screenshots skipped: the change touches no file that renders (${few(changed)}), so the test run stands in`
-        : undefined;
-    if (skip && options.deferTestRun) {
-      await task.ledger.append({
-        beat: "prove",
-        section: "proof",
-        text: skip,
-        by,
-        at: options.now,
-      });
-      await task.ledger.append({
-        beat: "prove",
-        section: "timeline",
-        text: DEFERRED,
-        by,
-        at: options.now,
-      });
-      return {
-        task: await loadTask(repoPath, id),
-        record: { task: id, kind: "test-run", passed: true, lines: [skip] },
-      };
+  try {
+    if (assembly.proof === "ui-screenshots") {
+      // Screenshots of a docs-only or tests-only change would show the same
+      // pages twice, at the cost of serving the app on both sides: the test
+      // run is the proof that means something there.
+      const changed = await changedPaths(isolation);
+      const skip =
+        changed.length > 0 && uiFiles(changed).length === 0
+          ? `ui-screenshots skipped: the change touches no file that renders (${few(changed)}), so the test run stands in`
+          : undefined;
+      if (skip && options.deferTestRun) {
+        if (browser) await decision(browser);
+        await task.ledger.append({
+          beat: "prove",
+          section: "proof",
+          text: skip,
+          by,
+          at: options.now,
+        });
+        await task.ledger.append({
+          beat: "prove",
+          section: "timeline",
+          text: DEFERRED,
+          by,
+          at: options.now,
+        });
+        return {
+          task: await loadTask(repoPath, id),
+          record: { task: id, kind: "test-run", passed: true, lines: [skip] },
+        };
+      }
+      record = skip
+        ? await testRun(
+            repoPath,
+            isolation,
+            "test-run",
+            publish,
+            proofDir,
+            skip,
+          )
+        : await uiProof(repoPath, task, isolation, publish);
+    } else if (assembly.proof === "infra-plan") {
+      record = await infraProof(
+        repoPath,
+        isolation,
+        publish,
+        proofDir,
+        options.docker,
+      );
+    } else {
+      record = await testRun(
+        repoPath,
+        isolation,
+        assembly.proof,
+        publish,
+        proofDir,
+      );
     }
-    record = skip
-      ? await testRun(repoPath, isolation, "test-run", publish, proofDir, skip)
-      : await uiProof(repoPath, task, isolation, publish);
-  } else if (assembly.proof === "infra-plan") {
-    record = await infraProof(
-      repoPath,
-      isolation,
-      publish,
-      proofDir,
-      options.docker,
-    );
-  } else {
-    record = await testRun(
-      repoPath,
-      isolation,
-      assembly.proof,
-      publish,
-      proofDir,
-    );
+  } catch (err) {
+    await stopServers();
+    throw err;
   }
+  const teardown = teardownLine(await stopServers());
+  for (const line of [browser, teardown]) if (line) await decision(line);
 
   await mkdir(proofDir, { recursive: true });
   await writeFile(

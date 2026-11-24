@@ -1,0 +1,136 @@
+id: T-0019
+title: "Additive contract fields: units, calibration, skill, method-C details,
+  2-marker cap"
+type: feature
+source: prompt
+description: >-
+  src/lib/domain/types.ts is the contract with the Flutter app (types.ts:1-6).
+  It can't carry what the Appendix needs. Waveform.user is raw units
+  "sign-flipped the way the app displays it" (types.ts:94-95), with no way to
+  say a signal is already in % of max. Waveform.calibration is only {min, max}
+  (types.ts:100-101), with no A100, midline or the 3 peaks and 3 troughs they
+  come from. Markers are unlimited sample indices (types.ts:98), but the
+  Appendix allows at most 2 per open session. SessionSummary (types.ts:63-88)
+  has no skill level, even though method-C points depend on k. TransitionScores
+  (types.ts:40-46) has no place for On target %, direction, histogram or missed
+  and double counts. SCORING_VERSIONS (types.ts:52-55) knows only legacy-v1 and
+  transition-v1.
+
+
+  This is a schema change. It is all additive and optional: no rename, retype or
+  removal, and no field becomes required. Existing legacy-v1 and transition-v1
+  sessions read exactly as before. No stored data is rewritten, and nothing
+  needs a migration or a DB_VERSION bump. These are the exact additions:
+
+  (1) export type WaveformUnits = "raw" | "pct-max".
+
+  (2) Waveform.units?: WaveformUnits. Absent means "raw".
+
+  (3) Waveform.calibration becomes { min: number; max: number; a100?: number;
+  midline?: number; peaks?: number[]; troughs?: number[] }, with min and max
+  unchanged. peaks and troughs hold the 3 highest peaks and the 3 lowest
+  troughs, in raw units.
+
+  (4) SCORING_VERSIONS gains methodC: "method-c-v1".
+
+  (5) SessionSummary.skillLevel?: SkillLevel, using a type-only import of
+  SkillLevel from src/lib/analysis/config.ts:1 (not redefined). Absent means
+  beginner.
+
+  (6) export interface NullableInhaleExhale { inhale: number | null; exhale:
+  number | null }.
+
+  (7) export interface DeviationHistogram { timing: number[]; depth: number[];
+  missedOrDouble: number }. The arrays are counts per bin, with bins from
+  FIXED_CONSTANTS.deviationHistogram (-1 to +1 in 0.25 steps, 8 bins).
+
+  (8) export interface PacedDetails { onTargetPct: { timing: number; depth:
+  number }; direction: { timing: NullableInhaleExhale; depth:
+  NullableInhaleExhale }; histogram: DeviationHistogram; missed: number; double:
+  number; transitions: number }. direction is in SD units.
+
+  (9) SessionSummary.paced?: PacedDetails | null.
+
+
+  Firestore needs no rules change, because session create checks only the owner
+  and athleteId, not the keys (firebase/firestore.rules:42). Storage rules check
+  size only (firebase/storage.rules:13-15). The 2-marker cap is enforced where
+  the local adapter persists a session and waveform. Today that is only
+  endGroupSession (src/lib/backend/local/index.ts:710-735); Batch 4's
+  saveSession will use the same check.
+acceptance:
+  - id: A1
+    text: src/lib/domain/types.ts gains exactly the nine additions listed in the
+      description, with those names and types and nothing else. git diff of
+      types.ts shows only added lines, apart from the calibration line, which
+      widens {min, max} with optional keys. No existing field, export or value
+      is removed, renamed, retyped, or made required or optional.
+    verify: contract
+  - id: A2
+    text: "New file src/lib/backend/local/validate.ts exports
+      checkSessionContract(summary, waveform), which throws
+      BackendError('invalid-input') with a message naming the field when: an
+      open session's waveform has more than
+      FIXED_CONSTANTS.maxEventMarkersPerOpenSession markers; calibration.peaks
+      or calibration.troughs is present with a length other than 3; a histogram
+      array's length differs from the bin count in
+      FIXED_CONSTANTS.deviationHistogram; or skillLevel isn't one of the keys of
+      OPEN_CONSTANTS.skillBandK. A paced session may have any number of
+      markers."
+    verify: unit
+  - id: A3
+    text: New test src/lib/backend/local/contract.test.ts covers
+      checkSessionContract. An open waveform with 2 markers passes and one with
+      3 is rejected. A paced waveform with 3 markers passes. A calibration with
+      2 peaks is rejected. A 7-bin histogram is rejected. Every seeded session
+      in createSeededDb() passes, paired with its generateWaveform() output.
+    verify: unit
+  - id: A4
+    text:
+      contract.test.ts places one open and one paced session, each with every
+      new field set (units 'pct-max', a100, midline, peaks, troughs, skillLevel,
+      scoringVersion 'method-c-v1', paced details), into a memoryStore. Reading
+      them back through the local adapter's getSession and getWaveform returns
+      objects deep-equal to what was stored, and a seeded legacy session comes
+      back with none of the new keys present.
+    verify: unit
+  - id: A5
+    text: src/lib/backend/local/index.ts calls checkSessionContract for each
+      recorded summary and waveform in endGroupSession before writing them
+      (index.ts:714-731). The existing local.test.ts, domain.test.ts and the
+      other existing tests pass unchanged. firebase/firestore.rules and
+      firebase/storage.rules are untouched. npm run lint, typecheck and test
+      pass.
+    verify: review
+out_of_scope:
+  - Computing any of these values (B1-2 calibration, B1-3 method C, B1-4 open
+    metrics); this card only adds the shapes and the write check
+  - Changing combineTransitionScores or Total rounding (B1-6)
+  - A saveSession capability, DataService changes in src/lib/backend/types.ts,
+    or Firebase rules (Batch 4)
+  - Writing the new fields from seed.ts or live.ts, or reseeding demo data
+    (Batch 6)
+  - Showing the new fields on any screen, or adding them to the CSV export in
+    src/lib/domain/csv.ts (Batch 2)
+  - The matching Dart models in the Flutter app (../breathband), which the app
+    team adopts later
+touches:
+  - src/lib/domain/types.ts
+  - src/lib/backend/local/validate.ts
+  - src/lib/backend/local/index.ts
+  - src/lib/backend/local/contract.test.ts
+pages: []
+constraints:
+  - no new dependencies
+  - no new code comments (quality.no-new-comments); new fields carry no JSDoc,
+    their meaning is in this card and the PR
+  - do not modify existing tests; add new test files
+  - import Appendix constants from src/lib/analysis/config.ts
+  - schema change; stop and ask before editing types.ts, and the nine additions
+    above are the whole change
+  - additive and optional only; no rename, retype, removal or newly required
+    field in src/lib/domain/types.ts
+  - static export only
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-24

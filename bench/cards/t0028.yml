@@ -1,0 +1,74 @@
+id: T-0028
+title: Set up Playwright e2e with coach and athlete sign-in reusing the
+  proof-auth flow
+type: chore
+source: prompt
+description: "Redraft of T-0010, abandoned on rivetari-51's decision after
+  Rivetari left its finished work uncommitted (R-14). The batch standing check
+  needs e2e tests for the demo path (athlete history, paced and open sessions,
+  coach view) against the dev server and the Docker container. The repo has no
+  e2e setup today: package.json has vitest only. .rivetari/proof-auth.mjs
+  already signs in as the seeded demo coach through the 'Sign in as Lena Vos'
+  button on /cloud/login/, clicking until hydrated and waiting for
+  localStorage['breathband-console:local-db'].currentUid. The e2e setup needs
+  the same flow for both personas: coach (Lena Vos, uid demo-coach) and athlete
+  (Alex Morgan, uid demo-athlete). Pin @playwright/test at exactly 1.65.1 (a new
+  dev dependency, which is a stop for the decider). Its browser,
+  chromium-headless-shell build 1255, is already installed in this machine's
+  Playwright cache. Do NOT run `playwright install` or `npm run e2e` yourself:
+  the build agent's tools can't run them (T-0010 stalled there). Write the
+  config and specs, run lint, typecheck and vitest, and commit. The e2e run
+  itself is done afterwards as tool-made evidence against the PR head. The
+  T-0010 version of this work, which passed 2/2 when run by hand, is in
+  rivetari-session/logs/T-0010-uncommitted-R-14.patch for reference."
+acceptance:
+  - id: A1
+    text: '@playwright/test is added as a devDependency at exactly 1.65.1 (no
+      caret), package-lock.json is updated to match, package.json gains an
+      "e2e": "playwright test" script, and playwright.config.ts at the repo root
+      runs e2e/ in Chromium against BASE_URL (default http://localhost:3000,
+      starting npm run dev on PORT when BASE_URL is unset), so the same specs
+      run against http://localhost:8080 for the container'
+    verify: review
+  - id: A2
+    text:
+      e2e/auth.ts exports signInAsCoach(page) and signInAsAthlete(page). Both
+      click the demo-account button on /cloud/login/ until the local db's
+      currentUid is the persona's uid, the same flow as .rivetari/proof-auth.mjs
+      (ported, not imported from .rivetari), then wait for the URL to leave
+      /cloud/login
+    verify: e2e
+  - id: A3
+    text:
+      "e2e/smoke.spec.ts has two tests: the coach signs in, lands on /cloud/ and
+      sees the Athletes roster on /cloud/athletes/; the athlete signs in and
+      sees the 'Latest Total Breath Score' region on /cloud/. npm run e2e passes
+      when run against the PR head"
+    verify: e2e
+  - id: A4
+    text: npm test (vitest) doesn't pick up e2e/ specs; npm run lint and npm run
+      typecheck pass with the new files included; Playwright output folders
+      (test-results, playwright-report, blob-report, playwright/.cache) are in
+      .gitignore
+    verify: unit
+out_of_scope:
+  - Editing .rivetari/proof-auth.mjs
+  - CI or workflow changes
+  - Demo-path specs beyond sign-in (later batches)
+  - Running the e2e suite inside the build (done as evidence after the PR)
+touches:
+  - e2e/**
+  - playwright.config.ts
+  - package.json
+  - package-lock.json
+  - .gitignore
+pages: []
+constraints:
+  - the only new dependency is @playwright/test at exactly 1.65.1
+  - no new code comments (quality.no-new-comments)
+  - do not modify existing tests; add new test files
+  - no new eslint-disable or other suppressions
+  - do not run playwright install or npm run e2e in the build
+risk: medium
+owner: arynbht@gmail.com
+created: 2026-11-24

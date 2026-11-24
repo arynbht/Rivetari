@@ -62,6 +62,7 @@ import {
   NowHealth,
   NowJudge,
   NowRepoRequest,
+  HomeView,
   NowSelectRequest,
   NowState,
   NowTaskRequest,
@@ -72,6 +73,9 @@ import {
   ProjectDraftRequest,
   ProjectRequest,
   ProjectView,
+  HistoryOpenPrRequest,
+  HistoryRequest,
+  HistoryView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskDetail,
@@ -109,6 +113,8 @@ import {
 import { clearToken, loadToken, saveToken } from "./auth/token-store";
 import { readScorecard, runAudit } from "./engine/audit";
 import { getFloorPlan, runFloorPlan } from "./engine/floorplan";
+import { openHistoryPr, readHistory } from "./engine/history";
+import { defaultHomeDeps, readHome } from "./engine/home";
 import { listDocs, readDoc } from "./engine/docs";
 import { applyFix, openFixPrForRepo, planFix } from "./engine/fix";
 import { attachEvidence, computeGates, waiveControl } from "./engine/gates";
@@ -144,6 +150,7 @@ import {
   unwatchTasks,
   watchRepoTasks,
 } from "./engine/tasks";
+import { registeredRepo } from "./store/registered";
 import { addRepo, listRepos, removeRepo } from "./store/repos";
 import { loadSettings, saveSettings } from "./store/settings";
 import { checkForUpdate, DESKTOP_TAG_PREFIX } from "./update/check";
@@ -537,6 +544,15 @@ function createWindow(): void {
   }
 }
 
+/**
+ * The registered repo a request names, as main's own list spells it. Every
+ * handler that takes a repo path goes through here, so a renderer that sends
+ * any other folder is refused before anything there is read or written.
+ */
+async function registered(asked: string): Promise<string> {
+  return registeredRepo(asked, await listRepos());
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.Ping, (_event, raw: unknown) => {
     const request = PingRequest.parse(raw); // re-validate the renderer's request
@@ -573,13 +589,28 @@ function registerIpcHandlers(): void {
     return repos;
   });
 
-  ipcMain.handle(IpcChannel.NowGet, (_event, raw: unknown) => {
-    const { repoPath } = NowRepoRequest.parse(raw);
+  ipcMain.handle(IpcChannel.HomeGet, async () =>
+    // The sidebar's own list, never a path the renderer sends.
+    HomeView.parse(
+      await readHome(
+        defaultHomeDeps({
+          listRepos,
+          state: (repoPath) => nowHub.state(repoPath),
+          views: (repoPath) => nowHub.views(repoPath),
+        }),
+      ),
+    ),
+  );
+
+  ipcMain.handle(IpcChannel.NowGet, async (_event, raw: unknown) => {
+    const { repoPath: asked } = NowRepoRequest.parse(raw);
+    const repoPath = await registered(asked);
     return NowState.parse(nowHub.state(repoPath));
   });
 
   ipcMain.handle(IpcChannel.NowSelect, async (_event, raw: unknown) => {
-    const { repoPath } = NowSelectRequest.parse(raw);
+    const { repoPath: asked } = NowSelectRequest.parse(raw);
+    const repoPath = asked === null ? null : await registered(asked);
     await nowHub.select(repoPath);
     // Opening a repo is one of the times its profile is checked again.
     if (repoPath !== null) projectChecks.recheck(repoPath);
@@ -588,22 +619,26 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.NowBadges, () => NowBadges.parse(nowHub.badges()));
 
   ipcMain.handle(IpcChannel.NowConfirm, async (_event, raw: unknown) => {
-    const { repoPath, ...request } = NowActionRequest.parse(raw);
+    const { repoPath: asked, ...request } = NowActionRequest.parse(raw);
+    const repoPath = await registered(asked);
     return NowActionResult.parse(await confirmCard(repoPath, request));
   });
 
   ipcMain.handle(IpcChannel.NowApprove, async (_event, raw: unknown) => {
-    const { repoPath, ...request } = NowActionRequest.parse(raw);
+    const { repoPath: asked, ...request } = NowActionRequest.parse(raw);
+    const repoPath = await registered(asked);
     return NowActionResult.parse(await approveAssembly(repoPath, request));
   });
 
   ipcMain.handle(IpcChannel.NowJudge, async (_event, raw: unknown) => {
-    const { repoPath, id } = NowTaskRequest.parse(raw);
+    const { repoPath: asked, id } = NowTaskRequest.parse(raw);
+    const repoPath = await registered(asked);
     return NowJudge.parse(await judgeFindings(repoPath, id));
   });
 
   ipcMain.handle(IpcChannel.NowOpenPr, async (_event, raw: unknown) => {
-    const { repoPath, id } = NowTaskRequest.parse(raw);
+    const { repoPath: asked, id } = NowTaskRequest.parse(raw);
+    const repoPath = await registered(asked);
     // As with tasks:openPr, the URL is the one the task's ledger records.
     return TaskOpenPrResult.parse(
       await openNowPr(nowHub.views(repoPath), id, (url) =>
@@ -613,58 +648,86 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.NowHealth, async (_event, raw: unknown) => {
-    const { repoPath } = NowRepoRequest.parse(raw);
+    const { repoPath: asked } = NowRepoRequest.parse(raw);
+    const repoPath = await registered(asked);
     return NowHealth.parse(await nowHealth(repoPath, nowHub.views(repoPath)));
   });
 
   ipcMain.handle(IpcChannel.NowCi, async (_event, raw: unknown) => {
-    const { repoPath } = NowRepoRequest.parse(raw);
+    const { repoPath: asked } = NowRepoRequest.parse(raw);
+    const repoPath = await registered(asked);
     return NowCi.parse(await mainCi(repoPath, await loadToken()));
   });
 
   ipcMain.handle(IpcChannel.AuditRun, async (_event, raw: unknown) => {
-    const { repoPath } = AuditRunRequest.parse(raw);
+    const { repoPath: asked } = AuditRunRequest.parse(raw);
+    const repoPath = await registered(asked);
     const token = (await loadToken()) ?? undefined;
     return Scorecard.parse(await runAudit(repoPath, token));
   });
 
   ipcMain.handle(IpcChannel.AuditRecorded, async (_event, raw: unknown) => {
-    const { repoPath } = AuditRunRequest.parse(raw);
+    const { repoPath: asked } = AuditRunRequest.parse(raw);
+    const repoPath = await registered(asked);
     return Scorecard.nullable().parse(await readScorecard(repoPath));
   });
 
   ipcMain.handle(IpcChannel.PostureGet, async (_event, raw: unknown) => {
-    const { repoPath } = PostureRequest.parse(raw);
+    const { repoPath: asked } = PostureRequest.parse(raw);
+    const repoPath = await registered(asked);
     return Posture.parse(await readPosture(repoPath));
   });
 
   ipcMain.handle(IpcChannel.PostureDraft, async (_event, raw: unknown) => {
-    const { repoPath, draft } = PostureDraftRequest.parse(raw);
+    const { repoPath: asked, draft } = PostureDraftRequest.parse(raw);
+    const repoPath = await registered(asked);
     return PostureDraftResult.parse(await draftPostureTask(repoPath, draft));
   });
 
   ipcMain.handle(IpcChannel.ProjectGet, async (_event, raw: unknown) => {
-    const { repoPath } = ProjectRequest.parse(raw);
+    const { repoPath: asked } = ProjectRequest.parse(raw);
+    const repoPath = await registered(asked);
     return ProjectView.parse(await projectChecks.view(repoPath));
   });
 
   ipcMain.handle(IpcChannel.ProjectRefresh, async (_event, raw: unknown) => {
-    const { repoPath } = ProjectRequest.parse(raw);
+    const { repoPath: asked } = ProjectRequest.parse(raw);
+    const repoPath = await registered(asked);
     return ProjectView.parse(await projectChecks.view(repoPath, true));
   });
 
   ipcMain.handle(IpcChannel.ProjectDraft, async (_event, raw: unknown) => {
-    const { repoPath, keys } = ProjectDraftRequest.parse(raw);
+    const { repoPath: asked, keys } = ProjectDraftRequest.parse(raw);
+    const repoPath = await registered(asked);
     return PostureDraftResult.parse(await draftProfileTask(repoPath, keys));
   });
 
+  ipcMain.handle(IpcChannel.HistoryGet, async (_event, raw: unknown) => {
+    const { repoPath: asked } = HistoryRequest.parse(raw);
+    const repoPath = await registered(asked);
+    return HistoryView.parse(await readHistory(repoPath));
+  });
+
+  ipcMain.handle(IpcChannel.HistoryOpenPr, async (_event, raw: unknown) => {
+    const { repoPath: asked, id } = HistoryOpenPrRequest.parse(raw);
+    const repoPath = await registered(asked);
+    // As with tasks:openPr, the URL is the one the task's ledger records.
+    return TaskOpenPrResult.parse(
+      await openHistoryPr(repoPath, id, (url) =>
+        isE2E ? Promise.resolve() : shell.openExternal(url),
+      ),
+    );
+  });
+
   ipcMain.handle(IpcChannel.FloorPlanGet, async (_event, raw: unknown) => {
-    const { repoPath } = FloorPlanGetRequest.parse(raw);
+    const { repoPath: asked } = FloorPlanGetRequest.parse(raw);
+    const repoPath = await registered(asked);
     return FloorPlanView.parse(await getFloorPlan(repoPath));
   });
 
   ipcMain.handle(IpcChannel.FloorPlanRun, async (_event, raw: unknown) => {
-    const { repoPath } = FloorPlanRunRequest.parse(raw);
+    const { repoPath: asked } = FloorPlanRunRequest.parse(raw);
+    const repoPath = await registered(asked);
     // Supersede any swarm already running (e.g. a second confirmed refresh).
     floorPlanAbort?.abort();
     const controller = new AbortController();
@@ -682,7 +745,8 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.TasksWatch, async (_event, raw: unknown) => {
-    const { repoPath } = TasksWatchRequest.parse(raw);
+    const { repoPath: asked } = TasksWatchRequest.parse(raw);
+    const repoPath = await registered(asked);
     return TasksState.parse(
       await watchRepoTasks(repoPath, (state) =>
         push(IpcChannel.TasksUpdate, TasksState, state),
@@ -691,14 +755,16 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.TasksDetail, async (_event, raw: unknown) => {
-    const { repoPath, id } = TaskRequest.parse(raw);
+    const { repoPath: asked, id } = TaskRequest.parse(raw);
+    const repoPath = await registered(asked);
     return TaskDetail.parse(
       await taskDetail(repoPath, shownTask(repoPath, id)),
     );
   });
 
   ipcMain.handle(IpcChannel.TasksPr, async (_event, raw: unknown) => {
-    const { repoPath, id } = TaskRequest.parse(raw);
+    const { repoPath: asked, id } = TaskRequest.parse(raw);
+    const repoPath = await registered(asked);
     // The PR is the one the task's ledger records, never one the renderer sends.
     return TaskPrState.parse(
       await prState(repoPath, shownTask(repoPath, id).pr, await loadToken()),
@@ -710,22 +776,26 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.MapGet, async (_event, raw: unknown) => {
-    const { repoPath } = MapGetRequest.parse(raw);
+    const { repoPath: asked } = MapGetRequest.parse(raw);
+    const repoPath = await registered(asked);
     return MapView.parse(await mapFence.open(repoPath, getMap));
   });
 
   ipcMain.handle(IpcChannel.TasksAnswer, async (_event, raw: unknown) => {
-    const { repoPath, ...request } = TaskAnswerIpcRequest.parse(raw);
+    const { repoPath: asked, ...request } = TaskAnswerIpcRequest.parse(raw);
+    const repoPath = await registered(asked);
     return TaskAnswerResult.parse(await answerTask(repoPath, request));
   });
 
-  ipcMain.handle(IpcChannel.TasksLedger, (_event, raw: unknown) => {
-    const { repoPath, id } = TaskLedgerRequest.parse(raw);
+  ipcMain.handle(IpcChannel.TasksLedger, async (_event, raw: unknown) => {
+    const { repoPath: asked, id } = TaskLedgerRequest.parse(raw);
+    const repoPath = await registered(asked);
     return TaskLedger.parse(taskLedger(repoPath, id));
   });
 
   ipcMain.handle(IpcChannel.TasksOpenPr, async (_event, raw: unknown) => {
-    const { repoPath, id } = TaskOpenPrRequest.parse(raw);
+    const { repoPath: asked, id } = TaskOpenPrRequest.parse(raw);
+    const repoPath = await registered(asked);
     // Any https host: a PR can live on GitHub Enterprise, and the URL is the
     // one the task's signed ledger records, not one the renderer sends.
     return TaskOpenPrResult.parse(
@@ -811,24 +881,33 @@ function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(IpcChannel.ProfileLoad, async (_event, raw: unknown) => {
-    const { repoPath } = ProfileLoadRequest.parse(raw);
+    const { repoPath: asked } = ProfileLoadRequest.parse(raw);
+    const repoPath = await registered(asked);
     return loadProfile(repoPath); // Profile | null, validated by the engine
   });
 
   ipcMain.handle(IpcChannel.ProfileSave, async (_event, raw: unknown) => {
-    const { repoPath, profile } = ProfileSaveRequest.parse(raw);
+    const { repoPath: asked, profile } = ProfileSaveRequest.parse(raw);
+    const repoPath = await registered(asked);
     // updateProfile validates against the schema and writes a minimal diff.
     return updateProfile(repoPath, profile);
   });
 
   ipcMain.handle(IpcChannel.GatesStatus, async (_event, raw: unknown) => {
-    const { repoPath } = GatesStatusRequest.parse(raw);
+    const { repoPath: asked } = GatesStatusRequest.parse(raw);
+    const repoPath = await registered(asked);
     return computeGates(repoPath, (await loadToken()) ?? undefined);
   });
 
   ipcMain.handle(IpcChannel.GatesWaive, async (_event, raw: unknown) => {
-    const { repoPath, control, reason, expires, owner } =
-      WaiveRequest.parse(raw);
+    const {
+      repoPath: asked,
+      control,
+      reason,
+      expires,
+      owner,
+    } = WaiveRequest.parse(raw);
+    const repoPath = await registered(asked);
     const token = (await loadToken()) ?? undefined;
     return waiveControl(
       repoPath,
@@ -844,8 +923,15 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.GatesEvidence, async (_event, raw: unknown) => {
-    const { repoPath, control, url, note, reviewer, validFor } =
-      EvidenceRequest.parse(raw);
+    const {
+      repoPath: asked,
+      control,
+      url,
+      note,
+      reviewer,
+      validFor,
+    } = EvidenceRequest.parse(raw);
+    const repoPath = await registered(asked);
     const token = (await loadToken()) ?? undefined;
     return attachEvidence(
       repoPath,
@@ -862,17 +948,20 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.FixPlan, async (_event, raw: unknown) => {
-    const { repoPath } = FixPlanRequest.parse(raw);
+    const { repoPath: asked } = FixPlanRequest.parse(raw);
+    const repoPath = await registered(asked);
     return planFix(repoPath, (await loadToken()) ?? undefined);
   });
 
   ipcMain.handle(IpcChannel.FixApply, async (_event, raw: unknown) => {
-    const { repoPath } = FixPlanRequest.parse(raw);
+    const { repoPath: asked } = FixPlanRequest.parse(raw);
+    const repoPath = await registered(asked);
     return applyFix(repoPath, (await loadToken()) ?? undefined);
   });
 
   ipcMain.handle(IpcChannel.FixOpenPr, async (_event, raw: unknown) => {
-    const { repoPath } = FixPlanRequest.parse(raw);
+    const { repoPath: asked } = FixPlanRequest.parse(raw);
+    const repoPath = await registered(asked);
     const date = new Date().toISOString().slice(0, 10);
     return openFixPrForRepo(repoPath, date, (await loadToken()) ?? undefined);
   });
@@ -882,7 +971,8 @@ function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(IpcChannel.AiRun, async (_event, raw: unknown) => {
-    const { repoPath, task } = AiRunRequest.parse(raw);
+    const { repoPath: asked, task } = AiRunRequest.parse(raw);
+    const repoPath = await registered(asked);
     return runAiTask(
       repoPath,
       task,
@@ -892,12 +982,24 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.AiApply, async (_event, raw: unknown) => {
-    const { repoPath, task, outputPath, contents } = AiApplyRequest.parse(raw);
+    const {
+      repoPath: asked,
+      task,
+      outputPath,
+      contents,
+    } = AiApplyRequest.parse(raw);
+    const repoPath = await registered(asked);
     return applyAiDraft(repoPath, task, outputPath, contents);
   });
 
   ipcMain.handle(IpcChannel.AiOpenPr, async (_event, raw: unknown) => {
-    const { repoPath, task, outputPath, contents } = AiApplyRequest.parse(raw);
+    const {
+      repoPath: asked,
+      task,
+      outputPath,
+      contents,
+    } = AiApplyRequest.parse(raw);
+    const repoPath = await registered(asked);
     return openAiPr(
       repoPath,
       task,
@@ -909,12 +1011,14 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.DocsList, async (_event, raw: unknown) => {
-    const { repoPath } = DocsListRequest.parse(raw);
+    const { repoPath: asked } = DocsListRequest.parse(raw);
+    const repoPath = await registered(asked);
     return DocList.parse(await listDocs(repoPath));
   });
 
   ipcMain.handle(IpcChannel.DocsRead, async (_event, raw: unknown) => {
-    const { repoPath, path } = DocsReadRequest.parse(raw);
+    const { repoPath: asked, path } = DocsReadRequest.parse(raw);
+    const repoPath = await registered(asked);
     return readDoc(repoPath, path);
   });
 
