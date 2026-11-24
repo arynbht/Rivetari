@@ -72,16 +72,22 @@ export function criteriaStatus(
   const reported = new Map(
     (latest.record?.review?.acceptance ?? []).map((a) => [a.id, a]),
   );
-  // The judge's latest question about unverified criteria, if a person
-  // allowed it; a round sent back to build is judged again, so it doesn't count.
-  const asked = entries
-    .filter((e) => e.section === "stop" && e.text.startsWith(ASKED_UNVERIFIED))
-    .at(-1)
-    ?.text.slice("asked: ".length);
+  // The judge's latest question about unverified criteria, if the answer
+  // that came after it allowed it; a round sent back to build is judged
+  // again, so it doesn't count.
+  const askedAt = entries.findLastIndex(
+    (e) => e.section === "stop" && e.text.startsWith(ASKED_UNVERIFIED),
+  );
+  const asked = entries[askedAt]?.text.slice("asked: ".length);
+  const answer = entries
+    .slice(askedAt + 1)
+    .find((e) => e.section === "stop" && e.text.startsWith("answered: "));
   const allowed =
-    asked === undefined || latest.verdict === "failed"
+    asked === undefined || answer === undefined || latest.verdict === "failed"
       ? undefined
-      : allowedDecisions({ entries }).findLast((d) => d.asked === asked);
+      : allowedDecisions({ entries }).findLast(
+          (d) => d.asked === asked && d.at === answer.at && d.by === answer.by,
+        );
   const handChecked = (id: string) =>
     allowed !== undefined &&
     new RegExp(`(?:^|; )${escape(id)} \\(`).test(

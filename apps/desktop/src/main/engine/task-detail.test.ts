@@ -196,6 +196,17 @@ describe("each criterion's status", () => {
     );
   });
 
+  it("counts only the answer to the latest question, not an earlier one to the same words", () => {
+    const reasked = [
+      entry("judge", "stop", "asked: unverified_acceptance: A3 (needs eyes)"),
+      entry("judge", "stop", "answered: allowed — fine then"),
+      entry("judge", "stop", "asked: unverified_acceptance: A3 (needs eyes)"),
+    ];
+    expect(criteriaStatus(CARD, [round()], reasked).acceptance[2]?.status).toBe(
+      "unverified",
+    );
+  });
+
   it("stays unverified while the question is open, denied, or the round went back to build", () => {
     const open = [
       entry("judge", "stop", "asked: unverified_acceptance: A3 (old)"),

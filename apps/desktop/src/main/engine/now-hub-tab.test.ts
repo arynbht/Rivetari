@@ -254,6 +254,46 @@ describe("what the hub tells as new, and as gone", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
+  it("withdraws what a repo raised when it leaves the sidebar while the Tasks tab still shows it", async () => {
+    const { hub, watchers, onNew, onGone } = setup();
+    await hub.setRepos(["/a"]);
+    const w = watchers[0]!;
+    w.emit({ kind: "snapshot", tasks: [view("T-0001")] });
+    w.read();
+    const asked = stop("T-0001", 2, "dependency: adds x");
+    w.emit({
+      kind: "changed",
+      task: asked,
+      newEntries: [],
+      previousBeat: "build",
+      closed: false,
+    });
+    expect(onNew).toHaveBeenCalledTimes(1);
+    const key = itemKey(needsYouItems([asked])[0]!);
+
+    const watching = hub.watchTab("/a", vi.fn());
+    await vi.waitFor(() => expect(watchers.length).toBeGreaterThan(1));
+    await hub.setRepos([]);
+    // Still watched for the tab, but its notice is withdrawn now.
+    expect(onGone).toHaveBeenCalledWith("/a", key);
+    expect(hub.badges()).toEqual([]);
+
+    // And an item that leaves while only the tab watches is still told as gone.
+    onGone.mockClear();
+    const restarted = watchers.at(-1)!;
+    restarted.emit({ kind: "snapshot", tasks: [asked] });
+    await watching;
+    restarted.emit({
+      kind: "changed",
+      task: view("T-0001"),
+      newEntries: [],
+      previousBeat: "build",
+      closed: false,
+    });
+    expect(onGone).toHaveBeenCalledWith("/a", key);
+    await hub.stop();
+  });
+
   it("tells an item that left Needs you as gone, and every item of a repo taken off the sidebar", async () => {
     const { hub, watchers, onGone } = setup();
     await hub.setRepos(["/a", "/b"]);

@@ -366,8 +366,19 @@ export class NowHub {
 
   /** Watch exactly these repos: new ones start, ones no longer listed stop. */
   async setRepos(paths: string[]): Promise<void> {
+    const before = this.sidebarKeys;
     this.sidebar = paths;
     this.sidebarKeys = new Set(paths.map(keyOf));
+    // A repo off the sidebar that the Tasks tab keeps watched isn't dropped
+    // by sync, so what was raised for it is withdrawn here.
+    for (const [key, entry] of this.repos)
+      if (
+        before.has(key) &&
+        !this.sidebarKeys.has(key) &&
+        this.tab?.key === key
+      )
+        for (const item of entry.known)
+          this.options.onGone?.(entry.repoPath, item);
     await this.sync();
   }
 
@@ -567,9 +578,10 @@ export class NowHub {
   }
 
   /**
-   * Tell `onNew` about items it hasn't heard of, and `onGone` about the ones
-   * that went, for a sidebar repo. The first read only learns what's there;
-   * isNew judges after it.
+   * Tell `onNew` about items it hasn't heard of, for a sidebar repo, and
+   * `onGone` about every one that went, wherever its repo is now: one raised
+   * while the repo was in the sidebar still has its notice out. The first
+   * read only learns what's there; isNew judges after it.
    */
   private heard(entry: Watched): void {
     if (!entry.ready) return;
@@ -591,7 +603,7 @@ export class NowHub {
     for (const key of entry.known)
       if (!keys.has(key)) {
         entry.known.delete(key);
-        if (tells) this.options.onGone?.(entry.repoPath, key);
+        this.options.onGone?.(entry.repoPath, key);
       }
   }
 
