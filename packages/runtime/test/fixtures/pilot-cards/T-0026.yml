@@ -1,0 +1,117 @@
+id: T-0026
+title: Calibration and transition detection per the Appendix
+type: feature
+source: prompt
+description: "The Appendix scores every session from transitions (peaks and
+  troughs) detected after the session in a calibrated signal. The console has
+  none of this today. src/lib/domain/types.ts:100-101 stores only calibration
+  {min, max}. src/lib/domain/waveform.ts:51-96 (breathDeviations) takes the raw
+  largest sample within a quarter cycle of each pacer turn: it has no low-pass
+  filter, no prominence or spacing rule, no alternation and no artifact
+  handling, and it returns nothing for open sessions (waveform.ts:53).
+  src/lib/analysis/config.ts already holds the numbers:
+  transitionMinProminencePctOfMax and transitionMinSpacingS (config.ts:13-14),
+  lowPassFilter {cutoffHz 1, order 4, butterworth, zeroPhase} (config.ts:42) and
+  artifactLimitPctOfMax 100 (config.ts:43). This card adds three modules under
+  src/lib/analysis. calibration.ts computes A100 (mean of the 3 highest peaks −
+  mean of the 3 lowest troughs during maximal breaths), the midline M (average
+  of those two means) and % of max ((signal − M) / A100 × 100). filter.ts is a
+  zero-phase 4th-order Butterworth low-pass (forward-backward, filtfilt-style,
+  written in TypeScript with no dependency). transitions.ts detects peaks and
+  troughs on the filtered % signal with prominence and spacing from config,
+  enforces alternation, excludes spikes beyond ±100%, and keeps flat segments.
+  Two points need the owner to confirm. First, before calibration there is no %
+  of max, so on the calibration recording the 1% prominence is taken as 1% of
+  the recording's filtered raw range. Second, a transition's level L is read
+  from the filtered signal. Legacy waveforms keep working:
+  calibrationFromLegacy({min, max}) gives A100 = max − min and M = (max + min) /
+  2, marked approximate, as proposed in the data contract."
+acceptance:
+  - id: A1
+    text: "filter.ts designs the Butterworth low-pass from
+      FIXED_CONSTANTS.lowPassFilter for any sample rate (bilinear transform with
+      pre-warping) and applies it forward and backward with edge padding. New
+      test src/lib/analysis/filter.test.ts runs at 20 Hz and 10 Hz. For steady
+      sines of 0.1, 0.5, 1 and 3 Hz (measured over the middle of a 60 s signal),
+      the amplitude gain matches the analytic zero-phase gain 1 / (1 + (tan(π f
+      / fs) / tan(π fc / fs))^8): within 1% of it, or within 1e-4 absolute where
+      the analytic gain is below 0.01. The peak times of a 0.1 Hz sine don't
+      move by more than one sample."
+    verify: unit
+  - id: A2
+    text: "calibration.ts exports calibrate(rawSamples, sampleRateHz), returning
+      {a100, midline, peaks, troughs} with exactly 3 peaks and 3 troughs, or
+      null when fewer than 3 of either are found. It also exports
+      toPctOfMax(samples, calibration) and calibrationFromLegacy({min, max}),
+      which returns approximate: true. New test
+      src/lib/analysis/calibration.test.ts uses the B1-1 calibration-recording
+      generator and recovers the known A100 and midline within 0.5% of A100. In
+      that test, the calibrated recording's mean top-3 peak minus mean bottom-3
+      trough equals 100 within 0.5, and a two-breath recording returns null."
+    verify: unit
+  - id: A3
+    text: "transitions.ts exports detectTransitions(pctSamples, sampleRateHz),
+      returning {index, t, type ('peak' | 'trough'), level} with t = index /
+      sampleRateHz and level in % of max from the filtered signal. New test
+      src/lib/analysis/transitions.test.ts covers the B1-1 on-time 5-5 profile
+      (180 s at 20 Hz): it finds 35 transitions, alternating and starting with a
+      peak, each within one sample of 5 k seconds, with levels ±3 within 0.01. A
+      ripple just under the configured prominence is not detected, and one just
+      over it is. Of two same-type extrema closer than transitionMinSpacingS,
+      only one is kept. Thresholds come from config, not literals."
+    verify: unit
+  - id: A4
+    text: Detected transitions always alternate. In a hand-built signal where two
+      peaks (or two troughs) end up next to each other, only the higher peak (or
+      the lower trough) is kept. transitions.test.ts also asserts strict
+      alternation on every B1-1 golden and demo profile.
+    verify: unit
+  - id: A5
+    text: "Artifacts and holds: on the B1-1 lost-then-recovered profile and on a
+      clean signal with single-sample ±250% spikes added, no transition has
+      |level| > artifactLimitPctOfMax. The spiked signal gives the same
+      transitions as the clean one (same count, times within one sample). A 10 s
+      flat hold yields no transitions inside it, the transitions on either side
+      are unchanged, and no samples are removed (output indices refer to the
+      input signal)."
+    verify: unit
+  - id: A6
+    text: Every Appendix number used comes from src/lib/analysis/config.ts. If one
+      is missing (for example the count of 3 peaks and 3 troughs), it is added
+      to FIXED_CONSTANTS without changing any existing key, and a new test
+      asserts its value. src/lib/analysis/index.ts re-exports the three modules.
+      npm run lint, typecheck and test pass.
+    verify: review
+out_of_scope:
+  - The signal generator itself (B1-1)
+  - Matching transitions to the pacer and method-C scoring (B1-3)
+  - Open-session metrics and segments (B1-4)
+  - New Waveform or SessionSummary fields such as units or a100 (B1-5); this
+    card's calibration type lives in src/lib/analysis
+  - Changing src/lib/domain/waveform.ts or the review screens that use
+    breathDeviations (Batch 2)
+  - The calibration screen (Batch 3)
+touches:
+  - src/lib/analysis/calibration.ts
+  - src/lib/analysis/filter.ts
+  - src/lib/analysis/transitions.ts
+  - src/lib/analysis/config.ts
+  - src/lib/analysis/index.ts
+  - src/lib/analysis/calibration.test.ts
+  - src/lib/analysis/filter.test.ts
+  - src/lib/analysis/transitions.test.ts
+  - src/lib/analysis/config-additions.test.ts
+pages: []
+constraints:
+  - no new dependencies
+  - no new code comments (quality.no-new-comments)
+  - do not modify existing tests; add new test files (config.test.ts stays as it
+    is)
+  - import Appendix constants from src/lib/analysis/config.ts
+  - config.ts may only gain new FIXED_CONSTANTS keys; existing keys and values
+    stay
+  - static export only; pure TypeScript with no browser or Node APIs
+  - depends on B1-1 (tests use synth.ts)
+risk: medium
+owner: dev@example.com
+created: 2026-11-24

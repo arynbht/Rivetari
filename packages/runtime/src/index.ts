@@ -125,6 +125,7 @@ export {
   MAX_TASK_SKILLS,
   PROOF_TYPES,
   type ProofType,
+  reasonSummary,
   route,
   type RouteInput,
   type Routing,
@@ -140,6 +141,7 @@ export {
   routeTask,
   routingContext,
 } from "./router/task-route.js";
+export { lockShortfall, type LockShortfall } from "./router/lock-check.js";
 export { SECTOR_SIGNALS, SENSITIVE_PATHS } from "./router/signals.js";
 export {
   FIRST_PORT,

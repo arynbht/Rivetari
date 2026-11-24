@@ -1,0 +1,54 @@
+id: T-0007
+title: Add the src/lib/analysis skeleton and a config.ts holding every Appendix
+  open constant
+type: chore
+source: prompt
+description: "Decision 3 (2026-11-23) moves scoring into the console, in a
+  shared src/lib/analysis/ library. The folder doesn't exist yet. The agreed
+  Appendix (scoring and metrics spec, Nov 2026) marks some values as open: they
+  must be configurable constants, not hard-coded. This card creates the folder
+  with one config module so that the later calibration, transitions, paced and
+  open-metrics cards all read the same values. The Appendix's open values:
+  transition prominence >= 1% of max; transition spacing >= 0.5 s; skill band k
+  (Beginner 1.0, Intermediate 0.75, Advanced 0.5, Expert 0.25); points for 0-10%
+  deviation = 10 (not 9); peaks = inhale and troughs = exhale; Total Breath
+  Score weights equal across Timing In, Timing Ex, Depth In and Depth Ex; normal
+  inhale duration 1.25-1.67 s; normal exhale duration 2.5-3.33 s; normal depth
+  band 6% +/- 25%. Fixed Appendix values may live in the same file as non-open
+  constants: reference depth 6% peak to trough; depth SD 3% of max; timing SD =
+  half a breath; pacers 2-2 and 5-5 s; low-pass ~1 Hz, 4th-order Butterworth,
+  zero-phase; artifact limit +/-100% of max; normal rate 12-16 bpm; normal I:E
+  1:2; up to 2 event markers per open session; histogram bins -1 to +1 SD in
+  0.25 steps plus a missed/double bin."
+acceptance:
+  - id: A1
+    text: "src/lib/analysis/config.ts exports every Appendix open constant listed in
+      the description with exactly the values given, each with a name that says
+      what it is and a marker (for example an OPEN group or an open: true field)
+      that tells it apart from fixed constants"
+    verify: unit
+  - id: A2
+    text: a new test file src/lib/analysis/config.test.ts asserts each open
+      constant's value (prominence 1, spacing 0.5, k values 1.0/0.75/0.5/0.25,
+      top points 10, peak=inhale/trough=exhale, equal Total weights summing to
+      1, inhale 1.25-1.67 s, exhale 2.5-3.33 s, depth band 6 +/- 25%) and npm
+      test passes
+    verify: unit
+  - id: A3
+    text: src/lib/analysis/index.ts exists and re-exports config, so later modules
+      import from one place; npm run lint and npm run typecheck pass
+    verify: unit
+  - id: A4
+    text: No file outside src/lib/analysis/ changes
+    verify: review
+out_of_scope:
+  - Any scoring, filtering, transition or metric logic (later cards)
+  - Changing src/lib/domain/scores.ts
+touches:
+  - src/lib/analysis/**
+pages: []
+constraints:
+  - no new dependencies
+risk: low
+owner: dev@example.com
+created: 2026-11-24
