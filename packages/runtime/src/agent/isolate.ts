@@ -7,9 +7,12 @@ import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
+import type { CommandRunner } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 
 import { loadTask, type Task, TaskError, TASKS_DIR } from "../task/tasks.js";
+import { ensurePlaywrightBrowser } from "./browsers.js";
+import { portFree } from "./processes.js";
 
 export const WORKTREES_DIR = ".worktrees";
 /** Ports handed to task worktrees start here (example: 5174). */
@@ -73,16 +76,29 @@ async function defaultBase(repoPath: string): Promise<string> {
   return "HEAD";
 }
 
-/** The lowest port no other isolated task holds. */
-async function freePort(repoPath: string, tasks: string[]): Promise<number> {
+/** How far isolate looks past FIRST_PORT for one nothing is bound to. */
+const PORT_SPAN = 200;
+
+/**
+ * The lowest port no other isolated task holds and nothing is bound to: a
+ * closed task's port comes back to the pool, but not while a server it left
+ * behind (or anything else) still holds it.
+ */
+async function freePort(
+  repoPath: string,
+  tasks: string[],
+  free: (port: number) => Promise<boolean>,
+): Promise<number> {
   const taken = new Set<number>();
   for (const id of tasks) {
     const text = await readEnv(repoPath, id);
     if (text) taken.add((JSON.parse(text) as Isolation).port);
   }
-  let port = FIRST_PORT;
-  while (taken.has(port)) port++;
-  return port;
+  for (let port = FIRST_PORT; port < FIRST_PORT + PORT_SPAN; port++)
+    if (!taken.has(port) && (await free(port))) return port;
+  throw new TaskError(
+    `no free port for the worktree: ports ${FIRST_PORT}-${FIRST_PORT + PORT_SPAN - 1} are all held by tasks or bound by other processes`,
+  );
 }
 
 /** Keep `.worktrees/` out of `git status` without touching a tracked file. */
@@ -117,6 +133,10 @@ export async function isolateTask(
     now?: Date | undefined;
     base?: string | undefined;
     otherTasks?: string[] | undefined;
+    /** Replaceable in tests: whether a port is free to hand out. */
+    portFree?: ((port: number) => Promise<boolean>) | undefined;
+    /** Replaceable in tests: runs the Playwright browser install. */
+    run?: CommandRunner | undefined;
   },
 ): Promise<{ task: Task; isolation: Isolation }> {
   const task = await loadTask(repoPath, id);
@@ -151,6 +171,7 @@ export async function isolateTask(
     config: [`core.hooksPath=${noHooks}`],
   }).raw(["worktree", "add", "-b", branch, worktree, base]);
 
+  let isolation: Isolation;
   try {
     await git.raw(["config", "extensions.worktreeConfig", "true"]);
     await simpleGit(worktree, { unsafe }).raw([
@@ -163,13 +184,17 @@ export async function isolateTask(
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_+|_+$/g, "");
-    const isolation: Isolation = {
+    isolation = {
       task: id,
       worktree,
       branch,
       baseRef,
       base,
-      port: await freePort(repoPath, options.otherTasks ?? []),
+      port: await freePort(
+        repoPath,
+        options.otherTasks ?? [],
+        options.portFree ?? portFree,
+      ),
       database: `${repoName || "app"}_${id.toLowerCase().replace(/[^a-z0-9]+/g, "")}`,
     };
     const text = `${JSON.stringify(isolation, null, 2)}\n`;
@@ -181,11 +206,22 @@ export async function isolateTask(
       by: `rivetari runtime (for ${options.by})`,
       at: options.now,
     });
-    return { task: await loadTask(repoPath, id), isolation };
   } catch (err) {
     await git.raw(["worktree", "remove", "--force", worktree]).catch(() => "");
     await git.raw(["branch", "-D", branch]).catch(() => "");
     await rm(envPath(repoPath, id), { force: true });
     throw err;
   }
+  // After the record is sealed, so a slow or failed download never undoes
+  // the worktree; the proof tries again.
+  const browser = await ensurePlaywrightBrowser(worktree, options.run);
+  if (browser)
+    await task.ledger.append({
+      beat: "isolate",
+      section: "timeline",
+      text: browser,
+      by: `rivetari runtime (for ${options.by})`,
+      at: options.now,
+    });
+  return { task: await loadTask(repoPath, id), isolation };
 }

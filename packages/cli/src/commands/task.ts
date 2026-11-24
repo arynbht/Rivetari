@@ -8,6 +8,7 @@ import {
   answerStops,
   approveRoute,
   autonomyFor,
+  BeatError,
   buildTask,
   CardError,
   checkTouches,
@@ -634,17 +635,28 @@ export function runTaskRun(
 ): Promise<number> {
   return guarded(async () => {
     const repo = resolve(flags.path ?? ".");
-    const outcome = await onTask(repo, id, "run", async (by) =>
-      runTask(repo, id, {
-        by,
-        model: flags.model,
-        base: flags.base,
-        otherTasks: await openTaskIds(repo, id),
-        onEntry: (e) => process.stdout.write(`${entryLine(e)}\n`),
-        prove: { deferTestRun: true },
-        judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
-      }),
-    );
+    let outcome;
+    try {
+      outcome = await onTask(repo, id, "run", async (by) =>
+        runTask(repo, id, {
+          by,
+          model: flags.model,
+          base: flags.base,
+          otherTasks: await openTaskIds(repo, id),
+          onEntry: (e) => process.stdout.write(`${entryLine(e)}\n`),
+          prove: { deferTestRun: true },
+          judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
+        }),
+      );
+    } catch (err) {
+      if (!(err instanceof BeatError)) throw err;
+      // The run's last word, so whatever launched it reads a failure, not
+      // a run that stopped quietly.
+      process.stdout.write(
+        `failed: ${err.message}\nnext: ${nextStep(await loadTask(repo, id))}\n`,
+      );
+      return 1;
+    }
     process.stdout.write(`next: ${outcome.next}\n`);
     return outcome.ran.at(-1) === "ship" ? 0 : 2;
   });

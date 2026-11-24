@@ -10,6 +10,7 @@ import { join } from "node:path";
 import {
   allowlistedEnv,
   buildContext,
+  type CommandRunner,
   githubToken,
   installDeps,
   Octokit,
@@ -28,7 +29,9 @@ import {
   parseNameStatus,
   type Side,
 } from "../judge/tier1.js";
+import { ensurePlaywrightBrowser } from "../agent/browsers.js";
 import { loadIsolation, type Isolation } from "../agent/isolate.js";
+import { stopTaskServers, teardownLine } from "../agent/processes.js";
 import { AssemblySchema, type ProofType } from "../router/route.js";
 import {
   loadTask,
@@ -75,6 +78,8 @@ export interface ProveOptions {
    * its own: record that here, and the judge publishes its run as the proof.
    */
   deferTestRun?: boolean | undefined;
+  /** Replaceable in tests: runs the Playwright browser install. */
+  run?: CommandRunner | undefined;
 }
 
 export const DEFERRED =
@@ -540,8 +545,24 @@ export async function proveTask(
   const isolation = await loadIsolation(repoPath, id);
   if (!isolation) throw new TaskError(`task ${id} has no worktree`);
   const assembly = AssemblySchema.parse(parse(task.assemblyText ?? ""));
+  const decision = (text: string) =>
+    task.ledger.append({
+      beat: "prove",
+      section: "decision",
+      text,
+      by: `rivetari runtime (for ${options.by})`,
+      at: options.now,
+    });
+  // The build may have added Playwright since isolate; the judge's run shares
+  // the browser cache, so a deferred proof needs it too. Its line is written
+  // with the proof's, so a proof that throws leaves the ledger as it was.
+  const browser = await ensurePlaywrightBrowser(
+    isolation.worktree,
+    options.run,
+  );
 
   if (options.deferTestRun && assembly.proof === "test-run") {
+    if (browser) await decision(browser);
     await task.ledger.append({
       beat: "prove",
       section: "timeline",
@@ -557,10 +578,22 @@ export async function proveTask(
 
   const proofDir = join(repoPath, TASKS_DIR, id, "proof");
   const publish = options.publish ?? githubPublisher(repoPath, id);
-  const record =
-    assembly.proof === "ui-screenshots"
-      ? await uiProof(repoPath, task, isolation, publish)
-      : await testRun(repoPath, isolation, assembly.proof, publish, proofDir);
+  // What the proof's own run left up (a test's server, a stop() that missed
+  // a child) would hold the port the next round needs.
+  const stopServers = () =>
+    stopTaskServers(isolation.worktree, [isolation.port]);
+  let record: ProofRecord;
+  try {
+    record =
+      assembly.proof === "ui-screenshots"
+        ? await uiProof(repoPath, task, isolation, publish)
+        : await testRun(repoPath, isolation, assembly.proof, publish, proofDir);
+  } catch (err) {
+    await stopServers();
+    throw err;
+  }
+  const teardown = teardownLine(await stopServers());
+  for (const line of [browser, teardown]) if (line) await decision(line);
 
   await mkdir(proofDir, { recursive: true });
   await writeFile(

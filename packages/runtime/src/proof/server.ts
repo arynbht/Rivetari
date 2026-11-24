@@ -87,6 +87,17 @@ export async function startServer(options: {
       }
       setTimeout(resolve, 5000).unref();
     });
+    // The shell can exit before the server under it lets go of the port;
+    // the next side, round or task binds it straight after.
+    const deadline = Date.now() + 5000;
+    while (
+      Date.now() < deadline &&
+      (await fetch(url, { signal: AbortSignal.timeout(500) }).then(
+        () => true,
+        () => false,
+      ))
+    )
+      await new Promise((r) => setTimeout(r, 100));
   };
 
   const deadline = Date.now() + timeoutMs;
