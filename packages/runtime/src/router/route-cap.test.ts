@@ -18,8 +18,14 @@ beforeAll(async () => {
 });
 afterAll(() => rm(dir, { recursive: true, force: true }));
 
-/** UI skills that trigger on a .tsx touch and on the given words. */
-function uiSkills(keywords: Record<string, string[]>): Map<string, Manifest> {
+/**
+ * UI skills that trigger on a .tsx touch and on the given words; a skill
+ * given no words and no path (`null`) only comes in as a requirement.
+ */
+function uiSkills(
+  keywords: Record<string, string[] | null>,
+  requires: Record<string, string[]> = {},
+): Map<string, Manifest> {
   const base = shipped.get("frontend-design");
   const impeccable = shipped.get("impeccable");
   if (!base || !impeccable) throw new Error("missing shipped manifests");
@@ -30,8 +36,12 @@ function uiSkills(keywords: Record<string, string[]>): Map<string, Manifest> {
       ...from,
       name,
       conflicts: [],
-      requires: [],
-      triggers: { paths: ["**/*.tsx"], keywords: words, flags: [] },
+      requires: requires[name] ?? [],
+      triggers: {
+        paths: words === null ? [] : ["**/*.tsx"],
+        keywords: words ?? [],
+        flags: [],
+      },
     });
   }
   return made;
@@ -79,6 +89,27 @@ describe("the critique fallback under the cap", () => {
     expect(notes).toContain(
       "impeccable left out: it would take the assembly past 4 skills",
     );
+  });
+
+  it("never keeps a skill without a requirement the cap cut with another", () => {
+    const { assembly, notes } = routeWith(
+      uiSkills(
+        {
+          "skill-a": ["alpha", "beta"],
+          "skill-b": ["alpha", "beta"],
+          "skill-c": ["alpha", "beta"],
+          "skill-d": ["alpha"],
+          "skill-e": ["alpha"],
+          "shared-core": null,
+        },
+        { "skill-d": ["shared-core"], "skill-e": ["shared-core"] },
+      ),
+    );
+    expect(assembly.skills).toEqual(["skill-a", "skill-b", "skill-c"]);
+    expect(notes).toEqual([
+      "skill-d left out: it would take the assembly past 4 skills",
+      "skill-e left out: it would take the assembly past 4 skills",
+    ]);
   });
 
   it("drops frontend-design for a critique skill that fits", () => {

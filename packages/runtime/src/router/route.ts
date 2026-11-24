@@ -374,7 +374,15 @@ export function route(input: RouteInput): Routing {
   const outReasons: Partial<Record<Sector, string>> = {};
   for (const sector of borderline) {
     if (has(sector, "path", "repo")) continue;
-    const why = has(sector, "title") ? against(sector) : KEYWORD_ONLY_REASON;
+    // An ambiguous word in the title is weak evidence, said as such.
+    const weakTitle = scores
+      .get(sector)
+      ?.reasons.some((r) => r.endsWith(" in the title"));
+    const why = has(sector, "title")
+      ? against(sector)
+      : weakTitle
+        ? "scored only on ambiguous words and description keywords"
+        : KEYWORD_ONLY_REASON;
     if (why) outReasons[sector] = why;
   }
   const decidedOut = borderline.filter((s) => outReasons[s] !== undefined);
@@ -449,21 +457,14 @@ export function route(input: RouteInput): Routing {
     for (const { m } of candidates)
       unloadedNotes.set(m.name, `${m.name} matched but ${unloaded(m.name)}`);
   }
-  // Picked before the cap, so a skill removed as unavailable or for a
-  // conflict never holds a place under it.
+  // Each loadable candidate with everything it requires, best first. Only
+  // the cap below decides what's kept, against what it has kept so far, so
+  // a skill removed as unavailable never holds a place, and a group the cap
+  // cuts neither blocks a conflicting skill nor takes a shared requirement
+  // with it.
   const picked: string[][] = [];
-  const pickedNames = () => picked.flat();
-  const conflicting = (name: string) =>
-    pickedNames().find(
-      (s) =>
-        manifests.get(s)?.conflicts.includes(name) ||
-        manifests.get(name)?.conflicts.includes(s),
-    );
   for (const { m } of available.size > 0 ? candidates : []) {
-    if (pickedNames().includes(m.name)) continue;
-    const group = withRequires(m.name, manifests).filter(
-      (n) => !pickedNames().includes(n),
-    );
+    const group = withRequires(m.name, manifests);
     const missing = group.find((n) => !available.has(n));
     if (missing) {
       const note =
@@ -474,26 +475,33 @@ export function route(input: RouteInput): Routing {
       unloadedNotes.set(m.name, note);
       continue;
     }
-    const clash = group
-      .map((n) => [n, conflicting(n)] as const)
-      .find(([, c]) => c);
-    if (clash) {
-      notes.push(`${m.name} left out: ${clash[0]} conflicts with ${clash[1]}`);
-      continue;
-    }
     picked.push(group);
   }
   const cap = (groups: readonly string[][]) => {
     const kept: string[] = [];
-    const cut: string[] = [];
+    const left: string[] = [];
+    const conflicting = (name: string) =>
+      kept.find(
+        (s) =>
+          manifests.get(s)?.conflicts.includes(name) ||
+          manifests.get(name)?.conflicts.includes(s),
+      );
     for (const group of groups) {
-      if (kept.length + group.length > MAX_TASK_SKILLS)
-        cut.push(
-          `${group.at(-1) ?? ""} left out: it would take the assembly past ${MAX_TASK_SKILLS} skills`,
+      const name = group.at(-1) ?? "";
+      const need = group.filter((n) => !kept.includes(n));
+      if (need.length === 0) continue;
+      const clash = need
+        .map((n) => [n, conflicting(n)] as const)
+        .find(([, c]) => c);
+      if (clash)
+        left.push(`${name} left out: ${clash[0]} conflicts with ${clash[1]}`);
+      else if (kept.length + need.length > MAX_TASK_SKILLS)
+        left.push(
+          `${name} left out: it would take the assembly past ${MAX_TASK_SKILLS} skills`,
         );
-      else kept.push(...group);
+      else kept.push(...need);
     }
-    return { kept, cut };
+    return { kept, cut: left };
   };
   // The fallback steps aside only for a critique skill that survives the
   // cap without it; otherwise it keeps its place.
