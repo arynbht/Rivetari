@@ -30,6 +30,11 @@ export const IpcChannel = {
   GatesEvidence: "gates:evidence",
   PostureGet: "posture:get",
   PostureDraft: "posture:draft",
+  ProjectGet: "project:get",
+  ProjectRefresh: "project:refresh",
+  ProjectDraft: "project:draft",
+  /** Push channel (main → renderer): a repo's Project view, checked again. */
+  ProjectUpdate: "project:update",
   FixPlan: "fix:plan",
   FixApply: "fix:apply",
   FixOpenPr: "fix:openPr",
@@ -390,6 +395,132 @@ export const PostureDraftResult = z.object({
   warning: z.string().nullable(),
 });
 export type PostureDraftResult = z.infer<typeof PostureDraftResult>;
+
+// Project — profile.yml held against what the repo shows now, checked again by
+// itself, beside the autonomy, proof, skills and banned patterns it records.
+export const ProjectRequest = z.object({ repoPath: z.string().min(1) });
+
+/** A profile.yml field, its value now, and the value the repo shows. */
+export const ProjectChange = z.object({
+  /** The field's path in profile.yml: `stack`, `phase`, `flags.uses-ai`. */
+  path: z.string(),
+  from: z.string(),
+  to: z.string(),
+});
+export type ProjectChange = z.infer<typeof ProjectChange>;
+
+export const ProjectField = z.object({
+  /** Stable id for the row, which a draft names to pick it. */
+  key: z.string(),
+  label: z.string(),
+  /** What profile.yml says, as shown; null when it says nothing. */
+  declared: z.string().nullable(),
+  /** What the repo shows now; null when nothing on disk says. */
+  detected: z.string().nullable(),
+  /** What shows it, or why nothing does. */
+  evidence: z.string().nullable(),
+  differs: z.boolean(),
+  /** The change that brings profile.yml in line, when it differs. */
+  change: ProjectChange.nullable(),
+});
+export type ProjectField = z.infer<typeof ProjectField>;
+
+export const ProjectAutonomyEntry = z.object({
+  level: z.string(),
+  kind: z.string(),
+  rules: z.number().int(),
+  note: z.string(),
+  at: z.string(),
+  by: z.string(),
+});
+export type ProjectAutonomyEntry = z.infer<typeof ProjectAutonomyEntry>;
+
+export const ProjectSkill = z.object({
+  name: z.string(),
+  source: z.string(),
+  pin: z.string(),
+  scope: z.enum(["always", "task"]),
+  /** per-task: a task-scope skill, fetched when a route picks it. */
+  state: z.enum([
+    "installed",
+    "per-task",
+    "not-installed",
+    "blocked",
+    "modified",
+  ]),
+  detail: z.string().nullable(),
+});
+export type ProjectSkill = z.infer<typeof ProjectSkill>;
+
+/** A sector a route found no skill for, with the router's reason. */
+export const ProjectGap = z.object({
+  sector: z.string().nullable(),
+  reason: z.string(),
+  /** The tasks whose routes hit it, newest first. */
+  tasks: z.array(z.string()),
+});
+export type ProjectGap = z.infer<typeof ProjectGap>;
+
+export const ProjectView = z.object({
+  repoPath: z.string(),
+  /** When the repo was last held against profile.yml (ISO). */
+  checkedAt: z.string(),
+  profileFound: z.boolean(),
+  fields: z.array(ProjectField),
+  /** Flags profile.yml sets that no file can show (has-users, eu-users, …). */
+  otherFlags: z.array(z.string()),
+  /** Why profile.yml can't be read now, read fresh with the records. */
+  profileError: z.string().nullable(),
+  /** An open task that already changes profile.yml, if there is one. */
+  openTask: z.object({ id: z.string(), title: z.string() }).nullable(),
+  autonomy: z.object({
+    configured: z.string().nullable(),
+    /** The autonomy ledger's entries, oldest first, once they verify. */
+    entries: z.array(ProjectAutonomyEntry),
+    problems: z.array(z.string()),
+  }),
+  /** profile.yml's proof block; null when it has none. */
+  proof: z
+    .object({
+      start: z.string().nullable(),
+      url: z.string().nullable(),
+      readyTimeout: z.number().int().nullable(),
+      /** Only whether sign-in is set up: the script is the person's. */
+      auth: z.boolean(),
+    })
+    .nullable(),
+  skills: z.object({
+    locked: z.array(ProjectSkill),
+    installed: z.number().int(),
+    syncedAt: z.string().nullable(),
+    /** What `rivetari skills status` says that no one skill explains. */
+    problems: z.array(z.string()),
+    gaps: z.array(ProjectGap),
+    error: z.string().nullable(),
+  }),
+  banned: z.object({
+    patterns: z.array(
+      z.object({
+        id: z.string(),
+        pattern: z.string(),
+        files: z.string(),
+        why: z.string(),
+        source: z.string(),
+      }),
+    ),
+    error: z.string().nullable(),
+  }),
+  /** Why part of the view couldn't be read, if one couldn't. */
+  problems: z.array(z.string()),
+});
+export type ProjectView = z.infer<typeof ProjectView>;
+
+/** Draft a card that brings these rows of profile.yml in line. */
+export const ProjectDraftRequest = z.object({
+  repoPath: z.string().min(1),
+  keys: z.array(z.string().min(1).max(100)).min(1).max(30),
+});
+export type ProjectDraftRequest = z.infer<typeof ProjectDraftRequest>;
 
 // Fix — proposed generator changes (dry-run or applied) and the PR outcome.
 export const FixChange = z.object({
@@ -1193,5 +1324,7 @@ export const UpdateInfo = z.object({
   url: z.string().nullable(),
   /** ISO publish date of the latest release, when known. */
   publishedAt: z.string().nullable(),
+  /** Set when GitHub wouldn't list releases to someone signed out. */
+  signInNeeded: z.boolean().optional(),
 });
 export type UpdateInfo = z.infer<typeof UpdateInfo>;

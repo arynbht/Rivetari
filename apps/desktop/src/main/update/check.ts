@@ -114,6 +114,18 @@ export async function checkForUpdate(
     { headers },
   );
 
+  // Signed out, GitHub refuses a private repo's listing (401/403, or a 404 for
+  // the listing itself) and rate-limits anonymous calls with a 403. None of
+  // that is a failure of the app, so it's said quietly rather than thrown: a
+  // launch check runs on every start and the person can't act on it but by
+  // signing in.
+  if (
+    !deps.token &&
+    (res.status === 401 ||
+      res.status === 403 ||
+      (res.status === 404 && deps.tagPrefix !== undefined))
+  )
+    return { ...base, signInNeeded: true };
   // No published (non-draft) release yet → nothing to update to, not an error.
   if (res.status === 404) return base;
   if (!res.ok) {

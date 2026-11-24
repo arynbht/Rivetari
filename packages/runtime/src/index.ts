@@ -273,6 +273,7 @@ export {
   AUTONOMY_DIR,
   type AutonomyEntry,
   autonomyEntries,
+  autonomyLedger,
   enforceFallback,
   ladder,
   type LadderNumbers,

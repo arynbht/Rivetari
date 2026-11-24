@@ -262,7 +262,12 @@ export function Settings({
           )}
           {/* No desktop release has been published, so there's nothing to
               compare with; "up to date" would claim more than we know. */}
-          {update && update.latestVersion === null && (
+          {update?.signInNeeded && (
+            <span className="text-sm text-muted-foreground" role="status">
+              Can&apos;t check updates until you sign in to GitHub.
+            </span>
+          )}
+          {update && !update.signInNeeded && update.latestVersion === null && (
             <span className="text-sm text-muted-foreground" role="status">
               No desktop release yet (you have v
               {update.currentVersion.replace(/^v/, "")}).

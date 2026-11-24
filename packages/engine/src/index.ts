@@ -210,6 +210,8 @@ export { planFeature } from "./orchestrate/plan.js";
 export type { PlanOptions } from "./orchestrate/plan.js";
 export { runBuild, BuildError } from "./orchestrate/build.js";
 export type { BuildOptions, GitOps } from "./orchestrate/build.js";
+export { inferProjectType } from "./project-type.js";
+export { type InferredFlag, inferFlags } from "./flags.js";
 export {
   inferPackageManager,
   type PackageManager,
