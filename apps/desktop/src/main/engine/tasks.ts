@@ -3,7 +3,8 @@
 // watched at a time (the Tasks tab shows one); watching another, or closing the
 // window, stops the last watcher. The watcher writes nothing; the two actions
 // here are the person's own: answering a stop, which goes through the same
-// runtime calls as `rivetari task answer`, and opening a task's PR.
+// runtime calls as `rivetari task answer` (task-beat.ts), and opening a task's PR.
+// The Now view keeps watchers of its own (now.ts) for every repo in the sidebar.
 // The list the renderer gets leaves each ledger out: a running task's progress
 // changes every couple of seconds, and sending every task's whole ledger each
 // time would be most of the payload. The open task's ledger is asked for alone.
@@ -12,15 +13,11 @@ import { resolve } from "node:path";
 
 import {
   answerStops,
-  commitTask,
-  holderName,
   nextStep,
-  pullTasks,
   type TaskEvent,
   type TaskView,
   type TaskWatcher,
   watchTasks,
-  whoami,
 } from "@arynbht/rivetari-runtime";
 
 import type {
@@ -30,6 +27,7 @@ import type {
   TasksState,
   TaskSummary,
 } from "../../shared/ipc";
+import { beatDeps, type BeatDeps, recordBeat } from "./task-beat";
 
 /** The list after one watcher event; a read error leaves the list as it was. */
 export function applyTaskEvent(
@@ -143,34 +141,15 @@ export async function unwatchTasks(): Promise<void> {
 }
 
 /** The runtime calls an answer makes; a test hands in its own. */
-export interface AnswerDeps {
-  whoami: typeof whoami;
-  pullTasks: typeof pullTasks;
-  commitTask: typeof commitTask;
+export interface AnswerDeps extends BeatDeps {
   answerStops: typeof answerStops;
 }
 
-const runtimeDeps: AnswerDeps = {
-  whoami,
-  pullTasks,
-  commitTask,
-  answerStops,
-};
-
-/** Answers being recorded now, by repo and task: a second click waits its turn. */
-const answering = new Set<string>();
-
-/** A plain Error, so the renderer shows the runtime's message without its class name. */
-const plain = (err: unknown) =>
-  new Error(err instanceof Error ? err.message : String(err));
+const runtimeDeps: AnswerDeps = { ...beatDeps, answerStops };
 
 /**
- * Allow or deny task `id`'s open stops, as `rivetari task answer` does: bring
- * the record up to the tasks branch, take the task's lease, append the answer
- * under the person's own name (git's user.email, as the CLI records it) and
- * push. A failed answer still pushes what it got through. When only the last
- * push fails, the answer is kept on this machine and the result says so, the
- * way the CLI warns; its next beat pushes it.
+ * Allow or deny task `id`'s open stops, as `rivetari task answer` does, the
+ * answer recorded under the person's own name (see recordBeat).
  */
 export async function answerTask(
   repoPath: string,
@@ -179,72 +158,31 @@ export async function answerTask(
 ): Promise<TaskAnswerResult> {
   const { id, allow } = request;
   const note = request.note.trim() || undefined;
-  // Windows paths are case-insensitive: C:\Repo and c:\repo are one repo.
-  const path = resolve(repoPath);
-  const key = `${process.platform === "win32" ? path.toLowerCase() : path}#${id}`;
-  if (answering.has(key))
-    throw new Error(`an answer to ${id} is already being recorded`);
-  answering.add(key);
-  try {
-    const by = await deps.whoami(repoPath);
-    const holder = holderName(by);
-    await deps.pullTasks(repoPath);
-    await deps.commitTask(repoPath, id, { holder, message: `${id}: answer` });
-    let next: string;
-    try {
-      next = nextStep(
-        await deps.answerStops(repoPath, id, { allow, note, by }),
-      );
-    } catch (err) {
-      // The answer's own error is the one to report; a failed push goes with it.
-      const pushed = await deps
-        .commitTask(repoPath, id, { holder, message: `${id}: answer failed` })
-        .then(
-          () => null,
-          (pushErr: unknown) => plain(pushErr).message,
-        );
-      if (pushed === null) throw err;
-      throw new Error(
-        `${plain(err).message}; pushing what got through also failed: ${pushed}`,
-      );
-    }
-    let warning: string | null = null;
-    try {
-      await deps.commitTask(repoPath, id, {
-        holder,
-        message: `${id}: answer done`,
-      });
-    } catch (err) {
-      warning = `the answer is recorded, but pushing it failed: ${plain(err).message}. It's kept on this machine; the next beat on ${id} pushes it.`;
-    }
-    return {
-      id,
-      answer: allow ? "allowed" : "denied",
-      by,
-      next,
-      warning,
-    };
-  } catch (err) {
-    throw plain(err);
-  } finally {
-    answering.delete(key);
-  }
+  const { by, result, warning } = await recordBeat(
+    repoPath,
+    id,
+    {
+      beat: "answer",
+      doing: "an answer to",
+      noun: "the answer",
+      run: (by) => deps.answerStops(repoPath, id, { allow, note, by }),
+    },
+    deps,
+  );
+  return {
+    id,
+    answer: allow ? "allowed" : "denied",
+    by,
+    next: nextStep(result),
+    warning,
+  };
 }
 
 /**
- * Open task `id`'s PR with `open` (the OS browser): the URL is the one the
- * watcher read from the task's ledger, never one the renderer sends, and only
- * an https one from a record that verifies.
+ * The https URL of task `id`'s PR, from its view as the watcher read it from
+ * the ledger, never one the renderer sends, and only from a record that verifies.
  */
-export async function openTaskPr(
-  repoPath: string,
-  id: string,
-  open: (url: string) => Promise<void>,
-): Promise<{ url: string }> {
-  const task =
-    shown && resolve(shown.repoPath) === resolve(repoPath)
-      ? shown.tasks.find((t) => t.id === id)
-      : undefined;
+export function prUrlOf(task: TaskView | undefined, id: string): string {
   if (!task) throw new Error(`${id} isn't one of the tasks on show`);
   if (task.problems.length > 0)
     throw new Error(
@@ -259,6 +197,21 @@ export async function openTaskPr(
   }
   if (url.protocol !== "https:")
     throw new Error(`${id}'s PR link isn't https: ${task.pr.url}`);
-  await open(url.href);
-  return { url: url.href };
+  return url.href;
+}
+
+/** Open task `id`'s PR with `open` (the OS browser); see prUrlOf. */
+export async function openTaskPr(
+  repoPath: string,
+  id: string,
+  open: (url: string) => Promise<void>,
+): Promise<{ url: string }> {
+  const url = prUrlOf(
+    shown && resolve(shown.repoPath) === resolve(repoPath)
+      ? shown.tasks.find((t) => t.id === id)
+      : undefined,
+    id,
+  );
+  await open(url);
+  return { url };
 }

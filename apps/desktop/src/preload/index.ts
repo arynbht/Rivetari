@@ -45,6 +45,17 @@ import {
   MapBlocked,
   MapGetRequest,
   MapView,
+  NowActionRequest,
+  NowActionResult,
+  NowBadges,
+  NowCi,
+  NowFocus,
+  NowHealth,
+  NowJudge,
+  NowRepoRequest,
+  NowSelectRequest,
+  NowState,
+  NowTaskRequest,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskLedger,
@@ -354,6 +365,108 @@ const api = {
       ipcRenderer.on(IpcChannel.TasksUpdate, listener);
       return () => {
         ipcRenderer.removeListener(IpcChannel.TasksUpdate, listener);
+      };
+    },
+  },
+
+  now: {
+    /** A repo's Now state as main last read it; `onUpdate` hears every change. */
+    async get(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.NowGet,
+        NowRepoRequest.parse({ repoPath }),
+      );
+      return NowState.parse(raw);
+    },
+    /** The repo on show (or none), which main reads more often. */
+    async select(repoPath: string | null) {
+      await ipcRenderer.invoke(
+        IpcChannel.NowSelect,
+        NowSelectRequest.parse({ repoPath }),
+      );
+    },
+    /** Confirm a card, as `rivetari task confirm` does; `shown` is what was read. */
+    async confirm(repoPath: string, id: string, shown: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.NowConfirm,
+        NowActionRequest.parse({ repoPath, id, shown }),
+      );
+      return NowActionResult.parse(raw);
+    },
+    /** Approve a route, as `rivetari task approve` does; `shown` is what was read. */
+    async approve(repoPath: string, id: string, shown: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.NowApprove,
+        NowActionRequest.parse({ repoPath, id, shown }),
+      );
+      return NowActionResult.parse(raw);
+    },
+    /** A task's latest judge round, or null before any verdict. */
+    async judge(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.NowJudge,
+        NowTaskRequest.parse({ repoPath, id }),
+      );
+      return NowJudge.parse(raw);
+    },
+    /** Open a task's PR in the OS browser (the URL comes from its ledger). */
+    async openPr(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.NowOpenPr,
+        NowTaskRequest.parse({ repoPath, id }),
+      );
+      return TaskOpenPrResult.parse(raw);
+    },
+    async health(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.NowHealth,
+        NowRepoRequest.parse({ repoPath }),
+      );
+      return NowHealth.parse(raw);
+    },
+    /** main's CI; reads GitHub only when signed in. */
+    async ci(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.NowCi,
+        NowRepoRequest.parse({ repoPath }),
+      );
+      return NowCi.parse(raw);
+    },
+    async badges() {
+      const raw: unknown = await ipcRenderer.invoke(IpcChannel.NowBadges);
+      return NowBadges.parse(raw);
+    },
+    /** Subscribe to every repo's Now state; returns an unsubscribe fn. */
+    onUpdate(callback: (state: NowState) => void) {
+      const listener = (_event: unknown, payload: unknown): void => {
+        // A malformed push is dropped rather than thrown into the IPC event loop.
+        const parsed = NowState.safeParse(payload);
+        if (parsed.success) callback(parsed.data);
+      };
+      ipcRenderer.on(IpcChannel.NowUpdate, listener);
+      return () => {
+        ipcRenderer.removeListener(IpcChannel.NowUpdate, listener);
+      };
+    },
+    onBadges(callback: (badges: NowBadges) => void) {
+      const listener = (_event: unknown, payload: unknown): void => {
+        const parsed = NowBadges.safeParse(payload);
+        if (parsed.success) callback(parsed.data);
+      };
+      ipcRenderer.on(IpcChannel.NowBadgesUpdate, listener);
+      return () => {
+        ipcRenderer.removeListener(IpcChannel.NowBadgesUpdate, listener);
+      };
+    },
+    /** A clicked notification's item, to show; returns an unsubscribe fn. */
+    onFocus(callback: (focus: NowFocus) => void) {
+      const listener = (_event: unknown, payload: unknown): void => {
+        const parsed = NowFocus.safeParse(payload);
+        if (parsed.success) callback(parsed.data);
+      };
+      ipcRenderer.on(IpcChannel.NowFocus, listener);
+      return () => {
+        ipcRenderer.removeListener(IpcChannel.NowFocus, listener);
       };
     },
   },

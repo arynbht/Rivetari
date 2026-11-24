@@ -13,6 +13,7 @@ import { Docs } from "@/components/Docs";
 import { Fix } from "@/components/Fix";
 import { FloorPlan } from "@/components/FloorPlan";
 import { Gates } from "@/components/Gates";
+import { Now } from "@/components/Now";
 import { ProfileForm } from "@/components/ProfileForm";
 import { RepoMap } from "@/components/RepoMap";
 import { Scorecard } from "@/components/Scorecard";
@@ -23,6 +24,7 @@ import { errorMessage } from "@/lib/errors";
 import { applyTheme } from "@/lib/theme";
 
 type View =
+  | "now"
   | "scorecard"
   | "floorplan"
   | "profile"
@@ -34,6 +36,7 @@ type View =
   | "docs";
 
 const TABS: { id: View; label: string }[] = [
+  { id: "now", label: "Now" },
   { id: "scorecard", label: "Scorecard" },
   { id: "floorplan", label: "Floor Plan" },
   { id: "profile", label: "Profile" },
@@ -46,6 +49,8 @@ const TABS: { id: View; label: string }[] = [
 ];
 
 import type {
+  NowBadges,
+  NowFocus,
   RepoEntry,
   Scorecard as ScorecardData,
   Theme,
@@ -110,6 +115,17 @@ function TabBar({
   );
 }
 
+/** How many items wait on a person in a repo, beside its name in the sidebar. */
+function NeedsYouBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span className="shrink-0 rounded-full bg-amber-500/20 px-1.5 text-xs font-medium tabular-nums text-amber-300">
+      {count}
+      <span className="sr-only"> waiting on you</span>
+    </span>
+  );
+}
+
 export function App() {
   // The preload exposes `window.rivetari`; if it failed to load, surface a clear
   // message instead of letting every handler throw into a blank screen.
@@ -146,6 +162,26 @@ export function App() {
   const [opened, setOpened] = useState<Set<View>>(
     () => new Set<View>(["scorecard"]),
   );
+  // How many items wait on a person in each repo, from main's watchers.
+  const [badges, setBadges] = useState<NowBadges>([]);
+  // A Needs-you item to bring into view, and a task to open in the Tasks tab;
+  // `seq` makes asking for the same one twice count.
+  const [nowFocus, setNowFocus] = useState<{ id: string; seq: number } | null>(
+    null,
+  );
+  const [tasksFocus, setTasksFocus] = useState<{
+    id: string;
+    seq: number;
+  } | null>(null);
+  const focusSeq = useRef(0);
+  // What a clicked notification does, renewed each render so the listener,
+  // which outlives renders, acts on the repo selected now.
+  const onFocusRef = useRef<(focus: NowFocus) => void>(() => undefined);
+  onFocusRef.current = ({ repoPath, id }) => {
+    if (selected !== repoPath) handleSelect(repoPath);
+    showView("now");
+    setNowFocus({ id, seq: ++focusSeq.current });
+  };
 
   function showView(next: View): void {
     setView(next);
@@ -176,6 +212,35 @@ export function App() {
         // Settings unreadable — keep the default dark theme.
       },
     );
+  }, [bridgeReady]);
+
+  // Main reads the repo on show more often than the rest of the sidebar's.
+  useEffect(() => {
+    if (!bridgeReady) return;
+    window.rivetari.now.select(selected).catch((err: unknown) => {
+      setError(errorMessage(err));
+    });
+  }, [bridgeReady, selected]);
+
+  // The sidebar's badges, and a clicked notification bringing its item up.
+  useEffect(() => {
+    if (!bridgeReady) return;
+    let active = true;
+    const offBadges = window.rivetari.now.onBadges(
+      (next) => active && setBadges(next),
+    );
+    window.rivetari.now.badges().then(
+      (next) => active && setBadges(next),
+      (err: unknown) => active && setError(errorMessage(err)),
+    );
+    const offFocus = window.rivetari.now.onFocus((focus) =>
+      onFocusRef.current(focus),
+    );
+    return () => {
+      active = false;
+      offBadges();
+      offFocus();
+    };
   }, [bridgeReady]);
 
   // Show the audit the CLI last recorded for the selected repo, as soon as it's
@@ -249,6 +314,8 @@ export function App() {
     setFloorPlanRunning(false);
     setFloorPlanVersion((v) => v + 1); // make the Floor Plan tab reload for the new repo
     setOpened(new Set<View>(["scorecard"])); // fresh state for the new repo
+    setNowFocus(null);
+    setTasksFocus(null);
   }
 
   /**
@@ -340,8 +407,14 @@ export function App() {
                       className="min-w-0 flex-1 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       title={repo.path}
                     >
-                      <span className="block truncate text-sm">
-                        {repo.name}
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm">{repo.name}</span>
+                        <NeedsYouBadge
+                          count={
+                            badges.find((b) => b.repoPath === repo.path)
+                              ?.count ?? 0
+                          }
+                        />
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {repo.path}
@@ -437,6 +510,27 @@ export function App() {
 
             {/* Each panel stays mounted once opened (hidden when inactive), so
                 switching tabs preserves its state; `opened` resets per repo. */}
+            {opened.has("now") && (
+              <div
+                id="panel-now"
+                role="tabpanel"
+                aria-labelledby="tab-now"
+                tabIndex={0}
+                hidden={view !== "now"}
+              >
+                {/* key starts the newly selected repo's view afresh. */}
+                <Now
+                  key={selectedRepo.path}
+                  repoPath={selectedRepo.path}
+                  focus={nowFocus}
+                  onOpenTask={(id) => {
+                    setTasksFocus({ id, seq: ++focusSeq.current });
+                    showView("tasks");
+                  }}
+                />
+              </div>
+            )}
+
             <div
               id="panel-scorecard"
               role="tabpanel"
@@ -548,7 +642,11 @@ export function App() {
                 hidden={view !== "tasks"}
               >
                 {/* key starts a fresh watch (and selection) when the repo changes. */}
-                <Tasks key={selectedRepo.path} repoPath={selectedRepo.path} />
+                <Tasks
+                  key={selectedRepo.path}
+                  repoPath={selectedRepo.path}
+                  focus={tasksFocus}
+                />
               </div>
             )}
 

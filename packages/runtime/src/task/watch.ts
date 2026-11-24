@@ -27,7 +27,7 @@ import { join } from "node:path";
 import { simpleGit } from "simple-git";
 
 import { usageTotals } from "../ship/close.js";
-import { TASK_ID } from "./card.js";
+import { type Card, TASK_ID } from "./card.js";
 import { type Beat, isSeal, type LedgerEntry } from "./ledger.js";
 import { readProgress, type TaskProgress } from "./progress.js";
 import { type Lease, pushedBefore, readBlob, TASKS_BRANCH } from "./store.js";
@@ -79,6 +79,13 @@ export interface TaskView {
   needsYou: { kind: NeedsYouKind; why: string } | null;
   problems: string[];
   entries: LedgerEntry[];
+  /** The card as recorded, for a person to read before confirming it. */
+  card?: Card | undefined;
+  /**
+   * assembly.yml as written, once the current card has been routed: what a
+   * person reads before approving the route.
+   */
+  assemblyText?: string | undefined;
   /**
    * The beat running now, from its progress file on this machine; null when
    * none is. Its last activity is the later of the beat's own and the ledger's
@@ -158,6 +165,10 @@ function viewOf(
     needsYou: needsYou(task, done),
     problems: task.problems,
     entries: task.entries,
+    card: task.card,
+    ...(task.assemblyText === undefined
+      ? {}
+      : { assemblyText: task.assemblyText }),
   };
 }
 
