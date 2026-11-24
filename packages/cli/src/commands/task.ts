@@ -29,6 +29,7 @@ import {
   newTask,
   nextStep,
   oneAtATime,
+  openStops,
   parallelExitCode,
   parseAcceptanceFlag,
   parseCard,
@@ -305,7 +306,13 @@ export function runTaskStatus(flags: { path?: string }): Promise<number> {
       process.stdout.write('no tasks yet: `rivetari task new "<title>"`\n');
       return 0;
     }
-    for (const task of tasks) process.stdout.write(`${describe(task)}\n`);
+    for (const task of tasks) {
+      process.stdout.write(`${describe(task)}\n`);
+      // In full, so a question can be read and answered from here.
+      if (task.problems.length === 0)
+        for (const stop of openStops(task))
+          process.stdout.write(`  waiting on: ${stop}\n`);
+    }
     return tasks.some((t) => t.problems.length > 0) ? 1 : 0;
   });
 }

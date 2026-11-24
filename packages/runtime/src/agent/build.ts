@@ -469,7 +469,6 @@ export async function buildTask(
   });
   const wt = simpleGit(isolation.worktree);
   const before = (await wt.revparse(["HEAD"])).trim();
-  const untouched = await worktreeTree(isolation.worktree);
   const call = {
     mode: "build" as const,
     system: building.system,
@@ -480,26 +479,13 @@ export async function buildTask(
   };
   const reply = asReply(await agent({ ...call, prompt: building.prompt }));
 
-  const question = agentQuestion(reply.text);
-  if (question) {
-    const stop: Stop = {
-      trigger: "agent_question",
-      detail: oneLine(question, 500),
-    };
-    await log("stop", `asked: ${stop.trigger}: ${stop.detail}`);
-    await log(
-      "timeline",
-      `build paused: 1 thing(s) to ask about · commit ${before.slice(0, 12)}${usageNote(reply, retry)}`,
-    );
-    return {
-      task: await loadTask(repoPath, id),
-      stops: [stop],
-      commit: before,
-    };
-  }
-
-  const changed = untouched !== (await worktreeTree(isolation.worktree));
-  // The runtime commits, with hooks off (the worktree's hooksPath is empty).
+  // Compared with HEAD, not with the worktree as this round found it, so work
+  // an earlier round left uncommitted (a crash, a time limit) goes in now.
+  const changed =
+    (await worktreeTree(isolation.worktree)) !==
+    (await wt.revparse(["HEAD^{tree}"])).trim();
+  // The runtime commits, with hooks off (the worktree's hooksPath is empty),
+  // before it looks at the reply: a round that ends on a question keeps its work.
   const staged = changed
     ? await wt
         .add(["-A"])
@@ -538,7 +524,14 @@ export async function buildTask(
       trigger: "history_rewritten",
       detail: `the branch no longer contains ${before.slice(0, 12)}: its history was rewritten`,
     });
-  if (head === before)
+  // Kept whole, so the person answering reads the question the agent asked.
+  const question = agentQuestion(reply.text);
+  if (question)
+    raised.unshift({
+      trigger: "agent_question",
+      detail: question.replace(/\s+/g, " "),
+    });
+  else if (head === before)
     raised.push({
       trigger: "no_change",
       detail:
