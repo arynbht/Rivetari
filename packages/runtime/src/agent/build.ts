@@ -27,6 +27,7 @@ import { z } from "zod";
 import { fastPlan, isFastPath, sourceTouches } from "../judge/fast-path.js";
 import { isGeneratedPath } from "../judge/tier2.js";
 import { AssemblySchema } from "../router/route.js";
+import type { Card } from "../task/card.js";
 import {
   allowedStops,
   ANSWERED,
@@ -36,7 +37,9 @@ import {
   TaskError,
 } from "../task/tasks.js";
 import { autonomyFor, isSoftStop } from "../task/autonomy.js";
+import { grantedCommands, grantLine, grantNote, grantRule } from "./grants.js";
 import { type Isolation, loadIsolation } from "./isolate.js";
+import { stopTaskServers, teardownLine } from "./processes.js";
 import { assemblePrompt, STOP_MARKER } from "./prompt.js";
 import { findStops, type Stop, withLicenses } from "./stops.js";
 import { type AgentProgress, resultLine, StreamProgress } from "./stream.js";
@@ -50,6 +53,8 @@ export interface AgentCall {
   env: NodeJS.ProcessEnv;
   /** The most model replies the call may take (`claude --max-turns`). */
   maxTurns?: number | undefined;
+  /** Build only: commands a person allowed by name for this round, each an exact rule. */
+  allow?: string[] | undefined;
   /** Hears the call's turns, tokens and last tool while it runs, when the runner can tell. */
   onProgress?: ((progress: AgentProgress) => void) | undefined;
 }
@@ -80,7 +85,34 @@ export function usageNote(reply: AgentReply, retry = false): string {
 const asReply = (r: string | AgentReply): AgentReply =>
   typeof r === "string" ? { text: r } : r;
 
-export const PLAN_TURNS = 4;
+/**
+ * The fewest turns a plan call gets. Four stopped every card with more than
+ * a file or two before it could reply with a plan, and each stop cost a
+ * person an answer and a resume.
+ */
+export const PLAN_TURNS = 8;
+/** The most a card's size earns; past it, running out of turns asks a person. */
+export const MAX_PLAN_TURNS = 24;
+/** Sets the plan call's turns outright, for every card. */
+export const PLAN_TURNS_ENV = "RIVETARI_PLAN_TURNS";
+
+/**
+ * The plan call's turn limit, sized by the card: every criterion past two
+ * and every touch past three is more to read, and a high-risk card more to
+ * check, on top of the floor.
+ */
+export function planTurns(
+  card: Pick<Card, "acceptance" | "touches" | "risk">,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const set = Number(env[PLAN_TURNS_ENV]);
+  if (Number.isInteger(set) && set > 0) return set;
+  const extra =
+    2 * Math.max(0, card.acceptance.length - 2) +
+    Math.max(0, card.touches.length - 3) +
+    (card.risk === "high" ? 4 : 0);
+  return Math.min(MAX_PLAN_TURNS, PLAN_TURNS + extra);
+}
 
 /**
  * Subagents' turns don't count toward the caller's --max-turns, and the Agent
@@ -122,7 +154,7 @@ export function agentArgs(call: AgentCall): string[] {
           "--permission-mode",
           "acceptEdits",
           "--allowedTools",
-          BUILD_TOOLS.join(","),
+          [...BUILD_TOOLS, ...(call.allow ?? []).map(grantRule)].join(","),
           "--disallowedTools",
           DENIED_BUILD_TOOLS.join(","),
         ]
@@ -372,7 +404,10 @@ export async function buildTask(
     );
   const assembly = AssemblySchema.parse(parse(task.assemblyText ?? ""));
   const by = `rivetari runtime (for ${options.by})`;
-  const log = (section: "timeline" | "plan" | "stop", text: string) =>
+  const log = (
+    section: "timeline" | "plan" | "stop" | "decision",
+    text: string,
+  ) =>
     task.ledger.append({ beat: "build", section, text, by, at: options.now });
   const env = taskEnv(isolation);
 
@@ -400,6 +435,7 @@ export async function buildTask(
       await log("plan", `${i + 1}. ${step}`);
   }
   if (steps.length === 0) {
+    const turns = planTurns(task.card);
     const planning = await assemblePrompt({
       repoPath,
       card: task.card,
@@ -419,7 +455,7 @@ export async function buildTask(
         cwd: isolation.worktree,
         model: options.model,
         env,
-        maxTurns: outOfTurns && answer.allowed ? PLAN_TURNS * 2 : PLAN_TURNS,
+        maxTurns: outOfTurns && answer.allowed ? turns * 2 : turns,
         onProgress: options.onProgress,
       }),
     );
@@ -429,7 +465,7 @@ export async function buildTask(
       await log("timeline", started);
       const stop: Stop = {
         trigger: "budget_exhausted",
-        detail: `${OUT_OF_TURNS} ${reply.turnLimit}-turn limit before it replied with a plan; allow to plan again with ${PLAN_TURNS * 2} turns, or deny to plan again within ${PLAN_TURNS}`,
+        detail: `${OUT_OF_TURNS} ${reply.turnLimit}-turn limit before it replied with a plan; allow to plan again with ${turns * 2} turns, or deny to plan again within ${turns}`,
       };
       await log("stop", `asked: ${stop.trigger}: ${stop.detail}`);
       return { task: await loadTask(repoPath, id), stops: [stop] };
@@ -462,13 +498,22 @@ export async function buildTask(
     task.entries.some(
       (e) => e.section === "timeline" && ROUND_END.test(e.text),
     );
+  // An "allowed" to a build stop that names commands lets this round run
+  // exactly those. Only the stop's: a note can say "not `npm publish`", so a
+  // command it names is never read as granted.
+  const grants =
+    answer?.allowed && task.beat === "build"
+      ? grantedCommands(answer.stops)
+      : { commands: [], refused: [] };
+  const granted = grantLine(grants);
+  if (granted) await log("decision", granted);
   const building = await assemblePrompt({
     repoPath,
     card: task.card,
     assembly,
     isolation,
     plan: steps,
-    answer: since,
+    answer: [since, grantNote(grants)].filter(Boolean).join(". ") || undefined,
     change: retry ? await changeSoFar(isolation) : undefined,
   });
   const wt = simpleGit(isolation.worktree);
@@ -479,9 +524,24 @@ export async function buildTask(
     cwd: isolation.worktree,
     model: options.model,
     env,
+    allow: grants.commands.length > 0 ? grants.commands : undefined,
     onProgress: options.onProgress,
   };
-  const reply = asReply(await agent({ ...call, prompt: building.prompt }));
+  // A dev server the agent started in the background would hold the port the
+  // proof and the next round need, so it goes when the call ends, however it
+  // ends. A call that threw leaves the ledger as it was, so the beat it was
+  // at decides what runs next.
+  const stopServers = () =>
+    stopTaskServers(isolation.worktree, [isolation.port]);
+  let reply: AgentReply;
+  try {
+    reply = asReply(await agent({ ...call, prompt: building.prompt }));
+  } catch (err) {
+    await stopServers();
+    throw err;
+  }
+  const teardown = teardownLine(await stopServers());
+  if (teardown) await log("decision", teardown);
 
   // Compared with HEAD, not with the worktree as this round found it, so work
   // an earlier round left uncommitted (a crash, a time limit) goes in now.

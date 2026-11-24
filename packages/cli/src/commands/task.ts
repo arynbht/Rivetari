@@ -9,6 +9,7 @@ import {
   answerStops,
   approveRoute,
   autonomyFor,
+  BeatError,
   buildTask,
   CardError,
   checkTouches,
@@ -677,6 +678,14 @@ export function runTaskRun(
         }),
       );
     } catch (err) {
+      if (err instanceof BeatError) {
+        // The run's last word, so whatever launched it reads a failure, not
+        // a run that stopped quietly.
+        process.stdout.write(
+          `failed: ${err.message}\nnext: ${nextStep(await loadTask(repo, id))}\n`,
+        );
+        return 1;
+      }
       // A run that dies part-way still ends with where the task stands, so
       // whoever (or whatever) started it knows what to run next.
       process.stdout.write(`${await stoppedLine(repo, id, err)}\n`);
