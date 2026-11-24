@@ -44,6 +44,7 @@ import {
   type RoundDecision,
   reviewRound,
 } from "./decide.js";
+import type { BaseTests } from "./base-tests.js";
 import type { CheckOutcome } from "./outcome.js";
 import { protectedDetail } from "./protected.js";
 import type { reviewLocal } from "./review.js";
@@ -139,6 +140,8 @@ export interface CaseRun {
     protected: string[];
     notes: string[];
     checks: CaseCheck[];
+    /** The change's new tests run on the base, when tier 1 got that far. */
+    baseTests?: BaseTests | undefined;
   } | null;
   risk: { card: string; effective: string; reasons: string[] } | null;
   review: {
@@ -454,6 +457,7 @@ export async function judgeCase(
       changedFiles: tier1.changedFiles,
       protected: tier1.protected.map((p) => protectedDetail(p)),
       notes: tier1.notes,
+      baseTests: tier1.baseTests,
       checks: [
         ...tier1.checks.map((ch) => ({
           id: ch.id,
@@ -519,6 +523,7 @@ export async function judgeCase(
         proof,
         decisions,
         tier1: tier1.checks,
+        baseTests: tier1.baseTests,
         model: options.model,
         ai: options.ai,
         fastAi: options.fastAi,

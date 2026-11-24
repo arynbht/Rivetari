@@ -406,6 +406,7 @@ export async function judgeTask(
         proof,
         decisions: allowedDecisions(task),
         tier1: tier1.checks,
+        baseTests: tier1.baseTests,
         models: profile?.ai,
         model: options.model,
         ai: options.ai,
