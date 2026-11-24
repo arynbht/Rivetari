@@ -231,6 +231,26 @@ describe("taskServers", () => {
     expect(strangers.map((s) => s.pid)).toEqual([200]);
   });
 
+  it("leaves a server an editor opened on the worktree started, when nothing below the editor is the task's", () => {
+    const { servers, strangers } = taskServers(
+      snap(
+        [
+          [100, 1, `"C:\\Program Files\\Microsoft VS Code\\Code.exe" ${wt}`],
+          [
+            200,
+            100,
+            "node C:\\Users\\x\\.vscode\\extensions\\live-server\\server.js",
+          ],
+        ],
+        [[5500, 200]],
+      ),
+      wt,
+      [5181],
+    );
+    expect(servers).toEqual([]);
+    expect(strangers).toEqual([]);
+  });
+
   it("says which of the task's servers it couldn't stop, and why", () => {
     expect(
       teardownLine({

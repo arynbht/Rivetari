@@ -201,17 +201,22 @@ export function taskServers(
     // 0 and 4 are Windows' idle and System processes.
     const listener = byPid.get(pid);
     if (pid <= 4 || ours.has(pid) || !listener) continue;
+    // A person's editor or shell is a boundary: what runs under it is theirs
+    // unless something between it and the listener is in the worktree. An
+    // editor opened on the worktree names it, but its extensions' servers
+    // aren't the task's. One that listens itself is a person's, wherever it runs.
     const chain: ProcessRow[] = [];
     for (
       let p: ProcessRow | undefined = listener;
-      p && !chain.includes(p) && !ours.has(p.pid) && p.pid > 4;
+      p &&
+      !chain.includes(p) &&
+      !ours.has(p.pid) &&
+      p.pid > 4 &&
+      !isSession(p.command);
       p = byPid.get(p.ppid)
     )
       chain.push(p);
-    // An editor or a shell that listens is a person's, wherever it runs.
-    const owned =
-      !isSession(listener.command) &&
-      chain.some((p) => inWorktree(p, worktree));
+    const owned = chain.some((p) => inWorktree(p, worktree));
     let root: ProcessRow | undefined = owned ? listener : undefined;
     for (const p of chain.slice(1)) {
       if (isSession(p.command) || !namesWorktree(p.command, worktree)) break;
