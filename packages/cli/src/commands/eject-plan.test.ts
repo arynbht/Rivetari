@@ -1,0 +1,241 @@
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { newTask } from "@arynbht/rivetari-runtime";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { runEject, stripRivetari } from "./eject.js";
+import { SETTINGS_JSON } from "./init-files.js";
+
+const there = (path: string) =>
+  access(path).then(
+    () => true,
+    () => false,
+  );
+
+describe("runEject's plan", () => {
+  const made: string[] = [];
+  const savedConfig = process.env.RIVETARI_CONFIG_DIR;
+  let out: string[];
+  let err: string[];
+  beforeEach(async () => {
+    const config = await mkdtemp(join(tmpdir(), "eject-config-"));
+    made.push(config);
+    process.env.RIVETARI_CONFIG_DIR = config;
+    out = [];
+    err = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((s) => {
+      out.push(String(s));
+      return true;
+    });
+    vi.spyOn(console, "error").mockImplementation((s) => {
+      err.push(String(s));
+    });
+  });
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    if (savedConfig === undefined) delete process.env.RIVETARI_CONFIG_DIR;
+    else process.env.RIVETARI_CONFIG_DIR = savedConfig;
+    for (const d of made) await rm(d, { recursive: true, force: true });
+    made.length = 0;
+  });
+  const repo = async () => {
+    const d = await mkdtemp(join(tmpdir(), "eject-plan-"));
+    made.push(d);
+    await mkdir(join(d, ".rivetari"));
+    await writeFile(join(d, ".rivetari", "profile.yml"), "version: 1\n");
+    return d;
+  };
+
+  it("is a dry run without --yes, listing what it would do", async () => {
+    const dir = await repo();
+    expect(await runEject(dir, {})).toBe(0);
+    expect(out.join("")).toContain("Dry run: nothing has changed");
+    expect(out.join("")).toContain("Would remove:\n  .rivetari/\n");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
+    expect(await runEject(dir, { apply: true })).toBe(0);
+    expect(await there(join(dir, ".rivetari"))).toBe(false);
+  });
+
+  it("refuses while a task is open, from the runtime's own records", async () => {
+    const dir = await repo();
+    await newTask(
+      dir,
+      {
+        title: "Add a flag",
+        type: "feature",
+        description: "A flag.",
+        acceptance: [{ id: "A1", text: "It parses", verify: "unit" }],
+      },
+      { by: "dev@example.com" },
+    );
+    expect(await runEject(dir, { yes: true })).toBe(1);
+    expect(err.join("")).toContain("T-0001 is still open");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
+  });
+
+  it("refuses when the task listing names an open task, changing nothing", async () => {
+    const dir = await repo();
+    await writeFile(join(dir, "CLAUDE.md"), "# CLAUDE.md\n\n@AGENTS.md\n");
+    expect(
+      await runEject(
+        dir,
+        { yes: true },
+        { openTasks: () => Promise.resolve(["T-0002", "T-0003"]) },
+      ),
+    ).toBe(1);
+    expect(err.join("")).toContain("T-0002, T-0003 are still open");
+    expect(await there(join(dir, "CLAUDE.md"))).toBe(true);
+  });
+
+  it("takes only Rivetari's hooks out of .claude/settings.json", async () => {
+    const dir = await repo();
+    const ours = JSON.parse(SETTINGS_JSON) as {
+      hooks: { PreToolUse: unknown[] };
+    };
+    const theirs = {
+      model: "opus",
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [{ type: "command", command: "audit.sh" }],
+          },
+          ...ours.hooks.PreToolUse,
+        ],
+        SessionStart: (
+          JSON.parse(SETTINGS_JSON) as { hooks: { SessionStart: unknown[] } }
+        ).hooks.SessionStart,
+      },
+    };
+    await mkdir(join(dir, ".claude"));
+    await writeFile(
+      join(dir, ".claude", "settings.json"),
+      JSON.stringify(theirs, null, 2),
+    );
+    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(
+      JSON.parse(await readFile(join(dir, ".claude", "settings.json"), "utf8")),
+    ).toEqual({
+      model: "opus",
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [{ type: "command", command: "audit.sh" }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("keeps a CLAUDE.md with rules of its own, without the /rivetari line", async () => {
+    const dir = await repo();
+    await writeFile(
+      join(dir, "CLAUDE.md"),
+      "# CLAUDE.md\n\n@AGENTS.md\n\nStart every task with `/rivetari`. The contract above applies to Claude Code too.\n\nUse tabs.\n",
+    );
+    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(await readFile(join(dir, "CLAUDE.md"), "utf8")).toBe(
+      "# CLAUDE.md\n\n@AGENTS.md\n\nUse tabs.\n",
+    );
+  });
+
+  it("moves evidence out of .rivetari/ and won't overwrite evidence already there", async () => {
+    const dir = await repo();
+    await mkdir(join(dir, ".rivetari", "evidence"));
+    await writeFile(join(dir, ".rivetari", "evidence", "pentest.pdf"), "x");
+    await mkdir(join(dir, "docs", "evidence"), { recursive: true });
+    await writeFile(join(dir, "docs", "evidence", "evidence"), "theirs");
+    expect(await runEject(dir, { yes: true })).toBe(1);
+    expect(err.join("")).toContain(
+      "docs/evidence/evidence is already there, so .rivetari/evidence has nowhere to go",
+    );
+    await rm(join(dir, "docs"), { recursive: true });
+    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(
+      await readFile(
+        join(dir, "docs", "evidence", "evidence", "pentest.pdf"),
+        "utf8",
+      ),
+    ).toBe("x");
+    expect(out.join("")).toContain(
+      "Moved .rivetari/evidence to docs/evidence/evidence",
+    );
+  });
+
+  it("leaves a repo's own skills and workflows where they are", async () => {
+    const dir = await repo();
+    await mkdir(join(dir, ".claude", "skills", "house"), { recursive: true });
+    await writeFile(
+      join(dir, ".claude", "skills", "house", "SKILL.md"),
+      "# house\n",
+    );
+    await mkdir(join(dir, ".github", "workflows"), { recursive: true });
+    await writeFile(
+      join(dir, ".github", "workflows", "release.yml"),
+      "name: release\n",
+    );
+    await writeFile(
+      join(dir, ".github", "workflows", "rivetari.yml"),
+      "name: rivetari\n",
+    );
+    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(
+      await there(join(dir, ".claude", "skills", "house", "SKILL.md")),
+    ).toBe(true);
+    expect(await there(join(dir, ".github", "workflows", "release.yml"))).toBe(
+      true,
+    );
+    expect(await there(join(dir, ".github", "workflows", "rivetari.yml"))).toBe(
+      false,
+    );
+  });
+});
+
+describe("stripRivetari", () => {
+  it("drops the sections, items and paragraphs that mention it and keeps the rest", () => {
+    const doc = [
+      "# Guide",
+      "",
+      "Run `rivetari doctor` first.",
+      "",
+      "## Using Rivetari",
+      "",
+      "It runs the beats.",
+      "",
+      "### Details",
+      "",
+      "More.",
+      "",
+      "## Rules",
+      "",
+      "- keep it small",
+      "- ask `/rivetari` first",
+      "  before anything",
+      "- no secrets",
+      "",
+      "```sh",
+      "rivetari task new",
+      "```",
+      "",
+    ].join("\n");
+    expect(stripRivetari(doc)).toBe(
+      "# Guide\n\n## Rules\n\n- keep it small\n- no secrets\n",
+    );
+  });
+
+  it("keeps CRLF line endings", () => {
+    expect(stripRivetari("# A\r\n\r\nRivetari here.\r\n\r\nKept.\r\n")).toBe(
+      "# A\r\n\r\nKept.\r\n",
+    );
+  });
+});
