@@ -90,6 +90,7 @@ export {
   prCiMinutes,
 } from "./github/actions.js";
 export {
+  carryJudgeCheck,
   JUDGE_CHECK_NAME,
   type JudgeCheckParams,
   postJudgeCheck,
@@ -144,12 +145,14 @@ export type {
   AiUsage,
   CompleteParams,
   CompleteResult,
+  Effort,
   TransportRequest,
 } from "./ai/client.js";
 export {
   claudeCliTransport,
   claudeCliAvailable,
   claudeCommand,
+  isTransientFailure,
   parseClaudeJson,
   type ClaudeCliOptions,
   type ClaudeRunner,
@@ -157,6 +160,7 @@ export {
 export {
   budgetSpent,
   CALL_TIMEOUT_ENV,
+  CallExitError,
   CallTimeoutError,
   callTimeoutMinutes,
   DEFAULT_CALL_TIMEOUT_MINUTES,

@@ -11,6 +11,7 @@ export {
   type AiUsage,
   type CompleteParams,
   type CompleteResult,
+  type Effort,
   type TransportRequest,
 } from "./types.js";
 import {
@@ -64,6 +65,7 @@ export function createAiClient(options: AiClientOptions = {}): AiClient {
         system: params.system,
         prompt: params.prompt,
         maxTokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
+        ...(params.effort ? { effort: params.effort } : {}),
       };
 
       let lastError: unknown;

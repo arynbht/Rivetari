@@ -547,7 +547,7 @@ describe("judge tier 2", { timeout: 30_000 }, () => {
     expect(result.verdict).toBe("request-changes");
   });
 
-  it("blocks on a criterion the reviewer marked unmet, through the gate", async () => {
+  it("blocks on a criterion the reviewer marked unmet, without the gate", async () => {
     const r = await repoWithChange(BASE, CHANGE);
     const gatePrompts: string[] = [];
     const { ai } = scripted(
@@ -589,8 +589,7 @@ describe("judge tier 2", { timeout: 30_000 }, () => {
         created: "2026-11-10",
       },
     });
-    expect(gatePrompts).toHaveLength(1);
-    expect(gatePrompts[0]).toContain("- A1 (unit): charge(n) returns n");
+    expect(gatePrompts).toHaveLength(0);
     expect(result.blocking.map((f) => [f.kind, f.acceptance_id])).toEqual([
       ["acceptance", "A1"],
     ]);

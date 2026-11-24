@@ -23,11 +23,20 @@ export interface AiUsage {
   cacheReadTokens?: number | undefined;
 }
 
+/** How hard the model thinks before it answers; higher costs more output. */
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
 export interface CompleteParams {
   system?: string | undefined;
   prompt: string;
   model?: string | undefined;
   maxTokens?: number | undefined;
+  /**
+   * The CLI transport passes it as `--effort`, which bounds how long the model
+   * thinks. The API transport ignores it: it runs without extended thinking
+   * and is already capped by `maxTokens`.
+   */
+  effort?: Effort | undefined;
 }
 
 export interface CompleteResult {
@@ -42,6 +51,7 @@ export interface TransportRequest {
   system: string | undefined;
   prompt: string;
   maxTokens: number;
+  effort?: Effort | undefined;
 }
 
 /** The seam the client calls; tests provide a fake, production uses the SDK. */

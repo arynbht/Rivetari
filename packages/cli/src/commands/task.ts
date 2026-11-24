@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { confirm, isCancel } from "@clack/prompts";
+import { AiError } from "@arynbht/rivetari-engine";
 import { RegistryError } from "@arynbht/rivetari-registry";
 import {
   advanceTask,
@@ -78,7 +79,9 @@ async function guarded(action: () => Promise<number>): Promise<number> {
       err instanceof TaskError ||
       err instanceof LedgerError ||
       err instanceof RegistryError ||
-      err instanceof StoreError
+      err instanceof StoreError ||
+      // A failed AI call says what went wrong; a stack trace adds nothing.
+      err instanceof AiError
     ) {
       console.error(`rivetari task: ${err.message}`);
       return 1;
@@ -635,20 +638,41 @@ export function runTaskRun(
 ): Promise<number> {
   return guarded(async () => {
     const repo = resolve(flags.path ?? ".");
-    const outcome = await onTask(repo, id, "run", async (by) =>
-      runTask(repo, id, {
-        by,
-        model: flags.model,
-        base: flags.base,
-        otherTasks: await openTaskIds(repo, id),
-        onEntry: (e) => process.stdout.write(`${entryLine(e)}\n`),
-        prove: { deferTestRun: true },
-        judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
-      }),
-    );
+    let outcome: Awaited<ReturnType<typeof runTask>>;
+    try {
+      outcome = await onTask(repo, id, "run", async (by) =>
+        runTask(repo, id, {
+          by,
+          model: flags.model,
+          base: flags.base,
+          otherTasks: await openTaskIds(repo, id),
+          onEntry: (e) => process.stdout.write(`${entryLine(e)}\n`),
+          prove: { deferTestRun: true },
+          judge: { log: (line) => process.stderr.write(`· ${line}\n`) },
+        }),
+      );
+    } catch (err) {
+      // A run that dies part-way still ends with where the task stands, so
+      // whoever (or whatever) started it knows what to run next.
+      process.stdout.write(`${await stoppedLine(repo, id, err)}\n`);
+      throw err;
+    }
     process.stdout.write(`next: ${outcome.next}\n`);
     return outcome.ran.at(-1) === "ship" ? 0 : 2;
   });
+}
+
+/** The summary for a run an error stopped: what failed, and the step it left. */
+export async function stoppedLine(
+  repo: string,
+  id: string,
+  err: unknown,
+): Promise<string> {
+  const message = err instanceof Error ? err.message : String(err);
+  const next = await loadTask(repo, id)
+    .then((t) => nextStep(t))
+    .catch(() => "unknown (the task couldn't be read)");
+  return `run stopped: ${message.replace(/\s+/g, " ").slice(0, 600)}\nnext: ${next}`;
 }
 
 /** `--parallel`'s value, or null (said why) when it isn't a whole number from 1. */

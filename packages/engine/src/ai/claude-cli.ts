@@ -8,7 +8,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { resolveOnWindows } from "../detectors/exec.js";
-import { CallTimeoutError, spawnWithLimit } from "./call-limit.js";
+import {
+  CallExitError,
+  CallTimeoutError,
+  spawnWithLimit,
+} from "./call-limit.js";
 import {
   AiError,
   type AiTransport,
@@ -60,12 +64,11 @@ export function parseClaudeJson(
     throw new AiError("the claude CLI returned non-JSON output", false);
   }
   if (data.is_error === true) {
-    throw new AiError(
+    const said =
       typeof data.result === "string"
         ? data.result
-        : "the claude CLI reported an error",
-      false,
-    );
+        : "the claude CLI reported an error";
+    throw new AiError(said, TRANSIENT.test(said));
   }
   const usage = (data.usage ?? {}) as Record<string, unknown>;
   return {
@@ -104,6 +107,22 @@ export const LOCKED_DOWN_ARGS = [
   "--no-session-persistence",
 ];
 
+/** What a passing outage says: overload, rate limits, 5xx, a dropped connection. */
+const TRANSIENT =
+  /overload|rate.?limit|\b429\b|\b5\d\d\b|timed? ?out|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|network|temporar/i;
+
+/**
+ * Whether a failed call is worth one more try: it said something transient,
+ * or exited non-zero and said nothing at all, which in the pilot was a one-off
+ * that a re-run got past. A call that explains itself (not signed in, a bad
+ * flag) fails the same way again, so it isn't retried.
+ */
+export function isTransientFailure(err: unknown): boolean {
+  if (err instanceof CallExitError)
+    return err.detail === "" || TRANSIENT.test(err.detail);
+  return err instanceof Error && TRANSIENT.test(err.message);
+}
+
 /** Build a transport backed by the local `claude` CLI (subscription auth). */
 export function claudeCliTransport(
   options: ClaudeCliOptions = {},
@@ -119,6 +138,7 @@ export function claudeCliTransport(
         req.model,
         ...LOCKED_DOWN_ARGS,
       ];
+      if (req.effort) args.push("--effort", req.effort);
       if (req.system) args.push("--append-system-prompt", req.system);
       // An empty working directory: even a tool that slipped through finds
       // nothing to read.
@@ -131,7 +151,7 @@ export function claudeCliTransport(
         if (err instanceof CallTimeoutError) throw err;
         throw new AiError(
           `claude CLI failed: ${(err as Error).message}`,
-          false,
+          isTransientFailure(err),
         );
       } finally {
         await rm(cwd, { recursive: true, force: true }).catch(() => undefined);

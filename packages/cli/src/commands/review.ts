@@ -7,6 +7,7 @@ import {
   githubToken,
 } from "@arynbht/rivetari-engine";
 import {
+  findJudgedTree,
   JUDGE_DEFAULT_MODEL,
   loadTask,
   type ReviewOutcome,
@@ -25,6 +26,7 @@ export interface ReviewFlags {
   model?: string;
   token?: string;
   dryRun?: boolean;
+  fresh?: boolean;
   json?: boolean;
 }
 
@@ -67,8 +69,12 @@ export async function runReview(
   const model = flags.model ?? profile?.ai?.judge_model ?? JUDGE_DEFAULT_MODEL;
   const common = {
     repoPath: repo,
-    ai: createAiClient({ timeoutMs: 600_000 }),
+    // One retry: a call that failed for a passing reason is worth one more.
+    ai: createAiClient({ timeoutMs: 600_000, maxRetries: 1 }),
     model,
+    // No risk is derived here, so a high-risk card is the only one that
+    // thinks hard; medium keeps the long runaway reviews away.
+    effort: card?.risk === "high" ? ("high" as const) : ("medium" as const),
     card,
     usageDate: today(),
     log,
@@ -95,6 +101,8 @@ export async function runReview(
         pr: Number(flags.pr),
         token,
         post: !flags.dryRun,
+        fresh: flags.fresh,
+        findJudged: (tree, head) => findJudgedTree(repo, tree, head),
       });
     } else {
       outcome = await reviewLocal({
@@ -116,7 +124,7 @@ export async function runReview(
     await task.ledger.append({
       beat: "judge",
       section: "judge",
-      text: `review round ${outcome.round}: ${outcome.verdict}; ${r.blocking.length} blocking, ${r.suggestions.length} suggestion(s) (${r.model})`,
+      text: `review round ${outcome.round}: ${outcome.verdict}; ${r.blocking.length} blocking, ${r.suggestions.length} suggestion(s) (${r.model}) · ${r.usage.tokens} tokens · $${r.usage.costUsd.toFixed(2)}`,
       by: `rivetari judge (for ${await whoami(repo)})`,
     });
   }
@@ -132,6 +140,13 @@ export async function runReview(
         `\nposted (${outcome.posted.event}): ${outcome.posted.url}\n`,
       );
     }
+    if (outcome.check) process.stdout.write(`${outcome.check}\n`);
+    const r = outcome.result;
+    process.stderr.write(
+      outcome.carried
+        ? `· carried ${outcome.verdict} from ${outcome.carried.from.slice(0, 12)} (${outcome.carried.source}): identical tree, no review call\n`
+        : `· review: ${r.model}${r.effort ? ` at ${r.effort} effort` : ""} · ${r.calls} call(s) · ${r.usage.tokens} tokens · $${r.usage.costUsd.toFixed(2)}\n`,
+    );
   }
   return EXIT[outcome.verdict];
 }

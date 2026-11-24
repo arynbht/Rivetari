@@ -78,6 +78,12 @@ export const ProfileSchema = z.strictObject({
       model: z.string().min(1).optional(),
       /** Model for the judge's review; defaults to a different one from `model`. */
       judge_model: z.string().min(1).optional(),
+      /**
+       * Model the judge reviews low-risk, small changes with (default
+       * claude-sonnet-5-5). Set it to `judge_model` to review everything with
+       * one model.
+       */
+      judge_small_model: z.string().min(1).optional(),
     })
     .optional(),
   /** How the proof runner serves the app for UI proof. */
