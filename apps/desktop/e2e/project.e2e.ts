@@ -177,6 +177,7 @@ test.describe("project", () => {
       "Bring profile.yml up to date: stack, phase, flags.uses-ai",
     );
     await expect(status).toContainText("waits at intake");
+    await status.evaluate((el) => el.scrollIntoView({ block: "center" }));
     await shot(page, "after-project-drafted");
     const id = /Drafted (T-\d{4})/.exec(
       (await status.textContent()) ?? "",
