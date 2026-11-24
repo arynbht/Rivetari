@@ -4,6 +4,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { execFile } from "node:child_process";
@@ -284,6 +285,39 @@ describe("runEject's plan", () => {
     expect(err.join("")).toContain("which init never writes");
     expect(await readFile(victim, "utf8")).toBe("keep me\n");
     expect(await readFile(join(dir, "package.json"), "utf8")).toBe("keep me\n");
+  });
+
+  it("refuses when a folder it would remove from is a link out of the repo", async () => {
+    const dir = await repo();
+    const outside = await mkdtemp(join(tmpdir(), "eject-linked-"));
+    made.push(outside);
+    await mkdir(join(outside, "skills", "rivetari"), { recursive: true });
+    await writeFile(join(outside, "skills", "rivetari", "SKILL.md"), "mine\n");
+    await writeFile(join(outside, "settings.json"), SETTINGS_JSON);
+    await symlink(outside, join(dir, ".claude"), "junction");
+    await writeFile(
+      join(dir, ".rivetari", "manifest.json"),
+      JSON.stringify({
+        version: 1,
+        files: {
+          ".claude/settings.json": {
+            sha256: contentHash(SETTINGS_JSON),
+            created: true,
+          },
+        },
+      }),
+    );
+    expect(await runEject(dir, { yes: true }, none)).toBe(1);
+    expect(err.join("")).toContain(
+      ".claude/skills/rivetari/ sits behind a link that leads out of the repo",
+    );
+    expect(await readFile(join(outside, "settings.json"), "utf8")).toBe(
+      SETTINGS_JSON,
+    );
+    expect(
+      await readFile(join(outside, "skills", "rivetari", "SKILL.md"), "utf8"),
+    ).toBe("mine\n");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
   });
 
   it("refuses a manifest whose backup isn't a name init gives one", async () => {

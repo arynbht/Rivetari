@@ -4,12 +4,13 @@ import {
   mkdir,
   readdir,
   readFile,
+  realpath,
   rename,
   rm,
   rmdir,
   stat,
 } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { readState } from "@arynbht/rivetari-registry";
@@ -362,7 +363,43 @@ async function planEject(root: string): Promise<Plan> {
       "the rivetari/tasks and evidence branches, where the repo has them, are left as they are: they're the record of past tasks",
     );
   }
+
+  // A committed link (.claude -> ~/.claude) would turn a removal inside the
+  // repo into one outside it, so every path eject touches must resolve, link
+  // by link, to a folder inside the repo.
+  const touched = [
+    ...plan.remove,
+    ...plan.restore.flatMap((r) => [r.from, r.to]),
+    ...plan.move.flatMap((m) => [m.from, m.to]),
+  ];
+  const home = await realpath(root);
+  for (const rel of new Set(touched))
+    if (!(await parentInside(home, at(rel.replace(/\/$/, "")))))
+      plan.blocked.push(
+        `${rel} sits behind a link that leads out of the repo, so eject won't touch it`,
+      );
   return plan;
+}
+
+/**
+ * Whether the folder holding `abs` is inside `home` once every link on the
+ * way is followed. A folder not made yet (docs/evidence/) is judged by the
+ * nearest one above it that exists.
+ */
+async function parentInside(home: string, abs: string): Promise<boolean> {
+  let dir = dirname(abs);
+  for (;;) {
+    const real = await realpath(dir).catch((err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") return null;
+      throw err;
+    });
+    if (real !== null) {
+      const rel = relative(home, real);
+      return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+    }
+    if (dirname(dir) === dir) return false;
+    dir = dirname(dir);
+  }
 }
 
 /** Remove `rel`: a link as a link, never by walking into what it points at. */
