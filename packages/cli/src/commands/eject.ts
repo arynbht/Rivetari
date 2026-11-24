@@ -111,12 +111,15 @@ const exists = (path: string): Promise<boolean> =>
 
 const mentions = (s: string) => /rivetari/i.test(s);
 
-/** The open tasks, from this checkout's records brought up to the tasks branch. */
-// pullTasks already settles for the local copy when there's no origin or no
-// tasks branch; any other failure means a task opened elsewhere could be
-// missed, so it propagates and eject refuses.
-async function openTasks(root: string): Promise<string[]> {
-  await pullTasks(root);
+/**
+ * The open tasks, from this checkout's records, brought up to the tasks
+ * branch first when `pull` is set. pullTasks already settles for the local
+ * copy when there's no origin or no tasks branch; any other failure means a
+ * task opened elsewhere could be missed, so it propagates and eject refuses.
+ * A dry run doesn't pull, since a pull writes the records it fetches.
+ */
+async function openTasks(root: string, pull: boolean): Promise<string[]> {
+  if (pull) await pullTasks(root);
   const tasks = await listTasks(root);
   return tasks.filter((t) => nextStep(t) !== "done").map((t) => t.card.id);
 }
@@ -363,6 +366,24 @@ function emptySeed(name: string, text: string | null): boolean {
   );
 }
 
+/** Keep `rel`, with `edit` if it has one, unless the edit deletes it. */
+function keepEdited(plan: Plan, rel: string, edit: Edit | null): void {
+  if (edit) plan.edit.push(edit);
+  if (edit?.text !== null) plan.keep.push(rel);
+}
+
+/**
+ * A ci.yml init wrote, without the sentence saying so. Only spaces after it
+ * are taken, so the next line is never pulled into the comment; when the
+ * sentence ends the line, the whole line goes.
+ */
+export function withoutInitHeader(text: string): string {
+  return text.replace(
+    /^# Written by `rivetari init` for [^\n]*?\.(?:[ \t]+|[ \t]*\r?\n)/,
+    (m) => (m.endsWith("\n") ? "" : "# "),
+  );
+}
+
 async function planEject(root: string): Promise<Plan> {
   const plan: Plan = {
     remove: [],
@@ -475,25 +496,28 @@ async function planEject(root: string): Promise<Plan> {
   if (claude !== null) {
     if (houseRulesFrom(claude) === null) plan.remove.push("CLAUDE.md");
     else {
-      plan.keep.push("CLAUDE.md");
-      const edit = editFor(
+      keepEdited(
+        plan,
         "CLAUDE.md",
-        claude,
-        stripRivetari(claude),
-        "drop the lines about Rivetari",
+        editFor(
+          "CLAUDE.md",
+          claude,
+          stripRivetari(claude),
+          "drop the lines about Rivetari",
+        ),
       );
-      if (edit) plan.edit.push(edit);
     }
   }
 
-  if (await isFloorplanMap(at(FLOORPLAN_DIR)))
-    plan.remove.push(`${FLOORPLAN_DIR}/`);
+  const mapped = await isFloorplanMap(at(FLOORPLAN_DIR));
+  if (mapped) plan.remove.push(`${FLOORPLAN_DIR}/`);
 
   // Lines init added to the repo's own ignore and attribute files.
   for (const [rel, drop] of [
     [
       ".gitignore",
-      (l: string) => l === FLOORPLAN_IGNORE || /^\/?\.rivetari(\/|$)/.test(l),
+      (l: string) =>
+        (mapped && l === FLOORPLAN_IGNORE) || /^\/?\.rivetari(\/|$)/.test(l),
     ],
     [".gitattributes", (l: string) => /^\/?\.rivetari\//.test(l)],
   ] as const) {
@@ -512,14 +536,11 @@ async function planEject(root: string): Promise<Plan> {
   for (const rel of KEPT_DOCS) {
     const text = await readIfThere(at(rel));
     if (text === null) continue;
-    plan.keep.push(rel);
-    const edit = editFor(
+    keepEdited(
+      plan,
       rel,
-      text,
-      stripRivetari(text),
-      "drop what refers to Rivetari",
+      editFor(rel, text, stripRivetari(text), "drop what refers to Rivetari"),
     );
-    if (edit) plan.edit.push(edit);
   }
   const workflows = (await listDir(at(".github/workflows")))
     .filter(
@@ -528,20 +549,21 @@ async function planEject(root: string): Promise<Plan> {
     .sort();
   for (const f of workflows) {
     const rel = `.github/workflows/${f}`;
-    plan.keep.push(rel);
     const text = await readIfThere(at(rel));
-    if (text === null || !isInitCiWorkflow(text)) continue;
-    const next = text.replace(
-      /^# Written by `rivetari init` for [^\n]*?\.\s+/,
-      "# ",
-    );
-    const edit = editFor(
+    if (text === null || !isInitCiWorkflow(text)) {
+      plan.keep.push(rel);
+      continue;
+    }
+    keepEdited(
+      plan,
       rel,
-      text,
-      next,
-      "drop the line saying Rivetari wrote it",
+      editFor(
+        rel,
+        text,
+        withoutInitHeader(text),
+        "drop the line saying Rivetari wrote it",
+      ),
     );
-    if (edit) plan.edit.push(edit);
   }
 
   if (rivetariThere) {
@@ -565,7 +587,10 @@ async function planEject(root: string): Promise<Plan> {
 /** Remove `rel`: a link as a link, never by walking into what it points at. */
 async function removePath(root: string, rel: string): Promise<void> {
   const abs = resolve(root, rel.replace(/\/$/, ""));
-  const stat = await lstat(abs).catch(() => null);
+  const stat = await lstat(abs).catch((err: NodeJS.ErrnoException) => {
+    if (err.code === "ENOENT") return null;
+    throw err;
+  });
   if (!stat) return;
   await rm(abs, { recursive: !stat.isSymbolicLink(), force: true });
 }
@@ -679,7 +704,7 @@ export async function runEject(
 
   let open: string[];
   try {
-    open = await (options.openTasks ?? openTasks)(root);
+    open = await (options.openTasks ?? ((r) => openTasks(r, apply)))(root);
   } catch (err) {
     console.error(
       `rivetari eject: couldn't read the task records, so nothing was changed: ${(err as Error).message}`,
@@ -725,7 +750,7 @@ export async function runEject(
   }
   if (!apply) {
     process.stdout.write(
-      `Dry run: nothing has changed. Run \`rivetari eject --yes\` to do this.\n${render(plan, true)}`,
+      `Dry run: nothing has changed. Run \`rivetari eject --yes\` to do this. Open tasks were read from this checkout's records without pulling; --yes pulls them first.\n${render(plan, true)}`,
     );
     return 0;
   }
