@@ -35,6 +35,8 @@ export const IpcChannel = {
   ProjectDraft: "project:draft",
   /** Push channel (main → renderer): a repo's Project view, checked again. */
   ProjectUpdate: "project:update",
+  HistoryGet: "history:get",
+  HistoryOpenPr: "history:openPr",
   FixPlan: "fix:plan",
   FixApply: "fix:apply",
   FixOpenPr: "fix:openPr",
@@ -1312,6 +1314,124 @@ export type SettingsSaveRequest = z.infer<typeof SettingsSaveRequest>;
 /** Set (non-empty) or clear (empty string) the stored Anthropic key. */
 export const AnthropicKeyRequest = z.object({ key: z.string() });
 export type AnthropicKeyRequest = z.infer<typeof AnthropicKeyRequest>;
+
+// History — closed tasks with what they cost, the judge's findings and the
+// cost flags, read from the same records `rivetari metrics` reads.
+export const HistoryRequest = z.object({ repoPath: z.string().min(1) });
+export type HistoryRequest = z.infer<typeof HistoryRequest>;
+
+export const ClosedTaskItem = z.object({
+  id: z.string(),
+  title: z.string().nullable(),
+  outcome: z.enum(["merged", "closed", "abandoned"]),
+  pr: z.number().int().nullable(),
+  costUsd: z.number(),
+  tokens: z.number(),
+  buildRounds: z.number().int(),
+  judgeRounds: z.number().int(),
+  retryRounds: z.number().int().nullable(),
+  minutes: z.number(),
+  risk: z.string().nullable(),
+  skills: z.array(z.string()),
+  closedAt: z.string(),
+  cardToPrMinutes: z.number().nullable(),
+  judgeCostUsd: z.number().nullable(),
+  ledgerProblem: z.string().nullable(),
+});
+export type ClosedTaskItem = z.infer<typeof ClosedTaskItem>;
+
+export const SpendDay = z.object({
+  date: z.string(),
+  merged: z.number().int(),
+  mergedUsd: z.number(),
+  abandonedUsd: z.number(),
+  closedUsd: z.number(),
+});
+export type SpendDay = z.infer<typeof SpendDay>;
+
+export const TaskMetricsSummary = z.object({
+  tasks: z.number().int(),
+  merged: z.number().int(),
+  abandoned: z.number().int(),
+  closed: z.number().int(),
+  spend: z.object({
+    totalUsd: z.number(),
+    mergedUsd: z.number(),
+    abandonedUsd: z.number(),
+    closedUsd: z.number(),
+    perMergedUsd: z.number().nullable(),
+    mergedMedianUsd: z.number().nullable(),
+    abandonedShare: z.number().nullable(),
+  }),
+  judge: z.object({
+    costUsd: z.number(),
+    share: z.number().nullable(),
+    tasks: z.number().int(),
+  }),
+  rounds: z.object({
+    build: z.number().int(),
+    judge: z.number().int(),
+    retries: z.number().int(),
+    retryShare: z.number().nullable(),
+    multiBuild: z.number().int(),
+  }),
+  cardToPr: z.object({
+    medianMinutes: z.number().nullable(),
+    tasks: z.number().int(),
+  }),
+  trend: z.array(SpendDay),
+});
+export type TaskMetricsSummary = z.infer<typeof TaskMetricsSummary>;
+
+export const HistoryPattern = z.object({
+  pattern: z.string(),
+  kind: z.string(),
+  title: z.string(),
+  prs: z.array(z.string()),
+});
+export type HistoryPattern = z.infer<typeof HistoryPattern>;
+
+export const HistoryFindings = z.object({
+  reviewed: z.number().int(),
+  findings: z.number().int(),
+  blocking: z.number().int(),
+  suggestions: z.number().int(),
+  findingsPerPr: z.number().nullable(),
+  tier1Rules: z.object({
+    catalog: z.number().int(),
+    diff: z.number().int(),
+    total: z.number().int(),
+  }),
+  patterns: z.array(HistoryPattern),
+  candidates: z.array(HistoryPattern),
+});
+export type HistoryFindings = z.infer<typeof HistoryFindings>;
+
+export const HistoryCostFlag = z.object({
+  task: z.string(),
+  costUsd: z.number(),
+  promptTokens: z.number().nullable(),
+});
+export type HistoryCostFlag = z.infer<typeof HistoryCostFlag>;
+
+export const HistoryView = z.object({
+  repoPath: z.string(),
+  summary: TaskMetricsSummary,
+  /** Newest first. */
+  tasks: z.array(ClosedTaskItem),
+  findings: HistoryFindings,
+  /** Low-risk tasks over $1, as `rivetari metrics` flags them. */
+  costFlags: z.array(HistoryCostFlag),
+  /** Why part of the view couldn't be read, if one couldn't. */
+  problems: z.array(z.string()),
+});
+export type HistoryView = z.infer<typeof HistoryView>;
+
+export const HistoryOpenPrRequest = z.object({
+  repoPath: z.string().min(1),
+  id: z.string().min(1),
+});
+export type HistoryOpenPrRequest = z.infer<typeof HistoryOpenPrRequest>;
 
 // Update check — queries the GitHub Releases API with the user's token (ADR-0010
 // private-repo path), so it works for a private release repo electron-updater can't.

@@ -226,6 +226,24 @@ export {
   usageTotals,
 } from "./ship/close.js";
 export {
+  costFlags,
+  type MetricsFlags,
+  renderCost,
+  renderFindings,
+  renderLadder,
+  runMetrics,
+  type RunMetricsOptions,
+  verificationLines,
+} from "./metrics/report.js";
+export {
+  type ClosedTask,
+  closedTasks,
+  judgeUsage,
+  type SpendDay,
+  type TaskMetrics,
+  taskMetrics,
+} from "./metrics/tasks.js";
+export {
   drawFloorplan,
   FLOORPLAN_DIR,
   FLOORPLAN_IGNORE,
