@@ -1,6 +1,6 @@
 {
   "name": "@arynbht/rivetari-action",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Composite GitHub Action that runs the rivetari audit in CI and comments on PRs.",
   "license": "MIT",
   "private": true,

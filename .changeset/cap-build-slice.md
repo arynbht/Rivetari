@@ -1,5 +1,0 @@
----
-"@arynbht/rivetari-runtime": minor
----
-
-The build and plan prompts get a capped repo slice: the card's source touches, the files they import directly by relative path (one level, no bare package imports), and the test files beside those sources. A test glob in the card's touches, such as `packages/**/*.test.ts`, is no longer expanded, so it can't pull in every test in the repo. The plan call gets the same slice, runs with a 4-turn limit (`--max-turns 4`) and can't start subagents (their turns don't count toward the limit); it no longer runs in `--permission-mode plan`, since its read-only allowed tools already keep it from changing anything. When the plan call reaches its turn limit, the task stops and asks (`budget_exhausted`, naming the limit) instead of failing with `claude exited with code 1`: allowed, it plans again with twice the turns; denied, it plans again within the limit with the person's note. The build-start ledger line records the assembled prompt's approximate size, `~N prompt tokens`, next to the file count. A low-risk card's assembly gets a 15k-token context budget; medium and high keep 60k.

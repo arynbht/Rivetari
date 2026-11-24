@@ -13,20 +13,11 @@ detect:
     matches: '^(\./|docker://|[^@\s]+@[0-9a-f]{40}$)'
     all: true
 evidence: none
-# Appends a SHA-pinned hardening step. This cannot rewrite existing tag-pinned
-# `uses:` lines (Renovate's `helpers:pinGitHubActionDigests` does that), but it
-# seeds the workflow with a correctly SHA-pinned action and an auditing step.
+# Rewrites each tag- or branch-pinned `uses:` to the commit it points at, read
+# from the GitHub API, and keeps the tag as a trailing comment for Renovate.
 fix:
-  type: merge-yaml
-  file: .github/workflows/ci.yml
-  path: jobs.ci.steps
-  mergeStrategy: append-if-missing
-  dedupeKey: name
-  value:
-    name: Harden the runner
-    uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
-    with:
-      egress-policy: audit
+  type: workflow
+  patch: pin-actions
 references:
   - name: OpenSSF Scorecard
     url: https://github.com/ossf/scorecard/blob/main/docs/checks.md

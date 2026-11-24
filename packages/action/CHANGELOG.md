@@ -1,5 +1,55 @@
 # @arynbht/rivetari-action
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [4b5c8b2]
+- Updated dependencies [5b3e8cf]
+- Updated dependencies [28e3957]
+- Updated dependencies [9db492e]
+- Updated dependencies [0901298]
+- Updated dependencies [d958e57]
+- Updated dependencies [4b5c8b2]
+- Updated dependencies [ad769fc]
+- Updated dependencies [391fa7d]
+- Updated dependencies [2b40194]
+- Updated dependencies [a55c36b]
+- Updated dependencies [328afac]
+- Updated dependencies [f865b05]
+- Updated dependencies [6e00240]
+- Updated dependencies [bb98a2f]
+- Updated dependencies [cf9879d]
+- Updated dependencies [40e611d]
+- Updated dependencies [3bcd0a9]
+- Updated dependencies [a8c3169]
+- Updated dependencies [7988d09]
+- Updated dependencies [ef50f7b]
+- Updated dependencies [328afac]
+- Updated dependencies [1116fe3]
+- Updated dependencies [a263712]
+- Updated dependencies [8b85843]
+- Updated dependencies [448f7a9]
+- Updated dependencies [c9312b5]
+- Updated dependencies [10ccc06]
+- Updated dependencies [be49a10]
+- Updated dependencies [ce71405]
+- Updated dependencies [9d2955f]
+- Updated dependencies [0a66e93]
+- Updated dependencies [0a66e93]
+- Updated dependencies [0a66e93]
+- Updated dependencies [0a66e93]
+- Updated dependencies [8f0461f]
+- Updated dependencies [ad25e71]
+- Updated dependencies [8b61010]
+- Updated dependencies [8b61010]
+- Updated dependencies [cfba43b]
+- Updated dependencies [5cb919e]
+- Updated dependencies [4d5e653]
+- Updated dependencies [0a66e93]
+- Updated dependencies [29f786d]
+  - @arynbht/rivetari@2.0.0
+
 ## 0.0.1
 
 ### Patch Changes
