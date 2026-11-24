@@ -72,6 +72,7 @@ import {
   type RepoFacts,
   SETTINGS_JSON,
 } from "./init-files.js";
+import { ManifestRecorder, readManifest } from "./init-manifest.js";
 import { inferProjectType } from "./init-type.js";
 
 export interface InitFlags {
@@ -133,6 +134,7 @@ async function writeReplacing(
   rel: string,
   content: string,
   force: boolean | undefined,
+  rec: ManifestRecorder,
 ): Promise<string | null> {
   const path = resolve(root, rel);
   const existing = await readFile(path, "utf8").catch(() => null);
@@ -140,6 +142,8 @@ async function writeReplacing(
   await mkdir(dirname(path), { recursive: true });
   const bak = existing === null ? null : await keepBackup(root, rel, existing);
   await writeFile(path, content, "utf8");
+  if (bak) rec.backedUp(rel, bak);
+  else rec.created(rel);
   return bak ? `${rel} replaced; the old one is ${bak}` : null;
 }
 
@@ -154,14 +158,16 @@ async function writeBeside(
   rel: string,
   content: string,
   force: boolean | undefined,
+  rec: ManifestRecorder,
 ): Promise<string | null> {
-  if (force) return writeReplacing(root, rel, content, force);
+  if (force) return writeReplacing(root, rel, content, force, rec);
   const path = resolve(root, rel);
   const existing = await readFile(path, "utf8").catch(() => null);
   if (existing === content) return null;
   await mkdir(dirname(path), { recursive: true });
   if (existing === null) {
     await writeFile(path, content, "utf8");
+    rec.created(rel);
     return null;
   }
   const ext = extname(rel);
@@ -177,13 +183,17 @@ async function writeBeside(
  * that won't parse gets the sibling, and `rivetari doctor` stays red until the
  * hooks are in. Returns a note when it did anything but write a new file.
  */
-async function writeSettings(root: string): Promise<string | null> {
+async function writeSettings(
+  root: string,
+  rec: ManifestRecorder,
+): Promise<string | null> {
   const rel = ".claude/settings.json";
   const path = resolve(root, rel);
   const existing = await readFile(path, "utf8").catch(() => null);
   await mkdir(dirname(path), { recursive: true });
   if (existing === null) {
     await writeFile(path, SETTINGS_JSON, "utf8");
+    rec.created(rel);
     return null;
   }
   let merged: string;
@@ -201,6 +211,7 @@ async function writeSettings(root: string): Promise<string | null> {
     return null;
   const bak = await keepBackup(root, rel, existing);
   await writeFile(path, merged, "utf8");
+  rec.backedUp(rel, bak);
   return `merged Rivetari's hooks into ${rel}; the old one is ${bak} (delete it once you've checked the merge)`;
 }
 
@@ -508,14 +519,16 @@ async function ensureLine(
   root: string,
   rel: string,
   line: string,
+  rec: ManifestRecorder,
 ): Promise<void> {
   const path = resolve(root, rel);
-  const text = await readFile(path, "utf8").catch(
+  const old = await readFile(path, "utf8").catch(
     (err: NodeJS.ErrnoException) => {
-      if (err.code === "ENOENT") return "";
+      if (err.code === "ENOENT") return null;
       throw err;
     },
   );
+  const text = old ?? "";
   if (text.split(/\r?\n/).some((l) => l.trim() === line)) return;
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   await writeFile(
@@ -523,6 +536,8 @@ async function ensureLine(
     `${text}${text && !text.endsWith("\n") ? eol : ""}${line}${eol}`,
     "utf8",
   );
+  if (old === null) rec.created(rel);
+  else rec.appended(rel, line);
 }
 
 /**
@@ -566,6 +581,7 @@ async function initSync(
 async function initFloorplan(
   root: string,
   options: InitOptions,
+  rec: ManifestRecorder,
 ): Promise<string | null> {
   if (options.token === null && !options.floorplan) return null;
   const dir = resolve(root, FLOORPLAN_DIR);
@@ -576,7 +592,7 @@ async function initFloorplan(
     return `${FLOORPLAN_DIR}/ is part of the project, so no floorplan was drawn; set \`floorplan: false\` in the profile`;
   try {
     // The skill can't put the map anywhere else, so git is told to leave it.
-    await ensureLine(root, ".gitignore", FLOORPLAN_IGNORE);
+    await ensureLine(root, ".gitignore", FLOORPLAN_IGNORE, rec);
     process.stdout.write("Drawing the floorplan (a few minutes)…\n");
     const r = await drawFloorplan(root, options.floorplan);
     return `drew the floorplan: ${FLOORPLAN_DIR}/index.html${floorplanUsage(r)}${r.notes.length > 0 ? ` (${r.notes.join("; ")})` : ""}`;
@@ -647,6 +663,10 @@ export async function runInit(
 
   // --force never deletes. The profile it replaces is backed up first.
   const beside: string[] = [];
+  // What this run writes outside .rivetari/, so eject can undo exactly that.
+  // A manifest that won't parse is started again rather than stopping init.
+  const rec = new ManifestRecorder();
+  const oldManifest = await readManifest(root).catch(() => null);
   const profileRel = ".rivetari/profile.yml";
   const oldProfile = profileExists
     ? await readFile(resolve(root, profileRel), "utf8")
@@ -714,7 +734,7 @@ export async function runInit(
       ? await writeFile(resolve(root, workflowRel), workflowText, "utf8").then(
           () => null,
         )
-      : await writeBeside(root, workflowRel, workflowText, false);
+      : await writeBeside(root, workflowRel, workflowText, false, rec);
   if ("reason" in pinned)
     beside.push(
       `couldn't pin the Rivetari action to a commit (${pinned.reason}), so ${workflowRel} fails until it's pinned: run \`rivetari init --force --action-ref <sha>\` with the commit of a ${ACTION_REPO} release, or set the step as the file says`,
@@ -731,12 +751,14 @@ export async function runInit(
   if (ci.text !== null) {
     await mkdir(resolve(root, ".github", "workflows"), { recursive: true });
     await writeFile(resolve(root, ".github/workflows/ci.yml"), ci.text, "utf8");
+    // planCi only ever writes over a ci.yml an earlier init wrote.
+    rec.created(".github/workflows/ci.yml");
   }
   if (ci.note) beside.push(ci.note);
 
   // Rivetari's state is hashed and diffed byte for byte; a Windows checkout
   // with autocrlf would otherwise rewrite it with CRLF.
-  await ensureLine(root, ".gitattributes", ".rivetari/** text eol=lf");
+  await ensureLine(root, ".gitattributes", ".rivetari/** text eol=lf", rec);
 
   // Backups init leaves under .rivetari/ are for the person to look at, not commit.
   await ignoreInRivetari(root, [
@@ -792,7 +814,7 @@ export async function runInit(
       "the /rivetari skill couldn't be read from the CLI install; reinstall the CLI",
     );
   for (const [rel, content] of files) {
-    const note = await writeBeside(root, rel, content, flags.force);
+    const note = await writeBeside(root, rel, content, flags.force, rec);
     if (note) beside.push(note);
   }
   // A CLAUDE.md of the repo's own is replaced by the pointer once its rules
@@ -805,16 +827,23 @@ export async function runInit(
     // An earlier init's pointer has nothing to keep; anything else is backed up.
     if (fromClaude) {
       const bak = await keepBackup(root, "CLAUDE.md", oldClaude);
+      rec.backedUp("CLAUDE.md", bak);
       beside.push(
         `moved the rules in CLAUDE.md into AGENTS.md's "This repo" section, where every agent reads them; CLAUDE.md now points at AGENTS.md (the old one is ${bak}; delete it once you've checked the move)`,
       );
     }
     await writeFile(resolve(root, "CLAUDE.md"), CLAUDE_MD, "utf8");
   } else {
-    const note = await writeBeside(root, "CLAUDE.md", CLAUDE_MD, flags.force);
+    const note = await writeBeside(
+      root,
+      "CLAUDE.md",
+      CLAUDE_MD,
+      flags.force,
+      rec,
+    );
     if (note) beside.push(note);
   }
-  const settings = await writeSettings(root);
+  const settings = await writeSettings(root, rec);
   if (settings) beside.push(settings);
 
   // The spine skills, locked, then synced the way `rivetari skills sync`
@@ -831,9 +860,10 @@ export async function runInit(
   }
 
   if (draft.floorplan) {
-    const floorplan = await initFloorplan(root, options);
+    const floorplan = await initFloorplan(root, options, rec);
     if (floorplan) beside.push(floorplan);
   }
+  await rec.write(root, oldManifest);
 
   const wrote = `Wrote .rivetari/, AGENTS.md, CLAUDE.md, CONSTRAINTS.md, the /rivetari skill and hooks under .claude/, .github/ (rivetari.yml, the PR template) and a .gitattributes line keeping .rivetari/ LF.${locked} Commit them to the default branch before the first task: the agent and the judge read the contract from there.`;
   const notes = beside.map((b) => `  - ${b}`).join("\n");

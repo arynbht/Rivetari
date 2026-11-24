@@ -122,7 +122,7 @@ export function buildProgram(): Command {
   program
     .command("eject")
     .description(
-      "Take Rivetari out of the repo, keeping the docs, CI and evidence (a dry run without --yes)",
+      "Take Rivetari out of the repo, undoing what init wrote where it's unchanged (a dry run without --yes)",
     )
     .argument("[path]", "path to the repo", ".")
     .option("--yes", "do it, rather than only saying what it would do")

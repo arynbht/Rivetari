@@ -14,8 +14,9 @@ import { promisify } from "node:util";
 import { newTask } from "@arynbht/rivetari-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runEject, stripRivetari } from "./eject.js";
+import { runEject } from "./eject.js";
 import { SETTINGS_JSON } from "./init-files.js";
+import { contentHash, type ManifestEntry } from "./init-manifest.js";
 
 const run = promisify(execFile);
 
@@ -58,6 +59,23 @@ describe("runEject's plan", () => {
     await writeFile(join(d, ".rivetari", "profile.yml"), "version: 1\n");
     return d;
   };
+  /** Write `files` and a manifest recording them as init left them. */
+  const initWrote = async (
+    dir: string,
+    files: Record<string, { text: string } & Omit<ManifestEntry, "sha256">>,
+  ) => {
+    const entries: Record<string, ManifestEntry> = {};
+    for (const [rel, { text, ...origin }] of Object.entries(files)) {
+      await mkdir(join(dir, rel, ".."), { recursive: true });
+      await writeFile(join(dir, rel), text);
+      entries[rel] = { sha256: contentHash(text), ...origin };
+    }
+    await writeFile(
+      join(dir, ".rivetari", "manifest.json"),
+      JSON.stringify({ version: 1, files: entries }),
+    );
+  };
+  const none = { openTasks: () => Promise.resolve([]) };
 
   it("is a dry run without --yes, listing what it would do", async () => {
     const dir = await repo();
@@ -88,7 +106,9 @@ describe("runEject's plan", () => {
 
   it("refuses when the task listing names an open task, changing nothing", async () => {
     const dir = await repo();
-    await writeFile(join(dir, "CLAUDE.md"), "# CLAUDE.md\n\n@AGENTS.md\n");
+    await initWrote(dir, {
+      "CLAUDE.md": { text: "# CLAUDE.md\n\n@AGENTS.md\n", created: true },
+    });
     expect(
       await runEject(
         dir,
@@ -100,57 +120,141 @@ describe("runEject's plan", () => {
     expect(await there(join(dir, "CLAUDE.md"))).toBe(true);
   });
 
-  it("takes only Rivetari's hooks out of .claude/settings.json", async () => {
+  it("refuses when the listing had to skip a task record", async () => {
     const dir = await repo();
-    const ours = JSON.parse(SETTINGS_JSON) as {
-      hooks: { PreToolUse: unknown[] };
-    };
-    const theirs = {
-      model: "opus",
-      hooks: {
-        PreToolUse: [
-          {
-            matcher: "Bash",
-            hooks: [{ type: "command", command: "audit.sh" }],
-          },
-          ...ours.hooks.PreToolUse,
-        ],
-        SessionStart: (
-          JSON.parse(SETTINGS_JSON) as { hooks: { SessionStart: unknown[] } }
-        ).hooks.SessionStart,
-      },
-    };
-    await mkdir(join(dir, ".claude"));
-    await writeFile(
-      join(dir, ".claude", "settings.json"),
-      JSON.stringify(theirs, null, 2),
-    );
-    expect(await runEject(dir, { yes: true })).toBe(0);
-    expect(
-      JSON.parse(await readFile(join(dir, ".claude", "settings.json"), "utf8")),
-    ).toEqual({
-      model: "opus",
-      hooks: {
-        PreToolUse: [
-          {
-            matcher: "Bash",
-            hooks: [{ type: "command", command: "audit.sh" }],
-          },
-        ],
-      },
-    });
+    await mkdir(join(dir, ".rivetari", "tasks", "T-0007"), { recursive: true });
+    expect(await runEject(dir, { yes: true })).toBe(1);
+    expect(err.join("")).toContain("couldn't read the task records");
+    expect(err.join("")).toContain("T-0007");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
   });
 
-  it("keeps a CLAUDE.md with rules of its own, without the /rivetari line", async () => {
+  it("refuses when the tasks branch can't be fetched, rather than trust the local copy", async () => {
     const dir = await repo();
-    await writeFile(
-      join(dir, "CLAUDE.md"),
-      "# CLAUDE.md\n\n@AGENTS.md\n\nStart every task with `/rivetari`. The contract above applies to Claude Code too.\n\nUse tabs.\n",
+    await run("git", ["init", "-q"], { cwd: dir });
+    await run("git", ["remote", "add", "origin", join(dir, "no-such-remote")], {
+      cwd: dir,
+    });
+    expect(await runEject(dir, { yes: true })).toBe(1);
+    expect(err.join("")).toContain("couldn't read the task records");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
+  });
+
+  it("refuses when git itself fails, rather than read that as no origin", async () => {
+    const dir = await repo();
+    await run("git", ["init", "-q"], { cwd: dir });
+    const config = join(dir, ".git", "config");
+    await writeFile(config, `${await readFile(config, "utf8")}\n[broken\n`);
+    expect(await runEject(dir, { yes: true })).toBe(1);
+    expect(err.join("")).toContain("git couldn't read the repo");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
+  });
+
+  it("deletes what init created and puts back what it replaced, while unchanged", async () => {
+    const dir = await repo();
+    await initWrote(dir, {
+      "AGENTS.md": { text: "# AGENTS.md\n\nRun /rivetari.\n", created: true },
+      "CLAUDE.md": {
+        text: "# CLAUDE.md\n\n@AGENTS.md\n",
+        backup: "CLAUDE.md.bak",
+      },
+      ".claude/settings.json": { text: SETTINGS_JSON, created: true },
+    });
+    await writeFile(join(dir, "CLAUDE.md.bak"), "# Ours\n\nUse tabs.\n");
+    expect(await runEject(dir, {}, none)).toBe(0);
+    expect(out.join("")).toContain(
+      "Would put back from init's backups:\n  CLAUDE.md (from CLAUDE.md.bak)\n",
     );
-    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(await runEject(dir, { yes: true }, none)).toBe(0);
+    expect(await there(join(dir, "AGENTS.md"))).toBe(false);
+    expect(await there(join(dir, ".claude"))).toBe(false);
+    expect(await there(join(dir, "CLAUDE.md.bak"))).toBe(false);
     expect(await readFile(join(dir, "CLAUDE.md"), "utf8")).toBe(
-      "# CLAUDE.md\n\n@AGENTS.md\n\nUse tabs.\n",
+      "# Ours\n\nUse tabs.\n",
     );
+  });
+
+  it("counts a file whose line endings a checkout changed as unchanged", async () => {
+    const dir = await repo();
+    await initWrote(dir, {
+      "AGENTS.md": { text: "# AGENTS.md\n\nRun /rivetari.\n", created: true },
+    });
+    await writeFile(
+      join(dir, "AGENTS.md"),
+      "# AGENTS.md\r\n\r\nRun /rivetari.\r\n",
+    );
+    expect(await runEject(dir, { yes: true }, none)).toBe(0);
+    expect(await there(join(dir, "AGENTS.md"))).toBe(false);
+  });
+
+  it("leaves a file changed since init as it is and lists its Rivetari lines", async () => {
+    const dir = await repo();
+    await initWrote(dir, {
+      "AGENTS.md": { text: "# AGENTS.md\n\nRun /rivetari.\n", created: true },
+      "CLAUDE.md": {
+        text: "# CLAUDE.md\n\n@AGENTS.md\n",
+        backup: "CLAUDE.md.bak",
+      },
+    });
+    const agents = "# AGENTS.md\n\nRun /rivetari.\n\nUse tabs.\n";
+    await writeFile(join(dir, "AGENTS.md"), agents);
+    await writeFile(join(dir, "CLAUDE.md"), "# CLAUDE.md\n\nOurs now.\n");
+    await writeFile(join(dir, "CLAUDE.md.bak"), "# Ours\n");
+    expect(await runEject(dir, { yes: true }, none)).toBe(0);
+    expect(await readFile(join(dir, "AGENTS.md"), "utf8")).toBe(agents);
+    expect(await readFile(join(dir, "CLAUDE.md.bak"), "utf8")).toBe("# Ours\n");
+    expect(out.join("")).toContain(
+      "  AGENTS.md (changed since init, so eject leaves it)\n      3: Run /rivetari.\n",
+    );
+    expect(out.join("")).toContain(
+      "CLAUDE.md (changed since init, so eject leaves it; the file from before init is CLAUDE.md.bak)",
+    );
+  });
+
+  it("lists the exact lines init appended to a file of the repo's own", async () => {
+    const dir = await repo();
+    const line = ".rivetari/** text eol=lf";
+    await initWrote(dir, {
+      ".gitattributes": { text: `* text=auto\n${line}\n`, added: [line] },
+    });
+    expect(await runEject(dir, { yes: true }, none)).toBe(0);
+    expect(await readFile(join(dir, ".gitattributes"), "utf8")).toBe(
+      `* text=auto\n${line}\n`,
+    );
+    expect(out.join("")).toContain(
+      `  .gitattributes (init added these lines to it)\n      2: ${line}\n`,
+    );
+  });
+
+  it("never edits a doc init didn't record, whatever its title says", async () => {
+    const dir = await repo();
+    const design =
+      "# Design for the Rivetari dashboard\n\n## Colours\n\nUse blue.\n";
+    await writeFile(join(dir, "DESIGN.md"), design);
+    expect(await runEject(dir, { yes: true }, none)).toBe(0);
+    expect(await readFile(join(dir, "DESIGN.md"), "utf8")).toBe(design);
+    expect(out.join("")).toContain(
+      "  DESIGN.md (init kept no record of what it wrote here (it predates the manifest), so eject leaves it)\n      1: # Design for the Rivetari dashboard\n",
+    );
+  });
+
+  it("leaves .claude/settings.json with Rivetari's hooks in it when init has no record of it", async () => {
+    const dir = await repo();
+    await mkdir(join(dir, ".claude"));
+    await writeFile(join(dir, ".claude", "settings.json"), SETTINGS_JSON);
+    expect(await runEject(dir, { yes: true }, none)).toBe(0);
+    expect(await readFile(join(dir, ".claude", "settings.json"), "utf8")).toBe(
+      SETTINGS_JSON,
+    );
+    expect(out.join("")).toContain("  .claude/settings.json (");
+  });
+
+  it("refuses when the manifest won't parse", async () => {
+    const dir = await repo();
+    await writeFile(join(dir, ".rivetari", "manifest.json"), "{ not json");
+    expect(await runEject(dir, { yes: true }, none)).toBe(1);
+    expect(err.join("")).toContain("couldn't work out what to remove");
+    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
   });
 
   it("moves evidence out of .rivetari/ and won't overwrite evidence already there", async () => {
@@ -176,23 +280,10 @@ describe("runEject's plan", () => {
     );
   });
 
-  it("refuses when the tasks branch can't be fetched, rather than trust the local copy", async () => {
-    const dir = await repo();
-    await run("git", ["init", "-q"], { cwd: dir });
-    await run("git", ["remote", "add", "origin", join(dir, "no-such-remote")], {
-      cwd: dir,
-    });
-    expect(await runEject(dir, { yes: true })).toBe(1);
-    expect(err.join("")).toContain("couldn't read the task records");
-    expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
-  });
-
   it("names the task records that go with .rivetari/", async () => {
     const dir = await repo();
     await mkdir(join(dir, ".rivetari", "tasks", "T-0004"), { recursive: true });
-    expect(
-      await runEject(dir, {}, { openTasks: () => Promise.resolve([]) }),
-    ).toBe(0);
+    expect(await runEject(dir, {}, none)).toBe(0);
     expect(out.join("")).toContain(".rivetari/ holds the records of T-0004");
   });
 
@@ -222,94 +313,5 @@ describe("runEject's plan", () => {
     expect(await there(join(dir, ".github", "workflows", "rivetari.yml"))).toBe(
       false,
     );
-  });
-});
-
-describe("stripRivetari", () => {
-  it("drops the sections, items and paragraphs that mention it and keeps the rest", () => {
-    const doc = [
-      "# Guide",
-      "",
-      "Run `rivetari doctor` first.",
-      "",
-      "## Using Rivetari",
-      "",
-      "It runs the beats.",
-      "",
-      "### Details",
-      "",
-      "More.",
-      "",
-      "## Rules",
-      "",
-      "- keep it small",
-      "- ask `/rivetari` first",
-      "  before anything",
-      "- no secrets",
-      "",
-      "```sh",
-      "rivetari task new",
-      "```",
-      "",
-    ].join("\n");
-    expect(stripRivetari(doc)).toBe(
-      "# Guide\n\n## Rules\n\n- keep it small\n- no secrets\n",
-    );
-  });
-
-  it("keeps CRLF line endings", () => {
-    expect(stripRivetari("# A\r\n\r\nRivetari here.\r\n\r\nKept.\r\n")).toBe(
-      "# A\r\n\r\nKept.\r\n",
-    );
-  });
-
-  it("drops an item with its sub-items and indented continuation", () => {
-    expect(
-      stripRivetari(
-        "# A\n\n- Use Rivetari for:\n  - lint\n  - tests\n\n  Then wait.\n- Keep it small\n  - really\n",
-      ),
-    ).toBe("# A\n\n- Keep it small\n  - really\n");
-  });
-
-  it("skips a fenced block in a dropped section, # lines and all", () => {
-    expect(
-      stripRivetari(
-        "# Doc\n\n## Using Rivetari\n\n```sh\n# set up\nrivetari init\n```\n\n## Other\n\nText.\n",
-      ),
-    ).toBe("# Doc\n\n## Other\n\nText.\n");
-  });
-
-  it("leaves # lines in a kept fenced block alone", () => {
-    const doc = "# Doc\n\n```sh\n# one\n# two\nmake\n```\n";
-    expect(stripRivetari(doc)).toBe(doc);
-  });
-});
-
-describe("the dry run", () => {
-  it("shows the lines it would take out of a kept doc", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "eject-diff-"));
-    try {
-      await writeFile(
-        join(dir, "DESIGN.md"),
-        "# Design\n\nRun /rivetari first.\n\nUse the tokens.\n",
-      );
-      const out: string[] = [];
-      vi.spyOn(process.stdout, "write").mockImplementation((s) => {
-        out.push(String(s));
-        return true;
-      });
-      expect(
-        await runEject(dir, {}, { openTasks: () => Promise.resolve([]) }),
-      ).toBe(0);
-      expect(out.join("")).toContain(
-        "Would edit:\n  DESIGN.md (drop what refers to Rivetari)\n      - Run /rivetari first.\n",
-      );
-      expect(await readFile(join(dir, "DESIGN.md"), "utf8")).toContain(
-        "/rivetari",
-      );
-    } finally {
-      vi.restoreAllMocks();
-      await rm(dir, { recursive: true, force: true });
-    }
   });
 });

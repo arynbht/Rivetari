@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import {
   lstat,
   mkdir,
@@ -7,9 +8,9 @@ import {
   rm,
   rmdir,
   stat,
-  writeFile,
 } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { promisify } from "node:util";
 
 import { readState } from "@arynbht/rivetari-registry";
 import {
@@ -21,8 +22,9 @@ import {
   pullTasks,
 } from "@arynbht/rivetari-runtime";
 
-import { isInitCiWorkflow } from "./init-ci.js";
-import { houseRulesFrom, isRivetariHook } from "./init-files.js";
+import { contentHash, readManifest } from "./init-manifest.js";
+
+const run = promisify(execFile);
 
 export interface EjectFlags {
   /** Do it; without this (or --apply) eject only says what it would do. */
@@ -35,36 +37,27 @@ export interface EjectOptions {
   openTasks?: ((root: string) => Promise<string[]>) | undefined;
 }
 
-/** What eject does to one file it keeps but edits; null text deletes it. */
-interface Edit {
+/** A file eject leaves as it is, and the lines in it a person may take out. */
+interface ByHand {
   rel: string;
   why: string;
-  before: string;
-  text: string | null;
+  lines: string[];
 }
 
 interface Plan {
   /** Paths to delete, a directory with a trailing "/". */
   remove: string[];
-  edit: Edit[];
+  /** Init's backups put back over the file init wrote. */
+  restore: { from: string; to: string }[];
   move: { from: string; to: string }[];
-  keep: string[];
+  byHand: ByHand[];
   /** Why eject can't go ahead, beyond open tasks. */
   blocked: string[];
-  /** Things a person has to finish by hand. */
   notes: string[];
 }
 
 /** Where evidence that lived under .rivetari/ is kept. */
 const EVIDENCE_HOME = "docs/evidence";
-
-/** The docs eject keeps, with references to Rivetari taken out of them. */
-const KEPT_DOCS = [
-  "AGENTS.md",
-  "CONSTRAINTS.md",
-  "DESIGN.md",
-  ".github/PULL_REQUEST_TEMPLATE.md",
-];
 
 /** What init writes beside a file of the repo's own, for a person to merge. */
 const BESIDE = [
@@ -75,6 +68,27 @@ const BESIDE = [
   ".claude/settings.rivetari.json",
   ".github/workflows/rivetari.yml",
   ".github/workflows/rivetari.rivetari.yml",
+];
+
+/** Rivetari's own paths: nothing of the repo's lives in them, so they go whole. */
+const OWN_DIRS = [".rivetari/", ".claude/skills/rivetari/"];
+const isOwn = (rel: string) =>
+  BESIDE.includes(rel) || OWN_DIRS.some((d) => rel.startsWith(d));
+
+/**
+ * Files a repo keeps for itself that init may have written to. Eject never
+ * edits them: it shows what in them still names Rivetari.
+ */
+const SHARED = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "CONSTRAINTS.md",
+  "DESIGN.md",
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  ".claude/settings.json",
+  ".claude/skills/.gitignore",
+  ".gitignore",
+  ".gitattributes",
 ];
 
 /** Directories eject may leave empty, deepest first; they go too. */
@@ -89,6 +103,10 @@ const PRUNE = [
 
 /** A skill name a sync state can name without leaving the skills folder. */
 const SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** The block `rivetari skills sync` keeps in .claude/skills/.gitignore. */
+const SYNC_BLOCK =
+  /# rivetari skills \(managed by `rivetari skills sync`\)[\s\S]*?# end rivetari skills\r?\n?/;
 
 const readIfThere = (path: string): Promise<string | null> =>
   readFile(path, "utf8").catch((err: NodeJS.ErrnoException) => {
@@ -106,257 +124,51 @@ const listDir = (path: string): Promise<string[]> =>
 const exists = (path: string): Promise<boolean> =>
   lstat(path).then(
     () => true,
-    () => false,
+    (err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT" || err.code === "ENOTDIR") return false;
+      throw err;
+    },
   );
 
 const mentions = (s: string) => /rivetari/i.test(s);
 
+/** The lines of `text` that `pick` matches, numbered as an editor shows them. */
+const numbered = (text: string, pick: (line: string) => boolean): string[] =>
+  text.split(/\r?\n/).flatMap((l, i) => (pick(l) ? [`${i + 1}: ${l}`] : []));
+
+/**
+ * pullTasks reads a git that fails as a repo with no origin, so git has to
+ * answer first: anything but "not a repo" (a broken config, an unsafe
+ * directory, no git at all) means the tasks branch can't be checked, and
+ * eject refuses rather than trust the local copy.
+ */
+async function checkGit(root: string): Promise<void> {
+  try {
+    await run("git", ["remote"], { cwd: root });
+  } catch (err) {
+    const stderr = String((err as { stderr?: unknown }).stderr ?? "").trim();
+    if (/not a git repository/i.test(stderr)) return;
+    throw new Error(`git couldn't read the repo: ${stderr || String(err)}`);
+  }
+}
+
 /**
  * The open tasks, from this checkout's records, brought up to the tasks
- * branch first when `pull` is set. pullTasks already settles for the local
- * copy when there's no origin or no tasks branch; any other failure means a
- * task opened elsewhere could be missed, so it propagates and eject refuses.
- * A dry run doesn't pull, since a pull writes the records it fetches.
+ * branch first when `pull` is set. pullTasks settles for the local copy only
+ * when there's no origin or no tasks branch; any other failure propagates and
+ * eject refuses. So does a record the listing had to skip, since it may be a
+ * task still being opened. A dry run doesn't pull, since a pull writes the
+ * records it fetches.
  */
 async function openTasks(root: string, pull: boolean): Promise<string[]> {
-  if (pull) await pullTasks(root);
-  const tasks = await listTasks(root);
+  if (pull) {
+    await checkGit(root);
+    await pullTasks(root);
+  }
+  const skipped: string[] = [];
+  const tasks = await listTasks(root, (m) => skipped.push(m));
+  if (skipped.length > 0) throw new Error(skipped.join("; "));
   return tasks.filter((t) => nextStep(t) !== "done").map((t) => t.card.id);
-}
-
-/**
- * The parts of AGENTS.md that only make sense with Rivetari: everything above
- * "This repo" that init wrote, except the protected paths and stop-and-ask
- * lists, which are still the repo's rules.
- */
-const CONTRACT_SECTIONS = new Set([
-  "Before anything",
-  "Every task starts with /rivetari",
-  "The beats",
-  "Proof and review",
-  "People merge",
-]);
-
-/** AGENTS.md as init rendered it, cut down to the rules that outlive Rivetari. */
-function ejectAgentsContract(text: string): string {
-  const lines = text.split("\n");
-  const out: string[] = [
-    "# AGENTS.md",
-    "",
-    "These rules apply to every agent that works in this repo.",
-    "",
-  ];
-  let section: string | null = null;
-  for (const line of lines) {
-    const h2 = /^##\s+(.*?)\s*$/.exec(line);
-    if (h2) section = h2[1]!;
-    // The title, init's comment and the intro are replaced above.
-    if (section === null) continue;
-    if (CONTRACT_SECTIONS.has(section)) continue;
-    if (line.startsWith("A task never edits these. The judge marks")) {
-      out.push("Agents don't change these without asking a person first:");
-      continue;
-    }
-    if (line.startsWith("- Commands: none declared yet; the judge")) continue;
-    if (line.startsWith("<!-- House patterns, naming, where things live")) {
-      out.push(
-        "<!-- House patterns, naming, where things live: add them here. -->",
-      );
-      continue;
-    }
-    out.push(line);
-  }
-  return out.join("\n");
-}
-
-const LIST_ITEM = /^(\s*)([-*+]|\d+[.)])\s/;
-const FENCE = /^\s*(`{3,}|~{3,})/;
-
-/** The line that closes the fence opened at `start` with `marker`, or the last line. */
-function fenceEnd(lines: string[], start: number, marker: string): number {
-  for (let j = start + 1; j < lines.length; j++)
-    if (
-      /^\s*(`{3,}|~{3,})\s*$/.test(lines[j]!) &&
-      lines[j]!.trim().startsWith(marker)
-    )
-      return j;
-  return lines.length - 1;
-}
-
-/**
- * `text` with what refers to Rivetari taken out: the sentences of an HTML
- * comment, the list items, paragraphs, fenced blocks and whole sections that
- * mention it. A heading left with nothing under it goes too.
- */
-export function stripRivetari(text: string): string {
-  const crlf = text.includes("\r\n");
-  let s = text.replace(/\r\n/g, "\n");
-  if (s.includes("<!-- Written by `rivetari init`."))
-    s = ejectAgentsContract(s);
-
-  // Comments first, sentence by sentence, keeping the rest's wrapping.
-  s = s.replace(/<!--([\s\S]*?)-->\n?/g, (whole, body: string) => {
-    if (!mentions(body)) return whole;
-    const parts = body.split(/(?<=[.!?])(\s+)/);
-    let kept = "";
-    for (let i = 0; i < parts.length; i += 2) {
-      const sentence = parts[i]!;
-      if (mentions(sentence)) continue;
-      kept += (kept ? (parts[i - 1] ?? " ") : "") + sentence.trimStart();
-    }
-    kept = kept.trim();
-    if (!kept) return "";
-    return `<!-- ${kept} -->${whole.endsWith("\n") ? "\n" : ""}`;
-  });
-
-  // Then blocks: a heading opens a section, a blank line ends a paragraph.
-  const lines = s.split("\n");
-  const out: string[] = [];
-  const indent = (l: string) => /^\s*/.exec(l)![0].length;
-  let dropLevel = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    // A fence goes first, so a `#` line inside one is never read as a heading.
-    const fence = FENCE.exec(line)?.[1];
-    if (fence) {
-      const end = fenceEnd(lines, i, fence);
-      const block = lines.slice(i, end + 1);
-      if (!dropLevel && !block.some(mentions)) out.push(...block);
-      i = end;
-      continue;
-    }
-    const heading = /^(#{1,6})\s/.exec(line);
-    if (heading) {
-      const level = heading[1]!.length;
-      if (dropLevel && level > dropLevel) continue;
-      dropLevel = mentions(line) ? level : 0;
-      if (!dropLevel) out.push(line);
-      continue;
-    }
-    if (dropLevel) continue;
-    if (line.trim() === "") {
-      out.push(line);
-      continue;
-    }
-    const item = LIST_ITEM.exec(line);
-    if (item) {
-      // An item takes everything indented under it, its sub-items and
-      // continuation paragraphs too, so they're kept or dropped together.
-      const own = item[1]!.length;
-      let end = i + 1;
-      for (let j = i + 1; j < lines.length; j++) {
-        const next = lines[j]!;
-        if (next.trim() === "") continue;
-        if (indent(next) <= own) break;
-        const inner = FENCE.exec(next)?.[1];
-        if (inner) j = fenceEnd(lines, j, inner);
-        end = j + 1;
-      }
-      const block = lines.slice(i, end);
-      if (!block.some(mentions)) out.push(...block);
-      i = end - 1;
-      continue;
-    }
-    let end = i + 1;
-    while (
-      end < lines.length &&
-      lines[end]!.trim() !== "" &&
-      !/^#{1,6}\s/.test(lines[end]!) &&
-      !LIST_ITEM.test(lines[end]!) &&
-      !FENCE.test(lines[end]!)
-    )
-      end++;
-    const block = lines.slice(i, end);
-    if (!block.some(mentions)) out.push(...block);
-    i = end - 1;
-  }
-
-  // A heading with nothing under it before the next of its rank goes.
-  const tidy: string[] = [];
-  for (let i = 0; i < out.length; i++) {
-    const fence = FENCE.exec(out[i]!)?.[1];
-    if (fence) {
-      const end = fenceEnd(out, i, fence);
-      tidy.push(...out.slice(i, end + 1));
-      i = end;
-      continue;
-    }
-    const heading = /^(#{1,6})\s/.exec(out[i]!);
-    if (heading && i > 0) {
-      let j = i + 1;
-      while (j < out.length && out[j]!.trim() === "") j++;
-      const next = j < out.length ? /^(#{1,6})\s/.exec(out[j]!) : null;
-      if (j === out.length || (next && next[1]!.length <= heading[1]!.length))
-        continue;
-    }
-    tidy.push(out[i]!);
-  }
-  let result = tidy.join("\n").replace(/\n{3,}/g, "\n\n");
-  result = result.replace(/\n*$/, text.endsWith("\n") ? "\n" : "");
-  return crlf ? result.replace(/\n/g, "\r\n") : result;
-}
-
-/** `text` without the lines whose trimmed value `drop` matches. */
-function withoutLines(text: string, drop: (line: string) => boolean): string {
-  const eol = text.includes("\r\n") ? "\r\n" : "\n";
-  return text
-    .split(/\r?\n/)
-    .filter((l) => !drop(l.trim()))
-    .join(eol);
-}
-
-/** An edit to `rel` when `next` differs, deleting it when nothing's left. */
-function editFor(
-  rel: string,
-  text: string,
-  next: string,
-  why: string,
-): Edit | null {
-  if (next === text) return null;
-  return next.trim() === ""
-    ? {
-        rel,
-        why: `${why}; nothing else is in it, so it goes`,
-        before: text,
-        text: null,
-      }
-    : { rel, why, before: text, text: next };
-}
-
-/** .claude/settings.json without Rivetari's hooks; undefined when it won't parse. */
-function settingsWithoutHooks(text: string): string | null | undefined {
-  let settings: unknown;
-  try {
-    settings = JSON.parse(text);
-  } catch {
-    return undefined;
-  }
-  const isObject = (v: unknown): v is Record<string, unknown> =>
-    typeof v === "object" && v !== null && !Array.isArray(v);
-  if (!isObject(settings) || !isObject(settings.hooks)) return text;
-  const hooks: Record<string, unknown> = {};
-  for (const [event, groups] of Object.entries(settings.hooks)) {
-    if (!Array.isArray(groups)) {
-      hooks[event] = groups;
-      continue;
-    }
-    const kept = groups.flatMap((group: unknown) => {
-      if (!isObject(group) || !Array.isArray(group.hooks)) return [group];
-      const inner: unknown[] = group.hooks;
-      const rest = inner.filter(
-        (h: unknown) => !isRivetariHook(isObject(h) ? h.command : undefined),
-      );
-      if (rest.length === inner.length) return [group];
-      return rest.length > 0 ? [{ ...group, hooks: rest }] : [];
-    });
-    if (kept.length > 0) hooks[event] = kept;
-  }
-  const next: Record<string, unknown> = { ...settings, hooks };
-  if (Object.keys(hooks).length === 0) delete next.hooks;
-  if (JSON.stringify(next) === JSON.stringify(settings)) return text;
-  return Object.keys(next).length === 0
-    ? null
-    : `${JSON.stringify(next, null, 2)}\n`;
 }
 
 /** Whether an evidence file is init's empty seed, which has nothing to keep. */
@@ -366,30 +178,12 @@ function emptySeed(name: string, text: string | null): boolean {
   );
 }
 
-/** Keep `rel`, with `edit` if it has one, unless the edit deletes it. */
-function keepEdited(plan: Plan, rel: string, edit: Edit | null): void {
-  if (edit) plan.edit.push(edit);
-  if (edit?.text !== null) plan.keep.push(rel);
-}
-
-/**
- * A ci.yml init wrote, without the sentence saying so. Only spaces after it
- * are taken, so the next line is never pulled into the comment; when the
- * sentence ends the line, the whole line goes.
- */
-export function withoutInitHeader(text: string): string {
-  return text.replace(
-    /^# Written by `rivetari init` for [^\n]*?\.(?:[ \t]+|[ \t]*\r?\n)/,
-    (m) => (m.endsWith("\n") ? "" : "# "),
-  );
-}
-
 async function planEject(root: string): Promise<Plan> {
   const plan: Plan = {
     remove: [],
-    edit: [],
+    restore: [],
     move: [],
-    keep: [],
+    byHand: [],
     blocked: [],
     notes: [],
   };
@@ -443,127 +237,83 @@ async function planEject(root: string): Promise<Plan> {
     plan.remove = plan.remove.filter((r) => !r.startsWith(".agents/skills/"));
     plan.remove.push(".agents/skills/");
   }
+  // The sync's ignore file goes only when its block is all there is in it.
   const skillsIgnore = await readIfThere(at(".claude/skills/.gitignore"));
-  if (skillsIgnore !== null) {
-    const next = skillsIgnore.replace(
-      /# rivetari skills \(managed by `rivetari skills sync`\)[\s\S]*?# end rivetari skills\r?\n?/,
-      "",
-    );
-    const edit = editFor(
-      ".claude/skills/.gitignore",
-      skillsIgnore,
-      next,
-      "drop the synced skills' lines",
-    );
-    if (edit) plan.edit.push(edit);
-  }
+  if (
+    skillsIgnore !== null &&
+    skillsIgnore.replace(SYNC_BLOCK, "").trim() === ""
+  )
+    plan.remove.push(".claude/skills/.gitignore");
 
   // The /rivetari skill init wrote, the workflow, and the files init put
   // beside the repo's own for a person to merge.
   await removeIfThere(".claude/skills/rivetari", true);
   for (const rel of BESIDE) await removeIfThere(rel);
-
-  const settingsRel = ".claude/settings.json";
-  const settings = await readIfThere(at(settingsRel));
-  if (settings !== null) {
-    const next = settingsWithoutHooks(settings);
-    if (next === undefined)
-      plan.notes.push(
-        `${settingsRel} doesn't parse, so Rivetari's hooks are still in it: take out the \`rivetari hook\` commands by hand`,
-      );
-    else if (next === null)
-      plan.edit.push({
-        rel: settingsRel,
-        why: "drop Rivetari's hooks; nothing else is in it, so it goes",
-        before: settings,
-        text: null,
-      });
-    else if (next !== settings)
-      plan.edit.push({
-        rel: settingsRel,
-        why: "drop Rivetari's hooks, keep the other settings",
-        before: settings,
-        text: next,
-      });
-  }
-
-  // CLAUDE.md that only points at AGENTS.md goes; one with rules of its own stays.
-  const claudeLinked = await lstat(at("CLAUDE.md")).then(
-    (s) => s.isSymbolicLink(),
-    () => false,
-  );
-  const claude = claudeLinked ? null : await readIfThere(at("CLAUDE.md"));
-  if (claude !== null) {
-    if (houseRulesFrom(claude) === null) plan.remove.push("CLAUDE.md");
-    else {
-      keepEdited(
-        plan,
-        "CLAUDE.md",
-        editFor(
-          "CLAUDE.md",
-          claude,
-          stripRivetari(claude),
-          "drop the lines about Rivetari",
-        ),
-      );
-    }
-  }
-
   const mapped = await isFloorplanMap(at(FLOORPLAN_DIR));
   if (mapped) plan.remove.push(`${FLOORPLAN_DIR}/`);
 
-  // Lines init added to the repo's own ignore and attribute files.
-  for (const [rel, drop] of [
-    [
-      ".gitignore",
-      (l: string) =>
-        (mapped && l === FLOORPLAN_IGNORE) || /^\/?\.rivetari(\/|$)/.test(l),
-    ],
-    [".gitattributes", (l: string) => /^\/?\.rivetari\//.test(l)],
-  ] as const) {
+  // What init recorded writing is undone only where it's as init left it: a
+  // file it created goes, a file it replaced gets its backup back. Anything
+  // changed since is left as it is.
+  const manifest = rivetariThere ? await readManifest(root) : null;
+  const recorded = new Set<string>();
+  for (const [rel, e] of Object.entries(manifest?.files ?? {}).sort()) {
+    if (isOwn(rel)) continue;
+    recorded.add(rel);
     const text = await readIfThere(at(rel));
     if (text === null) continue;
-    const edit = editFor(
-      rel,
-      text,
-      withoutLines(text, drop),
-      "drop Rivetari's lines",
-    );
-    if (edit) plan.edit.push(edit);
+    const backupThere = e.backup !== undefined && (await exists(at(e.backup)));
+    if (contentHash(text) !== e.sha256) {
+      plan.byHand.push({
+        rel,
+        why: `changed since init, so eject leaves it${backupThere ? `; the file from before init is ${e.backup}` : ""}`,
+        lines: numbered(text, mentions),
+      });
+    } else if (e.created) {
+      plan.remove.push(rel);
+    } else if (e.backup && backupThere) {
+      plan.restore.push({ from: e.backup, to: rel });
+    } else if (e.backup) {
+      plan.byHand.push({
+        rel,
+        why: `init's backup of it, ${e.backup}, is gone, so the file from before init can't be put back`,
+        lines: numbered(text, mentions),
+      });
+    } else {
+      const added = new Set(e.added ?? []);
+      plan.byHand.push({
+        rel,
+        why: "init added these lines to it",
+        lines: numbered(text, (l) => added.has(l.trim())),
+      });
+    }
   }
 
-  // The docs and CI stay, without what pointed at Rivetari.
-  for (const rel of KEPT_DOCS) {
+  // The repo's own files init has no record of are never touched; what in
+  // them names Rivetari is listed for a person.
+  const workflows = (await listDir(at(".github/workflows")))
+    .filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => `.github/workflows/${f}`)
+    .filter((rel) => !isOwn(rel))
+    .sort();
+  for (const rel of [...SHARED, ...workflows]) {
+    if (recorded.has(rel) || plan.remove.includes(rel)) continue;
     const text = await readIfThere(at(rel));
     if (text === null) continue;
-    keepEdited(
-      plan,
-      rel,
-      editFor(rel, text, stripRivetari(text), "drop what refers to Rivetari"),
+    const lines = numbered(
+      text,
+      (l) =>
+        mentions(l) ||
+        (mapped && rel === ".gitignore" && l.trim() === FLOORPLAN_IGNORE),
     );
-  }
-  const workflows = (await listDir(at(".github/workflows")))
-    .filter(
-      (f) => /\.ya?ml$/.test(f) && !/^rivetari(\.rivetari)?\.ya?ml$/.test(f),
-    )
-    .sort();
-  for (const f of workflows) {
-    const rel = `.github/workflows/${f}`;
-    const text = await readIfThere(at(rel));
-    if (text === null || !isInitCiWorkflow(text)) {
-      plan.keep.push(rel);
-      continue;
-    }
-    keepEdited(
-      plan,
+    if (lines.length === 0) continue;
+    plan.byHand.push({
       rel,
-      editFor(
-        rel,
-        text,
-        withoutInitHeader(text),
-        "drop the line saying Rivetari wrote it",
-      ),
-    );
+      why: manifest
+        ? "init has no record of writing it, so eject leaves it"
+        : "init kept no record of what it wrote here (it predates the manifest), so eject leaves it",
+      lines,
+    });
   }
 
   if (rivetariThere) {
@@ -606,52 +356,17 @@ async function applyPlan(
     await rename(resolve(root, from), resolve(root, to));
     done.push(`moved ${from} to ${to}`);
   }
-  for (const e of plan.edit) {
-    const abs = resolve(root, e.rel);
-    if (e.text === null) await rm(abs, { force: true });
-    else await writeFile(abs, e.text, "utf8");
-    done.push(`edited ${e.rel}`);
+  for (const { from, to } of plan.restore) {
+    await rename(resolve(root, from), resolve(root, to));
+    done.push(`put ${from} back as ${to}`);
   }
-  // Links before the folders they point into.
+  // Links before the folders they point into; .rivetari/ and its manifest last.
   for (const rel of plan.remove) {
     await removePath(root, rel);
     done.push(`removed ${rel}`);
   }
   for (const rel of PRUNE)
     await rmdir(resolve(root, rel)).catch(() => undefined);
-}
-
-/** The lines `after` drops from `before` ("- ") and adds ("+ "), in order. */
-export function lineDiff(before: string, after: string): string[] {
-  const a = before.split(/\r?\n/);
-  const b = after.split(/\r?\n/);
-  // Longest common subsequence; the files eject edits are short.
-  const lcs = Array.from({ length: a.length + 1 }, () =>
-    new Array<number>(b.length + 1).fill(0),
-  );
-  for (let i = a.length - 1; i >= 0; i--)
-    for (let j = b.length - 1; j >= 0; j--)
-      lcs[i]![j] =
-        a[i] === b[j]
-          ? lcs[i + 1]![j + 1]! + 1
-          : Math.max(lcs[i + 1]![j]!, lcs[i]![j + 1]!);
-  const out: string[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < a.length || j < b.length) {
-    if (i < a.length && j < b.length && a[i] === b[j]) {
-      i++;
-      j++;
-    } else if (
-      j < b.length &&
-      (i === a.length || lcs[i]![j + 1]! >= lcs[i + 1]![j]!)
-    ) {
-      out.push(`+ ${b[j++]}`);
-    } else {
-      out.push(`- ${a[i++]}`);
-    }
-  }
-  return out.filter((l) => l.trim() !== "-" && l.trim() !== "+");
 }
 
 function render(plan: Plan, dryRun: boolean): string {
@@ -663,34 +378,35 @@ function render(plan: Plan, dryRun: boolean): string {
   };
   list(dryRun ? "Would remove" : "Removed", plan.remove);
   list(
+    dryRun ? "Would put back from init's backups" : "Put back",
+    plan.restore.map((r) => `${r.to} (from ${r.from})`),
+  );
+  list(
     dryRun ? "Would move" : "Moved",
     plan.move.map((m) => `${m.from} to ${m.to}`),
   );
-  if (dryRun && plan.edit.length > 0) {
-    // Each edit's lines, so the dry run shows exactly what changes in a kept file.
-    lines.push("Would edit:");
-    for (const e of plan.edit) {
-      lines.push(`  ${e.rel} (${e.why})`);
-      if (e.text !== null)
-        lines.push(...lineDiff(e.before, e.text).map((l) => `      ${l}`));
+  if (plan.byHand.length > 0) {
+    // Eject edits no file it keeps, so these are shown line by line instead.
+    lines.push("Left as they are; take these lines out by hand if you want:");
+    for (const b of plan.byHand) {
+      lines.push(`  ${b.rel} (${b.why})`);
+      lines.push(...b.lines.map((l) => `      ${l}`));
     }
-  } else
-    list(
-      "Edited",
-      plan.edit.map((e) => `${e.rel} (${e.why})`),
-    );
-  list(dryRun ? "Would keep" : "Kept", plan.keep);
+  }
   for (const n of plan.notes) lines.push(`Note: ${n}`);
   return lines.length > 0 ? `${lines.join("\n")}\n` : "";
 }
 
 /**
  * `rivetari eject [path]`: take Rivetari out of a repo. A dry run unless
- * --yes or --apply is given. It keeps the docs (AGENTS.md, CONSTRAINTS.md,
- * DESIGN.md, the PR template) without what refers to Rivetari, the repo's CI
- * and its evidence, and removes the rest: .rivetari/, rivetari.yml, the skills
- * and hooks under .claude/, a CLAUDE.md that only points at AGENTS.md, the
- * floorplan map and init's ignore lines. It refuses while a task is open.
+ * --yes or --apply is given. It removes Rivetari's own paths (.rivetari/,
+ * rivetari.yml, the /rivetari skill and synced skills, the files init wrote
+ * beside the repo's own, the floorplan map) and undoes what init's manifest
+ * says it wrote, where the file is as init left it: a file init created
+ * goes, a file it replaced gets init's backup back. It edits no file it
+ * keeps; what's left of Rivetari in them is listed for a person. Evidence
+ * moves to docs/evidence/. It refuses while a task is open, or when it can't
+ * tell.
  *
  * A caller that passes no flags (the API before the dry run) applies.
  */
@@ -722,7 +438,7 @@ export async function runEject(
   }
   const nothing =
     plan.remove.length === 0 &&
-    plan.edit.length === 0 &&
+    plan.restore.length === 0 &&
     plan.move.length === 0;
 
   if (open.length > 0 || plan.blocked.length > 0) {
@@ -742,7 +458,7 @@ export async function runEject(
   }
   if (nothing) {
     process.stdout.write(
-      plan.notes.length > 0
+      plan.byHand.length > 0 || plan.notes.length > 0
         ? render(plan, !apply)
         : "Nothing Rivetari generated is here to remove.\n",
     );

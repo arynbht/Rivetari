@@ -10,7 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, relative } from "node:path";
+import { join, relative } from "node:path";
 import { promisify } from "node:util";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -90,7 +90,7 @@ async function snapshot(dir: string): Promise<Map<string, string>> {
 
 /**
  * What a synced machine has beyond what init writes offline: an installed
- * skill (its copy and its link), the floorplan map and its ignore line.
+ * skill (its copy and its link) and the floorplan map.
  */
 async function asIfSyncedAndMapped(dir: string): Promise<void> {
   const copy = join(dir, ".agents", "skills", "planner");
@@ -126,10 +126,6 @@ async function asIfSyncedAndMapped(dir: string): Promise<void> {
   await mkdir(join(dir, "floorplan", "descriptions"), { recursive: true });
   await writeFile(join(dir, "floorplan", "architecture.json"), "{}\n");
   await writeFile(join(dir, "floorplan", "index.html"), "<html></html>\n");
-  const ignore = await readFile(join(dir, ".gitignore"), "utf8").catch(
-    () => "",
-  );
-  await writeFile(join(dir, ".gitignore"), `${ignore}/floorplan/\n`);
 }
 
 describe("eject after init", { timeout: 60_000 }, () => {
@@ -151,7 +147,7 @@ describe("eject after init", { timeout: 60_000 }, () => {
   });
 
   for (const [stack, files] of Object.entries(FIXTURES)) {
-    it(`leaves a ${stack} repo as it was, with its docs and CI and no Rivetari`, async () => {
+    it(`leaves a ${stack} repo as it was, with its evidence and no Rivetari`, async () => {
       const dir = await mkdtemp(join(tmpdir(), `eject-${stack}-`));
       made.push(dir);
       for (const [rel, text] of Object.entries(files)) {
@@ -181,16 +177,11 @@ describe("eject after init", { timeout: 60_000 }, () => {
       // The repo's own files are byte for byte what they were, so its
       // commands do what they did before init.
       for (const [rel, text] of before) expect(after.get(rel), rel).toBe(text);
+      // Everything init wrote went, since none of it changed; only the
+      // evidence, a person's record, is left over.
       const added = [...after.keys()].filter((k) => !before.has(k)).sort();
       expect(added).toEqual(
-        [
-          ".github/PULL_REQUEST_TEMPLATE.md",
-          "AGENTS.md",
-          "CONSTRAINTS.md",
-          ...(stack === "node"
-            ? [".github/workflows/ci.yml", "docs/evidence/evidence.yml"]
-            : []),
-        ].sort(),
+        stack === "node" ? ["docs/evidence/evidence.yml"] : [],
       );
       for (const [rel, text] of after) {
         expect(rel).not.toMatch(/rivetari/i);
@@ -202,12 +193,77 @@ describe("eject after init", { timeout: 60_000 }, () => {
         );
         await run(process.execPath, ["--test"], { cwd: dir });
       }
-      const agents = after.get("AGENTS.md")!;
-      expect(agents).toContain("## Protected paths");
-      expect(agents).toContain("## Stop and ask");
-      expect(agents).toContain("## This repo");
-      expect(agents).toContain(`- **${basename(dir)}**: cli`);
-      expect(agents).not.toContain("## The beats");
     });
   }
+
+  const initialise = async (files: Record<string, string>) => {
+    const dir = await mkdtemp(join(tmpdir(), "eject-own-"));
+    made.push(dir);
+    for (const [rel, text] of Object.entries(files)) {
+      await mkdir(join(dir, rel, ".."), { recursive: true });
+      await writeFile(join(dir, rel), text);
+    }
+    expect(
+      await runInit(dir, { type: "cli", yes: true }, { token: null }),
+    ).toBe(0);
+    return dir;
+  };
+
+  it("puts back the CLAUDE.md and .gitattributes init changed, from what it recorded", async () => {
+    const claude = "# CLAUDE.md\n\nUse tabs, not spaces.\n";
+    const dir = await initialise({
+      "CLAUDE.md": claude,
+      ".gitattributes": "* text=auto\n",
+    });
+    expect(await readFile(join(dir, "CLAUDE.md"), "utf8")).not.toBe(claude);
+    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(await readFile(join(dir, "CLAUDE.md"), "utf8")).toBe(claude);
+    expect(
+      (await readdir(dir)).filter((n) => n.startsWith("CLAUDE.md.bak")),
+    ).toEqual([]);
+    expect(await readdir(dir)).not.toContain("AGENTS.md");
+    // Init appended to .gitattributes without a backup: it stays, with the line named.
+    expect(await readFile(join(dir, ".gitattributes"), "utf8")).toContain(
+      ".rivetari/** text eol=lf",
+    );
+    const printed = vi
+      .mocked(process.stdout.write)
+      .mock.calls.map((c) => String(c[0]))
+      .join("");
+    expect(printed).toContain(
+      "  .gitattributes (init added these lines to it)\n      2: .rivetari/** text eol=lf\n",
+    );
+  });
+
+  it("leaves a doc edited after init, and lists what in it names Rivetari", async () => {
+    const dir = await initialise({ "README.md": "# tool\n" });
+    const agents = `${await readFile(join(dir, "AGENTS.md"), "utf8")}\nUse tabs.\n`;
+    await writeFile(join(dir, "AGENTS.md"), agents);
+    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(await readFile(join(dir, "AGENTS.md"), "utf8")).toBe(agents);
+    expect(await readdir(dir)).not.toContain("CONSTRAINTS.md");
+    const printed = vi
+      .mocked(process.stdout.write)
+      .mock.calls.map((c) => String(c[0]))
+      .join("");
+    expect(printed).toContain(
+      "  AGENTS.md (changed since init, so eject leaves it)\n",
+    );
+    expect(printed).toMatch(/ {6}\d+: .*rivetari/i);
+  });
+
+  it("keeps how a file first came to be across a re-init", async () => {
+    const claude = "# CLAUDE.md\n\nUse tabs, not spaces.\n";
+    const dir = await initialise({ "CLAUDE.md": claude });
+    expect(
+      await runInit(
+        dir,
+        { type: "cli", yes: true, force: true },
+        { token: null },
+      ),
+    ).toBe(0);
+    expect(await runEject(dir, { yes: true })).toBe(0);
+    expect(await readFile(join(dir, "CLAUDE.md"), "utf8")).toBe(claude);
+    expect(await readdir(dir)).not.toContain("AGENTS.md");
+  });
 });
