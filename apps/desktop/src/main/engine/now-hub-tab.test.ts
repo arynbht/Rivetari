@@ -59,6 +59,8 @@ function fakeWatch() {
     repo: string;
     intervalMs: number | undefined;
     emit: (event: TaskEvent) => void;
+    /** The watcher's first full read (the branch merged in) has landed. */
+    read: () => void;
     stop: ReturnType<typeof vi.fn>;
   }[] = [];
   const watch = ((repo, onEvent, options = {}) => {
@@ -67,6 +69,7 @@ function fakeWatch() {
       repo,
       intervalMs: options.intervalMs,
       emit: onEvent,
+      read: () => options.onRead?.(),
       stop,
     });
     return {
@@ -127,14 +130,24 @@ describe("the Tasks tab on the hub", () => {
     expect(hub.views("/b").map((v) => v.id)).toEqual(["T-0001"]);
   });
 
-  it("watches a repo only the tab shows, and drops it when the tab goes", async () => {
-    const { hub, watchers } = setup();
+  it("watches a repo only the tab shows, with no badge or notice, and drops it when the tab goes", async () => {
+    const { hub, watchers, onNew } = setup();
     const watching = hub.watchTab("/solo", vi.fn());
     expect(watchers).toHaveLength(1);
     expect(watchers[0]).toMatchObject({ repo: "/solo", intervalMs: 100 });
     watchers[0]!.emit({ kind: "error", message: "busy" });
     watchers[0]!.emit({ kind: "snapshot", tasks: [] });
     await expect(watching).resolves.toEqual({ views: [], error: null });
+    watchers[0]!.read();
+    watchers[0]!.emit({
+      kind: "added",
+      task: view("T-0001", {
+        needsYou: { kind: "stop", why: "q" },
+        entries: [entry(1, "asked: q", "2026-11-25T00:00:00.000Z")],
+      }),
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(hub.badges()).toEqual([]);
     await hub.unwatchTab();
     expect(watchers[0]!.stop).toHaveBeenCalled();
     expect(hub.views("/solo")).toEqual([]);
@@ -162,11 +175,49 @@ describe("what the hub tells as new, and as gone", () => {
       ],
     });
 
-  it("goes by the task's own ledger seq, not the entry's clock, for a task it read at first", async () => {
+  it("doesn't tell the branch catching up with a local-first list as news, however far ahead its seq", async () => {
+    const { hub, watchers, onNew } = setup();
+    await hub.setRepos(["/a"]);
+    const w = watchers[0]!;
+    // This machine's copy of T-0001 ends at seq 1.
+    w.emit({ kind: "snapshot", tasks: [view("T-0001")] });
+    // The branch read brings in seq 7: a stop asked on another machine last week.
+    w.emit({
+      kind: "changed",
+      task: stop(
+        "T-0001",
+        7,
+        "schema: adds a column",
+        "2026-11-17T10:00:00.000Z",
+      ),
+      newEntries: [],
+      previousBeat: "build",
+      closed: false,
+    });
+    w.read();
+    expect(onNew).not.toHaveBeenCalled();
+
+    // Caught up: the next question, at seq 8, is news.
+    w.emit({
+      kind: "changed",
+      task: stop("T-0001", 8, "dependency: adds y", "2026-11-17T11:00:00.000Z"),
+      newEntries: [],
+      previousBeat: "build",
+      closed: false,
+    });
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(onNew).toHaveBeenCalledWith(
+      "/a",
+      expect.objectContaining({ id: "T-0001", why: "dependency: adds y" }),
+    );
+  });
+
+  it("goes by the task's own ledger seq, not the entry's clock, once caught up", async () => {
     const { hub, watchers, onNew } = setup();
     await hub.setRepos(["/a"]);
     const w = watchers[0]!;
     w.emit({ kind: "snapshot", tasks: [view("T-0001"), view("T-0002")] });
+    w.read();
 
     // Another machine's clock is days behind, but the ledger moved on: news.
     w.emit({

@@ -319,9 +319,14 @@ interface Watched {
   /** Items already heard of, so each is told once. */
   known: Set<string>;
   primed: boolean;
-  /** Each task's last ledger seq at the first read, the mark a new item is judged by. */
+  /**
+   * The watcher's first full read has landed: the branch's view is merged
+   * into the local-first list, and what comes after is news, not catching up.
+   */
+  caughtUp: boolean;
+  /** Each task's last ledger seq once caught up, the mark a new item is judged by. */
   primedSeq: Map<string, number>;
-  /** When the hub started watching, for a task the first read didn't have. */
+  /** When the hub started watching, for what arrives before it caught up. */
   since: number;
   /** Settles once the first read lands, or once the repo stops being watched. */
   firstRead: Promise<void>;
@@ -344,6 +349,8 @@ const keyOf = (path: string) => {
 export class NowHub {
   private readonly repos = new Map<string, Watched>();
   private sidebar: string[] = [];
+  /** The sidebar's repos: only theirs get badges and notifications. */
+  private sidebarKeys = new Set<string>();
   private tab: TabListener | null = null;
   private shown: string | null = null;
   private lastBadges = "";
@@ -360,6 +367,7 @@ export class NowHub {
   /** Watch exactly these repos: new ones start, ones no longer listed stop. */
   async setRepos(paths: string[]): Promise<void> {
     this.sidebar = paths;
+    this.sidebarKeys = new Set(paths.map(keyOf));
     await this.sync();
   }
 
@@ -414,12 +422,17 @@ export class NowHub {
     return this.repos.get(keyOf(repoPath))?.views ?? [];
   }
 
-  /** How many items wait on a person in each repo; told on only when `force` or changed. */
+  /**
+   * How many items wait on a person in each sidebar repo; told on only when
+   * `force` or changed. A repo only the Tasks tab keeps watched has no badge.
+   */
   badges(force = false): NowBadges {
-    const badges = [...this.repos.values()].map((e) => ({
-      repoPath: e.repoPath,
-      count: needsYouItems(e.views).length,
-    }));
+    const badges = [...this.repos.entries()]
+      .filter(([key]) => this.sidebarKeys.has(key))
+      .map(([, e]) => ({
+        repoPath: e.repoPath,
+        count: needsYouItems(e.views).length,
+      }));
     const said = JSON.stringify(badges);
     if (force || said !== this.lastBadges) {
       this.lastBadges = said;
@@ -461,6 +474,7 @@ export class NowHub {
           error: null,
           known: new Set(),
           primed: false,
+          caughtUp: false,
           primedSeq: new Map(),
           since: this.now(),
           firstRead,
@@ -511,7 +525,14 @@ export class NowHub {
         this.told(entry);
         this.badges();
       },
-      { intervalMs: entry.interval, localFirst },
+      {
+        intervalMs: entry.interval,
+        localFirst,
+        onRead: () => {
+          if (entry.watcher === watcher && this.has(entry))
+            this.caughtUp(entry);
+        },
+      },
     );
     entry.watcher = watcher;
     watcher.ready.catch((err: unknown) => {
@@ -536,9 +557,19 @@ export class NowHub {
     return this.repos.get(keyOf(entry.repoPath)) === entry;
   }
 
+  /** The first full read landed: each task's seq from here is the mark. */
+  private caughtUp(entry: Watched): void {
+    if (entry.caughtUp) return;
+    entry.caughtUp = true;
+    entry.primedSeq = new Map(
+      entry.views.map((v) => [v.id, v.entries.at(-1)?.seq ?? 0]),
+    );
+  }
+
   /**
    * Tell `onNew` about items it hasn't heard of, and `onGone` about the ones
-   * that went. The first read only learns what's there; isNew judges after it.
+   * that went, for a sidebar repo. The first read only learns what's there;
+   * isNew judges after it.
    */
   private heard(entry: Watched): void {
     if (!entry.ready) return;
@@ -546,35 +577,35 @@ export class NowHub {
     const keys = new Set(items.map(itemKey));
     if (!entry.primed) {
       entry.known = keys;
-      entry.primedSeq = new Map(
-        entry.views.map((v) => [v.id, v.entries.at(-1)?.seq ?? 0]),
-      );
       entry.primed = true;
       return;
     }
+    const tells = this.sidebarKeys.has(keyOf(entry.repoPath));
     for (const item of items) {
       const key = itemKey(item);
       if (entry.known.has(key)) continue;
       entry.known.add(key);
-      if (this.isNew(entry, item)) this.options.onNew(entry.repoPath, item);
+      if (tells && this.isNew(entry, item))
+        this.options.onNew(entry.repoPath, item);
     }
     for (const key of entry.known)
       if (!keys.has(key)) {
         entry.known.delete(key);
-        this.options.onGone?.(entry.repoPath, key);
+        if (tells) this.options.onGone?.(entry.repoPath, key);
       }
   }
 
   /**
-   * Whether an item raised since the first read is news. For a task the first
-   * read had, it is when the task's ledger has moved past the seq it had then:
-   * the ledger's own order, whichever machine's clock wrote the entry. A task
-   * the first read didn't have (another machine's, brought in by the branch
-   * read) has no seq to go by, so its entry's time is held against when the
-   * hub started: one waiting since before isn't told as new.
+   * Whether an item raised since the first read is news. Once the watcher's
+   * first full read has landed, a task it had is news when its ledger moves
+   * past the seq it had then: the ledger's own order, whichever machine's
+   * clock wrote the entry. Before that (a local-first list catching up with
+   * the branch), and for a task the full read didn't have, there's no seq to
+   * go by, so the entry's time is held against when the hub started: one
+   * waiting since before isn't told as new.
    */
   private isNew(entry: Watched, item: NeedsYouItem): boolean {
-    const seen = entry.primedSeq.get(item.id);
+    const seen = entry.caughtUp ? entry.primedSeq.get(item.id) : undefined;
     if (seen !== undefined) return item.ledgerSeq > seen;
     const raised = entry.views
       .find((v) => v.id === item.id)

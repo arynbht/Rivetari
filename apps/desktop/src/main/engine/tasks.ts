@@ -80,7 +80,8 @@ const stateOf = (
 /**
  * Show `repoPath`'s tasks, replacing any repo shown before. Resolves with the
  * first state; every later change is handed to `onState`. `intervalMs` only
- * sets how often a hub made here reads (a test's); the app's hub has its own.
+ * sets how often a hub made here reads (a test's), on the call that makes it;
+ * after that, and with the app's hub (shareHub), the hub's own intervals hold.
  */
 export async function watchRepoTasks(
   repoPath: string,
