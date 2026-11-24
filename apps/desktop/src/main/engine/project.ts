@@ -136,6 +136,31 @@ const list = (items: readonly string[]) =>
 
 const RUNNER = /^(npm|pnpm|yarn)(?=\s|$)/;
 
+/** The scripts npm runs without `run`; any other needs it. */
+const NPM_SHORTHANDS = new Set(["start", "test", "stop", "restart"]);
+
+/**
+ * `start` run with `pm` instead of the runner it names. pnpm and yarn run a
+ * script by its bare name (`pnpm dev`) and npm doesn't, so moving to npm adds
+ * `run` unless the word is `run`, `exec` or one of npm's shorthands, and a
+ * one-off `dlx` becomes `npx`.
+ */
+export function withRunner(start: string, pm: PackageManager): string {
+  const rest = start.replace(RUNNER, "").trim();
+  const [first = "", ...args] = rest.split(/\s+/);
+  if (first === "dlx")
+    return pm === "npm" ? ["npx", ...args].join(" ") : `${pm} ${rest}`;
+  if (
+    pm === "npm" &&
+    first !== "" &&
+    first !== "run" &&
+    first !== "exec" &&
+    !NPM_SHORTHANDS.has(first)
+  )
+    return `npm run ${rest}`;
+  return rest ? `${pm} ${rest}` : pm;
+}
+
 /**
  * Each field Rivetari can read from the repo, profile.yml's value beside the
  * repo's, and the change that brings the profile in line where they differ.
@@ -265,7 +290,7 @@ export function projectFields(
         ? {
             path: "proof.start",
             from: start,
-            to: start.replace(RUNNER, detected.packageManager),
+            to: withRunner(start, detected.packageManager),
           }
         : null,
     ),
@@ -519,9 +544,18 @@ export async function readRecords(
   repoPath: string,
   views: TaskView[],
 ): Promise<
-  Pick<ProjectView, "autonomy" | "proof" | "skills" | "banned" | "openTask">
+  Pick<
+    ProjectView,
+    "autonomy" | "proof" | "skills" | "banned" | "openTask" | "profileError"
+  >
 > {
-  const profile = await loadProfile(repoPath).catch(() => null);
+  // A profile.yml that won't load is said, so the proof and autonomy it holds
+  // show as unreadable rather than as unset; the held check may predate it.
+  let profileError: string | null = null;
+  const profile = await loadProfile(repoPath).catch((err: unknown) => {
+    profileError = `profile.yml can't be read: ${message(err)}`;
+    return null;
+  });
   const proof = profile?.proof;
   const banned = await loadBanned(repoPath).then(
     (list) => ({
@@ -555,5 +589,6 @@ export async function readRecords(
     skills: await readSkills(repoPath, views),
     banned,
     openTask: open ? { id: open.id, title: open.title } : null,
+    profileError,
   };
 }

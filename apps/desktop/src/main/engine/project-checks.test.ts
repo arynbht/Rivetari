@@ -22,6 +22,7 @@ function setup() {
   }));
   const records = vi.fn(async () => ({
     openTask: null,
+    profileError: null,
     autonomy: { configured: "supervised", entries: [], problems: [] },
     proof: null,
     skills: {

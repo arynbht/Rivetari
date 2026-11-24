@@ -469,6 +469,8 @@ export const ProjectView = z.object({
   fields: z.array(ProjectField),
   /** Flags profile.yml sets that no file can show (has-users, eu-users, …). */
   otherFlags: z.array(z.string()),
+  /** Why profile.yml can't be read now, read fresh with the records. */
+  profileError: z.string().nullable(),
   /** An open task that already changes profile.yml, if there is one. */
   openTask: z.object({ id: z.string(), title: z.string() }).nullable(),
   autonomy: z.object({

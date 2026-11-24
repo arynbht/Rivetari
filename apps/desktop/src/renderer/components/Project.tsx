@@ -89,12 +89,21 @@ function FieldRow({
   );
 }
 
-function Autonomy({ autonomy }: { autonomy: ProjectView["autonomy"] }) {
+function Autonomy({
+  autonomy,
+  unreadable,
+}: {
+  autonomy: ProjectView["autonomy"];
+  /** profile.yml won't load, so the configured level isn't known. */
+  unreadable: boolean;
+}) {
   return (
     <div className="space-y-2">
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-muted-foreground">Configured (profile.yml)</dt>
-        <dd className="font-medium">{autonomy.configured ?? "not set"}</dd>
+        <dd className="font-medium">
+          {unreadable ? "can't be read" : (autonomy.configured ?? "not set")}
+        </dd>
         <dt className="text-muted-foreground">Effective level</dt>
         <dd>
           run <code>rivetari autonomy</code> to see it and what the next level
@@ -160,7 +169,19 @@ function Autonomy({ autonomy }: { autonomy: ProjectView["autonomy"] }) {
   );
 }
 
-function Proof({ proof }: { proof: ProjectView["proof"] }) {
+function Proof({
+  proof,
+  unreadable,
+}: {
+  proof: ProjectView["proof"];
+  unreadable: boolean;
+}) {
+  if (unreadable)
+    return (
+      <p className="text-xs text-amber-300">
+        profile.yml can&apos;t be read, so its proof settings aren&apos;t known.
+      </p>
+    );
   if (!proof)
     return (
       <p className="text-xs text-muted-foreground">
@@ -517,6 +538,11 @@ export function Project({
         )
       ) : (
         <>
+          {view.profileError && (
+            <p className="text-sm text-amber-300" role="alert">
+              {view.profileError}
+            </p>
+          )}
           {view.problems.map((p) => (
             <p key={p} className="text-sm text-amber-300">
               {p}
@@ -604,14 +630,17 @@ export function Project({
             <h3 id="project-autonomy" className="text-sm font-semibold">
               Autonomy
             </h3>
-            <Autonomy autonomy={view.autonomy} />
+            <Autonomy
+              autonomy={view.autonomy}
+              unreadable={view.profileError !== null}
+            />
           </section>
 
           <section aria-labelledby="project-proof" className="space-y-2">
             <h3 id="project-proof" className="text-sm font-semibold">
               Proof
             </h3>
-            <Proof proof={view.proof} />
+            <Proof proof={view.proof} unreadable={view.profileError !== null} />
           </section>
 
           <section aria-labelledby="project-skills" className="space-y-2">

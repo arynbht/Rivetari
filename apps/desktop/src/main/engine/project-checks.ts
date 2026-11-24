@@ -42,6 +42,8 @@ export class ProjectChecks {
     { check: ProjectCheck; at: number }
   >();
   private readonly running = new Map<string, Promise<ProjectCheck>>();
+  /** How many times each repo was forgotten, so a late check knows. */
+  private readonly forgets = new Map<string, number>();
   private readonly now: () => number;
 
   constructor(private readonly options: ProjectChecksOptions) {
@@ -75,7 +77,10 @@ export class ProjectChecks {
 
   /** A repo left the sidebar: nothing more to keep current for it. */
   forget(repoPath: string): void {
-    this.held.delete(keyOf(repoPath));
+    const key = keyOf(repoPath);
+    this.held.delete(key);
+    // A check already running for it mustn't hold it again when it lands.
+    this.forgets.set(key, (this.forgets.get(key) ?? 0) + 1);
   }
 
   /** One check per repo at a time: a second ask waits on the first. */
@@ -84,10 +89,12 @@ export class ProjectChecks {
     const running = this.running.get(key);
     if (running) return running;
     const started = this.now();
+    const forgotten = this.forgets.get(key) ?? 0;
     const next = this.options
       .check(repoPath)
       .then((check) => {
-        this.held.set(key, { check, at: started });
+        if ((this.forgets.get(key) ?? 0) === forgotten)
+          this.held.set(key, { check, at: started });
         return check;
       })
       .finally(() => {
