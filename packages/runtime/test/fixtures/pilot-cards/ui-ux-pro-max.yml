@@ -1,0 +1,26 @@
+name: ui-ux-pro-max
+source: nextlevelbuilder/ui-ux-pro-max-skill/.claude/skills/ui-ux-pro-max
+pin: a4fc248f6136552cb881e298847abc7ddce84e6b
+hash: sha256:a924558da7692f8f8f252f5b3969a3b5e4e1975ee9c92a1e0bfc3c7122ade44a
+license: MIT
+scope: task
+sectors:
+  - ui
+phases:
+  - build
+  - polish
+  - review
+triggers:
+  paths: ["**/*.css", "src/components/**", "src/app/**/page.tsx", "DESIGN.md"]
+  keywords: [design, layout, typography, colour, color, accessibility, spacing]
+  flags: []
+provides: []
+conflicts: []
+requires: []
+commands: []
+tokens: 4500
+tools:
+  - none
+tested_on: 2026-11-24
+scan_allow: []
+controls: []

@@ -1,0 +1,90 @@
+id: T-0016
+title: Give the trend charts their values as text and a data-table toggle
+type: feature
+source: prompt
+description: "The three trend charts in src/components/trendCharts.tsx can only
+  be read by hovering. TimeTrend (:100-112), PeriodBars (:210-224) and
+  CompareChart (:365-379) each render an svg with role=img and a one-line
+  aria-label such as 'Average timing and depth scores over the period'
+  (src/app/cloud/TrendsTab.tsx:183). The actual values only appear in the hover
+  tooltip (Tip, :26-33), which needs a pointer and has no keyboard path
+  (03a-console-code-inventory.md section 8, item 1). These charts are on the
+  athlete Trends tab (TrendsTab.tsx:147, :172, :198, :222), the Compare page
+  (src/app/cloud/trends/page.tsx:182) and the period report
+  (src/app/cloud/report/page.tsx:465, :504, :535). The report draws each chart
+  twice: a screen copy and an aria-hidden print copy (report/page.tsx:706-725).
+  Inside the components themselves, so the callers stay as they are: (a) give
+  each chart a short text summary for screen readers, linked to the svg with
+  aria-describedby, giving the number of points, the date range and the lowest,
+  highest and latest value in the chart's own format; (b) put a 'Show values as
+  a table' toggle under the chart that reveals a real table. Build the rows in a
+  pure helper in a new .ts file so they can be unit-tested. vitest only picks up
+  src/**/*.test.ts and this repo has no React test setup."
+acceptance:
+  - id: A1
+    text: a new src/components/chartTable.test.ts covers the row builders in
+      src/components/chartTable.ts. TimeTrend points come out sorted by time,
+      with the tooltip label, the value in the chart's format, and 'Outside the
+      target' when out is set. PeriodBars gives one row per bar with its label
+      and value plus unit. CompareChart gives one row per bucket (period word
+      and date) and one column per series, with '–' for null. The summary
+      sentence gives the count, date range and lowest, highest and latest value
+    verify: unit
+  - id: A2
+    text: every TimeTrend, PeriodBars and CompareChart with data shows a 'Show
+      values as a table' button under the chart (a button with aria-expanded and
+      aria-controls). Collapsed, the chart area looks the same as before in the
+      375px, 768px and 1280px screenshots apart from the button. A chart with no
+      data shows no button
+    verify: screenshot
+  - id: A3
+    text: with the keyboard alone, Tab reaches the toggle and Enter or Space opens a
+      table with a caption naming the chart, th headers and the same values as
+      the tooltips. The table fits its pane at 375px without making the page
+      scroll sideways
+    verify: manual
+  - id: A4
+    text: each svg keeps role=img and its aria-label and gains aria-describedby
+      pointing at the summary text. In print preview of
+      /cloud/report/?athlete=demo-athlete no toggle or table appears and the
+      printed charts are unchanged
+    verify: manual
+  - id: A5
+    text: axe reports 0 serious or critical violations on the listed pages
+    verify: screenshot
+out_of_scope:
+  - "Changing callers: TrendsTab.tsx, trends/page.tsx, report/page.tsx,
+    report.css"
+  - The tooltip's role=status live region (trendCharts.tsx:29) and keyboard
+    focus on single points or click-to-open-session (trendCharts.tsx:110)
+  - The legacy charts in src/components/charts.tsx (TrendChart, RateBars,
+    Sparkline) and the session waveform charts in
+    src/app/cloud/session/Waveform.tsx (the Batch 2 waveform data-table card)
+  - The Compare page's Side by side table on phones (B1-7) and the axe fixes
+    (B1-9). B1-9 does not touch charts
+  - Swapping the .viz-* literals in console.css for tokens (B1-12)
+touches:
+  - src/components/trendCharts.tsx
+  - src/components/chartTable.ts
+  - src/components/chartTable.test.ts
+  - src/app/cloud/console.css
+pages:
+  - /cloud/sessions/?athlete=demo-athlete&tab=trends
+  - /cloud/trends/
+  - /cloud/report/?athlete=demo-athlete
+constraints:
+  - no new dependencies
+  - no new code comments (quality.no-new-comments)
+  - do not modify existing tests; add new test files
+  - follow DESIGN.md; colours come from tokens in src/app/globals.css
+  - "static export only (output: export): no server actions, route handlers or
+    dynamic routes"
+  - the props of TimeTrend, PeriodBars and CompareChart stay backward-compatible
+    (new props optional at most)
+  - the toggle uses the existing .link or ghost small .button styles and the
+    table uses .table; it is hidden in print (e.g. the existing .no-print rule
+    in console.css)
+  - ids come from React useId, so the report's two chart copies don't share an id
+risk: low
+owner: dev@example.com
+created: 2026-11-24

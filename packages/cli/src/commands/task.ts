@@ -35,6 +35,7 @@ import {
   parseCard,
   proveTask,
   pullTasks,
+  reasonSummary,
   repoAutonomy,
   reserveTaskId,
   routeTask,
@@ -392,7 +393,7 @@ export function runTaskRoute(
     const out: string[] = ["sectors:"];
     for (const s of routing.scores) {
       const mark = routing.assembly.sectors.includes(s.sector) ? "in" : "  ";
-      out.push(`  ${mark} ${s.sector} ${s.score}: ${s.reasons.join("; ")}`);
+      out.push(`  ${mark} ${s.sector} ${s.score}: ${reasonSummary(s.reasons)}`);
     }
     if (routing.borderline.length > 0)
       out.push(

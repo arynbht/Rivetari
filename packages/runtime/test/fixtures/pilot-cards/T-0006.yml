@@ -1,0 +1,58 @@
+id: T-0006
+title: Record the Cloud Run, local-backend and console-scoring decisions in
+  PLAN.md and README
+type: chore
+source: prompt
+description: "docs/PLAN.md:48-49 still says Firebase is the target backend and
+  that scores are computed in the app, and docs/PLAN.md:221-231 calls Cloud Run
+  a less-preferred alternative. The owner has made seven decisions (2026-11-23)
+  that override these: (1) the deploy target is Google Cloud Run using the
+  existing Dockerfile and nginx.conf (static export, nginx on $PORT 8080), with
+  no Firebase SDK, Firebase Hosting or emulators, and firebase/ and
+  firebase.json left untouched; (2) 'cloud' means the backend seam, ready but
+  local: BreathCloud features run on the local adapter, and a documented http
+  adapter stub is added for a future Cloud Run API; (3) the console computes
+  scores (method C for paced sessions, Appendix metrics for open sessions) in a
+  shared src/lib/analysis/ library, replacing 'scores are computed in the app';
+  (4) Total Breath Score = mean of the four sub-scores, rounded once; (5) Web
+  Bluetooth uses Nordic UART service UUIDs as a named, labelled assumption in
+  one config file, and the simulated sensor is the default; (6) PDF is browser
+  print with print stylesheets, with no server rendering; (7) a UI overhaul is
+  allowed, but it goes through DESIGN.md first. README.md:90-95 lists Firebase
+  Hosting and Cloud Run as equal targets and has no local Docker run step."
+acceptance:
+  - id: A1
+    text: docs/PLAN.md has a 'Decisions' section listing decisions 1-7 as stated in
+      the description, each dated 2026-11-23, and the rows they replace
+      (PLAN.md:48 Firebase as target backend, :49 scores computed in the app)
+      are marked superseded with a pointer to the new decision
+    verify: review
+  - id: A2
+    text: "docs/PLAN.md has a 'Cloud Run' section that replaces 'Alternative: Cloud
+      Run instead of Firebase Hosting': local docker build and docker run -p
+      8080:8080, the NEXT_PUBLIC_BACKEND build arg, and the future gcloud run
+      deploy command, marked as a step a person runs, not something CI or agents
+      run"
+    verify: review
+  - id: A3
+    text: README.md documents running locally (npm run dev) and in a container
+      (docker build -t breathband-console . then docker run -p 8080:8080
+      breathband-console, open http://localhost:8080/), names Cloud Run as the
+      deploy target, and no longer presents Firebase Hosting as an active target
+    verify: review
+  - id: A4
+    text: firebase/, firebase.json and every file outside docs/PLAN.md and README.md
+      are unchanged
+    verify: review
+out_of_scope:
+  - Any code, Dockerfile or nginx.conf change
+  - Deleting the Firebase plan text in Phase 4 (mark it superseded instead)
+touches:
+  - docs/PLAN.md
+  - README.md
+pages: []
+constraints:
+  - no new dependencies
+risk: low
+owner: dev@example.com
+created: 2026-11-24

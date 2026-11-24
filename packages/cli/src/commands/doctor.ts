@@ -14,7 +14,12 @@ import {
   resolveRepoSlug,
   runTool,
 } from "@arynbht/rivetari-engine";
-import { skillsStatus } from "@arynbht/rivetari-registry";
+import {
+  loadManifests,
+  readLock,
+  skillsStatus,
+} from "@arynbht/rivetari-registry";
+import { lockShortfall } from "@arynbht/rivetari-runtime";
 
 import { guardSelfTest } from "./hook.js";
 
@@ -165,15 +170,28 @@ export async function doctorChecks(
     ? await skillsStatus(root).catch((err: Error) => [err.message])
     : [];
   const locked = await exists(join(root, ".rivetari", "skills.lock"));
+  const short =
+    isRepo && locked && problems.length === 0
+      ? await lockShortDetail(root).catch(
+          (err: Error) =>
+            `couldn't check the lock against this repo's files: ${err.message}`,
+        )
+      : null;
   checks.push(
     problems.length > 0
       ? { name: "skills", status: "fail", detail: problems.join("; ") }
       : locked
-        ? {
-            name: "skills",
-            status: "ok",
-            detail: "installed skills match the lock",
-          }
+        ? short
+          ? {
+              name: "skills",
+              status: "warn",
+              detail: `installed skills match the lock, but ${short}`,
+            }
+          : {
+              name: "skills",
+              status: "ok",
+              detail: "installed skills match the lock",
+            }
         : {
             name: "skills",
             status: "warn",
@@ -182,6 +200,39 @@ export async function doctorChecks(
           },
   );
   return checks;
+}
+
+/**
+ * What the lock is short of for this repo, or null: sectors its files route
+ * task skills into with none of them locked (a spine-only lock routes every
+ * task without sector skills, and nothing else says so), and a floorplan the
+ * profile keeps without the skill that draws it.
+ */
+async function lockShortDetail(root: string): Promise<string | null> {
+  const { manifests } = await loadManifests(root);
+  const lock = await readLock(root);
+  const locked = new Set(lock.skills.map((s) => s.name));
+  const listed = await runTool("git", ["ls-files"], root);
+  if (listed.exitCode !== 0)
+    throw new Error(`git ls-files failed: ${listed.stderr.trim()}`);
+  const files = listed.stdout
+    .split("\n")
+    .map((f) => f.trim())
+    .filter(Boolean);
+  const short = lockShortfall({ manifests, locked, files });
+  const profile = await loadProfile(root).catch(() => null);
+  const floorplan = profile?.floorplan === true && !locked.has("floorplan");
+  const gaps: string[] = [];
+  if (short[0])
+    gaps.push(
+      `it holds no task skill for ${short.map((s) => `${s.sector} (${s.skills.join(", ")})`).join(", ")}, which files like ${short[0].file} route to`,
+    );
+  if (floorplan)
+    gaps.push(
+      "the profile keeps a floorplan and the floorplan skill isn't locked",
+    );
+  if (gaps.length === 0) return null;
+  return `${gaps.join("; ")}: lock them with \`rivetari skills add <source>\` (or \`rivetari skills init\` for every shipped skill), then \`rivetari skills sync\``;
 }
 
 export const CROWDED_TEMP = 20_000;

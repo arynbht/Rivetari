@@ -6,19 +6,53 @@ import type { Sector } from "@arynbht/rivetari-registry";
 export interface SectorSignals {
   /** Matched as whole words in the card's title and description. */
   keywords: readonly string[];
+  /**
+   * Words that name other things too: a signal's "transition", a layout's
+   * "table". They count only alongside other evidence for the sector, never
+   * on their own.
+   */
+  ambiguous?: readonly string[];
   /** Matched against the card's `touches` and the repo files they cover. */
   paths: readonly string[];
+  /**
+   * Where the sector's work lives, and what to call it. A card that names its
+   * touches with none of them here can't bring the sector in on words: a
+   * library card that says "transition" isn't animating anything.
+   */
+  livesIn?: { paths: readonly string[]; what: string };
 }
+
+const UI_FILES = [
+  "**/*.css",
+  "**/*.scss",
+  "**/*.tsx",
+  "**/*.jsx",
+  "**/*.vue",
+  "**/*.svelte",
+  "**/*.html",
+  "**/components/**",
+  "**/pages/**",
+  "app/**/page.*",
+];
+const UI_CODE = { paths: UI_FILES, what: "UI code" };
+const TEST_FILES = [
+  "**/*.test.*",
+  "**/*.spec.*",
+  "**/*.e2e.*",
+  "e2e/**",
+  "**/__tests__/**",
+  "**/test/**",
+  "**/tests/**",
+];
+const DOC_FILES = ["**/*.md", "**/*.mdx", "docs/**"];
 
 export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
   ui: {
     keywords: [
       "ui",
       "page",
-      "screen",
       "component",
       "layout",
-      "design",
       "redesign",
       "styling",
       "css",
@@ -32,29 +66,15 @@ export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
       "responsive",
       "frontend",
     ],
-    paths: [
-      "**/*.css",
-      "**/*.scss",
-      "**/*.tsx",
-      "**/*.jsx",
-      "**/*.vue",
-      "**/*.svelte",
-      "**/*.html",
-      "**/components/**",
-      "**/pages/**",
-      "app/**/page.*",
-    ],
+    ambiguous: ["design", "screen"],
+    paths: UI_FILES,
+    livesIn: UI_CODE,
   },
   motion: {
-    keywords: [
-      "animation",
-      "animate",
-      "motion",
-      "transition",
-      "easing",
-      "keyframes",
-    ],
+    keywords: ["animation", "animate", "motion", "easing", "keyframes"],
+    ambiguous: ["transition", "spring"],
     paths: [],
+    livesIn: UI_CODE,
   },
   api: {
     keywords: [
@@ -84,17 +104,14 @@ export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
     keywords: [
       "database",
       "db",
-      "query",
       "sql",
       "migration",
       "orm",
       "n+1",
-      "table",
-      "column",
-      "seed",
       "prisma",
       "postgres",
     ],
+    ambiguous: ["table", "column", "query", "seed"],
     paths: [
       "**/migrations/**",
       "**/*.sql",
@@ -141,18 +158,19 @@ export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
       "secret",
       "csrf",
       "xss",
-      "injection",
+      "sql injection",
       "vulnerability",
       "cve",
-      "permission",
       "oauth",
       "encryption",
     ],
+    ambiguous: ["injection", "permission"],
     paths: ["**/auth/**", "**/security/**", "**/crypto/**"],
   },
   testing: {
     keywords: ["test", "e2e", "flaky", "coverage", "playwright"],
     paths: ["**/*.test.*", "**/*.spec.*", "e2e/**", "**/__tests__/**"],
+    livesIn: { paths: TEST_FILES, what: "a test" },
   },
   a11y: {
     keywords: [
@@ -165,6 +183,7 @@ export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
       "contrast",
     ],
     paths: [],
+    livesIn: UI_CODE,
   },
   perf: {
     keywords: [
@@ -185,11 +204,12 @@ export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
       "documentation",
       "readme",
       "changelog",
-      "guide",
       "tutorial",
       "typo",
     ],
-    paths: ["**/*.md", "**/*.mdx", "docs/**"],
+    ambiguous: ["guide"],
+    paths: DOC_FILES,
+    livesIn: { paths: DOC_FILES, what: "docs" },
   },
   product: {
     keywords: ["prd", "requirements", "roadmap", "discovery", "user story"],
@@ -210,7 +230,8 @@ export const SECTOR_SIGNALS: Record<Sector, SectorSignals> = {
     paths: [],
   },
   workflow: {
-    keywords: ["ci", "github actions", "workflow", "release"],
+    keywords: ["ci", "github actions"],
+    ambiguous: ["workflow", "release"],
     paths: [".github/**"],
   },
   observability: {

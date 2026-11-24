@@ -94,6 +94,11 @@ export interface RouteInput {
   manifests: ReadonlyMap<string, Manifest>;
   /** Skills that can be loaded: locked, synced and not blocked. */
   available: ReadonlySet<string>;
+  /**
+   * Skills the lock holds, so a skill that matched but can't load is told
+   * apart: not locked (add it) or locked but not loaded (sync it).
+   */
+  locked?: ReadonlySet<string> | undefined;
   /** The profile's flags. */
   flags?: Readonly<Record<string, boolean | undefined>> | undefined;
   /** The repo's files (`git ls-files`), to expand `touches` and spot IaC. */
@@ -119,6 +124,8 @@ export interface Routing {
    * words in the description scored them; still listed for the approver.
    */
   decidedOut: Sector[];
+  /** Why each sector in `decidedOut` is out, as the ledger says it. */
+  outReasons: Partial<Record<Sector, string>>;
   /** Decisions made along the way: conflicts, unavailable skills, the cap. */
   notes: string[];
 }
@@ -132,7 +139,7 @@ export function hasWord(text: string, word: string): boolean {
   ).test(text.toLowerCase());
 }
 
-/** The first glob that matches a `touches` pattern or a file it covers. */
+/** The first touched path a glob matches: a `touches` pattern or a file it covers. */
 function pathHit(
   globs: readonly string[],
   touched: readonly string[],
@@ -140,7 +147,7 @@ function pathHit(
   for (const glob of globs) {
     const isMatch = picomatch(glob, { dot: true });
     const hit = touched.find((t) => isMatch(t));
-    if (hit) return hit === glob ? glob : `${glob} (${hit})`;
+    if (hit) return hit;
   }
   return undefined;
 }
@@ -150,60 +157,131 @@ function isDocsTouch(touch: string): boolean {
   return path.toLowerCase().endsWith(".md") || path.startsWith("docs/");
 }
 
+/** Path-like words in a card: `src/lib/x.test.ts`, `docs/PLAN.md:48`, `README.md`. */
+const PATHISH = /[\w.@-]+(?:\/[\w.@[\]-]+)+|[\w-]+\.[a-z][a-z0-9]{0,4}\b/gi;
+
+/**
+ * What the card touches: its `touches`, the repo files they cover, and the
+ * files its text names inside them. A test file an acceptance criterion
+ * promises under a `src/lib/**` touch is touched, though it doesn't exist yet.
+ */
+function touchedPaths(card: Card, files: readonly string[]): string[] {
+  if (card.touches.length === 0) return [];
+  // Wrapped: a bare matcher would take filter's index as `returnObject`.
+  const isMatch = picomatch([...card.touches], { dot: true });
+  const inTouches = (path: string) => isMatch(path);
+  const text = [
+    card.title,
+    card.description,
+    ...card.acceptance.map((a) => a.text),
+  ].join("\n");
+  const named = (text.match(PATHISH) ?? []).map((n) => n.replace(/\.+$/, ""));
+  return [
+    ...new Set([
+      ...card.touches,
+      ...files.filter(inTouches),
+      ...named.filter(inTouches),
+    ]),
+  ];
+}
+
+/** Sectors a card that only touches docs can still be about. */
+const DOC_SECTORS = new Set<Sector>(["docs", "product", "legal"]);
+
+/** What a sector scored on. */
+type Evidence = "path" | "title" | "words" | "repo";
+
+/**
+ * A sector's reasons for the ledger, shortest first: paths, then the words
+ * grouped by where they were found, without a skill's path trigger that only
+ * repeats a path the sector already touches.
+ */
+export function reasonSummary(reasons: readonly string[]): string {
+  const words: Record<string, string[]> = { title: [], description: [] };
+  const rest: string[] = [];
+  const touches = reasons.some((r) => r.startsWith("touches "));
+  for (const reason of reasons) {
+    const word = /^("[^"]+") in the (title|description)$/.exec(reason);
+    if (word?.[1] && word[2]) words[word[2]]?.push(word[1]);
+    else if (!(touches && /^skill \S+ triggers on \S*[/.]/.test(reason)))
+      rest.push(reason);
+  }
+  for (const [where, found] of Object.entries(words))
+    if (found.length > 0) rest.push(`${found.join(", ")} in the ${where}`);
+  return rest.join("; ");
+}
+
 export function route(input: RouteInput): Routing {
   const { card, manifests, available } = input;
   const flags = input.flags ?? {};
   const files = input.files ?? [];
   const title = card.title.toLowerCase();
   const text = `${card.title}\n${card.description}`.toLowerCase();
-  let covered: string[] = [];
-  if (card.touches.length > 0) {
-    // Wrapped: a bare matcher would take filter's index as `returnObject`.
-    const inTouches = picomatch([...card.touches], { dot: true });
-    covered = files.filter((f) => inTouches(f));
-  }
-  const touched = [...card.touches, ...covered];
+  const touched = touchedPaths(card, files);
+  // A card that names its touches is routed on them: its description's
+  // words can add weight, but never a sector on their own.
+  const hasTouches = card.touches.length > 0;
   const notes: string[] = [];
-  const docsOnly =
-    card.touches.length > 0 && card.touches.every((t) => isDocsTouch(t));
-  const wordsScore = (sector: Sector) => !(docsOnly && sector === "ui");
+  const docsOnly = hasTouches && card.touches.every((t) => isDocsTouch(t));
+  const wordsScore = (sector: Sector) =>
+    !(docsOnly && !DOC_SECTORS.has(sector));
+  /** Why the touched paths rule a sector out, when they do. */
+  const against = (sector: Sector): string | undefined => {
+    if (!hasTouches) return undefined;
+    if (docsOnly)
+      return DOC_SECTORS.has(sector) ? undefined : "the card only touches docs";
+    const lives = SECTOR_SIGNALS[sector].livesIn;
+    return lives && !pathHit(lives.paths, touched)
+      ? `none of its touches is ${lives.what}`
+      : undefined;
+  };
 
   // 1–3. Score each sector: paths, keywords, manifest triggers, profile.
   const scores = new Map<Sector, SectorScore>();
-  // Sectors that scored on something besides a word in the description.
-  // Only evidence from a description word passes `keywordOnly`; anything
-  // else added (paths, title words, IaC) holds a borderline sector.
-  const beyondKeywords = new Set<Sector>();
+  const evidence = new Map<Sector, Set<Evidence>>();
+  const has = (sector: Sector, ...kinds: Evidence[]) =>
+    kinds.some((k) => evidence.get(sector)?.has(k));
   const add = (
     sector: Sector,
     points: number,
     reason: string,
-    keywordOnly = false,
+    kind: Evidence,
   ) => {
     const s = scores.get(sector) ?? { sector, score: 0, reasons: [] };
     s.score += points;
     s.reasons.push(reason);
     scores.set(sector, s);
-    if (!keywordOnly) beyondKeywords.add(sector);
+    evidence.set(sector, (evidence.get(sector) ?? new Set()).add(kind));
   };
   // The words each sector scored on, so a skill triggering on one of them
   // doesn't count it a second time.
   const scoredWords = new Map<Sector, Set<string>>();
+  const scoreWord = (sector: Sector, word: string, ambiguous = false) => {
+    if (scoredWords.get(sector)?.has(word.toLowerCase())) return;
+    // An ambiguous word is weak evidence wherever it is.
+    if (hasWord(title, word))
+      add(
+        sector,
+        ambiguous ? 1 : 2,
+        `"${word}" in the title`,
+        ambiguous ? "words" : "title",
+      );
+    else if (hasWord(text, word))
+      add(sector, 1, `"${word}" in the description`, "words");
+    else return;
+    scoredWords.set(
+      sector,
+      (scoredWords.get(sector) ?? new Set()).add(word.toLowerCase()),
+    );
+  };
+  const isAmbiguous = (sector: Sector, word: string) =>
+    SECTOR_SIGNALS[sector].ambiguous?.includes(word.toLowerCase()) === true;
   for (const sector of SECTORS) {
     const signals = SECTOR_SIGNALS[sector];
     const path = pathHit(signals.paths, touched);
-    if (path) add(sector, 2, `touches ${path}`);
+    if (path) add(sector, 2, `touches ${path}`, "path");
     if (!wordsScore(sector)) continue;
-    for (const word of signals.keywords) {
-      if (hasWord(title, word)) add(sector, 2, `"${word}" in the title`);
-      else if (hasWord(text, word))
-        add(sector, 1, `"${word}" in the description`, true);
-      else continue;
-      scoredWords.set(
-        sector,
-        (scoredWords.get(sector) ?? new Set()).add(word.toLowerCase()),
-      );
-    }
+    for (const word of signals.keywords) scoreWord(sector, word);
   }
   for (const m of manifests.values()) {
     if (m.scope !== "task") continue;
@@ -212,40 +290,64 @@ export function route(input: RouteInput): Routing {
       if (scores.get(sector)?.reasons.some((r) => r.startsWith("skill ")))
         continue;
       if (path) {
-        add(sector, 1, `skill ${m.name} triggers on ${path}`);
+        add(sector, 1, `skill ${m.name} triggers on ${path}`, "path");
         continue;
       }
       if (!wordsScore(sector)) continue;
       // A skill's keyword is still a word in the card: it adds nothing to
-      // the sector's own keyword for that word, and one found only in the
-      // description is keyword evidence like any other.
+      // the sector's own keyword for that word, an ambiguous one waits for
+      // the pass below, and one found only in the description is keyword
+      // evidence like any other.
       const word = m.triggers.keywords.find(
         (k) =>
-          hasWord(text, k) && !scoredWords.get(sector)?.has(k.toLowerCase()),
+          hasWord(text, k) &&
+          !isAmbiguous(sector, k) &&
+          !scoredWords.get(sector)?.has(k.toLowerCase()),
       );
       if (word)
         add(
           sector,
           1,
           `skill ${m.name} triggers on ${word}`,
-          !hasWord(title, word),
+          hasWord(title, word) ? "title" : "words",
         );
     }
   }
+  // Ambiguous words only add to a sector something else already points at:
+  // a word of its own, or a touched path where its work lives.
+  for (const sector of SECTORS) {
+    const lives = SECTOR_SIGNALS[sector].livesIn;
+    if (
+      !wordsScore(sector) ||
+      !(
+        scores.has(sector) ||
+        (hasTouches && lives && pathHit(lives.paths, touched))
+      )
+    )
+      continue;
+    for (const word of SECTOR_SIGNALS[sector].ambiguous ?? [])
+      scoreWord(sector, word, true);
+  }
   const isIac = picomatch(IAC_PATHS, { dot: true });
   const iac = files.some((f) => isIac(f));
-  if (iac) add("infra", 1, "the repo has infrastructure as code");
+  if (iac) add("infra", 1, "the repo has infrastructure as code", "repo");
 
+  // Over the threshold isn't enough when the card names its touches: the
+  // sector needs a touched path, or a title word with nothing in the paths
+  // against it. Description words, and the repo having IaC, only add weight.
+  const canEnter = (sector: Sector) =>
+    has(sector, "path") ||
+    (!against(sector) && (!hasTouches || has(sector, "title")));
   const inSectors = new Set<Sector>(
     [...scores.values()]
-      .filter((s) => s.score >= SECTOR_THRESHOLD)
+      .filter((s) => s.score >= SECTOR_THRESHOLD && canEnter(s.sector))
       .map((s) => s.sector),
   );
   // Profile flags bring in the sector they qualify, alongside it.
   const join = (sector: Sector, reason: string) => {
     if (inSectors.has(sector)) return;
     inSectors.add(sector);
-    beyondKeywords.add(sector);
+    evidence.set(sector, (evidence.get(sector) ?? new Set()).add("repo"));
     const s = scores.get(sector) ?? { sector, score: 0, reasons: [] };
     s.reasons.push(reason);
     scores.set(sector, s);
@@ -267,7 +369,15 @@ export function route(input: RouteInput): Routing {
   const borderline = ranked
     .filter((s) => !inSectors.has(s.sector) && s.score > 0)
     .map((s) => s.sector);
-  const decidedOut = borderline.filter((s) => !beyondKeywords.has(s));
+  // Words alone don't hold a route for a person: description words never,
+  // title words not when the touched paths rule the sector out.
+  const outReasons: Partial<Record<Sector, string>> = {};
+  for (const sector of borderline) {
+    if (has(sector, "path", "repo")) continue;
+    const why = has(sector, "title") ? against(sector) : KEYWORD_ONLY_REASON;
+    if (why) outReasons[sector] = why;
+  }
+  const decidedOut = borderline.filter((s) => outReasons[s] !== undefined);
 
   // 4. Phases from the task's type and wording.
   const phases = new Set<SkillPhase>(
@@ -285,8 +395,8 @@ export function route(input: RouteInput): Routing {
   }
 
   // Skills: task-scope manifests in the task's sectors and phases that
-  // trigger (or that the card names), best first; conflicts, requirements and
-  // the cap of four resolved in that order.
+  // trigger (or that the card names), best first; requirements, conflicts,
+  // the critique fallback and then the cap of four resolved in that order.
   const named = (name: string) => hasWord(text, name);
   const candidates = [...manifests.values()]
     .filter(
@@ -296,9 +406,16 @@ export function route(input: RouteInput): Routing {
         m.phases.some((p) => phases.has(p)),
     )
     .map((m) => {
-      const hits =
-        (pathHit(m.triggers.paths, touched) ? 1 : 0) +
-        m.triggers.keywords.filter((k) => hasWord(text, k)).length;
+      const path = pathHit(m.triggers.paths, touched) ? 1 : 0;
+      const words = m.triggers.keywords.filter((k) => hasWord(text, k));
+      // A skill that says where its work lives, on a card whose touches
+      // miss it, needs more than a word in the description to load.
+      const offPath =
+        hasTouches &&
+        m.triggers.paths.length > 0 &&
+        path === 0 &&
+        !words.some((k) => hasWord(title, k));
+      const hits = offPath ? 0 : path + words.length;
       // A profile flag ranks a skill that matched; it can't match one alone
       // (every UI task in a public-facing repo isn't a new page).
       const qualified =
@@ -314,30 +431,47 @@ export function route(input: RouteInput): Routing {
         a.m.name.localeCompare(b.m.name),
     );
 
-  const skills: string[] = [];
+  // Why a skill that matched can't load, as plainly as the lock allows.
+  const locked = input.locked;
+  const unloaded = (name: string) =>
+    locked === undefined
+      ? "isn't available (not locked, not synced, or blocked at sync)"
+      : !locked.has(name)
+        ? `isn't locked: run \`rivetari skills add ${manifests.get(name)?.source ?? name}\``
+        : "is locked but didn't load (blocked or not synced): run `rivetari skills sync`";
+  // The note each skill that couldn't load left, so a sector it would have
+  // covered can say which skill it's missing.
+  const unloadedNotes = new Map<string, string>();
+  if (available.size === 0 && candidates.length > 0) {
+    notes.push(
+      `no skills are ${locked?.size === 0 ? "locked" : "synced"} in this repo (\`rivetari skills init\`, then \`rivetari skills sync\`); matched: ${candidates.map((c) => c.m.name).join(", ")}`,
+    );
+    for (const { m } of candidates)
+      unloadedNotes.set(m.name, `${m.name} matched but ${unloaded(m.name)}`);
+  }
+  // Picked before the cap, so a skill removed for being unavailable, for a
+  // conflict or as the critique fallback never holds a place under it.
+  const picked: string[][] = [];
+  const pickedNames = () => picked.flat();
   const conflicting = (name: string) =>
-    skills.find(
+    pickedNames().find(
       (s) =>
         manifests.get(s)?.conflicts.includes(name) ||
         manifests.get(name)?.conflicts.includes(s),
     );
-  if (available.size === 0 && candidates.length > 0) {
-    notes.push(
-      `no skills are synced in this repo (\`rivetari skills init\`, then \`rivetari skills sync\`); matched: ${candidates.map((c) => c.m.name).join(", ")}`,
-    );
-  }
   for (const { m } of available.size > 0 ? candidates : []) {
-    if (skills.includes(m.name)) continue;
+    if (pickedNames().includes(m.name)) continue;
     const group = withRequires(m.name, manifests).filter(
-      (n) => !skills.includes(n),
+      (n) => !pickedNames().includes(n),
     );
     const missing = group.find((n) => !available.has(n));
     if (missing) {
-      notes.push(
+      const note =
         missing === m.name
-          ? `${m.name} matched but isn't available (not locked, not synced, or blocked at sync)`
-          : `${m.name} left out: it requires ${missing}, which isn't available`,
-      );
+          ? `${m.name} matched but ${unloaded(m.name)}`
+          : `${m.name} left out: it requires ${missing}, which ${unloaded(missing)}`;
+      notes.push(note);
+      unloadedNotes.set(m.name, note);
       continue;
     }
     const clash = group
@@ -347,22 +481,24 @@ export function route(input: RouteInput): Routing {
       notes.push(`${m.name} left out: ${clash[0]} conflicts with ${clash[1]}`);
       continue;
     }
+    picked.push(group);
+  }
+  const fallback = picked.findIndex((g) => g.at(-1) === CRITIQUE_FALLBACK);
+  if (fallback !== -1 && pickedNames().some((s) => CRITIQUE.includes(s))) {
+    picked.splice(fallback, 1);
+    notes.push(
+      `${CRITIQUE_FALLBACK} left out: a critique skill is already in the assembly`,
+    );
+  }
+  const skills: string[] = [];
+  for (const group of picked) {
     if (skills.length + group.length > MAX_TASK_SKILLS) {
       notes.push(
-        `${m.name} left out: the assembly is at ${MAX_TASK_SKILLS} skills`,
+        `${group.at(-1) ?? ""} left out: it would take the assembly past ${MAX_TASK_SKILLS} skills`,
       );
       continue;
     }
     skills.push(...group);
-  }
-  if (
-    skills.includes(CRITIQUE_FALLBACK) &&
-    skills.some((s) => CRITIQUE.includes(s))
-  ) {
-    skills.splice(skills.indexOf(CRITIQUE_FALLBACK), 1);
-    notes.push(
-      `${CRITIQUE_FALLBACK} left out: a critique skill is already in the assembly`,
-    );
   }
 
   const spine = [...manifests.values()]
@@ -370,22 +506,39 @@ export function route(input: RouteInput): Routing {
       (m) =>
         m.scope === "always" &&
         available.has(m.name) &&
-        (m.sectors.some((s) => inSectors.has(s)) || named(m.name)),
+        ((m.sectors.some((s) => inSectors.has(s)) &&
+          // Browser skills list ui among their sectors: a task without UI
+          // gets them only through their own paths, such as e2e specs.
+          (!m.sectors.includes("ui") ||
+            inSectors.has("ui") ||
+            pathHit(m.triggers.paths, touched) !== undefined)) ||
+          named(m.name)),
     )
     .map((m) => m.name)
     .sort();
 
-  const gaps = sectors
-    .filter(
-      (sector) =>
-        ![...skills, ...spine].some((n) =>
-          manifests.get(n)?.sectors.includes(sector),
-        ),
-    )
-    .map(
-      (sector) =>
-        `${sector}: no vendored skill covers it; the agent works from the spine`,
+  // A sector with no task skill loaded names the one that matched but
+  // couldn't load, even when the spine touches the sector: a short lock
+  // reads as one, not as a sector no skill covers.
+  const covers = (names: readonly string[], sector: Sector) =>
+    names.some((n) => manifests.get(n)?.sectors.includes(sector));
+  const gaps = sectors.flatMap((sector) => {
+    if (covers(skills, sector)) return [];
+    const missed = candidates.find(
+      (c) => c.m.sectors.includes(sector) && unloadedNotes.has(c.m.name),
     );
+    const note = missed && unloadedNotes.get(missed.m.name);
+    if (note) {
+      const at = notes.indexOf(note);
+      if (at !== -1) notes.splice(at, 1);
+      return [`${sector}: ${note}`];
+    }
+    return covers(spine, sector)
+      ? []
+      : [
+          `${sector}: no vendored skill covers it; the agent works from the spine`,
+        ];
+  });
 
   return {
     assembly: {
@@ -416,6 +569,7 @@ export function route(input: RouteInput): Routing {
     scores: ranked,
     borderline,
     decidedOut,
+    outReasons,
     notes,
   };
 }

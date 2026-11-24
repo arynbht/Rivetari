@@ -1,0 +1,8 @@
+---
+"@arynbht/rivetari-runtime": patch
+"@arynbht/rivetari": patch
+---
+
+The router now routes a card that names its touches on those paths. Words in its description add weight but never bring a sector in on their own, and a sector whose work lives in particular files (UI code, tests, docs) stays out when none of the touched paths is one of them, so a signal-processing card that says "transition" no longer gets the motion sector and its animation skills. Words that name other things too ("table", "column", "transition", "design") count only alongside other evidence for their sector, so a page's table no longer brings in data and, through PII, legal. A file a card's acceptance names inside its touches counts as touched, so a library card that promises a new test routes to testing. A docs-only card routes to docs with the docs proof. Browser proof skills no longer join a task without UI.
+
+A skill that matched but can't load now says why: "isn't locked: run `rivetari skills add <source>`", or locked but not synced, and a sector with no task skill loaded names that skill in its gap. `rivetari doctor` warns when the lock holds no task skill for a sector the repo's files route to (a spine-only lock in a web app, say), or when the profile keeps a floorplan without the floorplan skill locked. The four-skill cap now counts only skills that stay in the assembly, so a skill dropped as unavailable, for a conflict or as the critique fallback no longer keeps another out. Routing a task again to the same assembly no longer records it twice, and the route's reasons group their words and skip repeats.
