@@ -105,19 +105,26 @@ export async function dockerProof(options: {
         line: `docker: ${file} built; not run: no proof.docker.port in .rivetari/profile.yml to check it on, so whether it serves is unverified`,
       };
     const path = config.path ?? "/";
+    // Named, so a run that creates the container and then fails (a port
+    // already bound, say) can still be removed.
+    const name = image.replace(/:latest$/, "");
     const run = await docker([
       "run",
       "-d",
+      "--name",
+      name,
       "-p",
       `127.0.0.1:${hostPort}:${config.port}`,
       image,
     ]);
     const id = run.stdout.trim().split("\n").pop()?.trim() ?? "";
-    if (run.exitCode !== 0 || !id)
+    if (run.exitCode !== 0 || !id) {
+      await docker(["rm", "-f", name]).catch(() => null);
       return {
         status: "failed",
         line: `docker: ${file} built but didn't start (exit ${run.exitCode}): ${tail(`${run.stdout}\n${run.stderr}`)}`,
       };
+    }
     try {
       const url = `http://127.0.0.1:${hostPort}${path}`;
       const timeoutMs = (config.timeout ?? 60) * 1000;

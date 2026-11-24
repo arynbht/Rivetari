@@ -207,7 +207,7 @@ describe.skipIf(!hasBrowser)(
         page(
           `<h1>Trends</h1><div id="chart"></div>${
             rows
-              ? `<script>setTimeout(() => { document.getElementById("chart").innerHTML = '<p id="data">Alex Morgan 7</p>'; }, 1200);</script>`
+              ? `<script>setTimeout(() => { const p = document.createElement("p"); p.id = "data"; p.textContent = "Alex Morgan 7"; document.getElementById("chart").append(p); }, 1200);</script>`
               : ""
           }`,
         );
@@ -399,7 +399,7 @@ describe("infra-plan proof", { timeout: 120_000 }, () => {
       'FROM node:22-alpine\nCOPY . .\nCMD ["node", "server.js"]\n',
     );
 
-  it("with no docker, says the container check didn't run: unverified, never passed", async () => {
+  it("with no docker, says the container check didn't run: unverified, so the proof fails", async () => {
     const repo = await repoWith({
       ...INFRA_BASE,
       ".rivetari/profile.yml":
@@ -411,6 +411,7 @@ describe("infra-plan proof", { timeout: 120_000 }, () => {
       docker: join(repo, "no-such-docker"),
     });
     expect(record.kind).toBe("infra-plan");
+    expect(record.passed).toBe(false);
     expect(record.unverified).toEqual(["docker"]);
     expect(record.lines[0]).toBe(
       "infra-plan: the test run, then the container built, run and checked over HTTP (proof.docker)",
@@ -419,7 +420,7 @@ describe("infra-plan proof", { timeout: 120_000 }, () => {
       "docker: not run: docker unavailable; unverified, a person attaches the infra-plan proof",
     );
     const ledger = await readFile(task.ledger.mdPath, "utf8");
-    expect(ledger).toContain("proof passed · infra-plan · unverified: docker");
+    expect(ledger).toContain("proof failed · infra-plan · unverified: docker");
   });
 
   it("with no proof.docker, a container change is called unverified", async () => {
@@ -429,6 +430,7 @@ describe("infra-plan proof", { timeout: 120_000 }, () => {
     });
     const id = await built(repo, INFRA_TITLE, addDockerfile);
     const { record } = await proveTask(repo, id, noPublish);
+    expect(record.passed).toBe(false);
     expect(record.unverified).toEqual(["docker"]);
     expect(record.lines[0]).toBe(
       "infra-plan: no proof.docker in .rivetari/profile.yml, so the test run stands in, and a person attaches the infra-plan proof",

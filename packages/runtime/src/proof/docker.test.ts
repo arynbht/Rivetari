@@ -97,7 +97,7 @@ describe("docker proof", { timeout: 60_000 }, () => {
       /^build -f .*Dockerfile -t rivetari-proof-t-0009:latest /,
     );
     expect(log[2]).toBe(
-      "run -d -p 127.0.0.1:5481:8080 rivetari-proof-t-0009:latest",
+      "run -d --name rivetari-proof-t-0009 -p 127.0.0.1:5481:8080 rivetari-proof-t-0009:latest",
     );
     expect(log.slice(-2)[0]).toMatch(/^rm -f \d+$/);
     expect(log.slice(-1)[0]).toBe("rmi -f rivetari-proof-t-0009:latest");

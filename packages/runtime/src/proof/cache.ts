@@ -12,6 +12,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { basename, join } from "node:path";
 
 import { simpleGit } from "simple-git";
@@ -49,8 +50,16 @@ export async function baseKey(
   const tree = (
     await simpleGit(repoPath).raw(["rev-parse", `${base}^{tree}`])
   ).trim();
+  // A new axe or browser can find or draw something else on the same tree.
+  const require = createRequire(import.meta.url);
+  const version = (pkg: string) =>
+    (require(`${pkg}/package.json`) as { version: string }).version;
+  const shooter = {
+    axe: version("axe-core"),
+    playwright: version("playwright-core"),
+  };
   return createHash("sha256")
-    .update(JSON.stringify({ v: 1, tree, ...inputs }))
+    .update(JSON.stringify({ v: 1, tree, shooter, ...inputs }))
     .digest("hex")
     .slice(0, 32);
 }

@@ -655,8 +655,7 @@ async function changedPaths(isolation: Isolation): Promise<string[]> {
     "diff",
     "--name-only",
     "--no-renames",
-    isolation.base,
-    "HEAD",
+    `${isolation.base}...HEAD`,
   ]);
   return out
     .split("\n")
@@ -672,7 +671,8 @@ const few = (paths: readonly string[], n = 5) =>
 /**
  * The infra-plan proof: the test run, then, when the profile says how, the
  * container built, run and checked over HTTP. A container change with no
- * way to check it, or no Docker to check it with, is unverified, not passed.
+ * way to check it, or no Docker to check it with, is unverified, and an
+ * unverified proof fails: a person attaches the proof or fixes the setup.
  */
 async function infraProof(
   repoPath: string,
@@ -696,8 +696,10 @@ async function infraProof(
     );
     const containers = (await changedPaths(isolation)).filter(isContainerFile);
     if (containers.length === 0) return record;
+    // Fail closed: a container change nothing checked isn't proved.
     return {
       ...record,
+      passed: false,
       lines: [
         ...record.lines,
         `docker: not run: the change touches ${few(containers)}, but .rivetari/profile.yml has no proof.docker to build and check it with; unverified`,
@@ -725,9 +727,10 @@ async function infraProof(
     tag: isolation.task,
     docker,
   });
+  // Fail closed: a check that couldn't run is red, never green.
   return {
     ...record,
-    passed: result.status !== "failed",
+    passed: result.status === "passed",
     lines: [...record.lines, result.line],
     ...(result.status === "unverified" ? { unverified: ["docker"] } : {}),
   };

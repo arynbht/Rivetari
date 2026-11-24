@@ -126,8 +126,9 @@ export const ProfileSchema = z.strictObject({
        * of `file` in `context`, then `docker run` with `port` published on
        * the task's port, then a GET of `path` that must answer below 400
        * within `timeout` seconds. Without `port` the image is built but not
-       * run. With no Docker on the machine the proof says it wasn't run and
-       * counts it unverified, never passed. Unset: no container is built.
+       * run. With no Docker on the machine, or no `port`, the proof says what
+       * wasn't checked, marks it unverified and fails: a check that can't run
+       * is never passed. Unset: no container is built.
        */
       docker: z
         .strictObject({
