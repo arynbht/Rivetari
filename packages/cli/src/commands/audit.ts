@@ -13,11 +13,9 @@ import {
   evaluateGate,
   type GateResult,
   evidenceExpiringWithin,
-  loadState,
   ProfileError,
-  ratchetCoverageBaseline,
+  recordAudit,
   resolveToken,
-  saveState,
   WaiverError,
   waiversExpiringWithin,
 } from "@arynbht/rivetari-engine";
@@ -192,13 +190,9 @@ export async function runAudit(
     );
   }
 
-  await writeState(ctx.repoPath, all);
-  // Record the coverage baseline at the first measured run, and raise it when
-  // coverage improves (it never moves down). Best-effort.
-  const raised = await ratchetCoverageBaseline(
-    ctx,
-    (options.now ?? new Date()).toISOString().slice(0, 10),
-  ).catch(() => null);
+  // The engine writes state.json (and ratchets the coverage baseline); the
+  // desktop shell writes state.json through the same call, so the two agree.
+  const raised = await recordAudit(ctx, all, options.now ?? new Date());
   if (raised !== null) {
     warn(`\nCoverage baseline set to ${raised}% (.rivetari/quality.json)\n`);
   }
@@ -235,23 +229,4 @@ async function resolveGates(
     };
   }
   return { gates: [evaluateGate(gate, results)] };
-}
-
-async function writeState(
-  repoPath: string,
-  results: ControlResult[],
-): Promise<void> {
-  // Preserve the managed-file hash registry (written by `rivetari fix`) across audits.
-  const state = await loadState(repoPath);
-  state.version = 1;
-  state.generatedAt = new Date().toISOString();
-  state.summary = summarize(results);
-  state.controls = results.map((r) => ({
-    id: r.controlId,
-    status: r.status,
-    lane: r.lane,
-    phase: r.phase,
-    severity: r.severity,
-  }));
-  await saveState(repoPath, state);
 }

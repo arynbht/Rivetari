@@ -140,8 +140,11 @@ export function Scorecard({ data }: { data: ScorecardData }) {
         <div>
           <h2 className="text-lg font-semibold">Scorecard</h2>
           <p className="text-xs text-muted-foreground">
-            {data.totals.total} controls ·{" "}
-            {new Date(data.generatedAt).toLocaleString()}
+            {data.totals.total} controls · recorded{" "}
+            {data.generatedAt
+              ? new Date(data.generatedAt).toLocaleString()
+              : "at an unknown time"}{" "}
+            in .rivetari/state.json
           </p>
         </div>
         <CountPills counts={data.totals} />

@@ -228,16 +228,18 @@ export function FloorPlan({
   onRefresh,
 }: {
   repoPath: string;
-  /** True while a swarm run kicked off anywhere (Run audit, Fix, …) is in flight. */
+  /** True while a swarm run started from this tab is in flight. */
   running: boolean;
   /** Bumped by App after a run completes, so we reload the persisted model. */
   version: number;
   /** Why the latest swarm run failed, if it did. */
   runError?: string | null;
-  /** Ask App to (re)run the swarm for this repo. */
+  /** Ask App to (re)run the swarm for this repo, once the person has confirmed. */
   onRefresh: () => void;
 }) {
   const [model, setModel] = useState<RepositoryModel | null>(null);
+  // The swarm costs money, so Refresh first asks; this holds that question open.
+  const [confirming, setConfirming] = useState(false);
   const [available, setAvailable] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<FloorPlanProgress | null>(null);
@@ -327,12 +329,56 @@ export function FloorPlan({
               {detailed ? "Systems only" : "Show details"}
             </Button>
           )}
-          <Button onClick={onRefresh} disabled={running || !available}>
+          <Button
+            onClick={() => setConfirming(true)}
+            disabled={running || !available || confirming}
+            aria-describedby="floorplan-cost"
+          >
             <RefreshCw className={`h-4 w-4 ${running ? "animate-spin" : ""}`} />
             {running ? "Mapping…" : "Refresh floor plan"}
           </Button>
         </div>
       </div>
+      <p id="floorplan-cost" className="text-xs text-muted-foreground">
+        Refreshing runs Claude agents over the repository and costs money.
+        You&apos;ll be asked before it starts.
+      </p>
+
+      {confirming && (
+        <div
+          role="group"
+          aria-labelledby="floorplan-confirm-title"
+          className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3"
+        >
+          <p id="floorplan-confirm-title" className="text-sm font-medium">
+            Run the deep audit?
+          </p>
+          <p className="text-sm text-muted-foreground">
+            It starts a swarm of Claude agents, one for each part of the
+            repository (up to 12), to rebuild this map. It uses Claude and costs
+            money: it runs on your Claude Code subscription and counts against
+            its usage. There&apos;s no cost estimate for it yet.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setConfirming(false);
+                onRefresh();
+              }}
+            >
+              Run the deep audit
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {!available && (
         <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
@@ -447,8 +493,8 @@ export function FloorPlan({
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
             <Boxes className="h-8 w-8 text-muted-foreground" />
             <p className="max-w-sm text-sm text-muted-foreground">
-              No floor plan yet. Run an audit (or hit Refresh) to let the swarm
-              map this repository.
+              No floor plan yet. Refresh the floor plan to let the swarm map
+              this repository.
             </p>
           </div>
         )

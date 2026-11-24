@@ -1,18 +1,26 @@
-// The audit adapter: the main process calls the headless engine directly (not the
-// CLI) and shapes a lane-grouped scorecard for the renderer. This mirrors what
-// `rivetari audit <path>` does — load the bundled catalog, apply the profile's
-// severity-floor, evaluate every applicable control — and joins each result with
-// its control so the UI can show rationale + references on expand.
+// The audit adapter. Scorecard shows the audit recorded in `.rivetari/state.json`,
+// read through the engine, so the shell and `rivetari audit` can't disagree: the
+// shell never evaluates a second copy of its own. Run audit evaluates every
+// control and writes state.json through the same engine calls the CLI uses
+// (evaluateControls, then writeAuditState), then shows what was recorded. Each
+// recorded control is joined with the catalog for its title, rationale and
+// references so the UI can show them on expand.
+//
+// The CLI also ratchets the coverage baseline in `.rivetari/quality.json` after
+// an audit. That file is committed, so the shell leaves it alone: changing it
+// belongs in a task, not a button.
 import {
   LANES,
   loadBundledCatalog,
-  SEVERITIES,
   type Control,
 } from "@arynbht/rivetari-catalog";
 import {
   buildContext,
   type ControlResult,
   evaluateControls,
+  readRecordedAudit,
+  type RecordedAudit,
+  writeAuditState,
 } from "@arynbht/rivetari-engine";
 
 import {
@@ -61,34 +69,28 @@ function summarize(result: ControlResult): string {
   return result.detectors[0]?.message ?? "";
 }
 
-/**
- * Run an audit over a local repo and return the lane scorecard. With a GitHub
- * token (from the signed-in user, M5.3) the github-api detectors run too;
- * without one they skip. Kept free of any electron import so it unit-tests as a
- * plain function.
- */
-export async function runAudit(
-  repoPath: string,
-  token?: string,
-): Promise<Scorecard> {
+async function bundledControls(): Promise<Control[]> {
   const { controls, errors } = await loadBundledCatalog();
   if (errors.length > 0) {
     throw new Error(
       `Catalog is invalid: ${errors[0]?.message ?? "unknown error"}`,
     );
   }
+  return controls;
+}
 
-  const ctx = buildContext(repoPath, token ? { token } : {});
-  const profile = await ctx.profile().catch(() => null);
-  const waivers = await ctx.waivers().catch(() => []);
-
-  const floorRank = SEVERITIES.indexOf(profile?.["severity-floor"] ?? "low");
-  const selected = controls.filter(
-    (c) => SEVERITIES.indexOf(c.severity) <= floorRank,
-  );
-  const byId = new Map<string, Control>(selected.map((c) => [c.id, c]));
-
-  const results = await evaluateControls(selected, ctx, { profile, waivers });
+/**
+ * Shape a recorded audit as the lane scorecard. state.json keeps each control's
+ * status but not its detector messages, so `messages` carries them when the
+ * audit was just run here; a scorecard read from disk has none.
+ */
+function toScorecard(
+  repoPath: string,
+  recorded: RecordedAudit,
+  controls: Control[],
+  messages: Map<string, string> = new Map(),
+): Scorecard {
+  const byId = new Map<string, Control>(controls.map((c) => [c.id, c]));
 
   // Prime every lane in catalog order; drop the empty ones at the end.
   const lanes = new Map<string, ScorecardLane>();
@@ -100,24 +102,19 @@ export async function runAudit(
       controls: [],
     });
   }
-  const totals: StatusCounts & { total: number } = {
-    ...emptyCounts(),
-    total: results.length,
-  };
 
-  for (const result of results) {
-    // Count every result in the totals — even one whose lane isn't in the
-    // catalog view — so the totals always sum to `total` (= results.length).
-    bump(totals, result.status);
+  for (const result of recorded.controls) {
     const lane = lanes.get(result.lane);
     if (!lane) continue;
-    const control = byId.get(result.controlId);
+    // A control recorded by an older catalog may be gone from this one; it
+    // still shows, under its id.
+    const control = byId.get(result.id);
     const entry: ScorecardControl = {
-      controlId: result.controlId,
-      title: result.title,
+      controlId: result.id,
+      title: control?.title ?? result.id,
       status: result.status,
       severity: result.severity,
-      message: summarize(result),
+      message: messages.get(result.id) ?? "",
       rationale: control?.rationale ?? "",
       references: (control?.references ?? []).map((ref) => ({
         name: ref.name,
@@ -131,8 +128,44 @@ export async function runAudit(
 
   return {
     repoPath,
-    generatedAt: new Date().toISOString(),
-    totals,
+    generatedAt: recorded.generatedAt,
+    // The recorded summary counts every control, even one whose lane isn't in
+    // this catalog's view, so the totals match what the CLI reports.
+    totals: { ...recorded.summary },
     lanes: [...lanes.values()].filter((lane) => lane.controls.length > 0),
   };
+}
+
+/** The scorecard of the audit recorded in state.json, or null when there's none. */
+export async function readScorecard(
+  repoPath: string,
+): Promise<Scorecard | null> {
+  const recorded = await readRecordedAudit(repoPath);
+  if (!recorded) return null;
+  return toScorecard(repoPath, recorded, await bundledControls());
+}
+
+/**
+ * Run an audit over a local repo the way `rivetari audit` does, record it in
+ * state.json, and return the recorded scorecard. With a GitHub token (from the
+ * signed-in user, M5.3) the github-api detectors run too; without one they skip.
+ * Kept free of any electron import so it unit-tests as a plain function.
+ */
+export async function runAudit(
+  repoPath: string,
+  token?: string,
+): Promise<Scorecard> {
+  const controls = await bundledControls();
+  const ctx = buildContext(repoPath, token ? { token } : {});
+  // Every control, as the CLI evaluates and records them: `severity-floor` trims
+  // what the CLI's report prints, never what it records.
+  const results = await evaluateControls(controls, ctx);
+  await writeAuditState(repoPath, results);
+
+  const recorded = await readRecordedAudit(repoPath);
+  if (!recorded) {
+    throw new Error("the audit ran but .rivetari/state.json has no results");
+  }
+  const messages = new Map(results.map((r) => [r.controlId, summarize(r)]));
+  return toScorecard(repoPath, recorded, controls, messages);
 }

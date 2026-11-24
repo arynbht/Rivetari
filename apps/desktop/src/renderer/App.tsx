@@ -118,6 +118,11 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<ScorecardData | null>(null);
   const [running, setRunning] = useState(false);
+  // Whether the selected repo's recorded audit (state.json) has been read yet,
+  // so "nothing recorded" isn't shown while it's still loading.
+  const [recordLoaded, setRecordLoaded] = useState(false);
+  // Bumped on every repo pick, so picking the same repo again re-reads it too.
+  const [selectSeq, setSelectSeq] = useState(0);
   // The deep-audit swarm runs independently of the (instant) scorecard: `running`
   // above never waits on it. `floorPlanVersion` bumps when a run finishes so the
   // Floor Plan tab reloads the freshly-persisted model.
@@ -125,6 +130,9 @@ export function App() {
   const [floorPlanVersion, setFloorPlanVersion] = useState(0);
   const [floorPlanError, setFloorPlanError] = useState<string | null>(null);
   const floorPlanRun = useRef(0);
+  // Counts repo picks, so a Run audit that settles after the person has moved
+  // to another repo can't put the old repo's scorecard on the new one.
+  const auditRun = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("scorecard");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -170,6 +178,30 @@ export function App() {
     );
   }, [bridgeReady]);
 
+  // Show the audit the CLI last recorded for the selected repo, as soon as it's
+  // picked; Run audit replaces it with a fresh recording.
+  useEffect(() => {
+    if (!selected) return;
+    let active = true;
+    setRecordLoaded(false);
+    window.rivetari.audit.recorded(selected).then(
+      (card) => {
+        if (!active) return;
+        // A Run audit that finished first already holds the newer recording.
+        setScorecard((current) => current ?? card);
+        setRecordLoaded(true);
+      },
+      (err: unknown) => {
+        if (!active) return;
+        setError(errorMessage(err));
+        setRecordLoaded(true);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [selected, selectSeq]);
+
   // Re-apply "system" theme when the OS preference changes while the app is open.
   useEffect(() => {
     applyTheme(theme);
@@ -205,6 +237,9 @@ export function App() {
   function handleSelect(path: string): void {
     setSettingsOpen(false);
     setSelected(path);
+    setSelectSeq((n) => n + 1);
+    auditRun.current++;
+    setRunning(false);
     setScorecard(null);
     setError(null);
     setView("scorecard");
@@ -217,10 +252,11 @@ export function App() {
   }
 
   /**
-   * Kick off the deep-audit swarm for a repo (Run audit, a manual refresh, or
-   * after a Fix/AI change lands). Non-blocking and independent of the scorecard;
-   * main persists the model, so we just bump the version to reload it. Errors are
-   * surfaced inside the Floor Plan tab via its own load, so they're swallowed here.
+   * Run the deep-audit swarm for a repo. The swarm runs Claude agents and costs
+   * money, so only the Floor Plan tab's own refresh, after the person confirms
+   * it, calls this; nothing else starts it. Non-blocking and independent of the
+   * scorecard; main persists the model, so we just bump the version to reload
+   * it. Errors are shown inside the Floor Plan tab.
    */
   function triggerFloorPlan(path: string): void {
     // Main aborts a superseded run; only the latest one may settle the UI.
@@ -241,17 +277,16 @@ export function App() {
 
   async function handleAudit(): Promise<void> {
     if (!selected) return;
+    const run = auditRun.current;
     setRunning(true);
     setError(null);
-    // Fire the swarm alongside the scorecard; it fills the Floor Plan tab in the
-    // background while the (instant) scorecard renders.
-    triggerFloorPlan(selected);
     try {
-      setScorecard(await window.rivetari.audit.run(selected));
+      const card = await window.rivetari.audit.run(selected);
+      if (run === auditRun.current) setScorecard(card);
     } catch (err) {
-      setError(errorMessage(err));
+      if (run === auditRun.current) setError(errorMessage(err));
     } finally {
-      setRunning(false);
+      if (run === auditRun.current) setRunning(false);
     }
   }
 
@@ -345,7 +380,8 @@ export function App() {
         {updateBanner && (
           <div className="flex items-center justify-between gap-3 border-b border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-300">
             <span>
-              Update available: {updateBanner.latestVersion}.{" "}
+              Update available: v{updateBanner.latestVersion?.replace(/^v/, "")}
+              .{" "}
               {updateBanner.url && (
                 <a
                   href={updateBanner.url}
@@ -418,12 +454,16 @@ export function App() {
               )}
               {scorecard ? (
                 <Scorecard data={scorecard} />
+              ) : running ? null : !recordLoaded ? (
+                <p className="text-sm text-muted-foreground">
+                  Reading the recorded audit…
+                </p>
               ) : (
-                !running && (
-                  <p className="text-sm text-muted-foreground">
-                    Run an audit to see the lane scorecard.
-                  </p>
-                )
+                <p className="text-sm text-muted-foreground">
+                  No audit has been recorded for this repository yet
+                  (.rivetari/state.json is missing). Run audit records one the
+                  same way <code>rivetari audit</code> does.
+                </p>
               )}
             </div>
 
@@ -482,11 +522,7 @@ export function App() {
                 hidden={view !== "fix"}
               >
                 {/* key resets the panel's run/PR state when the repo changes. */}
-                <Fix
-                  key={selectedRepo.path}
-                  repoPath={selectedRepo.path}
-                  onChanged={() => triggerFloorPlan(selectedRepo.path)}
-                />
+                <Fix key={selectedRepo.path} repoPath={selectedRepo.path} />
               </div>
             )}
 
@@ -499,11 +535,7 @@ export function App() {
                 hidden={view !== "ai"}
               >
                 {/* key resets the panel's draft/run state when the repo changes. */}
-                <Ai
-                  key={selectedRepo.path}
-                  repoPath={selectedRepo.path}
-                  onChanged={() => triggerFloorPlan(selectedRepo.path)}
-                />
+                <Ai key={selectedRepo.path} repoPath={selectedRepo.path} />
               </div>
             )}
 
