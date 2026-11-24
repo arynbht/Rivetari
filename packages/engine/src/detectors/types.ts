@@ -9,7 +9,7 @@ import type { AuditContext } from "../context.js";
  * - `skip`: the detector could not determine an answer (no token, tool missing,
  *   detector not implemented, or an error). Never counted as a pass.
  */
-export type DetectorStatus = "pass" | "fail" | "skip";
+export type DetectorStatus = "pass" | "fail" | "skip" | "n/a";
 
 export interface DetectorResult {
   status: DetectorStatus;

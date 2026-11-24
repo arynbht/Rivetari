@@ -142,6 +142,9 @@ function aggregate(
 ): ControlStatus {
   if (autoResults.some((r) => r.status === "fail")) return "fail";
   if (evidenceMissing) return "needs-evidence";
+  if (allResults.length > 0 && allResults.every((r) => r.status === "n/a")) {
+    return "n/a";
+  }
   if (allResults.some((r) => r.status === "skip")) return "skip";
   return "pass";
 }

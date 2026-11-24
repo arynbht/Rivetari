@@ -18,6 +18,10 @@ const fail = (message: string, remediation?: string): DetectorResult => ({
   remediation,
 });
 const skip = (message: string): DetectorResult => ({ status: "skip", message });
+const notApplicable = (message: string): DetectorResult => ({
+  status: "n/a",
+  message,
+});
 
 function statusOf(err: unknown): number | undefined {
   if (typeof err === "object" && err !== null && "status" in err) {
@@ -25,6 +29,19 @@ function statusOf(err: unknown): number | undefined {
     return typeof status === "number" ? status : undefined;
   }
   return undefined;
+}
+
+const PLAN_UPGRADE = /upgrade to github pro or make this repository public/i;
+
+function isPlanUpgrade(err: unknown): boolean {
+  if (statusOf(err) !== 403) return false;
+  const response = (err as { response?: { data?: { message?: unknown } } })
+    .response;
+  const bodyMessage = response?.data?.message;
+  return (
+    (typeof bodyMessage === "string" && PLAN_UPGRADE.test(bodyMessage)) ||
+    (err instanceof Error && PLAN_UPGRADE.test(err.message))
+  );
 }
 
 interface RepoData {
@@ -59,10 +76,14 @@ interface ProtectionState {
   rules: BranchRule[];
   /** True when classic protection could not be read (403: the token isn't admin). */
   classicUnreadable: boolean;
+  planLimited: boolean;
 }
 
 const ADMIN_NEEDED =
   "classic branch protection is unreadable with this token — needs an admin token (or protect the branch with a ruleset)";
+
+const FREE_PLAN =
+  "branch protection and rulesets aren't available for private repositories on GitHub's free plan";
 
 /**
  * Resolve how the default branch is protected, covering both classic branch
@@ -71,10 +92,12 @@ const ADMIN_NEEDED =
  */
 function getProtectionState(gh: GitHubClient): Promise<ProtectionState> {
   return gh.cached("protection-state", async () => {
-    const branch = (await getRepo(gh)).default_branch;
+    const repo = await getRepo(gh);
+    const branch = repo.default_branch;
 
     let classic: Record<string, unknown> | null = null;
     let classicUnreadable = false;
+    let planLimited = false;
     try {
       const { data } = await gh.octokit.rest.repos.getBranchProtection({
         owner: gh.owner,
@@ -88,18 +111,25 @@ function getProtectionState(gh: GitHubClient): Promise<ProtectionState> {
       const status = statusOf(err);
       if (status !== 404 && status !== 403) throw err;
       classicUnreadable = status === 403;
+      planLimited = repo.private && isPlanUpgrade(err);
     }
 
     // The rules endpoint needs only read access; let its errors bubble so a
     // genuine permission problem surfaces as a skip rather than a false "fail".
-    const { data } = await gh.octokit.rest.repos.getBranchRules({
-      owner: gh.owner,
-      repo: gh.repo,
-      branch,
-    });
-    const rules = (data as BranchRule[] | undefined) ?? [];
+    let rules: BranchRule[] = [];
+    try {
+      const { data } = await gh.octokit.rest.repos.getBranchRules({
+        owner: gh.owner,
+        repo: gh.repo,
+        branch,
+      });
+      rules = (data as BranchRule[] | undefined) ?? [];
+    } catch (err) {
+      if (!(repo.private && isPlanUpgrade(err))) throw err;
+      planLimited = true;
+    }
 
-    return { branch, classic, rules, classicUnreadable };
+    return { branch, classic, rules, classicUnreadable, planLimited };
   });
 }
 
@@ -125,13 +155,16 @@ const checks: Partial<Record<GithubApiCheck, CheckFn>> = {
   },
 
   "branch-protection": async (gh) => {
-    const { branch, classic, rules, classicUnreadable } =
+    const { branch, classic, rules, classicUnreadable, planLimited } =
       await getProtectionState(gh);
     // A ruleset only counts as "protected" if it gates merges; a lone
     // non_fast_forward / deletion / creation rule is not meaningful protection.
     const meaningfulRule = rules.some(
       (r) => r.type === "pull_request" || r.type === "required_status_checks",
     );
+    if (!classic && !meaningfulRule && planLimited) {
+      return notApplicable(FREE_PLAN);
+    }
     if (!classic && !meaningfulRule && classicUnreadable) {
       return skip(ADMIN_NEEDED);
     }
@@ -144,10 +177,11 @@ const checks: Partial<Record<GithubApiCheck, CheckFn>> = {
   },
 
   "required-pull-request": async (gh) => {
-    const { branch, classic, rules, classicUnreadable } =
+    const { branch, classic, rules, classicUnreadable, planLimited } =
       await getProtectionState(gh);
     const hasClassic = Boolean(classic?.["required_pull_request_reviews"]);
     const hasRule = rules.some((r) => r.type === "pull_request");
+    if (!hasClassic && !hasRule && planLimited) return notApplicable(FREE_PLAN);
     if (!hasClassic && !hasRule && classicUnreadable) return skip(ADMIN_NEEDED);
     return hasClassic || hasRule
       ? pass(`pull request reviews required on "${branch}"`)
@@ -155,10 +189,11 @@ const checks: Partial<Record<GithubApiCheck, CheckFn>> = {
   },
 
   "required-status-checks": async (gh) => {
-    const { branch, classic, rules, classicUnreadable } =
+    const { branch, classic, rules, classicUnreadable, planLimited } =
       await getProtectionState(gh);
     const hasClassic = Boolean(classic?.["required_status_checks"]);
     const hasRule = rules.some((r) => r.type === "required_status_checks");
+    if (!hasClassic && !hasRule && planLimited) return notApplicable(FREE_PLAN);
     if (!hasClassic && !hasRule && classicUnreadable) return skip(ADMIN_NEEDED);
     return hasClassic || hasRule
       ? pass(`status checks required on "${branch}"`)
