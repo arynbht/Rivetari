@@ -3,14 +3,17 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   baseFromLedger,
   classifyCall,
+  cliEnv,
   decideStop,
   dependencyNames,
+  FIXTURE_ENV_EXTRA,
   ledgerUsage,
+  npmCi,
   resultOf,
   sumCalls,
   tableRow,
@@ -20,6 +23,29 @@ import {
 } from "./lib.mjs";
 
 const BENCH = dirname(fileURLToPath(import.meta.url));
+
+const { allowlistedEnv } = await import(
+  pathToFileURL(
+    join(BENCH, "..", "packages", "engine", "dist", "detectors", "exec.js"),
+  ).href
+);
+
+/** The fixture environment run.mjs builds, with these tokens set in ours. */
+function fixtureEnvWithTokensSet() {
+  const saved = {
+    GH_TOKEN: process.env.GH_TOKEN,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  };
+  process.env.GH_TOKEN = "ghp_bench_selfcheck";
+  process.env.ANTHROPIC_API_KEY = "sk-ant-bench-selfcheck";
+  try {
+    return allowlistedEnv(FIXTURE_ENV_EXTRA);
+  } finally {
+    for (const [k, v] of Object.entries(saved))
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+  }
+}
 
 const t0028 = {
   title: "Set up Playwright e2e with coach and athlete sign-in",
@@ -232,6 +258,40 @@ const checks = {
     });
     assert.equal(row.split("|").length - 2, 14);
   },
+};
+
+checks["npm ci gets the allowlisted env, never GH_TOKEN or ANTHROPIC_API_KEY"] =
+  () => {
+    let seen = null;
+    npmCi(
+      "fixture",
+      fixtureEnvWithTokensSet(),
+      (cmd, args, opts) => {
+        seen = { cmd, args, opts };
+      },
+      false,
+    );
+    assert.equal(seen.cmd, "npm");
+    assert.equal(seen.args[0], "ci");
+    assert.equal(seen.opts.env.GH_TOKEN, undefined);
+    assert.equal(seen.opts.env.ANTHROPIC_API_KEY, undefined);
+    assert.ok(seen.opts.env.PATH ?? seen.opts.env.Path, "PATH reaches npm");
+  };
+
+checks[
+  "the CLI's env comes from the same allowlist: no tokens, no CI, the shim first"
+] = () => {
+  const env = cliEnv(fixtureEnvWithTokensSet(), {
+    shim: "SHIM",
+    ghConfig: "GH-EMPTY",
+    delimiter: ";",
+  });
+  assert.equal(env.GH_TOKEN, undefined);
+  assert.equal(env.ANTHROPIC_API_KEY, undefined);
+  assert.equal(env.CI, undefined);
+  assert.equal(env.Path, undefined);
+  assert.ok(env.PATH.startsWith("SHIM;"));
+  assert.equal(env.GH_CONFIG_DIR, "GH-EMPTY");
 };
 
 export function selfCheck() {

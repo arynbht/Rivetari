@@ -94,10 +94,12 @@ stop in the results.
 
 The ledger keeps each call's tokens as one total. So the bench puts a stand-in for
 `claude` first on PATH (`bench/shim/claude-shim.cs`, compiled with the .NET Framework's
-`csc.exe` on Windows, a shell script elsewhere). It runs the real claude with the
+`csc.exe`, so replays run on Windows only; elsewhere the bench says so and exits, and `--self-check` and `--rescore` still work). It runs the real claude with the
 exact command line, passes stdout through untouched, and keeps a copy of each
 call's output. The runtime drops unknown variables from an agent's environment, so
 the shim keeps its settings on disk beside itself.
+
+Every step that runs fixture code gets one environment, built once from the runtime's own allowlist (`allowlistedEnv` in the engine): `npm ci`, the fixture's git commit and its hooks, and the CLI with everything it starts. The caller's tokens (`GH_TOKEN`, `GITHUB_TOKEN`, `ANTHROPIC_API_KEY` and the rest) never reach them; the self-check asserts it.
 
 From each call's final `result` line come the input, output, cache-write and
 cache-read tokens, the dollars, the turns and the models, as the claude CLI reports

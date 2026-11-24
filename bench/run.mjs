@@ -25,9 +25,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   baseFromLedger,
   classifyCall,
+  cliEnv,
   decideStop,
   DEFAULT_MAX_USD,
+  FIXTURE_ENV_EXTRA,
   ledgerUsage,
+  npmCi,
   resultOf,
   sumCalls,
   TABLE_HEAD,
@@ -46,6 +49,9 @@ const { allowlistedEnv } = await import(
     join(BENCH, "..", "packages", "engine", "dist", "detectors", "exec.js"),
   ).href
 );
+// Built once: every step that runs fixture code (npm ci, the fixture's git
+// hooks, the CLI and what it starts) gets this, never the caller's tokens.
+const FIXTURE_ENV = allowlistedEnv(FIXTURE_ENV_EXTRA);
 const ROOT = resolve(BENCH, "..");
 const CLI = join(ROOT, "packages", "cli", "dist", "bin.js");
 const RUNTIME = join(ROOT, "packages", "runtime", "dist", "index.js");
@@ -149,32 +155,17 @@ function buildShim(dir, dry) {
   const real = dry ? join(dir, "bench-no-claude.exe") : realClaude();
   if (!real) throw new Error("the claude CLI isn't on PATH");
   writeFileSync(join(shim, "real-claude.txt"), real);
-  if (WIN) {
-    const csc = [
-      "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
-      "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe",
-    ].find((p) => existsSync(p));
-    if (!csc)
-      throw new Error(
-        "csc.exe (.NET Framework 4) isn't here to build the shim",
-      );
-    sh(csc, [
-      "-nologo",
-      `-out:${join(shim, "claude.exe")}`,
-      join(BENCH, "shim", "claude-shim.cs"),
-    ]);
-  } else {
-    const script = `#!/bin/sh
-d=$(cd "$(dirname "$0")" && pwd)
-id=$(date -u +%Y%m%dT%H%M%S)-$$
-printf '{"started":"%s","cwd":"%s","args":"%s"}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$PWD" "$(printf '%s ' "$@" | head -c 4000 | tr -d '"\\\\\\n')" > "$d/calls/$id.start.json"
-{ "$(cat "$d/real-claude.txt")" "$@"; echo $? > "$d/calls/$id.code"; } | tee "$d/calls/$id.out"
-code=$(cat "$d/calls/$id.code")
-printf '{"ended":"%s","exit":%s}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$code" > "$d/calls/$id.end.json"
-exit $code
-`;
-    writeFileSync(join(shim, "claude"), script, { mode: 0o755 });
-  }
+  const csc = [
+    "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
+    "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe",
+  ].find((p) => existsSync(p));
+  if (!csc)
+    throw new Error("csc.exe (.NET Framework 4) isn't here to build the shim");
+  sh(csc, [
+    "-nologo",
+    `-out:${join(shim, "claude.exe")}`,
+    join(BENCH, "shim", "claude-shim.cs"),
+  ]);
   return shim;
 }
 
@@ -289,6 +280,12 @@ async function main() {
     return selfCheck();
   }
   if (args.rescore) return rescore(args.rescore);
+  if (!WIN) {
+    process.stderr.write(
+      "bench: replays run on Windows only for now: the claude shim that records each call is a .NET program (bench/shim/claude-shim.cs). --self-check and --rescore work anywhere.\n",
+    );
+    return 2;
+  }
   const cards = JSON.parse(
     readFileSync(join(BENCH, "cards", "cards.json"), "utf8"),
   );
@@ -458,7 +455,7 @@ async function main() {
         "-m",
         "chore(bench): the pilot's rivetari setup, guard-free",
       ],
-      { cwd: repo, env: { ...process.env, LEFTHOOK: "0" } },
+      { cwd: repo, env: { ...FIXTURE_ENV, LEFTHOOK: "0" } },
     );
     const origin = join(dir, "origin.git");
     sh("git", ["init", "-q", "--bare", "-b", "main", origin]);
@@ -480,13 +477,7 @@ async function main() {
     "npm ci in the fixture (npm registry, unless npm's cache has every package)",
   );
   setup("npm ci", () => {
-    // The fixture's install scripts are someone else's code: they get the
-    // same allowlisted environment Rivetari gives agents, never our tokens.
-    sh("npm", ["ci", "--no-audit", "--no-fund", "--prefer-offline"], {
-      cwd: repo,
-      shell: WIN,
-      env: allowlistedEnv(["npm_config_cache"]),
-    });
+    npmCi(repo, FIXTURE_ENV, sh, WIN);
   });
 
   let shim = null;
@@ -500,20 +491,8 @@ async function main() {
 
   const ghEmpty = join(dir, "bench-gh-empty");
   mkdirSync(ghEmpty, { recursive: true });
-  const env = {
-    ...process.env,
-    PATH: `${shim}${delimiter}${process.env.PATH ?? ""}`,
-    // token: null. No GitHub token reaches Rivetari: an empty gh config, and
-    // the env tokens dropped.
-    GH_CONFIG_DIR: ghEmpty,
-    NO_COLOR: "1",
-    FORCE_COLOR: "0",
-    LEFTHOOK: "0",
-  };
-  delete env.GITHUB_TOKEN;
-  delete env.GH_TOKEN;
-  delete env.GITHUB_ACTIONS;
-  delete env.CI;
+  // token: null. The allowlist carries no token, and gh's config is empty.
+  const env = cliEnv(FIXTURE_ENV, { shim, ghConfig: ghEmpty, delimiter });
 
   let n = 0;
   /** Run the CLI; keeps its output, its wall time and the claude calls it made. */

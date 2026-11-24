@@ -254,3 +254,39 @@ export const TABLE_HEAD = [
   "| date | rivetari | card | outcome | verdict | stops | build rounds | judge rounds | turns | tokens | $ | wall s | committed | result |",
   "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
 ];
+
+/** What the fixture environment keeps beyond the runtime's allowlist. */
+export const FIXTURE_ENV_EXTRA = ["npm_config_cache"];
+
+/**
+ * `npm ci` in the fixture. It runs the fixture's install scripts, someone
+ * else's code, so it gets `env` (the runtime's allowlist), never ours.
+ */
+export function npmCi(repo, env, run, win) {
+  return run("npm", ["ci", "--no-audit", "--no-fund", "--prefer-offline"], {
+    cwd: repo,
+    shell: win,
+    env,
+  });
+}
+
+/**
+ * The CLI's environment: the same allowlisted base `npm ci` gets, plus the
+ * claude shim first on PATH and an empty gh config, so no GitHub token
+ * reaches Rivetari either. CI is dropped: the allowlist sets it for
+ * installs, and Rivetari behaves differently under CI.
+ */
+export function cliEnv(base, { shim, ghConfig, delimiter }) {
+  const env = {
+    ...base,
+    PATH: `${shim}${delimiter}${base.PATH ?? base.Path ?? ""}`,
+    GH_CONFIG_DIR: ghConfig,
+    NO_COLOR: "1",
+    FORCE_COLOR: "0",
+    LEFTHOOK: "0",
+  };
+  delete env.CI;
+  // Windows spells it Path as well; one PATH, with the shim first, is unambiguous.
+  delete env.Path;
+  return env;
+}
