@@ -3,6 +3,15 @@
   "version": "1.0.0",
   "description": "Rivetari CLI: init, audit, fix, ai, status, metrics, waive, evidence, profile.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arynbht/Rivetari.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
   "type": "module",
   "bin": {
     "rivetari": "./dist/bin.js"

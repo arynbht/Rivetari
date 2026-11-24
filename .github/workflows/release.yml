@@ -1,7 +1,12 @@
 # Changesets release. Manually dispatched for now; promote to `push: [main]` once
 # "Allow GitHub Actions to create and approve pull requests" is enabled in repo
-# settings (Settings → Actions → General). Publishing to a registry is a follow-up
-# — the GitHub Action ships a committed bundle and needs no npm publish to work.
+# settings (Settings → Actions → General).
+#
+# A dispatch with pending changesets opens or updates the Version Packages PR. A
+# dispatch after that PR merges (no changesets left) publishes the packages to
+# GitHub Packages (ADR-0010) and tags the CLI's version as `v<version>` with a
+# GitHub Release, which is the tag `rivetari init` pins the action to. The
+# floating `v1` tag is moved by hand, not here.
 name: release
 
 on:
@@ -9,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
   pull-requests: write
 
 # A double-dispatch must not race two Version Packages PR updates.
@@ -19,6 +25,8 @@ concurrency:
 
 jobs:
   version:
+    # Publishing from any other branch would release code that never merged.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # `pnpm install` runs `lefthook install` (the prepare script), so the automated
@@ -39,13 +47,45 @@ jobs:
           cache: pnpm
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Create or update the Version Packages PR
+      # Each package's publishConfig names the registry; this is the login for it.
+      # The token stays an env reference, so it's never written to disk.
+      - name: Log npm in to GitHub Packages
+        run: |
+          {
+            echo "@arynbht:registry=https://npm.pkg.github.com"
+            echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}'
+          } >> ~/.npmrc
+      - name: Create or update the Version Packages PR, or publish
+        id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           # version-packages also rebuilds the action bundle: it's rebuilt here,
           # once per release, instead of on every task PR.
           version: pnpm run version-packages
+          publish: pnpm run release
           commit: "chore: version packages"
           title: "chore: version packages"
+          # One release per version, for the CLI's v<version> tag below, rather
+          # than one per package that would each claim to be the latest.
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Runs whenever the publish path ran, not only when something was new, so a
+      # dispatch after a failed tag step still tags a version that's published.
+      - name: Tag and release the CLI version
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(node -p "require('./packages/cli/package.json').version")
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "$tag already exists"
+            exit 0
+          fi
+          # The CLI changelog's section for this version is the release notes.
+          awk -v head="## $version" '$0 == head { on = 1; next } on && /^## / { exit } on' \
+            packages/cli/CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" \
+            --notes-file "$RUNNER_TEMP/notes.md" --latest
