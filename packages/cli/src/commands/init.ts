@@ -25,7 +25,11 @@ import {
   githubToken,
   saveProfile,
 } from "@arynbht/rivetari-engine";
-import { initLock } from "@arynbht/rivetari-registry";
+import {
+  initLock,
+  type SyncResult,
+  syncSkills,
+} from "@arynbht/rivetari-registry";
 import {
   BANNED_PATH,
   defaultsFor,
@@ -68,6 +72,7 @@ import {
   type RepoFacts,
   SETTINGS_JSON,
 } from "./init-files.js";
+import { inferProjectType } from "./init-type.js";
 
 export interface InitFlags {
   type?: string;
@@ -463,6 +468,12 @@ export interface InitOptions extends RunAuditOptions {
   resolveActionPin?: (() => Promise<ActionPin>) | undefined;
   /** Find the repo's CI plan (tests). Default: the GitHub API. */
   detectCiPlan?: (() => Promise<CiPlan>) | undefined;
+  /**
+   * Sync the locked skills (tests). Default: the registry's sync, as
+   * `rivetari skills sync` runs it; offline (`token: null`) skips it unless
+   * this is given.
+   */
+  syncSkills?: ((root: string) => Promise<SyncResult>) | undefined;
 }
 
 /**
@@ -512,6 +523,40 @@ async function ensureLine(
     `${text}${text && !text.endsWith("\n") ? eol : ""}${line}${eol}`,
     "utf8",
   );
+}
+
+/**
+ * Sync the locked skills with the code `rivetari skills sync` runs. Offline
+ * it's skipped, and a failure never fails init: either way the note says to
+ * run the sync by hand. `ok` is true when every locked skill went in.
+ */
+async function initSync(
+  root: string,
+  options: InitOptions,
+): Promise<{ ok: boolean; note: string }> {
+  const again = "run `rivetari skills sync`";
+  if (options.token === null && !options.syncSkills)
+    return {
+      ok: false,
+      note: `init ran offline, so the skills weren't synced: ${again}`,
+    };
+  try {
+    const r = await (options.syncSkills ?? ((p) => syncSkills(p)))(root);
+    if (r.blocked.length > 0)
+      return {
+        ok: false,
+        note: `the skills sync blocked ${r.blocked.map((b) => `${b.name} (${b.reason})`).join(", ")}: fix that, then ${again}`,
+      };
+    return {
+      ok: true,
+      note: `synced the skills: ${r.installed.length} installed, ${r.staged.length} staged for tasks`,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      note: `couldn't sync the skills (${(err as Error).message}): ${again}`,
+    };
+  }
 }
 
 /**
@@ -581,6 +626,17 @@ export async function runInit(
     }
   } else {
     draft = await draftFromFlags(flags, root);
+    // --type wins; without it the manifests may say what the project is. A
+    // re-init doesn't guess, so it can't replace the type the profile has.
+    if (!draft.type && !profileExists) {
+      const inferred = await inferProjectType(root);
+      if (inferred) {
+        draft.type = inferred;
+        process.stdout.write(
+          `No --type given; the repo looks like a ${inferred}, so that's its type (pass --type to choose another).\n`,
+        );
+      }
+    }
     if (!draft.type) {
       console.error(
         `rivetari init: --type is required in non-interactive mode (one of: ${PROJECT_TYPES.join(", ")}).`,
@@ -761,12 +817,15 @@ export async function runInit(
   const settings = await writeSettings(root);
   if (settings) beside.push(settings);
 
-  // The spine skills, locked; `rivetari skills sync` installs them.
+  // The spine skills, locked, then synced the way `rivetari skills sync`
+  // does it, so doctor is green straight after init.
   let locked = "";
   try {
     const added = await initLock(root, { spineOnly: true });
+    const sync = await initSync(root, options);
+    if (sync) beside.push(sync.note);
     if (added.length > 0)
-      locked = ` Locked the spine skills (${added.map((e) => e.name).join(", ")}); run \`rivetari skills sync\`.`;
+      locked = ` Locked the spine skills (${added.map((e) => e.name).join(", ")})${sync?.ok ? "" : "; run `rivetari skills sync`"}.`;
   } catch (err) {
     locked = ` Couldn't lock the spine skills: ${(err as Error).message}`;
   }

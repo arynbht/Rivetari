@@ -78,7 +78,10 @@ export function buildProgram(): Command {
       "Set up .rivetari config and a workflow, then run the first audit",
     )
     .argument("[path]", "path to the repo", ".")
-    .option("--type <type>", "project type (non-interactive)")
+    .option(
+      "--type <type>",
+      "project type (non-interactive); without it, inferred from the repo's manifests when they say",
+    )
     .option("--name <name>", "project name")
     .option("--phase <phase>", "current lifecycle phase")
     .option("--stack <csv>", "comma-separated stack")
