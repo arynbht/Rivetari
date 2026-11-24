@@ -34,6 +34,32 @@ const DENIED = DENIED_BUILD_TOOLS.flatMap((rule) => {
  * as `npx x`: the same command, under a name the deny list doesn't carve out.
  */
 const NPM_EXEC = /^npm (?:exec|x) (?:-- )?/;
+/**
+ * Programs that run another command, so a grant for them would vouch for
+ * whatever they're handed (`env git push`, `bash -c "…"`).
+ */
+const WRAPPERS =
+  /^(env|command|exec|builtin|eval|nohup|time|timeout|nice|ionice|stdbuf|sudo|doas|runas|xargs|start|sh|bash|zsh|dash|fish|ksh|cmd|powershell|pwsh)$/;
+
+/** `C:\Git\bin\bash.exe` → `bash`. */
+const programName = (word: string) =>
+  (word.split(/[\\/]/).pop() ?? "").toLowerCase().replace(/\.(exe|cmd)$/, "");
+
+/**
+ * The deny-list prefix a command falls under: its program is the prefix's,
+ * and the prefix's other words appear in it in order, wherever options put
+ * them (`git -C . push` is `git push`).
+ */
+function deniedBy(run: string): string | undefined {
+  const [program = "", ...rest] = run.split(" ");
+  return DENIED.find((prefix) => {
+    const [head = "", ...words] = prefix.split(" ");
+    if (programName(program) !== head) return false;
+    let at = 0;
+    for (const w of rest) if (w === words[at]) at++;
+    return at === words.length;
+  });
+}
 
 export const grantRule = (command: string) => `Bash(${command})`;
 
@@ -64,7 +90,15 @@ export function grantedCommands(texts: readonly string[]): Grants {
         ? `${env}npx ${bare.replace(NPM_EXEC, "")}`
         : named;
       const run = command.slice(env.length);
-      const denied = DENIED.find((p) => run === p || run.startsWith(`${p} `));
+      const wrapper = programName(run.split(" ")[0] ?? "");
+      if (WRAPPERS.test(wrapper)) {
+        refused.push({
+          command: named,
+          why: `it runs another command through \`${wrapper}\`; name that command itself`,
+        });
+        continue;
+      }
+      const denied = deniedBy(run);
       if (denied) {
         refused.push({
           command: named,

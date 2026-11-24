@@ -279,6 +279,38 @@ describe(
         ],
       });
     });
+
+    it("never grants a denied command behind a wrapper or an option", () => {
+      expect(
+        grantedCommands([
+          'Can I run `env git push origin HEAD`, `git -C . push origin HEAD`, `node --eval x`, `bash -c "npm test"` and `npm --yes exec foo`?',
+        ]),
+      ).toEqual({
+        commands: [],
+        refused: [
+          {
+            command: "env git push origin HEAD",
+            why: "it runs another command through `env`; name that command itself",
+          },
+          {
+            command: "git -C . push origin HEAD",
+            why: "the build never runs `git push`",
+          },
+          {
+            command: "node --eval x",
+            why: "the build never runs `node --eval`",
+          },
+          {
+            command: 'bash -c "npm test"',
+            why: "it runs another command through `bash`; name that command itself",
+          },
+          {
+            command: "npm --yes exec foo",
+            why: "the build never runs `npm exec`",
+          },
+        ],
+      });
+    });
   },
 );
 
