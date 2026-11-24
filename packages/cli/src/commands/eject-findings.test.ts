@@ -203,4 +203,127 @@ describe("eject against its review findings", () => {
       expect(text).toContain("Use blue.");
     });
   });
+
+  describe("F1 again: a check that couldn't run is never no tasks", () => {
+    const envKeys = [
+      "GIT_DIR",
+      "GIT_CONFIG_GLOBAL",
+      "GIT_TEST_ASSUME_DIFFERENT_OWNER",
+      "PATH",
+    ] as const;
+    const savedEnv = Object.fromEntries(
+      envKeys.map((k) => [k, process.env[k]]),
+    );
+    afterEach(() => {
+      for (const k of envKeys) {
+        if (savedEnv[k] === undefined) delete process.env[k];
+        else process.env[k] = savedEnv[k];
+      }
+    });
+    // A checkout whose origin has the tasks branch, as far as anyone knows:
+    // here it can't be reached, so a real pull would always fail.
+    const withOrigin = async () => {
+      const dir = await repo();
+      await run("git", ["init", "-q"], { cwd: dir });
+      await run(
+        "git",
+        ["remote", "add", "origin", "https://127.0.0.1:1/x.git"],
+        { cwd: dir },
+      );
+      return dir;
+    };
+    const refuses = async (dir: string) => {
+      expect(await runEject(dir, { yes: true })).not.toBe(0);
+      expect(await there(join(dir, ".rivetari", "profile.yml"))).toBe(true);
+    };
+
+    it("F1 refuses in a directory git calls unsafe (dubious ownership)", async () => {
+      const dir = await withOrigin();
+      process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = "1";
+      await refuses(dir);
+    });
+
+    it("F1 refuses when the global git config is broken", async () => {
+      const dir = await withOrigin();
+      const global = join(dir, "..", `${dir.split(/[\\/]/).pop()}-gitconfig`);
+      made.push(global);
+      await writeFile(global, "[broken\n");
+      process.env.GIT_CONFIG_GLOBAL = global;
+      await refuses(dir);
+    });
+
+    it("F1 refuses when git isn't on PATH", async () => {
+      const dir = await withOrigin();
+      const empty = await mkdtemp(join(tmpdir(), "eject-findings-nopath-"));
+      made.push(empty);
+      process.env.PATH = empty;
+      await refuses(dir);
+    });
+
+    it("F1 refuses when GIT_DIR points at a missing directory", async () => {
+      const dir = await withOrigin();
+      process.env.GIT_DIR = join(dir, "no-such-gitdir");
+      await refuses(dir);
+    });
+
+    it("F1 refuses in a worktree whose .git file points at a missing gitdir", async () => {
+      const dir = await withOrigin();
+      await rm(join(dir, ".git"), { recursive: true, force: true });
+      await writeFile(
+        join(dir, ".git"),
+        `gitdir: ${join(dir, "..", "moved-away", ".git", "worktrees", "app")}\n`,
+      );
+      await refuses(dir);
+    });
+
+    it("F1 refuses in a checkout whose .git lost its HEAD", async () => {
+      const dir = await withOrigin();
+      await rm(join(dir, ".git", "HEAD"));
+      await refuses(dir);
+    });
+
+    it("F1 refuses when the repo needs a newer git (format version 99)", async () => {
+      const dir = await withOrigin();
+      await run("git", ["config", "core.repositoryformatversion", "99"], {
+        cwd: dir,
+      });
+      await refuses(dir);
+    });
+
+    it("F1 refuses from a subfolder whose repo's origin can't be reached", async () => {
+      const root = await withOrigin();
+      const dir = join(root, "packages", "app");
+      await mkdir(join(dir, ".rivetari"), { recursive: true });
+      await writeFile(join(dir, ".rivetari", "profile.yml"), "version: 1\n");
+      await refuses(dir);
+    }, 30_000);
+
+    it("F1 refuses when a task's card.yml won't parse", async () => {
+      const dir = await repo();
+      await run("git", ["init", "-q"], { cwd: dir });
+      await mkdir(join(dir, ".rivetari", "tasks", "T-0001"), {
+        recursive: true,
+      });
+      await writeFile(
+        join(dir, ".rivetari", "tasks", "T-0001", "card.yml"),
+        "id: [T-0001\ntitle: : :\n",
+      );
+      await refuses(dir);
+    });
+
+    it("F1 refuses when a task folder has no card.yml", async () => {
+      const dir = await repo();
+      await run("git", ["init", "-q"], { cwd: dir });
+      await mkdir(join(dir, ".rivetari", "tasks", "T-0002"), {
+        recursive: true,
+      });
+      await refuses(dir);
+    });
+
+    it("F1 still ejects a folder that isn't a git repo at all", async () => {
+      const dir = await repo();
+      expect(await runEject(dir, { yes: true })).toBe(0);
+      expect(await there(join(dir, ".rivetari"))).toBe(false);
+    });
+  });
 });

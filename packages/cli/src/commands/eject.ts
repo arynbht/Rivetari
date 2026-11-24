@@ -136,18 +136,33 @@ const mentions = (s: string) => /rivetari/i.test(s);
 const numbered = (text: string, pick: (line: string) => boolean): string[] =>
   text.split(/\r?\n/).flatMap((l, i) => (pick(l) ? [`${i + 1}: ${l}`] : []));
 
+/** Whether `root` or a folder above it has a .git entry, file or folder. */
+async function underGit(root: string): Promise<boolean> {
+  for (let dir = root; ; dir = dirname(dir)) {
+    if (await exists(resolve(dir, ".git"))) return true;
+    if (dirname(dir) === dir) return false;
+  }
+}
+
 /**
  * pullTasks reads a git that fails as a repo with no origin, so git has to
- * answer first: anything but "not a repo" (a broken config, an unsafe
- * directory, no git at all) means the tasks branch can't be checked, and
- * eject refuses rather than trust the local copy.
+ * answer first. Only a folder with no .git anywhere above it and no GIT_DIR
+ * is really outside a repo; git says "not a git repository" for a broken
+ * .git too. Any other failure (a broken config, an unsafe directory, no git
+ * at all) means the tasks branch can't be checked, and eject refuses rather
+ * than trust the local copy.
  */
 async function checkGit(root: string): Promise<void> {
   try {
     await run("git", ["remote"], { cwd: root });
   } catch (err) {
     const stderr = String((err as { stderr?: unknown }).stderr ?? "").trim();
-    if (/not a git repository/i.test(stderr)) return;
+    if (
+      /not a git repository/i.test(stderr) &&
+      !process.env.GIT_DIR &&
+      !(await underGit(root))
+    )
+      return;
     throw new Error(`git couldn't read the repo: ${stderr || String(err)}`);
   }
 }
@@ -165,6 +180,12 @@ async function openTasks(root: string, pull: boolean): Promise<string[]> {
     await checkGit(root);
     await pullTasks(root);
   }
+  // The listing reads a tasks folder it can't open as no tasks at all.
+  await readdir(resolve(root, ".rivetari", "tasks")).catch(
+    (err: NodeJS.ErrnoException) => {
+      if (err.code !== "ENOENT") throw err;
+    },
+  );
   const skipped: string[] = [];
   const tasks = await listTasks(root, (m) => skipped.push(m));
   if (skipped.length > 0) throw new Error(skipped.join("; "));
