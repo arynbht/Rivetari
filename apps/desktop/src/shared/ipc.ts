@@ -28,6 +28,8 @@ export const IpcChannel = {
   GatesStatus: "gates:status",
   GatesWaive: "gates:waive",
   GatesEvidence: "gates:evidence",
+  PostureGet: "posture:get",
+  PostureDraft: "posture:draft",
   FixPlan: "fix:plan",
   FixApply: "fix:apply",
   FixOpenPr: "fix:openPr",
@@ -263,6 +265,131 @@ export const EvidenceRequest = z.object({
   validFor: z.string().optional(),
 });
 export type EvidenceRequest = z.infer<typeof EvidenceRequest>;
+
+// Posture — the scorecard and the phase lens over the one audit state.json
+// records, the trend from history.jsonl, and the waivers and evidence on file.
+export const PostureRequest = z.object({ repoPath: z.string().min(1) });
+
+/** One snapshot from history.jsonl. fail and needsEvidence are null on rows that predate them. */
+export const PostureTrendPoint = z.object({
+  date: z.string(),
+  pass: z.number().int(),
+  fail: z.number().int().nullable(),
+  needsEvidence: z.number().int().nullable(),
+  total: z.number().int(),
+});
+export type PostureTrendPoint = z.infer<typeof PostureTrendPoint>;
+
+export const PosturePhase = z.object({
+  phase: z.string(),
+  title: z.string(),
+  status: GateStatus.nullable(),
+});
+export type PosturePhase = z.infer<typeof PosturePhase>;
+
+export const PostureLens = z.object({
+  /** profile.yml's phase: the repo's current phase. */
+  declaredPhase: z.string().nullable(),
+  /** The phase the recorded controls put the repo in, as `rivetari status` infers it. */
+  inferredPhase: z.string().nullable(),
+  allGreen: z.boolean(),
+  /** The phase after the inferred one, or null at the last. */
+  nextPhase: z.string().nullable(),
+  phases: z.array(PosturePhase),
+  /** What holds the inferred phase's gate shut, most severe first. */
+  blockers: z.array(GateBlocker.extend({ effort: z.string() })),
+});
+export type PostureLens = z.infer<typeof PostureLens>;
+
+/** active, or expiring within 30 days (the CLI's warning window), or past. */
+export const ExpiryState = z.enum(["active", "expiring", "expired"]);
+export type ExpiryState = z.infer<typeof ExpiryState>;
+
+export const PostureWaiver = z.object({
+  control: z.string(),
+  title: z.string(),
+  reason: z.string(),
+  owner: z.string().nullable(),
+  created: z.string().nullable(),
+  expires: z.string(),
+  state: ExpiryState,
+});
+export type PostureWaiver = z.infer<typeof PostureWaiver>;
+
+export const PostureEvidence = z.object({
+  control: z.string(),
+  title: z.string(),
+  reviewer: z.string().nullable(),
+  date: z.string().nullable(),
+  note: z.string().nullable(),
+  url: z.string().nullable(),
+  /** When it stops counting (YYYY-MM-DD), or null when it never expires. */
+  expires: z.string().nullable(),
+  state: ExpiryState,
+});
+export type PostureEvidence = z.infer<typeof PostureEvidence>;
+
+export const Posture = z.object({
+  repoPath: z.string(),
+  /** The recorded audit; null before `rivetari audit` has recorded one. */
+  scorecard: Scorecard.nullable(),
+  lens: PostureLens.nullable(),
+  trend: z.array(PostureTrendPoint),
+  waivers: z.array(PostureWaiver),
+  evidence: z.array(PostureEvidence),
+  /** Why waivers.yml or evidence.yml couldn't be read, if one couldn't. */
+  problems: z.array(z.string()),
+});
+export type Posture = z.infer<typeof Posture>;
+
+// The catalog's control-id shape (CONTROL_ID_PATTERN), which the preload can't
+// import: the catalog pulls node:fs.
+const ControlId = z
+  .string()
+  .max(100)
+  .regex(/^[a-z0-9]+(\.[a-z0-9-]+)+$/, "a control id");
+const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "a date as YYYY-MM-DD");
+
+/** A card to draft through the runtime, for gaps, a waiver or evidence. */
+export const PostureDraft = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("gaps"),
+    controls: z.array(ControlId).min(1).max(30),
+  }),
+  z.object({
+    kind: z.literal("waive"),
+    control: ControlId,
+    reason: z.string().trim().min(1).max(500),
+    expires: IsoDate,
+  }),
+  z.object({
+    kind: z.literal("evidence"),
+    control: ControlId,
+    reason: z.string().trim().min(1).max(500),
+    url: z
+      .string()
+      .trim()
+      .max(500)
+      .regex(/^https?:\/\/\S+$/, "a link that starts with http(s)://")
+      .optional(),
+  }),
+]);
+export type PostureDraft = z.infer<typeof PostureDraft>;
+
+export const PostureDraftRequest = z.object({
+  repoPath: z.string().min(1),
+  draft: PostureDraft,
+});
+export type PostureDraftRequest = z.infer<typeof PostureDraftRequest>;
+
+export const PostureDraftResult = z.object({
+  id: z.string(),
+  title: z.string(),
+  by: z.string(),
+  /** Set when the card is drafted here but pushing it to the tasks branch failed. */
+  warning: z.string().nullable(),
+});
+export type PostureDraftResult = z.infer<typeof PostureDraftResult>;
 
 // Fix — proposed generator changes (dry-run or applied) and the PR outcome.
 export const FixChange = z.object({

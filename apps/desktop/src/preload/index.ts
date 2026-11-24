@@ -56,6 +56,11 @@ import {
   NowSelectRequest,
   NowState,
   NowTaskRequest,
+  Posture,
+  PostureDraft,
+  PostureDraftRequest,
+  PostureDraftResult,
+  PostureRequest,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskDetail,
@@ -206,6 +211,25 @@ const api = {
         EvidenceRequest.parse(request),
       );
       return GatesReport.parse(raw);
+    },
+  },
+
+  posture: {
+    /** The recorded scorecard and phase lens, the trend, waivers and evidence. */
+    async get(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.PostureGet,
+        PostureRequest.parse({ repoPath }),
+      );
+      return Posture.parse(raw);
+    },
+    /** Draft a task card for gaps, a waiver or evidence, through the runtime. */
+    async draft(repoPath: string, draft: PostureDraft) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.PostureDraft,
+        PostureDraftRequest.parse({ repoPath, draft }),
+      );
+      return PostureDraftResult.parse(raw);
     },
   },
 

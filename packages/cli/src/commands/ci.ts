@@ -27,6 +27,7 @@ import {
   ProfileError,
   resolveToken,
   selectForGate,
+  summarizeResults,
   upsertStatusIssue,
   upsertStickyComment,
   WaiverError,
@@ -284,10 +285,12 @@ export async function runCi(): Promise<number> {
   // Annotations into the workflow log.
   process.stdout.write(`${renderReport(results, { format: "github" })}\n`);
 
-  // Append a per-lane pass snapshot for the hygiene trend (best-effort).
+  // Append a per-lane pass snapshot for the hygiene trend (best-effort), with
+  // the status counts the desktop's Posture trend draws.
   await appendHistory(workspace, {
     date: today(now),
     byLane: laneCounts(all),
+    summary: summarizeResults(all),
   }).catch(() => undefined);
 
   const gateResult = evaluateGate(gate, all);

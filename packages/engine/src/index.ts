@@ -20,6 +20,8 @@ export { evaluateControls } from "./audit.js";
 export type { AuditOptions } from "./audit.js";
 export { evaluateGate, selectForGate } from "./gates.js";
 export type { GateResult, GateStatus } from "./gates.js";
+export { inferPhase } from "./phase.js";
+export type { PhaseBlocker, PhaseGateStatus, PhaseInference } from "./phase.js";
 export {
   loadState,
   saveState,

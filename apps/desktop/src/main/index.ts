@@ -65,6 +65,10 @@ import {
   NowSelectRequest,
   NowState,
   NowTaskRequest,
+  Posture,
+  PostureDraftRequest,
+  PostureDraftResult,
+  PostureRequest,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskDetail,
@@ -121,6 +125,8 @@ import {
   openNowPr,
 } from "./engine/now-actions";
 import { mainCi, nowHealth } from "./engine/now-health";
+import { readPosture } from "./engine/posture";
+import { draftPostureTask } from "./engine/posture-task";
 import { taskDetail } from "./engine/task-detail";
 import { prState } from "./engine/task-pr";
 import {
@@ -597,6 +603,16 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.AuditRecorded, async (_event, raw: unknown) => {
     const { repoPath } = AuditRunRequest.parse(raw);
     return Scorecard.nullable().parse(await readScorecard(repoPath));
+  });
+
+  ipcMain.handle(IpcChannel.PostureGet, async (_event, raw: unknown) => {
+    const { repoPath } = PostureRequest.parse(raw);
+    return Posture.parse(await readPosture(repoPath));
+  });
+
+  ipcMain.handle(IpcChannel.PostureDraft, async (_event, raw: unknown) => {
+    const { repoPath, draft } = PostureDraftRequest.parse(raw);
+    return PostureDraftResult.parse(await draftPostureTask(repoPath, draft));
   });
 
   ipcMain.handle(IpcChannel.FloorPlanGet, async (_event, raw: unknown) => {

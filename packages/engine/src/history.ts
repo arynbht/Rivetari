@@ -5,6 +5,7 @@
 import { appendFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
+import type { AuditSummary } from "./audit-record.js";
 import type { ControlResult } from "./evaluate.js";
 
 export interface LaneCount {
@@ -16,6 +17,11 @@ export interface HistoryEntry {
   /** YYYY-MM-DD (injected; the engine never reads the clock). */
   date: string;
   byLane: Record<string, LaneCount>;
+  /**
+   * Status counts over every control, so a trend can tell failing controls
+   * from ones waiting on evidence. Rows written before it was added lack it.
+   */
+  summary?: AuditSummary | undefined;
 }
 
 const HISTORY_PATH = ".rivetari/history.jsonl";

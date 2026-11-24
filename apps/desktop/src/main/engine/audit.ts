@@ -69,7 +69,7 @@ function summarize(result: ControlResult): string {
   return result.detectors[0]?.message ?? "";
 }
 
-async function bundledControls(): Promise<Control[]> {
+export async function bundledControls(): Promise<Control[]> {
   const { controls, errors } = await loadBundledCatalog();
   if (errors.length > 0) {
     throw new Error(
@@ -84,7 +84,7 @@ async function bundledControls(): Promise<Control[]> {
  * status but not its detector messages, so `messages` carries them when the
  * audit was just run here; a scorecard read from disk has none.
  */
-function toScorecard(
+export function toScorecard(
   repoPath: string,
   recorded: RecordedAudit,
   controls: Control[],
