@@ -303,6 +303,11 @@ export interface NowHubOptions {
    * sidebar: whatever was raised for it has nothing left to point at.
    */
   onGone?: (repoPath: string, key: string) => void;
+  /**
+   * Hears a task that closed as merged while the app was running, once: the
+   * Project view checks the repo again, since a merge is what moves it.
+   */
+  onMerged?: (repoPath: string, id: string) => void;
   /** How often the repo on show is read, and every other one. */
   intervals?: { shown: number; others: number };
   watch?: typeof watchTasks;
@@ -328,6 +333,10 @@ interface Watched {
   primedSeq: Map<string, number>;
   /** When the hub started watching, for what arrives before it caught up. */
   since: number;
+  /** Tasks already seen closed as merged, so each is told once. */
+  merged: Set<string>;
+  /** The merges there at the first read are known, and what comes after is news. */
+  mergesPrimed: boolean;
   /** Settles once the first read lands, or once the repo stops being watched. */
   firstRead: Promise<void>;
   read: () => void;
@@ -487,6 +496,8 @@ export class NowHub {
           primed: false,
           caughtUp: false,
           primedSeq: new Map(),
+          merged: new Set(),
+          mergesPrimed: false,
           since: this.now(),
           firstRead,
           read,
@@ -533,6 +544,7 @@ export class NowHub {
           entry.read();
         }
         this.heard(entry);
+        this.merges(entry);
         this.told(entry);
         this.badges();
       },
@@ -605,6 +617,29 @@ export class NowHub {
         entry.known.delete(key);
         this.options.onGone?.(entry.repoPath, key);
       }
+  }
+
+  /**
+   * Tell `onMerged` about each task whose close says its PR merged, the first
+   * time it's seen after the first read. A merge from before the app started
+   * is learned, not told, by the same mark a new Needs-you item is judged by.
+   */
+  private merges(entry: Watched): void {
+    if (!entry.ready) return;
+    for (const view of entry.views) {
+      if (entry.merged.has(view.id)) continue;
+      const close = view.entries.find((e) => recentKind(e) === "merged");
+      if (!close) continue;
+      entry.merged.add(view.id);
+      if (!entry.mergesPrimed) continue;
+      const seen = entry.caughtUp ? entry.primedSeq.get(view.id) : undefined;
+      const news =
+        seen !== undefined
+          ? close.seq > seen
+          : Date.parse(close.at) >= entry.since;
+      if (news) this.options.onMerged?.(entry.repoPath, view.id);
+    }
+    entry.mergesPrimed = true;
   }
 
   /**

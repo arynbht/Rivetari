@@ -15,6 +15,7 @@ import { FloorPlan } from "@/components/FloorPlan";
 import { Gates } from "@/components/Gates";
 import { Now } from "@/components/Now";
 import { Posture } from "@/components/Posture";
+import { Project } from "@/components/Project";
 import { ProfileForm } from "@/components/ProfileForm";
 import { RepoMap } from "@/components/RepoMap";
 import { Scorecard } from "@/components/Scorecard";
@@ -27,6 +28,7 @@ import { applyTheme } from "@/lib/theme";
 type View =
   | "now"
   | "posture"
+  | "project"
   | "scorecard"
   | "floorplan"
   | "profile"
@@ -40,6 +42,7 @@ type View =
 const TABS: { id: View; label: string }[] = [
   { id: "now", label: "Now" },
   { id: "posture", label: "Posture" },
+  { id: "project", label: "Project" },
   { id: "scorecard", label: "Scorecard" },
   { id: "floorplan", label: "Floor Plan" },
   { id: "profile", label: "Profile" },
@@ -549,6 +552,26 @@ export function App() {
                   deepAuditRunning={floorPlanRunning}
                   deepAuditError={floorPlanError}
                   onDeepAudit={() => triggerFloorPlan(selectedRepo.path)}
+                  onOpenTask={(id) => {
+                    setTasksFocus({ id, seq: ++focusSeq.current });
+                    showView("tasks");
+                  }}
+                />
+              </div>
+            )}
+
+            {opened.has("project") && (
+              <div
+                id="panel-project"
+                role="tabpanel"
+                aria-labelledby="tab-project"
+                tabIndex={0}
+                hidden={view !== "project"}
+              >
+                {/* key checks the newly selected repo afresh. */}
+                <Project
+                  key={selectedRepo.path}
+                  repoPath={selectedRepo.path}
                   onOpenTask={(id) => {
                     setTasksFocus({ id, seq: ++focusSeq.current });
                     showView("tasks");
