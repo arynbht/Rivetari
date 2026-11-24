@@ -688,12 +688,14 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.HistoryGet, async (_event, raw: unknown) => {
-    const { repoPath } = HistoryRequest.parse(raw);
+    const { repoPath: asked } = HistoryRequest.parse(raw);
+    const repoPath = await registered(asked);
     return HistoryView.parse(await readHistory(repoPath));
   });
 
   ipcMain.handle(IpcChannel.HistoryOpenPr, async (_event, raw: unknown) => {
-    const { repoPath, id } = HistoryOpenPrRequest.parse(raw);
+    const { repoPath: asked, id } = HistoryOpenPrRequest.parse(raw);
+    const repoPath = await registered(asked);
     // As with tasks:openPr, the URL is the one the task's ledger records.
     return TaskOpenPrResult.parse(
       await openHistoryPr(repoPath, id, (url) =>
