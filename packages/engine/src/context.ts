@@ -92,6 +92,10 @@ export type CommandListener = (
 
 export interface BuildContextOptions {
   token?: string | undefined;
+  /** Profile keys this version doesn't know: fail (default) or warn and ignore. */
+  profileUnknownKeys?: "fail" | "warn" | undefined;
+  /** Hears the warning when unknown profile keys are ignored. */
+  onProfileWarning?: ((message: string) => void) | undefined;
   /** Override auto-detection of the repo's owner/repo (used in tests and CI). */
   github?: RepoSlug | undefined;
   /** The run's "now" (defaults to the current time); inject for determinism. */
@@ -186,7 +190,10 @@ export function buildContext(
 
     profile() {
       if (!profileData) {
-        profileData = loadProfile(root).catch((err: unknown) => {
+        profileData = loadProfile(root, {
+          unknownKeys: options.profileUnknownKeys,
+          onWarning: options.onProfileWarning,
+        }).catch((err: unknown) => {
           profileData = undefined; // don't cache a rejection
           throw err;
         });

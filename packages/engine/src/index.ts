@@ -103,6 +103,7 @@ export {
   updateProfile,
   ProfileError,
 } from "./profile.js";
+export type { LoadProfileOptions } from "./profile.js";
 export {
   appliesTo,
   evaluatePredicate,
