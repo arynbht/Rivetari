@@ -30,7 +30,7 @@ const CHECKS = [
 
 function ctx() {
   return buildContext("/virtual/repo", {
-    token: "test-token",
+    token: "dummy",
     github: { owner: "o", repo: "r" },
   });
 }
