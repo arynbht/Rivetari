@@ -1,0 +1,35 @@
+title: Spell out the duration column header in the sessions CSV
+type: chore
+source: prompt
+description: >-
+  The sessions CSV that coaches download from an athlete's workspace heads its
+  duration column "Duration (s)" (src/lib/domain/csv.ts:21). Coaches read it in
+  a spreadsheet, where "(s)" is easy to misread. Rename that one header to
+  "Duration (seconds)". It is a one-line change in sessionsCsv's header array.
+  No existing test asserts the header row, so add one new test file that pins
+  the whole header line.
+acceptance:
+  - id: A1
+    text: In src/lib/domain/csv.ts the sessionsCsv header "Duration (s)" becomes
+      "Duration (seconds)". That is the only changed line in csv.ts; the rows,
+      the other headers and compareCsv are unchanged
+    verify: review
+  - id: A2
+    text: 'New test src/lib/domain/sessions-csv.test.ts asserts that the first
+      line of sessionsCsv([]) is exactly "Started (UTC),Type,Duration
+      (seconds),Scoring,Total Breath Score,Timing in,Timing out,Depth in,Depth
+      out,Legacy overall (%),Breathing rate (br/min),Note". npm run test, lint
+      and typecheck pass, and no existing test changes'
+    verify: unit
+out_of_scope:
+  - The compare CSV (compareCsv) and its test
+  - Any other header, row or screen
+touches:
+  - src/lib/domain/csv.ts
+  - src/lib/domain/sessions-csv.test.ts
+pages: []
+constraints:
+  - no new dependencies
+  - no new code comments (quality.no-new-comments)
+  - do not modify existing tests; add new test files
+risk: low

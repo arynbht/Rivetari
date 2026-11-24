@@ -65,6 +65,9 @@ import {
   ProjectDraftRequest,
   ProjectRequest,
   ProjectView,
+  HistoryOpenPrRequest,
+  HistoryRequest,
+  HistoryView,
   TaskAnswerIpcRequest,
   TaskAnswerResult,
   TaskDetail,
@@ -272,6 +275,25 @@ const api = {
       return () => {
         ipcRenderer.removeListener(IpcChannel.ProjectUpdate, listener);
       };
+    },
+  },
+
+  history: {
+    /** Closed tasks, their spend, the judge's findings and the cost flags. */
+    async get(repoPath: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.HistoryGet,
+        HistoryRequest.parse({ repoPath }),
+      );
+      return HistoryView.parse(raw);
+    },
+    /** Open a closed task's PR in the OS browser (the URL comes from its ledger). */
+    async openPr(repoPath: string, id: string) {
+      const raw: unknown = await ipcRenderer.invoke(
+        IpcChannel.HistoryOpenPr,
+        HistoryOpenPrRequest.parse({ repoPath, id }),
+      );
+      return TaskOpenPrResult.parse(raw);
     },
   },
 

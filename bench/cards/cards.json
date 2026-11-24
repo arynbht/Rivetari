@@ -1,0 +1,23 @@
+{
+  "repo": "BreathBand/breathband-console",
+  "cards": {
+    "t0028": {
+      "file": "t0028.yml",
+      "pilotTask": "T-0028",
+      "base": "4190baa7013225d0e769257d81370f3eeaf1271b",
+      "note": "The pilot's T-0028 card, verbatim: Playwright e2e setup, medium."
+    },
+    "t0019": {
+      "file": "t0019.yml",
+      "pilotTask": "T-0019",
+      "base": "44e6ffb292b5e8694d42498dcb8a3909f27f9e75",
+      "note": "The pilot's T-0019 card, verbatim: additive contract fields, medium."
+    },
+    "oneline": {
+      "file": "oneline.yml",
+      "pilotTask": "T-0019",
+      "base": "44e6ffb292b5e8694d42498dcb8a3909f27f9e75",
+      "note": "Written for the bench: one header string in csv.ts plus one new test, low risk."
+    }
+  }
+}

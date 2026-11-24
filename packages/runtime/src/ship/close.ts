@@ -15,6 +15,7 @@ import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
 import { loadIsolation } from "../agent/isolate.js";
+import { stopTaskServers, teardownLine } from "../agent/processes.js";
 import { type Finding, findingPattern } from "../judge/tier2.js";
 import { AssemblySchema } from "../router/route.js";
 import { isSeal, SEAL_TEXT } from "../task/ledger.js";
@@ -355,6 +356,15 @@ export async function closeTask(
   // those are a person's, and they're kept. (Untracked files after the last
   // round are install and proof output.) The branch goes only when merged.
   const isolation = await loadIsolation(repoPath, id).catch(() => null);
+  // A closed task's port goes back to the pool, so whatever server it left
+  // up goes first; on Windows a running server also keeps the worktree from
+  // being removed.
+  if (isolation) {
+    const teardown = teardownLine(
+      await stopTaskServers(isolation.worktree, [isolation.port]),
+    );
+    if (teardown) await append("timeline", teardown);
+  }
   let cleanup: string | undefined;
   const present =
     isolation !== null &&

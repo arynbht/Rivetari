@@ -61,6 +61,23 @@ export interface RunTaskOptions {
   context?: RouteContext | undefined;
 }
 
+/**
+ * A beat that threw, with which one and why, so a run that ends on it says
+ * so in one line and never reads as shipped (a GitHub 422 from ship, say).
+ */
+export class BeatError extends TaskError {
+  constructor(
+    readonly task: string,
+    readonly beat: string,
+    readonly reason: unknown,
+  ) {
+    super(
+      `${task} failed at ${beat}: ${reason instanceof Error ? reason.message : String(reason)}`,
+    );
+    this.name = "BeatError";
+  }
+}
+
 export interface RunOutcome {
   task: Task;
   /** The beats run, in order. */
@@ -198,7 +215,8 @@ export async function runTask(
             }
           });
         } catch (err) {
-          if (!(err instanceof CallTimeoutError) || !calls) throw err;
+          if (!(err instanceof CallTimeoutError) || !calls)
+            throw err instanceof BeatError ? err : new BeatError(id, beat, err);
           await stopForTime(task, beat, err, common);
           stopped = true;
         } finally {

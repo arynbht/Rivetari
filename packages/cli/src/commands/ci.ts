@@ -253,6 +253,12 @@ export async function runCi(): Promise<number> {
   const ctx = buildContext(workspace, {
     token,
     github: owner && repo ? { owner, repo } : undefined,
+    // A profile written by a newer CLI than this action shouldn't fail every
+    // PR: unknown keys are named in a warning and ignored; anything else
+    // wrong with the profile still fails.
+    profileUnknownKeys: "warn",
+    onProfileWarning: (message) =>
+      process.stdout.write(`::warning::rivetari ci: ${message}\n`),
   });
 
   let profile;
