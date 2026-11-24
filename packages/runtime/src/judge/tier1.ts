@@ -110,6 +110,13 @@ export interface Tier1Options {
   now?: Date | undefined;
   /** Progress lines, e.g. to stderr. */
   log?: ((line: string) => void) | undefined;
+  /**
+   * Outcomes of catalog checks run elsewhere on the same base and head, for
+   * the checks this run can't do: the judge eval replays the pilot's recorded
+   * runs where it can't install the repo. Each counts like a check that ran
+   * here; a check that does run here replaces its recording.
+   */
+  recordedChecks?: readonly CheckOutcome[] | undefined;
 }
 
 const LOCKFILES = [
@@ -436,7 +443,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
     }
 
     // A check the scope left out is shown as not run, never dropped silently.
-    const catalogChecks = [
+    const live = [
       ...compare(baseResults, headResults),
       ...scoped.skipped.map((c): CheckOutcome => ({
         id: c.id,
@@ -446,6 +453,12 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
         outcome: "n/a",
         message: COVERAGE_SKIPPED,
       })),
+    ];
+    const catalogChecks = [
+      ...live,
+      ...(options.recordedChecks ?? []).filter(
+        (r) => !live.some((c) => c.id === r.id),
+      ),
     ];
     const checks = [
       ...catalogChecks,

@@ -210,6 +210,27 @@ export {
   loadJudgeRounds,
 } from "./judge/task-judge.js";
 export {
+  decideAfterReview,
+  decideBeforeReview,
+  type RoundDecision,
+  type RoundVerdict,
+} from "./judge/decide.js";
+export {
+  type CaseOutcome,
+  type CaseRun,
+  type EvalCase,
+  type EvalCaseMeta,
+  type EvalResult,
+  type EvalSummary,
+  judgeCase,
+  type JudgeEvalOptions,
+  loadEvalCases,
+  materializeCase,
+  runJudgeEval,
+  scoreCase,
+  summarize,
+} from "./judge/eval.js";
+export {
   PR_MARKER,
   type PrBodyInput,
   prTitle,

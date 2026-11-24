@@ -17,6 +17,10 @@ import { type EjectFlags, runEject } from "./commands/eject.js";
 import { runHookGuard, runHookSessionStart } from "./commands/hook.js";
 import { type InitFlags, runInit } from "./commands/init.js";
 import { type JudgeFlags, runJudge } from "./commands/judge.js";
+import {
+  type JudgeEvalFlags,
+  runJudgeEvalCommand,
+} from "./commands/judge-eval.js";
 import { type ReviewFlags, runReview } from "./commands/review.js";
 import {
   runTaskAnswer,
@@ -579,6 +583,22 @@ export function buildProgram(): Command {
     .option("--no-color", "disable coloured output")
     .action(async (path: string, flags: JudgeFlags) => {
       process.exitCode = await runJudge(path, flags);
+    })
+    .command("eval")
+    .description(
+      "Judge the labelled cases in eval/cases with today's judge: caught, missed and false blocks, and a JSON result in eval/results",
+    )
+    .option("--cases <dir>", "the corpus", "eval/cases")
+    .option("--case <id>", "judge only this case (repeatable)", collect, [])
+    .option("--out <dir>", "where the JSON result goes", "eval/results")
+    .option("--label <name>", "name the result file after this")
+    .option("--model <model>", "one model for every review")
+    .option("--no-review", "tier 1 only: no model calls, nothing to pay")
+    .option("--concurrency <n>", "cases judged at once (default 2)")
+    .option("--json", "output JSON")
+    .option("--no-color", "disable coloured output")
+    .action(async (flags: JudgeEvalFlags) => {
+      process.exitCode = await runJudgeEvalCommand(flags);
     });
 
   program
