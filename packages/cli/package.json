@@ -1,6 +1,6 @@
 {
   "name": "@arynbht/rivetari",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Rivetari CLI: init, audit, fix, ai, status, metrics, waive, evidence, profile.",
   "license": "MIT",
   "repository": {

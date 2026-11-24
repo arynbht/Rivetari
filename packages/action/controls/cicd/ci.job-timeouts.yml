@@ -1,0 +1,22 @@
+id: ci.job-timeouts
+title: Every CI job has a timeout
+lane: cicd
+phase: build
+severity: medium
+effort: small
+detect:
+  - type: workflow
+    check: job-timeouts
+    exclude: ".github/workflows/rivetari.yml|.github/workflows/rivetari.yaml"
+evidence: none
+# Sets `timeout-minutes: 30` on each job without one; tighten it per job.
+fix:
+  type: workflow
+  patch: job-timeouts
+references:
+  - name: GitHub Docs — Workflow syntax (jobs.<job_id>.timeout-minutes)
+    url: https://docs.github.com/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idtimeout-minutes
+rationale: >
+  A job with no timeout runs for up to six hours when a step hangs, burning
+  minutes and holding the PR's required check pending. A timeout near the job's
+  real duration turns a hang into a fast, visible failure.

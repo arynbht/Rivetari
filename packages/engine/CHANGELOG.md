@@ -1,5 +1,216 @@
 # @arynbht/rivetari-engine
 
+## 2.0.0
+
+### Major Changes
+
+- 328afac: The software factory is now **Rivetari**. Everything is renamed, with no compatibility layer: the packages are `@arynbht/rivetari`, `@arynbht/rivetari-engine`, `@arynbht/rivetari-runtime`, `@arynbht/rivetari-catalog` and `@arynbht/rivetari-registry` (the `@arynbht/factory*` names are deprecated); the CLI is `rivetari` and the Claude Code skill `/rivetari`; a repo's state lives in `.rivetari/`, its workflow is `.github/workflows/rivetari.yml`, tasks are shared on the `rivetari/tasks` branch, environment variables are `RIVETARI_*`, the needs-a-person label is `rivetari:needs-human`, and the user's config and cache are `~/.config/rivetari` and `~/.cache/rivetari`. A repo set up with the factory needs `.factory/` moved to `.rivetari/`, its workflow, hooks and skill re-installed with `rivetari init --force`, and its tasks branch copied to `rivetari/tasks`. Ledgers signed before the rename are moved, not rewritten, so their entries still read as they were sealed and still verify.
+
+### Minor Changes
+
+- 497f5bb: Every `claude -p` call now has a time limit, and `rivetari task run` has a wall-clock budget, so a hung call can't keep a task running all night. Each call (the build agent, the judge's review through the CLI transport, the audit swarm and the write-agent) is killed after 20 minutes, or `RIVETARI_CALL_TIMEOUT_MINUTES`; on Windows the whole process tree is killed, not just the cmd.exe shim. One `rivetari task run` gets 90 minutes, or `RIVETARI_TASK_BUDGET_MINUTES`, and when the budget runs out during a call that call is killed. Either limit stops the task as a stop-and-ask with the new `timeout` trigger: the ledger names the limit that fired and its value, `rivetari task run` exits 2, and answering it runs the build or judge beat again. A judge stopped this way never reaches a verdict, so allowing it judges again instead of shipping.
+- 28e3957: Generate a Markdown architecture doc from the floor-plan model.
+
+  Each deep-audit run now also writes `.rivetari/architecture.md` — a Mermaid systems
+  diagram plus a per-system breakdown and the detected profile — so the architecture
+  shows up in the desktop Docs tab and is a shareable, diff-able companion to the
+  interactive Floor Plan.
+
+- 4b5c8b2: The profile takes `autonomy: supervised | review-at-pr | unattended`, default `supervised`. At `review-at-pr` the card is confirmed and the route approved without asking, unless the route has a borderline sector or touches a sensitive path. Stops split into hard ones, which still pause the round (protected paths outside existing tests, rewritten history, a secret, a non-local `DATABASE_URL`, a new dependency whose license isn't on the OSI list or can't be read), and soft ones the build goes on past and flags (a new OSI-licensed dependency, a changed existing test, a schema change). The judge is told about flagged decisions, and the draft PR lists them under "Decisions you would have been asked" with the lockfile, schema or test diff inline. A high-risk task keeps every gate at any level. At `unattended`, `rivetari task run --all` runs every routed task in turn and parks any that would ask, which session start lists under "Needs you". Every PR body now carries the card and the route.
+- 28e3957: Make the build loop reliable out of the box, and add a `rivetari build` CLI.
+
+  - **Worktree dependency install**: a fresh build worktree has no `node_modules`, so
+    the pipeline now installs dependencies (lockfile-detected package manager) before
+    the verify step runs the repo's tests/lint/typecheck — no more spurious failures on
+    the first build.
+  - **`rivetari build "<description>"`**: the orchestration layer from the terminal.
+    Plans the change and prints it; with `--yes` it builds it with a write-agent in an
+    isolated worktree, self-checks, and opens a gated PR (`--no-push` stops at a local
+    branch). Where Claude Code already lives.
+
+- 9db492e: Add a `ci` block to the profile. `ci.budget_minutes_per_month` sets the GitHub Actions minutes the repo means to spend in a month: `rivetari doctor` warns once the month reaches 75% of it, and the status issue shows the month so far against it. Minutes are counted per job and rounded up, as GitHub bills. A closed task's history row records the minutes and runs its PR's CI used (`ci_minutes`, `ci_runs`).
+
+  `ci.trust_judge` decides whether shipping a task the judge passed posts a `rivetari/judge` check run on its head commit, with the judge record's sha256 and the ledger hash, which CI can trust to skip lint, typecheck and tests. Unset, it's true on repos owned by the account Rivetari's App is registered to and false on anyone else's. The App now asks for `checks: write`.
+
+- 71b0956: New CI/CD posture controls check that an installed repo's GitHub Actions follow the fast-CI shape. Four fixes edit the workflows in place and keep their comments; two only suggest the change. `ci.required-aggregator`: one `ci` job needs other PR jobs (a job may be left out on purpose), runs with `if: always()` and reads their results to fail when one failed (the fix adds that job needing every PR job, or turns an existing `ci` job into it). `ci.concurrency-pr-only`: superseded PR runs are cancelled (`cancel-in-progress` on `github.event_name == 'pull_request'`) and default-branch runs are grouped by commit, so they're never cancelled or replaced. `ci.job-timeouts`: every job sets `timeout-minutes` (the fix sets 30). `ci.secret-scan-on-pr` (harden): a PR workflow runs gitleaks or TruffleHog over the PR's commits (the fix adds a `secret-scan` job running TruffleHog, which needs no license on an organization's repo). `ci.docs-skip-build`: docs-only PRs skip build and test; the fix makes no edit and suggests a `changes` job with dorny/paths-filter and which jobs to gate on it, leaving the required `ci` job and the secret scan ungated since GitHub counts a skipped required check as passed, and asks for `ci.required-aggregator` first when there's no `always()` aggregator. `ci.pr-linux-only`: on a private repo, GitHub-hosted Windows and macOS runners stay off pull requests (self-hosted ones don't count); the fix makes no edit, names the jobs and suggests narrowing a mixed OS matrix on PRs or keeping a Windows- or macOS-only job off them, and moving a required `ci` job to Linux. `ci.actions-pinned-sha`'s fix now pins each tag-pinned `uses:` to the commit the tag points at, read from the GitHub API, keeping the tag as a comment. They run on the new `workflow` detector type and `workflow` fix type; a workflow file that doesn't parse fails the check, and the fix notes it and edits the rest. Rivetari's CI workflow template now sets `timeout-minutes` and cancels only PR runs.
+- 28e3957: Add an agentic deep-audit swarm and an interactive Floor Plan tab.
+
+  "Run audit" now also fans out a swarm of read-only headless Claude Code agents
+  (subscription auth) that map the repository into a structured model — systems,
+  subsystems, features, APIs, connectors, datastores and how they connect — persist
+  it to `.rivetari/floorplan.json`, and render it as an interactive Cytoscape graph in
+  a new Floor Plan tab. The deterministic scorecard is unchanged; the swarm runs
+  alongside it and never blocks it. The model refreshes on audit, on demand, after a
+  Fix/AI change lands, and on repo switch (staleness-aware). The swarm requires the
+  Claude CLI; without it the scorecard is unaffected and the tab explains why.
+
+- 28e3957: Close the deep-audit loop and harden the swarm.
+
+  - **Incremental refresh**: each slice carries a content fingerprint; a refresh
+    reuses unchanged slices verbatim and re-maps only what changed, skipping the
+    reduce entirely when nothing moved — repeated refreshes are now cheap.
+  - **Verification pass**: a bounded reviewer agent prunes implausible cross-system
+    edges so the inferred connections aren't trusted single-pass.
+  - **AI grounding**: the context packer injects a compact architecture summary from
+    `.rivetari/floorplan.json`, so ADR / C4 / threat-model / explain-gaps are grounded
+    in the repo's real systems and connections.
+  - **Profile enrichment**: the Profile tab surfaces the swarm's detected
+    type/stack/flags/phase as an "Apply suggestions" banner that fills the form for
+    review (never auto-written — Claude drafts, humans sign).
+
+- 6e00240: `rivetari init` fills the profile's `stack` from the repo: the stacks its manifests show, plus any `--stack` values mapped onto the stacks they imply (`nextjs` is node, `ts` is node and typescript), deduped, with names that map onto none (`postgres`) kept as given. `banned.json` is seeded from that stack, so a repo initialised without `--stack` no longer gets `stack: []` and an empty banned list. The package manager is read one way everywhere: package.json's `packageManager` field first, then a lockfile, a `pnpm-workspace.yaml` or `.yarnrc.yml`, then the one the scripts call by name. Init and the fix templates default to npm when nothing names one; verify and proof keep pnpm for that case for now.
+- a8c3169: `rivetari task run` runs the test suite once a round. For a `test-run` proof, the prove beat no longer runs the suite itself: it records that the judge's tier 1 run on the change is the proof, and the judge publishes that run's full log as the evidence and writes the proof record the PR body reads. A failing suite fails the proof and sends the change back to build, as before. The build prompt tells the agent to run only the tests related to the files it touched, never the whole suite. The engine's context takes an `onCommand` listener, which hears each command a detector runs, with its output. `proveTask` and `runTask` keep running their own suite unless `deferTestRun` is set; the CLI sets it.
+- 28e3957: Add the orchestration layer — a feature/fix request becomes a gated PR.
+
+  A new **Build** tab turns a natural-language request into working code: a read-only,
+  floor-plan-grounded planner drafts a plan you approve, then a write-capable Claude
+  agent implements it in an **isolated git worktree** (your working tree is never
+  touched), self-checks against the repo's tests/lint/typecheck **and** Rivetari
+  phase gate with a bounded fix-loop, and — only when the checks pass — commits,
+  pushes, and opens a reviewable PR. Two human checkpoints (approve the plan, review
+  the PR) keep it honest. The engine orchestrator (`orchestrate/`) is fully
+  injectable and unit-tested with no `claude`/git/network.
+
+- eef91ca: A running task now shows that it's alive. While `rivetari task run` runs a beat it writes a small progress file beside the task's directory, `.rivetari/tasks/<id>.progress.json`: the beat, when it started, when it last did something, and for the build the agent's turns, tokens and last tool so far. It's written atomically, at most every 2 seconds, and removed when the beat ends; it's never part of the ledger, the tasks branch or anything the judge hashes, and a file left by a process that died is ignored. The build agent reads `claude -p` as `--output-format stream-json --verbose` so it can count turns while the call runs, and still returns the same reply, cost, turns and turn limit from the final result. `spawnWithLimit` takes an `onLine` callback that hears stdout line by line. `watchTasks` puts each running task's progress on its view (`progress`), polls it on its own so it stays live during a slow read, counts a ledger entry as activity, and with `localFirst` lists this machine's copies at once before merging the tasks branch's view in; the branch read now loads up to 8 tasks at a time. `loadTask` takes `readOnly`.
+
+  In the desktop Tasks tab each running task shows "Running: build · 12 min · turn 18 · last activity 20 s ago", updated every second, and "No activity for N min" in amber after five quiet minutes; "Next: …" shows only when nothing is running. The list appears from the local copies first (about 50 ms for this repo's 31 tasks, down from about 11 s) and no longer carries every task's ledger: the open task's ledger is fetched on its own (`tasks:ledger`) and again when it grows.
+
+- be49a10: Rivetari's GitHub App (ADR-0007, spec v2.1 §14).
+
+  - `rivetari app register [--org <org>]` creates the App from its manifest in one
+    click: a local page posts the manifest to GitHub, GitHub sends you back with a
+    one-time code, and the App's ID, private key and secrets are kept in the
+    Rivetari's config directory (secrets readable by you only). It asks for exactly
+    ADR-0007's permissions, with no webhook.
+  - `rivetari app status` shows whether Rivetari acts as the App in a repo;
+    `rivetari app token` prints an installation token for scripts and CI.
+  - A new `githubToken(repo)` picks how Rivetari reaches GitHub: an explicit
+    token, then `GITHUB_TOKEN`/`GH_TOKEN`, then the App when it's installed on the
+    repo, then `gh auth`. `rivetari review --pr`, evidence uploads, `task ship` and
+    `task close` use it, so with the App their reviews, evidence and PRs come from
+    Rivetari. This also fixes `task ship` and `task close` outside tests: they
+    built their GitHub client with no token, so they always failed.
+  - `rivetari doctor` says whether Rivetari reaches GitHub as its App or as you.
+
+- 0a66e93: Apply the judge decisions: the coverage floor ratchets (profile `quality.coverage`,
+  else a baseline recorded in `.rivetari/quality.json` that only moves up) and fails in
+  the judge when configured coverage writes no summary; `reviewed` finds drafts by their
+  header and requires every draft for the task to be reviewed; the judge sweeps stale
+  clones, disables the target repo's hooks, runs tests before reading coverage, and
+  won't pass a non-Node repo on checks that are red at base too.
+- 0a66e93: Registry review rules: `scan_allow` binds to one exact line (sha256) with a named
+  reviewer and is ignored once the lock pins another commit; licenses outside the
+  OSI allow-list need a signed `license_review`; legal-sector skills must name the
+  controls they serve; the `.rivetari/` scan rule matches repo paths only;
+  `pnpm registry:scan` lists open findings. The judge protects the skill registry
+  and agent harness settings, and runs installs and checks with an environment
+  allowlist (`allowlistedEnv`; `--env` to pass more). Manifests: drop
+  app-store-compliance and privacy-threshold-analysis; add a11y-core (required by
+  accessibility-lead), three control-mapped privacy skills, and insecure-defaults
+  (task scope, last skill commit).
+- 0a66e93: Rivetari v2 step 1, "before the judge": `rivetari judge` (tier 1) runs lint,
+  typecheck and tests on a clean clone of base plus the change, with scripts,
+  `.rivetari/**`, lint/CI config and existing tests taken from base; fails closed,
+  compares against base, and marks protected changes `needs-human`. New `quality`
+  lane (lint/typecheck/tests pass, coverage floor, required checks); command
+  detectors run only in the judge or with `audit --commands`. CI and security
+  controls read workflow YAML paths (every action pinned, no `write-all`,
+  `--if-present` doesn't count, `rivetari.yml` never counts). Strict control
+  schemas, `valid-for` and `managed` on controls, and Claude-fixed controls need a
+  filled `reviewed-by:` or evidence.
+- ad25e71: Rivetari v2 step 4: judge tier 2. `rivetari review` (local, or `--pr <n>` to post one PR
+  review) and `rivetari judge --review` (tier 1, then tier 2 unless tier 1 needs a human).
+  Only defects, contract breaches and unmet acceptance criteria block; everything else
+  is a suggestion. Each blocking finding is re-checked in a fresh context and downgraded
+  without a concrete reproduction. Two rounds, then needs-human. The model sees only the
+  packed diff (no sensitive paths, secret-shaped or generated files; source first) and
+  the base's AGENTS.md/CONSTRAINTS.md. The Claude CLI transport now runs locked down: no
+  tools, safe mode, empty working directory. Judge model from profile `ai.judge_model`.
+- 8b61010: Rivetari v2 step 6a: isolation and the sector agent. `rivetari task isolate <id>` gives an
+  approved task its own worktree under `.worktrees/`, branch `<type>/<id>`, port and
+  database name, with git hooks off inside it. `rivetari task build <id>` plans first
+  (read-only, recorded in the ledger before any edit), then runs one writer in the
+  worktree with a prompt assembled in a fixed order (AGENTS.md from the base, the card,
+  the assembly's skills verified against the lock, a size-capped repo slice, the
+  operating rules) on an allowlisted environment. The runtime commits, then checks the
+  diff: a new dependency, a schema change, a sensitive or protected path, or a plan over
+  budget pauses the task until `rivetari task answer <id> --allow|--deny`.
+- cfba43b: Rivetari v2 step 6b: the proof runner. `rivetari task prove <id>` produces the
+  assembly's proof with tools. For UI tasks it serves the base and the change side by
+  side (profile `proof.start` / `proof.url`), shoots each card `pages:` entry at three
+  breakpoints with Playwright, runs axe on the change (serious or critical violations
+  fail the proof), and uploads the images to an orphan `evidence` branch through the
+  Contents API. Every other proof type runs the test script and names the tests the
+  change added. Results go to the ledger and `proof/proof.json`; a failed proof sends
+  the task back to build, and the next round is told why.
+- 5cb919e: Rivetari v2 step 7a: the judge, ship and close beats. `rivetari task judge <id>`
+  runs tier 1 and then the scoped review on the task's branch (never the worktree),
+  only on the commit the last build round made. Blocking findings or failed checks go
+  back to the agent with the repro, at most twice. A protected change, or blocking
+  findings in round 3, stop and ask a person. `rivetari task ship <id>` pushes the
+  judged branch and opens a draft PR whose body comes from the card, ledger, proof and
+  the judge's sealed record. `rivetari task close <id>` waits for a person to merge or
+  close the PR (or `--abandon`), records the outcome with duration, tokens and cost,
+  removes the worktree, appends a task row to `.rivetari/history.jsonl` and seals the
+  ledger.
+- 0a66e93: Make remediation safe on repos Rivetari did not scaffold (Rivetari v2 §3.1):
+  stack detection from manifests (node/python/go/rust, `unknown` skips stack files),
+  CI merges find the real job instead of inventing `jobs.ci`, merges into one file
+  accumulate in a single run, `merge-json` never overwrites a human's value, SHA-pinned
+  first-run-safe CI templates (plus go and rust), `project:` profile fields instead of
+  `@OWNER`/`security@example.com` placeholders, `any-of` detectors and `{ file }`
+  applicability, phase floor in `status`, severity floor no longer lowers gates,
+  `chore(rivetari):` commits, and a 60 s timeout on `command` detectors.
+
+### Patch Changes
+
+- 5b3e8cf: A repo can ban patterns, and the judge fails a change that adds one. The list lives in `.rivetari/banned.json`; `rivetari init` seeds it with defaults for the stack (eval, new Function, debugger and raw innerHTML for Node; eval, exec, pickle loads, shell=True and breakpoint() for Python), and `rivetari banned seed|add|allow|list` maintains it. Tier 1 checks the change's added lines against the base's list, so a change can't loosen the rules it's judged by, and the tier 2 reviewer sees the list as part of the contract. Each entry counts once in the trust ladder's rule count; an entry a lint rule already enforces is marked `covered_by` and isn't counted twice. The stop detector no longer treats a test file that names a secret as data as a secret; real key shapes in test files still stop the round. Each build round's tokens, turns and whether it was a retry are recorded in the task's history row, and a build round with flagged decisions now counts towards the task's token totals again.
+- e715d32: The Claude CLI transport now counts cache creation and cache read tokens, and the judge's token total and cost estimate include them.
+- 4b5c8b2: Recurring judge findings can now become rules. Every tier 2 finding carries a stable `pattern` id, and a closed task's history row records its findings by pattern. `rivetari metrics` (and `rivetari metrics --findings`, which needs no GitHub) reports the judge's tier 1 rule count, findings per PR, how often each pattern recurs, and any pattern seen in two or more PRs as a candidate rule. Tier 1 gains three diff rules that fail closed: no new code comments (opt in with `quality.no-new-comments` in the profile), no Markdown added or edited unless the card names it, and no new suppressions or skipped and focused tests. The catalog gains `quality.boundaries.clean`, which runs a repo's `boundaries` script when it has a dependency-cruiser config.
+- 53fa997: A private repo on GitHub's free plan no longer fails or skips the branch-protection controls it can't satisfy. GitHub answers the protection and rules endpoints there with a 403 asking to upgrade to Pro or make the repo public, so `repo.branch-protection`, `quality.required-checks.named` and `dev.code-review-required` now report n/a with that reason. Detectors gain an `n/a` status, and a control whose detectors are all n/a is n/a. Public repos, paid plans and every other 403 or error are handled as before.
+- 31821c8: verify and the proof runner fall back to npm, like init and the templates, when nothing in a repo names a package manager.
+- ef50f7b: The packages publish to GitHub Packages (`https://npm.pkg.github.com`, restricted) and name this repo as their source, so a release's publish step reaches them and links each package to the repo.
+- 8b85843: A task run no longer spends rounds that change nothing. A build round where the agent leaves the worktree as it found it stops the run and asks a person, with the agent's reply as the question, instead of proving the same commit again. The agent can also end a round with a last line `RIVETARI_STOP: <question>`; the runtime asks it without committing or proving, and the next round gets the answer. The judge's reviewer and its false-positive gate now see every stop-and-ask a person allowed, with who and when, and are told not to block on it. A failing test run is retried once and run on the base: a failure that passes on the retry is reported as flaky, and one that also fails on the base as pre-existing, and neither fails the proof. Build rounds after the first resume the agent's previous session. A failed push while reserving a task id gives the id back, `rivetari task status` skips a folder with no card instead of failing, and a beat whose final push fails says the beat is done and exits 1. The judge's cost uses the cost the Claude CLI reports, and the price table now covers Claude Opus 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5.1, so the judge no longer reads $0.
+- eb93ad1: The secret filter no longer mistakes code that refers to a secret for the secret itself. A value that names another secret (`token: auth.token`, `apiKey: this.config.apiKey`) or a lone identifier in an object literal (`token: explicit,`) is code, so the judge's AI review and the AI context now see those files instead of skipping them. Quoted values and dotted values that don't end in a secret's name are flagged as before.
+- ce71405: Rivetari v2.1 step 7b: the guardrails fail closed.
+
+  - `rivetari init --force` never deletes: the profile and `rivetari.yml` it replaces
+    are backed up, and waivers and evidence are written only when missing.
+  - `init` merges its hooks into an existing `.claude/settings.json` (backing it up)
+    instead of writing a sibling file Claude Code never reads; a re-run replaces an
+    earlier init's hooks rather than adding a second set.
+  - The guard hook fails closed: `rivetari hook guard || exit 2` blocks the call when
+    `rivetari` can't run. It now covers Bash too: writes through redirects, `tee`,
+    `cp`, `mv`, `rm`, `sed -i` and the like to anything the edit guard protects, and
+    git commands that destroy work (force push, remote delete, `reset --hard`,
+    `clean -f`, `branch -D`). Bash checks are a heuristic; the judge is the backstop.
+  - `rivetari hook session-start` says on its first line whether the guard is on, and
+    `rivetari doctor` fails until the hook is installed and `rivetari` runs from a shell.
+  - The Node CI template runs only the lint, typecheck and test scripts the repo has,
+    without `--if-present`; the `dev.linter.in-ci` and `test.runner.in-ci` fixes add
+    real steps and deduplicate on the command, not the step name.
+  - `rivetari review --pr` deletes its `refs/rivetari/pr-<n>` ref when it's done.
+
+- Updated dependencies [4b5c8b2]
+- Updated dependencies [9db492e]
+- Updated dependencies [71b0956]
+- Updated dependencies [4b5c8b2]
+- Updated dependencies [ad769fc]
+- Updated dependencies [24781e4]
+- Updated dependencies [87d646b]
+- Updated dependencies [ef50f7b]
+- Updated dependencies [328afac]
+- Updated dependencies [da6ad10]
+- Updated dependencies [ce71405]
+- Updated dependencies [9d2955f]
+- Updated dependencies [0a66e93]
+- Updated dependencies [0a66e93]
+- Updated dependencies [ad25e71]
+- Updated dependencies [cfba43b]
+- Updated dependencies [4d5e653]
+- Updated dependencies [0a66e93]
+  - @arynbht/rivetari-catalog@2.0.0
+
 ## 1.0.0
 
 ### Major Changes

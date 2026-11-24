@@ -1,6 +1,6 @@
 {
   "name": "@arynbht/rivetari-runtime",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Task runtime: task cards and ledger, the router, and the judge (and, later, sector agents) for rivetari v2.",
   "license": "MIT",
   "repository": {

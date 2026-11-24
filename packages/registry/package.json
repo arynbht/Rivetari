@@ -1,6 +1,6 @@
 {
   "name": "@arynbht/rivetari-registry",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Skill registry: pinned, hashed, scanned skills with manifests; sync, add, update and vendor.",
   "license": "MIT",
   "repository": {

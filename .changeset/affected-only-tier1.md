@@ -1,5 +1,0 @@
----
-"@arynbht/rivetari-runtime": minor
----
-
-In a pnpm workspace, tier 1 checks only the packages a change can affect: the packages its files sit in, plus every package that depends on one of them, transitively, read from `pnpm-workspace.yaml` and the package manifests at both base and head. The same scope runs on both sides, so the comparison stays like for like. A check is narrowed when its root script ends in vitest or jest (the packages become path filters, with `--passWithNoTests` and coverage off) or is `pnpm -r run <script>` (the packages become `--filter`s); any other check runs on every package. Because a narrowed test run covers part of the code, the coverage floor runs only when the tests run in full. A change outside every package (root `package.json`, the lockfile, a root tsconfig, vitest or eslint config, `scripts/`), a root package that depends on an affected package, or a repo that isn't a readable pnpm workspace checks everything, as before. The verdict notes say which packages were checked and why, which checks ran in full, and when the coverage floor was skipped.
