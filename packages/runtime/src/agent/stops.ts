@@ -276,9 +276,17 @@ export async function findStops(
       { dot: true },
     );
     const hunks = parseHunks(unified);
-    const changes = diff
-      .filter((e) => [e.path, e.oldPath].some((p) => p && isContract(p)))
-      .map((e) => contractChange(e, hunks.get(e.path) ?? []));
+    const changes = await Promise.all(
+      diff
+        .filter((e) => [e.path, e.oldPath].some((p) => p && isContract(p)))
+        .map(async (e) =>
+          contractChange(
+            e,
+            hunks.get(e.path) ?? [],
+            (await textAt(git, head, e.path)) ?? undefined,
+          ),
+        ),
+    );
     if (changes.length > 0) {
       const breaking = changes.flatMap((c) =>
         c.breaking.map((why) => `${c.path} ${why}`),

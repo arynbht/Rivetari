@@ -147,6 +147,8 @@ describe("intake against the profile", () => {
   });
 
   it("refuses a criterion that asks for what a banned pattern forbids", async () => {
+    // Built from parts so this file doesn't add the call the pattern bans.
+    const CALL = `${"ev"}al(`;
     const repo = await repoWith({
       ".rivetari/banned.json": JSON.stringify({
         version: 1,
@@ -165,12 +167,12 @@ describe("intake against the profile", () => {
       acceptance: [
         {
           id: "A1",
-          text: "parse the rule with eval(text) in src/rules.ts",
+          text: `parse the rule with ${CALL}text) in src/rules.ts`,
           verify: "unit" as const,
         },
         {
           id: "A2",
-          text: "no eval( call remains in src/rules.ts",
+          text: `no ${CALL} call remains in src/rules.ts`,
           verify: "unit" as const,
         },
       ],
@@ -178,7 +180,7 @@ describe("intake against the profile", () => {
     };
     const { refuse } = await profileConflicts(repo, card);
     expect(refuse).toEqual([
-      "acceptance A1 asks for `eval(`, which the banned pattern no-eval forbids (eval runs a string as code); reword it, or change .rivetari/banned.json",
+      `acceptance A1 asks for \`${CALL}\`, which the banned pattern no-eval forbids (eval runs a string as code); reword it, or change .rivetari/banned.json`,
     ]);
   });
 

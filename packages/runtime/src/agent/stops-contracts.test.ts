@@ -181,6 +181,35 @@ describe("the schema stop on contract files", () => {
     );
   });
 
+  it("asks about a migration that adds a constraint or a unique index", async () => {
+    const { dir, from, to } = await change(
+      { "db/migrations/001.sql": "CREATE TABLE users (id int);\n" },
+      {
+        "db/migrations/002.sql":
+          "ALTER TABLE users ADD CONSTRAINT users_pk PRIMARY KEY (id);\nCREATE UNIQUE INDEX users_email ON users (email);\n",
+      },
+    );
+    const [stop] = await findStops(dir, from, to, assembly);
+    expect(stop?.additive).toBe(false);
+  });
+
+  it("asks about a field moved out of a type into a new one", async () => {
+    const user = "export interface User {\n  id: string;\n  name: string;\n}\n";
+    const { dir, from, to } = await change(
+      { "src/types.ts": user },
+      {
+        "src/types.ts":
+          "export interface User {\n  id: string;\n}\n\nexport interface Team {\n  name: string;\n}\n",
+      },
+    );
+    const [stop] = await findStops(dir, from, to, assembly, {
+      contracts: ["src/types.ts"],
+    });
+    expect(stop?.trigger).toBe("schema_change");
+    expect(stop?.additive).toBe(false);
+    expect(isSoftStop(stop!)).toBe(false);
+  });
+
   it("knows the common schema and contract formats without a profile", async () => {
     const { dir, from, to } = await change(
       {

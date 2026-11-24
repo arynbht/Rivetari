@@ -70,7 +70,9 @@ const DECLARATION: Record<Kind, RegExp> = {
   graphql: /^(?:extend\s+)?(?:type|input|interface|enum|union|scalar|schema)\s/,
   proto: /^(?:message|enum|service)\s/,
   prisma: /^(?:model|enum|type|view)\s/,
-  sql: /^CREATE\s/i,
+  // Not CREATE UNIQUE INDEX or CREATE OR REPLACE: those tighten or redefine
+  // what's already there.
+  sql: /^CREATE\s+(?:TABLE|INDEX|SEQUENCE|TYPE|VIEW)\b/i,
 };
 
 const OPTIONAL: Record<Kind, (line: string) => boolean> = {
@@ -89,7 +91,7 @@ const OPTIONAL: Record<Kind, (line: string) => boolean> = {
   prisma: (t) => /^\w+\s+\w+(?:\[\])?\?/.test(t) || t.includes("@default("),
   sql: (t) => {
     if (
-      /\b(?:DROP|RENAME|TRUNCATE|DELETE|UPDATE|ALTER\s+COLUMN|MODIFY|CHANGE\s+COLUMN)\b/i.test(
+      /\b(?:DROP|RENAME|TRUNCATE|DELETE|UPDATE|ALTER\s+COLUMN|MODIFY|CHANGE\s+COLUMN|CONSTRAINT|PRIMARY\s+KEY|CHECK|UNIQUE|FOREIGN\s+KEY)\b/i.test(
         t,
       )
     )
@@ -107,6 +109,25 @@ const quoted = (line: string) => {
   return `\`${t.length > 80 ? `${t.slice(0, 79)}…` : t}\``;
 };
 
+/** Does the block `opener` starts at head hold a line the hunk didn't add? */
+function wrapsOldLines(
+  headText: string | undefined,
+  opener: string,
+  added: readonly string[],
+): boolean {
+  const lines = headText?.split("\n") ?? [];
+  const at = lines.indexOf(opener);
+  if (at === -1) return true;
+  const fresh = new Set(added.filter(meaningful).map(normal));
+  let open = depth(opener.trim());
+  for (const line of lines.slice(at + 1)) {
+    if (open <= 0) break;
+    open += depth(line.trim());
+    if (meaningful(line) && !fresh.has(normal(line))) return true;
+  }
+  return false;
+}
+
 /**
  * What a change to one contract file does: `breaking` says why it has to be
  * asked (removed or changed lines, or additions a reader must now supply),
@@ -115,23 +136,58 @@ const quoted = (line: string) => {
 export function contractChange(
   entry: DiffEntry,
   hunks: readonly Hunk[],
+  /** The file at head, to see what a new declaration's block holds. */
+  headText?: string,
 ): ContractChange {
   const { path } = entry;
   if (entry.status === "D") return { path, breaking: ["deletes the file"] };
   if (entry.status === "R")
     return { path, breaking: [`renames it from ${entry.oldPath ?? "?"}`] };
-  const addedSet = new Set(
-    hunks.flatMap((h) => h.added.filter(meaningful).map(normal)),
+  const kind = kindOf(path);
+  const breaking: string[] = [];
+  // Each added line, and whether it sits in a declaration the change adds.
+  const lines = hunks.map((hunk) => {
+    let inside = 0;
+    let opened = "";
+    const marked = hunk.added.map((line) => {
+      const t = line.trim();
+      if (inside > 0) {
+        inside += depth(t);
+        return { line, fresh: true };
+      }
+      if (kind && meaningful(line) && DECLARATION[kind].test(t)) {
+        inside = Math.max(0, depth(t));
+        opened = line;
+        return { line, fresh: true };
+      }
+      return { line, fresh: false };
+    });
+    // A new declaration that doesn't close within what the hunk adds is
+    // either one whose closing line the diff matched to an old one, or one
+    // wrapped around lines that were already there, which have moved out of
+    // wherever they were. The file at head tells them apart.
+    if (inside > 0 && wrapsOldLines(headText, opened, hunk.added))
+      breaking.push(
+        `adds ${quoted(opened)} around lines that were there before`,
+      );
+    return marked;
+  });
+  // A line removed in one place and added back in another only moved, unless
+  // it came back inside a new type: `name: string;` taken out of User and
+  // declared in a new Team is still gone from User.
+  const kept = new Set(
+    lines
+      .flat()
+      .flatMap(({ line, fresh }) =>
+        !fresh && meaningful(line) ? [normal(line)] : [],
+      ),
   );
   const removedSet = new Set(
     hunks.flatMap((h) => h.removed.filter(meaningful).map(normal)),
   );
-  const breaking: string[] = [];
-  // A line removed in one place and added back in another only moved.
   for (const line of hunks.flatMap((h) => h.removed.filter(meaningful)))
-    if (!addedSet.has(normal(line)))
+    if (!kept.has(normal(line)))
       breaking.push(`removes or changes ${quoted(line)}`);
-  const kind = kindOf(path);
   if (!kind) {
     const first = hunks
       .flatMap((h) => h.added)
@@ -142,22 +198,10 @@ export function contractChange(
       );
     return { path, breaking };
   }
-  for (const hunk of hunks) {
-    let inside = 0;
-    for (const line of hunk.added) {
-      const t = line.trim();
-      if (inside > 0) {
-        inside += depth(t);
-        continue;
-      }
-      if (!meaningful(line) || removedSet.has(normal(line))) continue;
-      if (DECLARATION[kind].test(t)) {
-        inside = Math.max(0, depth(t));
-        continue;
-      }
-      if (!OPTIONAL[kind](t))
-        breaking.push(`adds ${quoted(line)}, which isn't optional`);
-    }
+  for (const { line, fresh } of lines.flat()) {
+    if (fresh || !meaningful(line) || removedSet.has(normal(line))) continue;
+    if (!OPTIONAL[kind](line.trim()))
+      breaking.push(`adds ${quoted(line)}, which isn't optional`);
   }
   return { path, breaking };
 }
