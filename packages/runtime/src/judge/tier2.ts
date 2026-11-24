@@ -1053,7 +1053,7 @@ export function renderReview(
     f.file ? `\`${f.file}${f.line ? `:${f.line}` : ""}\`` : "";
   const lines = [
     `${REVIEW_MARKER} round=${round}${marks.tree ? ` verdict=${verdict} tree=${marks.tree}` : ""}${marks.carried ? ` carried=${marks.carried.from}` : ""} -->`,
-    `### Rivetari judge · round ${round} · ${verdict === "approve" ? "approve" : verdict === "needs-human" ? "needs a human" : `${result.blocking.length} blocking`}`,
+    `### Rivetari judge · round ${round} · ${verdict === "approve" ? "approve" : verdict === "needs-human" ? "needs a human" : marks.carried ? "request changes" : `${result.blocking.length} blocking`}`,
   ];
   if (marks.carried) {
     lines.push(

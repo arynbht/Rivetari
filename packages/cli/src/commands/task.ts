@@ -667,7 +667,7 @@ export async function stoppedLine(
   id: string,
   err: unknown,
 ): Promise<string> {
-  const message = (err as Error).message ?? String(err);
+  const message = err instanceof Error ? err.message : String(err);
   const next = await loadTask(repo, id)
     .then((t) => nextStep(t))
     .catch(() => "unknown (the task couldn't be read)");

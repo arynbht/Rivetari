@@ -112,7 +112,7 @@ export function readMarker(body: string): {
   )?.[1] as ReviewVerdict | undefined;
   // Reviews from before the marker said it: the heading does.
   const heading =
-    /### Rivetari judge · round \d+ · (approve|needs a human|\d+ blocking)/.exec(
+    /### Rivetari judge · round \d+ · (approve|needs a human|request changes|\d+ blocking)/.exec(
       body,
     )?.[1];
   const verdict =
@@ -230,6 +230,14 @@ export async function reviewPullRequest(
     const mark = r.body?.includes(REVIEW_MARKER) ? readMarker(r.body) : null;
     return mark ? [{ review: r, mark }] : [];
   });
+  // Anyone who can review the PR can write a marker, so only the judge's own
+  // reviews (this token's identity) can carry a verdict. A token that can't
+  // say who it is (an App installation) carries none from the PR.
+  const me = await octokit.rest.users
+    .getAuthenticated()
+    .then((r) => r.data.login)
+    .catch(() => null);
+  const mine = ownReviews(marked, me);
 
   const git = simpleGit(options.repoPath);
   const ref = `refs/rivetari/pr-${options.pr}`;
@@ -260,7 +268,8 @@ export async function reviewPullRequest(
         );
     }
     tree = await treeOf(options.repoPath, head);
-    if (!options.fresh) carried = await carriedFor(options, marked, head, tree);
+    if (!options.fresh)
+      carried = await carriedFor(options, mine, head, tree, marked);
     if (!carried) {
       const base = (
         await git.raw(["merge-base", `origin/${pr.base.ref}`, head])
@@ -273,7 +282,8 @@ export async function reviewPullRequest(
   }
 
   // A carried review isn't a round: nothing was reviewed again.
-  const round = marked.filter((m) => !m.mark.carried).length + 1;
+  const round =
+    marked.filter((m) => !(m.mark.carried && mine.includes(m))).length + 1;
   const from = carried?.from ?? "";
   if (carried) {
     options.log?.(
@@ -343,26 +353,44 @@ type ReviewComment = {
   body: string;
 };
 
+interface MarkedReview {
+  review: {
+    commit_id: string | null;
+    body?: string;
+    html_url: string;
+    user?: { login: string } | null;
+  };
+  mark: NonNullable<ReturnType<typeof readMarker>>;
+}
+
+/** The marked reviews written by `me`; none when who `me` is isn't known. */
+export function ownReviews<T extends MarkedReview>(
+  marked: T[],
+  me: string | null,
+): T[] {
+  return me ? marked.filter((m) => m.review.user?.login === me) : [];
+}
+
 /**
- * An earlier verdict this head can carry: the latest review on this PR at a
- * commit with the same tree, else a task judge's pass on it. None once this
- * head has a review of its own, since asking again on it means review anew.
+ * An earlier verdict this head can carry: the latest of `marked` (the
+ * judge's own reviews) at a commit with the same tree, else a task judge's
+ * pass on it. None once this head has any review of its own (`all`), since
+ * asking again on it means review anew. The tree is always git's for the
+ * reviewed commit: a marker's `tree=` is anyone's to write.
  */
 export async function carriedFor(
   options: ReviewOptions & { findJudged?: FindJudged | undefined },
-  marked: {
-    review: { commit_id: string | null; body?: string; html_url: string };
-    mark: NonNullable<ReturnType<typeof readMarker>>;
-  }[],
+  marked: MarkedReview[],
   head: string,
   tree: string,
+  all: MarkedReview[] = marked,
 ): Promise<CarriedVerdict | null> {
-  if (marked.some((m) => m.review.commit_id === head)) return null;
+  if (all.some((m) => m.review.commit_id === head)) return null;
   for (const { review, mark } of [...marked].reverse()) {
     if (!review.commit_id || !mark.verdict) continue;
-    const at =
-      mark.tree ??
-      (await treeOf(options.repoPath, review.commit_id).catch(() => null));
+    const at = await treeOf(options.repoPath, review.commit_id).catch(
+      () => null,
+    );
     if (at === tree)
       return {
         verdict: mark.verdict,
