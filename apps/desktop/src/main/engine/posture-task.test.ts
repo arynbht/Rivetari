@@ -63,6 +63,7 @@ const ctx = {
   titles: new Map([["ci.changelog-automated", "Changelog is automated"]]),
   generatedAt: RECORDED.generatedAt,
   by: BY,
+  today: "2026-11-24",
 };
 
 describe("postureCard", () => {
@@ -183,6 +184,21 @@ describe("postureCard", () => {
         ctx,
       ),
     ).toThrow(/nothing to waive/);
+  });
+
+  it("refuses a waiver that doesn't run past today", () => {
+    for (const expires of ["2026-11-01", "2026-11-24"])
+      expect(() =>
+        postureCard(
+          {
+            kind: "waive",
+            control: "ci.actions-pinned-sha",
+            reason: "Renovate pins them next sprint",
+            expires,
+          },
+          ctx,
+        ),
+      ).toThrow(/has to run past today \(2026-11-24\)/);
   });
 });
 

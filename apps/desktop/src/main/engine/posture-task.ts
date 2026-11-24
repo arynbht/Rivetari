@@ -43,6 +43,8 @@ export interface DraftContext {
   /** When state.json recorded the audit, if it says. */
   generatedAt: string | null;
   by: string;
+  /** Today, YYYY-MM-DD: a waiver has to run past it. */
+  today: string;
 }
 
 /**
@@ -66,6 +68,11 @@ export function postureCard(
         `${id} is ${result.status} in the recorded audit, so there's nothing to ${draft.kind === "gaps" ? "fix" : "waive"}`,
       );
   }
+  // A waiver that has already lapsed would draft a task that changes nothing.
+  if (draft.kind === "waive" && draft.expires <= ctx.today)
+    throw new Error(
+      `a waiver has to run past today (${ctx.today}); pick a later date than ${draft.expires}`,
+    );
   const title = (id: string) => ctx.titles.get(id) ?? id;
   const recordedAt = ctx.generatedAt
     ? `the audit recorded ${ctx.generatedAt.slice(0, 10)}`
@@ -196,6 +203,7 @@ export async function draftPostureTask(
       ),
       generatedAt: recorded.generatedAt,
       by,
+      today: new Date().toISOString().slice(0, 10),
     });
     // Refuse a bad card before an id is reserved for it on the branch.
     parseCard({ ...input, id: "T-0000", owner: by, created: "2000-01-01" });

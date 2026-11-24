@@ -190,12 +190,19 @@ export async function readPosture(
   repoPath: string,
   now: Date = new Date(),
 ): Promise<Posture> {
-  const [controls, recorded, history, { gates }] = await Promise.all([
+  const [controls, recorded, history, bundled] = await Promise.all([
     bundledControls(),
     readRecordedAudit(repoPath),
     loadHistory(repoPath),
     loadBundledGates(),
   ]);
+  // A gate that didn't load would quietly drop out of the lens and move the
+  // inferred phase, so a broken gate catalog fails the read instead.
+  if (bundled.errors.length > 0)
+    throw new Error(
+      `Gate catalog is invalid: ${bundled.errors[0]?.message ?? "unknown error"}`,
+    );
+  const { gates } = bundled;
   const byId = new Map(controls.map((c) => [c.id, c]));
   const titles = new Map(controls.map((c) => [c.id, c.title]));
   const problems: string[] = [];

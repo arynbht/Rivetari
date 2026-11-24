@@ -1,5 +1,12 @@
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,6 +58,10 @@ const MAX_GAPS = 30;
 
 const failing = (c: ScorecardControl) =>
   c.status === "fail" || c.status === "needs-evidence";
+
+function tomorrow(): string {
+  return new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+}
 
 function in90Days(): string {
   return new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
@@ -442,8 +453,13 @@ function Lens({
         <div className="space-y-2">
           {moved && (
             <p className="text-sm text-muted-foreground">
-              The {title(lens.declaredPhase)} gate is green, so the controls put
-              the repo at {title(lens.inferredPhase)}.
+              {/* The declared gate passed, or selects nothing for this repo. */}
+              The {title(lens.declaredPhase)} gate{" "}
+              {lens.phases.find((p) => p.phase === lens.declaredPhase)
+                ?.status === "green"
+                ? "is green"
+                : "isn't defined for this repo"}
+              , so the controls put the repo at {title(lens.inferredPhase)}.
             </p>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -567,6 +583,7 @@ function DraftForm({
             id={`${id}-expires`}
             type="date"
             className={inputClass}
+            min={tomorrow()}
             value={expires}
             required
             onChange={(e) => setExpires(e.target.value)}
@@ -902,12 +919,16 @@ export function Posture({
   const [confirming, setConfirming] = useState(false);
   const [deepAvailable, setDeepAvailable] = useState(true);
 
+  // Counts reads, so only the latest one (a Reload, or the first read) lands.
+  const loadSeq = useRef(0);
+
   const load = useCallback(() => {
-    let active = true;
+    const seq = ++loadSeq.current;
+    const active = () => seq === loadSeq.current;
     setLoading(true);
     window.rivetari.posture.get(repoPath).then(
       (next) => {
-        if (!active) return;
+        if (!active()) return;
         setPosture(next);
         setError(null);
         // A control that passes now can't stay picked for a gaps card.
@@ -921,13 +942,13 @@ export function Posture({
         setLoading(false);
       },
       (err: unknown) => {
-        if (!active) return;
+        if (!active()) return;
         setError(errorMessage(err));
         setLoading(false);
       },
     );
     return () => {
-      active = false;
+      if (active()) loadSeq.current++;
     };
   }, [repoPath]);
 
