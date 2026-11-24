@@ -130,7 +130,13 @@ async function onTask<T>(
   const by = await whoami(repo);
   const holder = holderName(by);
   if (!options.pulled) await pull(repo);
-  await commitTask(repo, id, { holder, message: `${id}: ${beat}` });
+  // The lease names this process while the beat runs, so a second run of
+  // the task on this machine is refused until this one ends.
+  await commitTask(repo, id, {
+    holder,
+    message: `${id}: ${beat}`,
+    running: true,
+  });
   // One write at a time: the heartbeat and the final push never overlap.
   let writes: Promise<unknown> = Promise.resolve();
   const heartbeat = setInterval(() => {
@@ -140,6 +146,7 @@ async function onTask<T>(
           holder,
           message: `${id}: ${beat} running`,
           leaseOnly: true,
+          running: true,
         }),
       )
       .catch(() => undefined);
