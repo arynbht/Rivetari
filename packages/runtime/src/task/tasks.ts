@@ -309,7 +309,9 @@ export interface AllowedDecision {
 
 export const FLAGGED = /^flagged: /;
 
-export function allowedDecisions(task: Task): AllowedDecision[] {
+export function allowedDecisions(
+  task: Pick<Task, "entries">,
+): AllowedDecision[] {
   const decisions: AllowedDecision[] = [];
   let pending: string[] = [];
   for (const e of task.entries.filter((e) => e.section === "stop")) {

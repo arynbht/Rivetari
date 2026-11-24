@@ -500,6 +500,12 @@ export function watchTasks(
      * git read of every task.
      */
     localFirst?: boolean;
+    /**
+     * Hears that a full read (the branch's view merged in) has landed and its
+     * events have been emitted, whether or not anything changed: after it, the
+     * events are this machine catching up with nothing but what happens next.
+     */
+    onRead?: () => void;
   } = {},
 ): TaskWatcher {
   const interval = options.intervalMs ?? WATCH_INTERVAL_MS;
@@ -577,20 +583,25 @@ export function watchTasks(
       return;
     }
     if (stopped) return;
-    if (!snapshotted) {
-      snapshot(views);
-      return;
+    if (!snapshotted) snapshot(views);
+    else {
+      const next = new Map(views.map((v) => [v.id, v]));
+      for (const view of views) {
+        const was = current.get(view.id);
+        if (!was) emit({ kind: "added", task: view });
+        else if (was !== view && JSON.stringify(was) !== JSON.stringify(view))
+          changed(was, view);
+      }
+      for (const id of current.keys())
+        if (!next.has(id)) emit({ kind: "removed", id });
+      current = next;
     }
-    const next = new Map(views.map((v) => [v.id, v]));
-    for (const view of views) {
-      const was = current.get(view.id);
-      if (!was) emit({ kind: "added", task: view });
-      else if (was !== view && JSON.stringify(was) !== JSON.stringify(view))
-        changed(was, view);
+    if (stopped || !options.onRead) return;
+    try {
+      options.onRead();
+    } catch (err) {
+      listenerFailed(err);
     }
-    for (const id of current.keys())
-      if (!next.has(id)) emit({ kind: "removed", id });
-    current = next;
   };
 
   // Progress moves every couple of seconds while a beat runs; it's read on

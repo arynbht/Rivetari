@@ -1,6 +1,7 @@
 import { CircleAlert, GitPullRequest } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { PrPart, TaskRecord } from "@/components/TaskRecord";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { errorMessage } from "@/lib/errors";
@@ -15,11 +16,13 @@ import type {
   TaskSummary,
 } from "../../shared/ipc";
 
-// The tab shows where each task stands and what it waits on. Two things can be
-// done from it, both by the main process through the runtime: answer a stop
-// (allow or deny, with a note) and open the task's PR. Running, approving and
-// closing stay with the `rivetari task` commands. What an action changes shows
-// up here from the watcher, not from the action's reply.
+// The tab shows where each task stands and what it waits on, as a board by
+// beat or as a list, and one task in full: its card and criteria, route,
+// plan, proof, judge rounds, PR and ledger. Two things can be done from it,
+// both by the main process through the runtime: answer a stop (allow or deny,
+// with a note) and open the task's PR. Running, approving and closing stay
+// with the `rivetari task` commands. What an action changes shows up here from
+// the watcher, not from the action's reply.
 
 const NEEDS_LABEL: Record<TaskNeedsYou["kind"], string> = {
   record: "Record fails verification",
@@ -235,6 +238,189 @@ function TaskTable({
   );
 }
 
+/** The board's columns, in the order a task moves through them. */
+const COLUMNS = [
+  "intake",
+  "route",
+  "build",
+  "prove",
+  "judge",
+  "ship",
+  "close",
+] as const;
+type Column = (typeof COLUMNS)[number];
+
+/** A closed task sits under close; isolating is the build's first step. */
+export function columnOf(task: Pick<TaskSummary, "beat" | "done">): Column {
+  if (task.done) return "close";
+  if (task.beat === "isolate") return "build";
+  return (COLUMNS as readonly string[]).includes(task.beat)
+    ? (task.beat as Column)
+    : "build";
+}
+
+const WAITING_LABEL: Record<NonNullable<TaskSummary["waiting"]>, string> = {
+  ...NEEDS_LABEL,
+  merge: "PR waiting to merge",
+};
+
+/**
+ * One task on the board. What it waits on decides how it looks: amber when a
+ * person must act on the record, sky when its PR waits to be merged, so a task
+ * shipped and one stuck at route can't be mistaken for each other.
+ */
+function BoardCard({
+  task,
+  selected,
+  onSelect,
+}: {
+  task: TaskSummary;
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const waiting = task.waiting;
+  const border =
+    waiting === "merge"
+      ? "border-sky-500/70"
+      : waiting
+        ? "border-amber-500/70"
+        : "border-border";
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(task.id)}
+      aria-current={selected ? "true" : undefined}
+      className={`flex w-full flex-col gap-1 rounded-md border bg-card p-2 text-left text-xs hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${border} ${
+        selected ? "ring-2 ring-ring" : ""
+      }`}
+    >
+      <span className="flex flex-wrap items-center justify-between gap-x-2">
+        <span className="whitespace-nowrap font-mono text-muted-foreground">
+          {task.id}
+        </span>
+        <span className="whitespace-nowrap text-muted-foreground">
+          {task.risk} risk
+        </span>
+      </span>
+      <span className="line-clamp-2 text-sm font-medium">{task.title}</span>
+      <span className="tabular-nums text-muted-foreground">
+        {cost(task)} · build {task.buildRounds} · judge {task.judgeRounds}
+      </span>
+      {waiting === "merge" && task.pr ? (
+        <span className="flex items-center gap-1 text-sky-300">
+          <GitPullRequest className="h-3.5 w-3.5" aria-hidden />
+          PR #{task.pr.number} waiting to merge
+        </span>
+      ) : waiting ? (
+        <span className="flex items-center gap-1 font-medium text-amber-300">
+          <CircleAlert className="h-3.5 w-3.5" aria-hidden />
+          Needs you: {WAITING_LABEL[waiting]}
+        </span>
+      ) : null}
+      {task.progress && (
+        <span className="text-sky-300">Running: {task.progress.beat}</span>
+      )}
+    </button>
+  );
+}
+
+function Board({
+  tasks,
+  selected,
+  onSelect,
+}: {
+  tasks: TaskSummary[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <section aria-labelledby="tasks-board" className="space-y-2">
+      <h3 id="tasks-board" className="text-sm font-semibold">
+        Board
+      </h3>
+      <div className="overflow-x-auto pb-1">
+        <div className="grid min-w-[1080px] grid-cols-7 gap-2">
+          {COLUMNS.map((column) => {
+            const here = tasks.filter((t) => columnOf(t) === column);
+            const headingId = `tasks-board-${column}`;
+            return (
+              <section
+                key={column}
+                aria-labelledby={headingId}
+                className="min-w-0 space-y-2 rounded-lg border border-border/60 bg-background/40 p-2"
+              >
+                <h4
+                  id={headingId}
+                  className="flex items-baseline justify-between text-xs font-semibold capitalize"
+                >
+                  {column}
+                  <span className="font-normal text-muted-foreground">
+                    {here.length}
+                  </span>
+                </h4>
+                {here.length > 0 ? (
+                  <ul className="space-y-2">
+                    {here.map((t) => (
+                      <li key={t.id}>
+                        <BoardCard
+                          task={t}
+                          selected={t.id === selected}
+                          onSelect={onSelect}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">None</p>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+type View = "board" | "list";
+const VIEW_KEY = "rivetari.tasks.view";
+
+/** The view this person last picked, kept in this browser only. */
+function savedView(): View {
+  try {
+    const saved = window.localStorage.getItem(VIEW_KEY);
+    return saved === "board" || saved === "list" ? saved : "list";
+  } catch {
+    return "list";
+  }
+}
+
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: View;
+  onChange: (view: View) => void;
+}) {
+  const option = (value: View, label: string) => (
+    <Button
+      type="button"
+      size="sm"
+      variant={view === value ? "default" : "outline"}
+      aria-pressed={view === value}
+      onClick={() => onChange(value)}
+    >
+      {label}
+    </Button>
+  );
+  return (
+    <div role="group" aria-label="Show tasks as" className="flex gap-1">
+      {option("board", "Board")}
+      {option("list", "List")}
+    </div>
+  );
+}
+
 type Outcome =
   | { kind: "answered"; result: TaskAnswerResult }
   | { kind: "opened"; url: string }
@@ -434,31 +620,6 @@ function TaskDetail({
             {task.next}
           </p>
         )}
-        {task.pr && (
-          <p className="flex items-center gap-1.5 text-sm">
-            <GitPullRequest className="h-4 w-4 text-sky-400" aria-hidden />
-            {isHttps(task.pr.url) ? (
-              <a
-                href={task.pr.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sky-400 underline"
-                aria-disabled={busy || undefined}
-                onClick={(e) => {
-                  // The main process opens the URL the ledger records.
-                  e.preventDefault();
-                  openPr();
-                }}
-              >
-                PR #{task.pr.number}
-              </a>
-            ) : (
-              <span>
-                PR #{task.pr.number} ({task.pr.url})
-              </span>
-            )}
-          </p>
-        )}
         {task.problems.length > 0 && (
           <ul
             className="list-inside list-disc text-xs text-rose-300"
@@ -477,6 +638,37 @@ function TaskDetail({
           />
         )}
         <OutcomeLine outcome={outcome} />
+      </Card>
+
+      <Card className="space-y-5 p-4">
+        <TaskRecord repoPath={repoPath} task={task} />
+        <PrPart
+          repoPath={repoPath}
+          task={task}
+          link={
+            task.pr &&
+            (isHttps(task.pr.url) ? (
+              <a
+                href={task.pr.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 underline"
+                aria-disabled={busy || undefined}
+                onClick={(e) => {
+                  // The main process opens the URL the ledger records.
+                  e.preventDefault();
+                  openPr();
+                }}
+              >
+                PR #{task.pr.number}
+              </a>
+            ) : (
+              <span>
+                PR #{task.pr.number} ({task.pr.url})
+              </span>
+            ))
+          }
+        />
       </Card>
 
       <div className="space-y-2">
@@ -525,6 +717,16 @@ export function Tasks({
   const [state, setState] = useState<TasksState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(focus?.id ?? null);
+  const [view, setView] = useState<View>(savedView);
+
+  const pickView = (next: View) => {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Not kept: the next launch shows the default again.
+    }
+  };
 
   useEffect(() => {
     if (focus) setSelected(focus.id);
@@ -535,8 +737,13 @@ export function Tasks({
     const unsubscribe = window.rivetari.tasks.onUpdate((next) => {
       if (active && next.repoPath === repoPath) setState(next);
     });
+    // The watch's reply can land after a push that's newer than it.
     window.rivetari.tasks.watch(repoPath).then(
-      (first) => active && setState(first),
+      (first) =>
+        active &&
+        setState((current) =>
+          current?.repoPath === repoPath ? current : first,
+        ),
       (err: unknown) => active && setError(errorMessage(err)),
     );
     return () => {
@@ -552,14 +759,17 @@ export function Tasks({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold">Tasks</h2>
-        <p className="text-xs text-muted-foreground">
-          What each task is doing and what it waits on, as{" "}
-          <code>rivetari task status</code> shows it. Pick a task to answer its
-          stop or open its PR; anything else is a <code>rivetari task</code>{" "}
-          command.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold">Tasks</h2>
+          <p className="text-xs text-muted-foreground">
+            What each task is doing and what it waits on, as{" "}
+            <code>rivetari task status</code> shows it. Pick a task to see its
+            record in full, answer its stop or open its PR; anything else is a{" "}
+            <code>rivetari task</code> command.
+          </p>
+        </div>
+        <ViewToggle view={view} onChange={pickView} />
       </div>
 
       {(error ?? state?.error) && (
@@ -581,12 +791,16 @@ export function Tasks({
       ) : (
         <>
           <NeedsYou tasks={tasks} onSelect={setSelected} />
-          <TaskTable
-            tasks={tasks}
-            selected={selected}
-            onSelect={setSelected}
-            now={now}
-          />
+          {view === "board" ? (
+            <Board tasks={tasks} selected={selected} onSelect={setSelected} />
+          ) : (
+            <TaskTable
+              tasks={tasks}
+              selected={selected}
+              onSelect={setSelected}
+              now={now}
+            />
+          )}
           {current && (
             // key keeps one task's answer and outcome off another's detail.
             <TaskDetail

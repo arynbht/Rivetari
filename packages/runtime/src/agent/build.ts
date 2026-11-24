@@ -317,8 +317,11 @@ function sentBack(task: Task): string | undefined {
   return undefined;
 }
 
-/** The latest plan: the plan entries after the last "build started". */
-function plan(task: Task): string[] {
+/**
+ * The latest plan: the plan entries after the last "build started". Only the
+ * ledger is read, so a task's view from the watcher will do (the desktop shell).
+ */
+export function taskPlan(task: Pick<Task, "entries">): string[] {
   let start = -1;
   task.entries.forEach((e, i) => {
     if (e.section === "timeline" && PLAN_START.test(e.text)) start = i;
@@ -385,7 +388,7 @@ export async function buildTask(
     answer.stops.some((s) => s.startsWith(`budget_exhausted: ${OUT_OF_TURNS}`));
 
   // Plan first, recorded before any edit.
-  let steps = replan || outOfTurns ? [] : plan(task);
+  let steps = replan || outOfTurns ? [] : taskPlan(task);
   if (steps.length === 0 && !replan && !outOfTurns && isFastPath(task.card)) {
     steps = fastPlan(task.card);
     await log(
