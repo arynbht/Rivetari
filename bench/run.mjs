@@ -38,6 +38,14 @@ import {
 } from "./lib.mjs";
 
 const BENCH = dirname(fileURLToPath(import.meta.url));
+
+// The runtime's own allowlist, from this checkout's build, so the bench and
+// the agents it measures run untrusted installs with the same environment.
+const { allowlistedEnv } = await import(
+  pathToFileURL(
+    join(BENCH, "..", "packages", "engine", "dist", "detectors", "exec.js"),
+  ).href
+);
 const ROOT = resolve(BENCH, "..");
 const CLI = join(ROOT, "packages", "cli", "dist", "bin.js");
 const RUNTIME = join(ROOT, "packages", "runtime", "dist", "index.js");
@@ -160,8 +168,8 @@ function buildShim(dir, dry) {
 d=$(cd "$(dirname "$0")" && pwd)
 id=$(date -u +%Y%m%dT%H%M%S)-$$
 printf '{"started":"%s","cwd":"%s","args":"%s"}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$PWD" "$(printf '%s ' "$@" | head -c 4000 | tr -d '"\\\\\\n')" > "$d/calls/$id.start.json"
-"$(cat "$d/real-claude.txt")" "$@" | tee "$d/calls/$id.out"
-code=$?
+{ "$(cat "$d/real-claude.txt")" "$@"; echo $? > "$d/calls/$id.code"; } | tee "$d/calls/$id.out"
+code=$(cat "$d/calls/$id.code")
 printf '{"ended":"%s","exit":%s}\\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$code" > "$d/calls/$id.end.json"
 exit $code
 `;
@@ -472,9 +480,12 @@ async function main() {
     "npm ci in the fixture (npm registry, unless npm's cache has every package)",
   );
   setup("npm ci", () => {
+    // The fixture's install scripts are someone else's code: they get the
+    // same allowlisted environment Rivetari gives agents, never our tokens.
     sh("npm", ["ci", "--no-audit", "--no-fund", "--prefer-offline"], {
       cwd: repo,
       shell: WIN,
+      env: allowlistedEnv(["npm_config_cache"]),
     });
   });
 
