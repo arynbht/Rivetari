@@ -30,7 +30,33 @@ export interface Manifest {
 export const contentHash = (text: string): string =>
   createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
 
-/** The manifest, or null when init never wrote one. Throws when it won't parse. */
+/**
+ * Every file init writes outside .rivetari/. The manifest is committed, so
+ * a path it names is trusted only if it's one of these: anything else could
+ * point eject at a file init never wrote, in the repo or outside it.
+ */
+export const INIT_FILES = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "CONSTRAINTS.md",
+  ".gitattributes",
+  ".gitignore",
+  ".claude/settings.json",
+  ".claude/skills/rivetari/SKILL.md",
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  ".github/workflows/ci.yml",
+  ".github/workflows/rivetari.yml",
+];
+
+/** Whether `backup` is a name init's keepBackup gives `rel`: `rel.bak` or `rel.bak.N`. */
+const isBackupOf = (rel: string, backup: string): boolean =>
+  backup.startsWith(`${rel}.bak`) &&
+  /^(\.\d+)?$/.test(backup.slice(rel.length + 4));
+
+/**
+ * The manifest, or null when init never wrote one. Throws when it won't
+ * parse, or names a file or backup init doesn't write.
+ */
 export async function readManifest(root: string): Promise<Manifest | null> {
   const text = await readFile(resolve(root, MANIFEST_REL), "utf8").catch(
     (err: NodeJS.ErrnoException) => {
@@ -46,9 +72,27 @@ export async function readManifest(root: string): Promise<Manifest | null> {
     parsed.files === null
   )
     throw new Error(`${MANIFEST_REL} isn't a manifest init wrote`);
-  for (const [rel, e] of Object.entries(parsed.files))
-    if (typeof (e as Partial<ManifestEntry> | null)?.sha256 !== "string")
+  for (const [rel, value] of Object.entries(parsed.files)) {
+    const e = value as Partial<ManifestEntry> | null;
+    if (!INIT_FILES.includes(rel))
+      throw new Error(`${MANIFEST_REL} names ${rel}, which init never writes`);
+    if (typeof e?.sha256 !== "string")
       throw new Error(`${MANIFEST_REL} has no hash for ${rel}`);
+    if (
+      e.backup !== undefined &&
+      (typeof e.backup !== "string" || !isBackupOf(rel, e.backup))
+    )
+      throw new Error(
+        `${MANIFEST_REL} names ${String(e.backup)} as the backup of ${rel}, which isn't a name init gives a backup`,
+      );
+    if (
+      e.added !== undefined &&
+      !(Array.isArray(e.added) && e.added.every((l) => typeof l === "string"))
+    )
+      throw new Error(
+        `${MANIFEST_REL} lists lines for ${rel} that aren't text`,
+      );
+  }
   return parsed as Manifest;
 }
 

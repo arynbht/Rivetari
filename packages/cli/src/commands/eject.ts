@@ -89,6 +89,10 @@ const SHARED = [
   ".claude/skills/.gitignore",
   ".gitignore",
   ".gitattributes",
+  ".dockerignore",
+  ".npmignore",
+  ".prettierignore",
+  ".eslintignore",
 ];
 
 /** Directories eject may leave empty, deepest first; they go too. */
@@ -284,11 +288,12 @@ async function planEject(root: string): Promise<Plan> {
     const text = await readIfThere(at(rel));
     if (text === null) continue;
     const backupThere = e.backup !== undefined && (await exists(at(e.backup)));
+    const added = new Set(e.added ?? []);
     if (contentHash(text) !== e.sha256) {
       plan.byHand.push({
         rel,
         why: `changed since init, so eject leaves it${backupThere ? `; the file from before init is ${e.backup}` : ""}`,
-        lines: numbered(text, mentions),
+        lines: numbered(text, (l) => mentions(l) || added.has(l.trim())),
       });
     } else if (e.created) {
       plan.remove.push(rel);
@@ -336,6 +341,11 @@ async function planEject(root: string): Promise<Plan> {
       lines,
     });
   }
+  const settings = plan.byHand.find((b) => b.rel === ".claude/settings.json");
+  if (settings?.lines.some((l) => /rivetari hook/.test(l)))
+    plan.notes.push(
+      "take the `rivetari hook` commands out of .claude/settings.json before you uninstall the CLI: Claude Code runs them on every tool call, and once `rivetari` is gone the guard blocks every one",
+    );
 
   if (rivetariThere) {
     plan.remove.push(".rivetari/");
