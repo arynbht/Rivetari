@@ -300,8 +300,20 @@ describe("watching tasks", { timeout: 30_000 }, () => {
     expect(answered).toMatchObject({ previousBeat: "build", closed: false });
 
     const added = await task("T-0004", "Later task", []);
-    expect((await until("added", (e) => e.task.id === added)).task.beat).toBe(
-      "route",
+    await until("added", (e) => e.task.id === added);
+    // A poll can land between newTask and confirmTask and see T-0004 at
+    // intake first; what matters is that the watcher follows it to route.
+    await vi.waitFor(
+      () => {
+        const beats = events.flatMap((e) =>
+          (e.kind === "added" || e.kind === "changed") && e.task.id === added
+            ? [e.task.beat]
+            : [],
+        );
+        if (beats.at(-1) !== "route")
+          throw new Error(`T-0004 last seen at ${beats.at(-1) ?? "nothing"}`);
+      },
+      { timeout: 15_000, interval: 25 },
     );
 
     const t1 = await ledgerOf("T-0001");
