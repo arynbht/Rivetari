@@ -164,6 +164,10 @@ test.describe("task actions", () => {
 
     // The PR opens in the browser from the main process (a no-op under E2E).
     await panel
+      .getByRole("group", { name: "Show tasks as" })
+      .getByRole("button", { name: "List" })
+      .click();
+    await panel
       .getByRole("region", { name: "All tasks" })
       .getByRole("button", { name: /T-0003/ })
       .click();

@@ -12,22 +12,15 @@ export const IpcChannel = {
   ReposAdd: "repos:add",
   ReposRemove: "repos:remove",
   AuditRun: "audit:run",
-  AuditRecorded: "audit:recorded",
   AuthStatus: "auth:status",
   AuthSignIn: "auth:signIn",
   AuthSignOut: "auth:signOut",
   /** Push channel (main → renderer): sign-in progress after the device code. */
   AuthUpdate: "auth:update",
-  ProfileLoad: "profile:load",
-  ProfileSave: "profile:save",
-  ProfileMeta: "profile:meta",
   SettingsLoad: "settings:load",
   SettingsSave: "settings:save",
   SettingsSetAnthropicKey: "settings:setAnthropicKey",
   UpdateCheck: "update:check",
-  GatesStatus: "gates:status",
-  GatesWaive: "gates:waive",
-  GatesEvidence: "gates:evidence",
   PostureGet: "posture:get",
   PostureDraft: "posture:draft",
   ProjectGet: "project:get",
@@ -37,19 +30,8 @@ export const IpcChannel = {
   ProjectUpdate: "project:update",
   HistoryGet: "history:get",
   HistoryOpenPr: "history:openPr",
-  FixPlan: "fix:plan",
-  FixApply: "fix:apply",
-  FixOpenPr: "fix:openPr",
-  AiTasks: "ai:tasks",
-  AiRun: "ai:run",
-  AiApply: "ai:apply",
-  AiOpenPr: "ai:openPr",
   DocsList: "docs:list",
   DocsRead: "docs:read",
-  FloorPlanGet: "floorplan:get",
-  FloorPlanRun: "floorplan:run",
-  /** Push channel (main → renderer): deep-audit swarm progress. */
-  FloorPlanProgress: "floorplan:progress",
   TasksWatch: "tasks:watch",
   TasksUnwatch: "tasks:unwatch",
   TasksAnswer: "tasks:answer",
@@ -164,7 +146,7 @@ export const Scorecard = z.object({
 });
 export type Scorecard = z.infer<typeof Scorecard>;
 
-/** audit:run and audit:recorded both name just the repo. */
+/** audit:run names just the repo. */
 export const AuditRunRequest = z.object({ repoPath: z.string().min(1) });
 export type AuditRunRequest = z.infer<typeof AuditRunRequest>;
 
@@ -191,36 +173,7 @@ export const AuthUpdate = z.discriminatedUnion("status", [
 ]);
 export type AuthUpdate = z.infer<typeof AuthUpdate>;
 
-// Profile — the form is driven by this metadata (the catalog's enum lists), so
-// the renderer never imports the catalog (which pulls node:fs). The profile
-// object itself is validated by the engine on load/save, not at this boundary.
-const LabeledKey = z.object({ key: z.string(), title: z.string() });
-
-export const ProfileMeta = z.object({
-  types: z.array(z.string()),
-  phases: z.array(LabeledKey),
-  flags: z.array(z.string()),
-  lanes: z.array(LabeledKey),
-  severities: z.array(z.string()),
-});
-export type ProfileMeta = z.infer<typeof ProfileMeta>;
-
-export const ProfileLoadRequest = z.object({ repoPath: z.string().min(1) });
-export const ProfileSaveRequest = z.object({
-  repoPath: z.string().min(1),
-  profile: z.unknown(),
-});
-
-/**
- * Loose boundary check for profile:load / profile:save. The engine validates the
- * full profile schema on load/save; this only confirms the IPC boundary returned
- * an object (or null, for a repo with no profile) rather than something unexpected.
- * We can't validate the full schema here — the catalog's ProfileSchema pulls
- * node:fs, which the sandboxed preload can't import.
- */
-export const ProfileResponse = z.record(z.string(), z.unknown()).nullable();
-
-// Gates — the phase gates for a repo, the inferred phase, and what blocks each.
+// A phase gate's colour, and a control that holds it back (Posture's phase lens).
 export const GateStatus = z.enum(["green", "amber", "red"]);
 export type GateStatus = z.infer<typeof GateStatus>;
 
@@ -231,49 +184,6 @@ export const GateBlocker = z.object({
   severity: z.string(),
 });
 export type GateBlocker = z.infer<typeof GateBlocker>;
-
-export const GatePhase = z.object({
-  phase: z.string(),
-  title: z.string(),
-  status: GateStatus.nullable(),
-  /** The lowest phase whose gate isn't green, worked out from the controls. */
-  inferred: z.boolean(),
-  /** The phase the profile declares: the repo's current phase. */
-  declared: z.boolean(),
-  blockers: z.array(GateBlocker),
-});
-export type GatePhase = z.infer<typeof GatePhase>;
-
-export const GatesReport = z.object({
-  repoPath: z.string(),
-  /** profile.yml's `phase`, or null when the profile doesn't declare one. */
-  declaredPhase: z.string().nullable(),
-  inferredPhase: z.string().nullable(),
-  phases: z.array(GatePhase),
-});
-export type GatesReport = z.infer<typeof GatesReport>;
-
-export const GatesStatusRequest = z.object({ repoPath: z.string().min(1) });
-
-export const WaiveRequest = z.object({
-  repoPath: z.string().min(1),
-  control: z.string().min(1),
-  reason: z.string().min(1),
-  /** ISO date YYYY-MM-DD. */
-  expires: z.string().min(1),
-  owner: z.string().optional(),
-});
-export type WaiveRequest = z.infer<typeof WaiveRequest>;
-
-export const EvidenceRequest = z.object({
-  repoPath: z.string().min(1),
-  control: z.string().min(1),
-  url: z.string().optional(),
-  note: z.string().optional(),
-  reviewer: z.string().optional(),
-  validFor: z.string().optional(),
-});
-export type EvidenceRequest = z.infer<typeof EvidenceRequest>;
 
 // Posture — the scorecard and the phase lens over the one audit state.json
 // records, the trend from history.jsonl, and the waivers and evidence on file.
@@ -526,90 +436,7 @@ export const ProjectDraftRequest = z.object({
 });
 export type ProjectDraftRequest = z.infer<typeof ProjectDraftRequest>;
 
-// Fix — proposed generator changes (dry-run or applied) and the PR outcome.
-export const FixChange = z.object({
-  controlId: z.string(),
-  type: z.enum(["file", "effect", "note"]),
-  action: z.enum([
-    "create",
-    "update",
-    "skip",
-    "unchanged",
-    "suggest",
-    "effect",
-    "note",
-  ]),
-  path: z.string().optional(),
-  before: z.string().optional(),
-  after: z.string().optional(),
-  message: z.string(),
-  error: z.string().optional(),
-});
-export type FixChange = z.infer<typeof FixChange>;
-
-export const FixPlan = z.object({
-  changes: z.array(FixChange),
-  generatorErrors: z.array(
-    z.object({
-      controlId: z.string(),
-      fixType: z.string(),
-      message: z.string(),
-    }),
-  ),
-});
-export type FixPlan = z.infer<typeof FixPlan>;
-
-export const FixPrOutcome = z.object({
-  pr: z
-    .object({ number: z.number(), url: z.string(), reused: z.boolean() })
-    .nullable(),
-  commits: z.number().int(),
-  pushed: z.boolean(),
-  changeResults: z.array(FixChange),
-  skippedEffects: z.number().int(),
-});
-export type FixPrOutcome = z.infer<typeof FixPrOutcome>;
-
-export const FixPlanRequest = z.object({ repoPath: z.string().min(1) });
-
-// AI — Claude-drafted artifacts (runs on the subscription CLI by default).
-export const AiTaskInfo = z.object({ task: z.string(), output: z.string() });
-export type AiTaskInfo = z.infer<typeof AiTaskInfo>;
-export const AiTasks = z.array(AiTaskInfo);
-
-export const AiRunResult = z.object({
-  task: z.string(),
-  outputPath: z.string(),
-  model: z.string(),
-  inputTokens: z.number().int(),
-  outputTokens: z.number().int(),
-  /** API-equivalent cost estimate (subscription runs aren't metered per token). */
-  costUsd: z.number(),
-  includedFiles: z.array(z.string()),
-  truncated: z.boolean(),
-  /** The drafted artifact (not yet written — apply or open a PR to persist it). */
-  contents: z.string(),
-});
-export type AiRunResult = z.infer<typeof AiRunResult>;
-
-export const AiRunRequest = z.object({
-  repoPath: z.string().min(1),
-  task: z.string().min(1),
-});
-export const AiApplyRequest = z.object({
-  repoPath: z.string().min(1),
-  task: z.string().min(1),
-  outputPath: z.string().min(1),
-  contents: z.string(),
-});
-export type AiApplyRequest = z.infer<typeof AiApplyRequest>;
-
-export const AiApplyResult = z.object({
-  action: z.string(),
-  path: z.string(),
-});
-
-// Docs — Markdown files under docs/ and .rivetari/, rendered (with Mermaid).
+// Docs — the repo's Markdown files, shown in History and rendered (with Mermaid).
 export const DocEntry = z.object({ path: z.string(), name: z.string() });
 export type DocEntry = z.infer<typeof DocEntry>;
 export const DocList = z.array(DocEntry);
@@ -624,110 +451,6 @@ export const DocContent = z.object({
   markdown: z.string(),
 });
 export type DocContent = z.infer<typeof DocContent>;
-
-// Floor Plan — the deep-audit swarm's repository model, drawn with Cytoscape. The
-// model is produced by the engine swarm and persisted as managed state in
-// `.rivetari/floorplan.json`; this boundary re-validates its full shape before the
-// renderer draws it.
-export const FloorPlanNodeKind = z.enum([
-  "system",
-  "subsystem",
-  "feature",
-  "service",
-  "api",
-  "connector",
-  "datastore",
-  "external",
-  "package",
-]);
-export const FloorPlanEdgeKind = z.enum([
-  "depends-on",
-  "calls",
-  "exposes",
-  "reads",
-  "writes",
-  "imports",
-  "deploys",
-]);
-
-export const FloorPlanNode = z.object({
-  id: z.string(),
-  kind: FloorPlanNodeKind,
-  title: z.string(),
-  summary: z.string(),
-  paths: z.array(z.string()),
-  tech: z.array(z.string()).optional(),
-  parent: z.string().optional(),
-  metrics: z
-    .object({ files: z.number().optional(), loc: z.number().optional() })
-    .optional(),
-});
-export type FloorPlanNode = z.infer<typeof FloorPlanNode>;
-
-export const FloorPlanEdge = z.object({
-  from: z.string(),
-  to: z.string(),
-  kind: FloorPlanEdgeKind,
-  label: z.string().optional(),
-});
-export type FloorPlanEdge = z.infer<typeof FloorPlanEdge>;
-
-export const DetectedProfile = z.object({
-  type: z.string().optional(),
-  stack: z.array(z.string()),
-  flags: z.record(z.string(), z.boolean()),
-  phase: z.string().optional(),
-  confidence: z.number(),
-});
-export type DetectedProfile = z.infer<typeof DetectedProfile>;
-
-export const SliceReport = z.object({
-  key: z.string(),
-  nodeIds: z.array(z.string()),
-  note: z.string().optional(),
-});
-
-export const RepositoryModel = z.object({
-  version: z.literal(1),
-  generatedAt: z.string(),
-  repoPath: z.string(),
-  commit: z.string().optional(),
-  summary: z.object({
-    nodeCount: z.number().int(),
-    edgeCount: z.number().int(),
-    systemCount: z.number().int(),
-    partial: z.boolean(),
-  }),
-  nodes: z.array(FloorPlanNode),
-  edges: z.array(FloorPlanEdge),
-  detected: DetectedProfile,
-  slices: z.array(SliceReport),
-});
-export type RepositoryModel = z.infer<typeof RepositoryModel>;
-
-/**
- * The get/run response: the persisted model (null if never built), whether the
- * deep-audit swarm can run at all (the Claude CLI must be installed), and whether
- * the persisted model is out of date for the repo's current HEAD.
- */
-export const FloorPlanView = z.object({
-  model: RepositoryModel.nullable(),
-  deepAuditAvailable: z.boolean(),
-  stale: z.boolean(),
-});
-export type FloorPlanView = z.infer<typeof FloorPlanView>;
-
-export const FloorPlanGetRequest = z.object({ repoPath: z.string().min(1) });
-export const FloorPlanRunRequest = z.object({ repoPath: z.string().min(1) });
-
-/** floorplan:progress push payload — one step of the swarm. */
-export const FloorPlanProgress = z.object({
-  phase: z.enum(["slice", "map", "reduce", "done"]),
-  message: z.string(),
-  done: z.number().int(),
-  total: z.number().int(),
-});
-export type FloorPlanProgress = z.infer<typeof FloorPlanProgress>;
 
 // Tasks — a view of the repo's Rivetari tasks (the runtime's watchTasks), as
 // `rivetari task status` would show them. The person can answer a stop and open

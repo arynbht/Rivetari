@@ -22,9 +22,11 @@ interface Bridge {
     list(repoPath: string): Promise<unknown[]>;
     read(repoPath: string, path: string): Promise<{ markdown: string }>;
   };
-  profile: {
-    load(repoPath: string): Promise<unknown>;
-    save(repoPath: string, profile: unknown): Promise<unknown>;
+  posture: {
+    get(repoPath: string): Promise<{ repoPath: string }>;
+  };
+  audit: {
+    run(repoPath: string): Promise<unknown>;
   };
 }
 
@@ -60,14 +62,14 @@ test.describe("registered repos", () => {
       repo,
     );
     expect(listed).toBeGreaterThanOrEqual(0);
-    const profile = await page.evaluate(
+    const posture = await page.evaluate(
       (repoPath) =>
-        (window as unknown as { rivetari: Bridge }).rivetari.profile.load(
+        (window as unknown as { rivetari: Bridge }).rivetari.posture.get(
           repoPath,
         ),
       repo,
     );
-    expect(profile).not.toBeNull();
+    expect(posture.repoPath).toBe(repo);
 
     // Another folder is refused, for a read and for a write.
     const read = await page.evaluate(
@@ -83,18 +85,18 @@ test.describe("registered repos", () => {
     expect(read).toContain("refused");
     expect(read).toContain("isn't one of the registered repos");
 
-    const saved = await page.evaluate(
-      ([repoPath, p]) =>
-        (window as unknown as { rivetari: Bridge }).rivetari.profile
-          .save(repoPath, p)
+    const audited = await page.evaluate(
+      (repoPath) =>
+        (window as unknown as { rivetari: Bridge }).rivetari.audit
+          .run(repoPath)
           .then(
-            () => "saved",
+            () => "audited",
             (err: unknown) => `refused: ${String(err)}`,
           ),
-      [other, profile] as const,
+      other,
     );
-    expect(saved).toContain("isn't one of the registered repos");
-    expect(existsSync(join(other, ".rivetari", "profile.yml"))).toBe(false);
+    expect(audited).toContain("isn't one of the registered repos");
+    expect(existsSync(join(other, ".rivetari", "state.json"))).toBe(false);
 
     // A path that climbs out of the registered repo isn't that repo either.
     const climbed = await page.evaluate(

@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Play, RefreshCw } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -29,8 +29,9 @@ import type {
 // Posture: the scorecard and the phase lens over the one audit state.json
 // records, a trend from history.jsonl, and the waivers and evidence on file.
 // It changes nothing itself. Fixing gaps, waiving and attaching evidence each
-// draft a task card through the runtime, which the person confirms in Now;
-// the deep audit costs money, so it has its own button and asks first.
+// draft a task card through the runtime, which the person confirms in Now.
+// Run audit records a fresh audit the way `rivetari audit` does and costs
+// nothing.
 
 const GATE_DOT: Record<GateStatus, string> = {
   green: "bg-emerald-500",
@@ -893,17 +894,9 @@ function Waivers({ posture }: { posture: PostureData }) {
 
 export function Posture({
   repoPath,
-  deepAuditRunning,
-  deepAuditError,
-  onDeepAudit,
   onOpenTask,
 }: {
   repoPath: string;
-  /** True while a deep audit started from here or Floor Plan is running. */
-  deepAuditRunning: boolean;
-  deepAuditError: string | null;
-  /** Start the deep audit, once the person has confirmed its cost. */
-  onDeepAudit: () => void;
   onOpenTask: (id: string) => void;
 }) {
   const [posture, setPosture] = useState<PostureData | null>(null);
@@ -916,8 +909,8 @@ export function Posture({
   const [busy, setBusy] = useState(false);
   const [drafted, setDrafted] = useState<PostureDraftResult | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [deepAvailable, setDeepAvailable] = useState(true);
+  const [auditing, setAuditing] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   // Counts reads, so only the latest one (a Reload, or the first read) lands.
   const loadSeq = useRef(0);
@@ -954,19 +947,6 @@ export function Posture({
 
   useEffect(() => load(), [load]);
 
-  useEffect(() => {
-    let active = true;
-    window.rivetari.floorplan.get(repoPath).then(
-      (view) => active && setDeepAvailable(view.deepAuditAvailable),
-      () => {
-        // Unknown availability leaves the button on; running it reports why.
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [repoPath]);
-
   const gapIds = useMemo(
     () =>
       new Set(
@@ -977,6 +957,20 @@ export function Posture({
       ),
     [posture],
   );
+
+  /** Record a fresh audit in state.json, then read the record again. */
+  async function runAudit(): Promise<void> {
+    setAuditing(true);
+    setAuditError(null);
+    try {
+      await window.rivetari.audit.run(repoPath);
+      load();
+    } catch (err) {
+      setAuditError(errorMessage(err));
+    } finally {
+      setAuditing(false);
+    }
+  }
 
   async function draft(next: PostureDraft): Promise<void> {
     setBusy(true);
@@ -1026,65 +1020,19 @@ export function Posture({
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Reload
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setConfirming(true)}
-            disabled={deepAuditRunning || !deepAvailable || confirming}
-            aria-describedby="posture-deep-cost"
-          >
-            {deepAuditRunning ? "Deep audit running…" : "Deep audit"}
+          <Button onClick={() => void runAudit()} disabled={auditing}>
+            {auditing ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            {auditing ? "Auditing…" : "Run audit"}
           </Button>
         </div>
       </div>
-      <p id="posture-deep-cost" className="-mt-4 text-xs text-muted-foreground">
-        The deep audit runs Claude agents over the repository and costs money.
-        You&apos;ll be asked before it starts.
-      </p>
-
-      {confirming && (
-        <div
-          role="group"
-          aria-labelledby="posture-deep-title"
-          className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3"
-        >
-          <p id="posture-deep-title" className="text-sm font-medium">
-            Run the deep audit?
-          </p>
-          <p className="text-sm text-muted-foreground">
-            It starts a swarm of Claude agents, one for each part of the
-            repository (up to 12), to rebuild the floor plan. It uses Claude and
-            costs money: it runs on your Claude Code subscription and counts
-            against its usage. There&apos;s no cost estimate for it yet.
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => {
-                setConfirming(false);
-                onDeepAudit();
-              }}
-            >
-              Run the deep audit
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setConfirming(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
-      {!deepAvailable && (
-        <p className="text-xs text-amber-300">
-          Deep audit needs the Claude Code CLI. Sign in with{" "}
-          <code>claude login</code> so the swarm can run on your subscription.
-        </p>
-      )}
-      {deepAuditError && (
+      {auditError && (
         <p className="text-sm text-rose-400" role="alert">
-          {deepAuditError}
+          {auditError}
         </p>
       )}
 
@@ -1142,7 +1090,7 @@ export function Posture({
             <p className="text-sm text-muted-foreground">
               No audit has been recorded for this repository yet
               (.rivetari/state.json is missing). <code>rivetari audit</code>{" "}
-              records one, as does Run audit on the Scorecard tab.
+              records one, as does Run audit above.
             </p>
           )}
 

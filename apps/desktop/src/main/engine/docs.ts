@@ -14,10 +14,18 @@ const DOC_GLOBS = [
   ".github/**/*.md",
 ];
 
+/**
+ * Task ledgers live under here. Tasks already shows each task's record, so
+ * listing them again would bury the repo's own docs among them.
+ */
+const TASKS_DIR = ".rivetari/tasks/";
+
 export async function listDocs(repoPath: string): Promise<DocEntry[]> {
   const ctx = buildContext(repoPath, {});
   const matches = await ctx.glob(DOC_GLOBS);
-  const unique = [...new Set(matches)].sort((a, b) => a.localeCompare(b));
+  const unique = [...new Set(matches)]
+    .filter((path) => !path.startsWith(TASKS_DIR))
+    .sort((a, b) => a.localeCompare(b));
   return unique.map((path) => ({ path, name: path }));
 }
 

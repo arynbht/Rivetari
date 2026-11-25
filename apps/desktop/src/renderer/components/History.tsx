@@ -1,6 +1,7 @@
 import { ExternalLink, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
+import { Docs } from "@/components/Docs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { errorMessage } from "@/lib/errors";
@@ -713,6 +714,15 @@ export function History({
           </section>
         </div>
       ) : null}
+
+      {/* The repo's own docs, which had a tab of their own; task ledgers stay
+          in Tasks, where each task's record already shows. */}
+      <section aria-labelledby="history-docs" className="space-y-2">
+        <h3 id="history-docs" className="text-sm font-semibold">
+          Docs
+        </h3>
+        <Docs repoPath={repoPath} />
+      </section>
     </div>
   );
 }

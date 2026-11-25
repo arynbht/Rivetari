@@ -14,38 +14,17 @@ import {
 import type { ZodType } from "zod";
 
 import {
-  FLAG_KEYS,
-  LANES,
-  PHASES,
-  PROJECT_TYPES,
-  SEVERITIES,
-} from "@arynbht/rivetari-catalog";
-import { loadProfile, updateProfile } from "@arynbht/rivetari-engine";
-
-import {
-  AiApplyRequest,
-  AiRunRequest,
-  AiTasks,
   AnthropicKeyRequest,
   AuditRunRequest,
   DocList,
   DocsListRequest,
   DocsReadRequest,
-  FloorPlanGetRequest,
-  FloorPlanRunRequest,
-  FloorPlanView,
   AuthStatus,
   type AuthUpdate,
   DeviceCodeInfo,
   IpcChannel,
   PingRequest,
   type PingResponse,
-  EvidenceRequest,
-  FixPlanRequest,
-  GatesStatusRequest,
-  ProfileLoadRequest,
-  ProfileMeta,
-  ProfileSaveRequest,
   RepoList,
   RepoRemoveRequest,
   Scorecard,
@@ -88,13 +67,11 @@ import {
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
-  WaiveRequest,
 } from "../shared/ipc";
 import { APP_ID } from "./app-id";
 import {
   clearAnthropicKey,
   hasAnthropicKey,
-  loadAnthropicKey,
   saveAnthropicKey,
 } from "./auth/anthropic-key-store";
 import { notConfiguredMessage, resolveClientId } from "./auth/client-id";
@@ -103,21 +80,11 @@ import {
   pollForToken,
   requestDeviceCode,
 } from "./auth/device-flow";
-import {
-  type AiOptions,
-  applyAiDraft,
-  listAiTasks,
-  openAiPr,
-  runAiTask,
-} from "./engine/ai";
 import { clearToken, loadToken, saveToken } from "./auth/token-store";
-import { readScorecard, runAudit } from "./engine/audit";
-import { getFloorPlan, runFloorPlan } from "./engine/floorplan";
+import { runAudit } from "./engine/audit";
 import { openHistoryPr, readHistory } from "./engine/history";
 import { defaultHomeDeps, readHome } from "./engine/home";
 import { listDocs, readDoc } from "./engine/docs";
-import { applyFix, openFixPrForRepo, planFix } from "./engine/fix";
-import { attachEvidence, computeGates, waiveControl } from "./engine/gates";
 import {
   attachMapWebview,
   getMap,
@@ -155,31 +122,8 @@ import { addRepo, listRepos, removeRepo } from "./store/repos";
 import { loadSettings, saveSettings } from "./store/settings";
 import { checkForUpdate, DESKTOP_TAG_PREFIX } from "./update/check";
 
-/** Enum lists that drive the renderer's Profile form (keeps the catalog out of it). */
-function buildProfileMeta(): ProfileMeta {
-  return {
-    types: [...PROJECT_TYPES],
-    phases: PHASES.map((p) => ({ key: p.key, title: p.title })),
-    flags: [...FLAG_KEYS],
-    lanes: LANES.map((l) => ({ key: l.key, title: l.title })),
-    severities: [...SEVERITIES],
-  };
-}
-
 /** The owner/repo whose releases the manual update check queries (ADR-0010). */
 const UPDATE_REPO = process.env.RIVETARI_UPDATE_REPO ?? "arynbht/rivetari";
-
-/** Resolve the AI transport options from settings + the stored Anthropic key. */
-async function resolveAiOptions(): Promise<AiOptions> {
-  const [settings, apiKey] = await Promise.all([
-    loadSettings(),
-    loadAnthropicKey(),
-  ]);
-  return {
-    ...(apiKey ? { apiKey } : {}),
-    preferApiKey: settings.aiPreferApiKey,
-  };
-}
 
 /** The renderer-facing settings: the stored prefs plus whether a key is set. */
 async function settingsView(): Promise<SettingsView> {
@@ -260,9 +204,6 @@ let mainWindow: BrowserWindow | null = null;
  * late outcome to the renderer.
  */
 let signInAbort: AbortController | null = null;
-
-/** Cancels an in-flight deep-audit swarm when a newer run supersedes it. */
-let floorPlanAbort: AbortController | null = null;
 
 /** The map on show, whose floorplan/ is the only place its session may load from. */
 const mapFence = new MapFence();
@@ -666,12 +607,6 @@ function registerIpcHandlers(): void {
     return Scorecard.parse(await runAudit(repoPath, token));
   });
 
-  ipcMain.handle(IpcChannel.AuditRecorded, async (_event, raw: unknown) => {
-    const { repoPath: asked } = AuditRunRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return Scorecard.nullable().parse(await readScorecard(repoPath));
-  });
-
   ipcMain.handle(IpcChannel.PostureGet, async (_event, raw: unknown) => {
     const { repoPath: asked } = PostureRequest.parse(raw);
     const repoPath = await registered(asked);
@@ -717,31 +652,6 @@ function registerIpcHandlers(): void {
         isE2E ? Promise.resolve() : shell.openExternal(url),
       ),
     );
-  });
-
-  ipcMain.handle(IpcChannel.FloorPlanGet, async (_event, raw: unknown) => {
-    const { repoPath: asked } = FloorPlanGetRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return FloorPlanView.parse(await getFloorPlan(repoPath));
-  });
-
-  ipcMain.handle(IpcChannel.FloorPlanRun, async (_event, raw: unknown) => {
-    const { repoPath: asked } = FloorPlanRunRequest.parse(raw);
-    const repoPath = await registered(asked);
-    // Supersede any swarm already running (e.g. a second confirmed refresh).
-    floorPlanAbort?.abort();
-    const controller = new AbortController();
-    floorPlanAbort = controller;
-    try {
-      const view = await runFloorPlan(
-        repoPath,
-        (p) => mainWindow?.webContents.send(IpcChannel.FloorPlanProgress, p),
-        controller.signal,
-      );
-      return FloorPlanView.parse(view);
-    } finally {
-      if (floorPlanAbort === controller) floorPlanAbort = null;
-    }
   });
 
   ipcMain.handle(IpcChannel.TasksWatch, async (_event, raw: unknown) => {
@@ -874,140 +784,6 @@ function registerIpcHandlers(): void {
     signInAbort = null;
     await clearToken();
     return AuthStatus.parse({ signedIn: false, login: null });
-  });
-
-  ipcMain.handle(IpcChannel.ProfileMeta, () =>
-    ProfileMeta.parse(buildProfileMeta()),
-  );
-
-  ipcMain.handle(IpcChannel.ProfileLoad, async (_event, raw: unknown) => {
-    const { repoPath: asked } = ProfileLoadRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return loadProfile(repoPath); // Profile | null, validated by the engine
-  });
-
-  ipcMain.handle(IpcChannel.ProfileSave, async (_event, raw: unknown) => {
-    const { repoPath: asked, profile } = ProfileSaveRequest.parse(raw);
-    const repoPath = await registered(asked);
-    // updateProfile validates against the schema and writes a minimal diff.
-    return updateProfile(repoPath, profile);
-  });
-
-  ipcMain.handle(IpcChannel.GatesStatus, async (_event, raw: unknown) => {
-    const { repoPath: asked } = GatesStatusRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return computeGates(repoPath, (await loadToken()) ?? undefined);
-  });
-
-  ipcMain.handle(IpcChannel.GatesWaive, async (_event, raw: unknown) => {
-    const {
-      repoPath: asked,
-      control,
-      reason,
-      expires,
-      owner,
-    } = WaiveRequest.parse(raw);
-    const repoPath = await registered(asked);
-    const token = (await loadToken()) ?? undefined;
-    return waiveControl(
-      repoPath,
-      {
-        control,
-        reason,
-        expires,
-        created: new Date().toISOString().slice(0, 10),
-        ...(owner ? { owner } : {}),
-      },
-      token,
-    );
-  });
-
-  ipcMain.handle(IpcChannel.GatesEvidence, async (_event, raw: unknown) => {
-    const {
-      repoPath: asked,
-      control,
-      url,
-      note,
-      reviewer,
-      validFor,
-    } = EvidenceRequest.parse(raw);
-    const repoPath = await registered(asked);
-    const token = (await loadToken()) ?? undefined;
-    return attachEvidence(
-      repoPath,
-      {
-        control,
-        date: new Date().toISOString().slice(0, 10),
-        ...(url ? { url } : {}),
-        ...(note ? { note } : {}),
-        ...(reviewer ? { reviewer } : {}),
-        ...(validFor ? { "valid-for": validFor } : {}),
-      },
-      token,
-    );
-  });
-
-  ipcMain.handle(IpcChannel.FixPlan, async (_event, raw: unknown) => {
-    const { repoPath: asked } = FixPlanRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return planFix(repoPath, (await loadToken()) ?? undefined);
-  });
-
-  ipcMain.handle(IpcChannel.FixApply, async (_event, raw: unknown) => {
-    const { repoPath: asked } = FixPlanRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return applyFix(repoPath, (await loadToken()) ?? undefined);
-  });
-
-  ipcMain.handle(IpcChannel.FixOpenPr, async (_event, raw: unknown) => {
-    const { repoPath: asked } = FixPlanRequest.parse(raw);
-    const repoPath = await registered(asked);
-    const date = new Date().toISOString().slice(0, 10);
-    return openFixPrForRepo(repoPath, date, (await loadToken()) ?? undefined);
-  });
-
-  ipcMain.handle(IpcChannel.AiTasks, async () =>
-    AiTasks.parse(await listAiTasks()),
-  );
-
-  ipcMain.handle(IpcChannel.AiRun, async (_event, raw: unknown) => {
-    const { repoPath: asked, task } = AiRunRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return runAiTask(
-      repoPath,
-      task,
-      (await loadToken()) ?? undefined,
-      await resolveAiOptions(),
-    );
-  });
-
-  ipcMain.handle(IpcChannel.AiApply, async (_event, raw: unknown) => {
-    const {
-      repoPath: asked,
-      task,
-      outputPath,
-      contents,
-    } = AiApplyRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return applyAiDraft(repoPath, task, outputPath, contents);
-  });
-
-  ipcMain.handle(IpcChannel.AiOpenPr, async (_event, raw: unknown) => {
-    const {
-      repoPath: asked,
-      task,
-      outputPath,
-      contents,
-    } = AiApplyRequest.parse(raw);
-    const repoPath = await registered(asked);
-    return openAiPr(
-      repoPath,
-      task,
-      outputPath,
-      contents,
-      (await loadToken()) ?? undefined,
-      await resolveAiOptions(),
-    );
   });
 
   ipcMain.handle(IpcChannel.DocsList, async (_event, raw: unknown) => {

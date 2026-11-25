@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { expect, type ElectronApplication, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   closeApp,
@@ -11,36 +11,8 @@ import {
   runAxe,
 } from "./helpers";
 
-// The shell's honest basics: Scorecard shows the audit state.json records, Run
-// audit never starts the paid swarm, the Floor Plan refresh asks first and says it
-// costs money, Gates names the declared phase as current, and the dead org
-// setting is gone.
-
-/**
- * Replace main's floor-plan handlers with ones that report the swarm as
- * available and count runs instead of starting Claude agents.
- */
-async function stubSwarm(app: ElectronApplication, repoPath: string) {
-  const model: unknown = JSON.parse(
-    readFileSync(join(repoPath, ".rivetari", "floorplan.json"), "utf8"),
-  );
-  await app.evaluate(({ ipcMain }, m) => {
-    const g = globalThis as unknown as { swarmRuns: number };
-    g.swarmRuns = 0;
-    const view = { model: m, deepAuditAvailable: true, stale: false };
-    ipcMain.removeHandler("floorplan:get");
-    ipcMain.handle("floorplan:get", () => view);
-    ipcMain.removeHandler("floorplan:run");
-    ipcMain.handle("floorplan:run", () => {
-      g.swarmRuns += 1;
-      return view;
-    });
-  }, model);
-  return () =>
-    app.evaluate(
-      () => (globalThis as unknown as { swarmRuns: number }).swarmRuns,
-    );
-}
+// The shell's honest basics: Posture shows the audit state.json records, Run
+// audit records a fresh one, and the dead org setting is gone.
 
 test.describe("honest basics", () => {
   let launched: LaunchedApp;
@@ -49,7 +21,7 @@ test.describe("honest basics", () => {
     if (launched) await closeApp(launched);
   });
 
-  test("Scorecard shows the audit state.json records", async () => {
+  test("Posture shows the audit state.json records", async () => {
     const repoPath = copyFixtureRepo();
     // As an older CLI recorded it: three controls, one of them since retired.
     writeFileSync(
@@ -101,13 +73,14 @@ test.describe("honest basics", () => {
       .first()
       .click();
 
-    // No Run audit click: the recorded numbers show as soon as the repo opens.
-    const panel = page.locator("#panel-scorecard");
+    // No Run audit click: the recorded numbers show as soon as Posture opens.
+    await page.getByRole("tab", { name: "Posture" }).click();
+    const panel = page.locator("#panel-posture");
     await expect(panel.getByText(/^3 controls · recorded /)).toBeVisible();
-    await expect(panel.getByText("2 fail").first()).toBeVisible();
+    await expect(panel.getByText(/· 2 fail/).first()).toBeVisible();
     // A control the current catalog no longer has still shows, under its id.
     await expect(
-      panel.getByRole("button", { name: /^repo\.retired-control/ }),
+      panel.getByRole("checkbox", { name: "Select repo.retired-control" }),
     ).toBeVisible();
   });
 
@@ -116,20 +89,20 @@ test.describe("honest basics", () => {
     launched = await launchApp({
       repos: [{ path: repoPath, name: "sample-repo" }],
     });
-    const { app, page } = launched;
-    const swarmRuns = await stubSwarm(app, repoPath);
+    const { page } = launched;
 
     await page
       .getByRole("button", { name: /sample-repo/ })
       .first()
       .click();
-    const panel = page.locator("#panel-scorecard");
+    await page.getByRole("tab", { name: "Posture" }).click();
+    const panel = page.locator("#panel-posture");
     await expect(
       panel.getByText(/No audit has been recorded for this repository yet/),
     ).toBeVisible();
-    expect(await runAxe(page), "scorecard with nothing recorded").toEqual([]);
+    expect(await runAxe(page), "posture with nothing recorded").toEqual([]);
 
-    await page.getByRole("button", { name: "Run audit" }).click();
+    await panel.getByRole("button", { name: "Run audit" }).click();
     await expect(panel.getByText(/\d+ controls · recorded /)).toBeVisible();
 
     // The scorecard is what Run audit wrote to state.json.
@@ -139,9 +112,6 @@ test.describe("honest basics", () => {
     await expect(
       panel.getByText(new RegExp(`^${state.summary.total} controls · `)),
     ).toBeVisible();
-
-    // And it didn't start the deep-audit swarm on the side.
-    expect(await swarmRuns()).toBe(0);
   });
 
   test("a Run audit that lands after a repo switch stays off the new repo", async () => {
@@ -203,86 +173,23 @@ test.describe("honest basics", () => {
       .getByRole("button", { name: /first-repo/ })
       .first()
       .click();
-    await page.getByRole("button", { name: "Run audit" }).click();
+    await page.getByRole("tab", { name: "Posture" }).click();
+    await page
+      .locator("#panel-posture")
+      .getByRole("button", { name: "Run audit" })
+      .click();
     await page
       .getByRole("button", { name: /second-repo/ })
       .first()
       .click();
+    await page.getByRole("tab", { name: "Posture" }).click();
 
-    const panel = page.locator("#panel-scorecard");
+    const panel = page.locator("#panel-posture");
     await expect(panel.getByText(/^1 controls · recorded /)).toBeVisible();
     // Long enough for the first repo's audit to have landed.
     await page.waitForTimeout(2000);
     await expect(panel.getByText(/^1 controls · recorded /)).toBeVisible();
     await expect(panel.getByText(/^7 controls/)).toHaveCount(0);
-  });
-
-  test("Refresh floor plan says it costs money and asks first", async () => {
-    const repoPath = copyFixtureRepo();
-    launched = await launchApp({
-      repos: [{ path: repoPath, name: "sample-repo" }],
-    });
-    const { app, page } = launched;
-    const swarmRuns = await stubSwarm(app, repoPath);
-
-    await page
-      .getByRole("button", { name: /sample-repo/ })
-      .first()
-      .click();
-    await page.getByRole("tab", { name: "Floor Plan" }).click();
-    const panel = page.locator("#panel-floorplan");
-    await expect(panel.getByText(/\d+ systems · \d+ nodes/)).toBeVisible();
-
-    const refresh = panel.getByRole("button", { name: "Refresh floor plan" });
-    await expect(refresh).toHaveAccessibleDescription(/costs money/);
-
-    // Asking, then cancelling, runs nothing.
-    await refresh.click();
-    const confirm = panel.getByRole("group", { name: "Run the deep audit?" });
-    await expect(confirm).toBeVisible();
-    await expect(confirm).toContainText("costs money");
-    expect(await runAxe(page), "floor plan refresh confirm").toEqual([]);
-    await confirm.getByRole("button", { name: "Cancel" }).click();
-    await expect(confirm).toBeHidden();
-    expect(await swarmRuns()).toBe(0);
-
-    // Confirming runs it once.
-    await refresh.click();
-    await panel
-      .getByRole("group", { name: "Run the deep audit?" })
-      .getByRole("button", { name: "Run the deep audit" })
-      .click();
-    await expect.poll(swarmRuns).toBe(1);
-  });
-
-  test("Gates shows the declared phase as current, inferred apart", async () => {
-    const repoPath = copyFixtureRepo();
-    const profile = join(repoPath, ".rivetari", "profile.yml");
-    writeFileSync(
-      profile,
-      readFileSync(profile, "utf8").replace(
-        "flags: {}",
-        "phase: build\nflags: {}",
-      ),
-    );
-    launched = await launchApp({
-      repos: [{ path: repoPath, name: "sample-repo" }],
-    });
-    const { page } = launched;
-
-    await page
-      .getByRole("button", { name: /sample-repo/ })
-      .first()
-      .click();
-    await page.getByRole("tab", { name: "Gates" }).click();
-    const panel = page.locator("#panel-gates");
-    await expect(panel).toContainText(
-      "Current phase: Build (declared in the profile)",
-    );
-    await expect(panel).toContainText("Inferred from controls: Discovery");
-    await expect(panel.getByText("current phase", { exact: true })).toHaveCount(
-      1,
-    );
   });
 
   test("Settings has no Default GitHub org and loads an old file", async () => {

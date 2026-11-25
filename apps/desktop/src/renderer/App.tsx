@@ -1,69 +1,39 @@
-import {
-  FolderPlus,
-  House,
-  Play,
-  RefreshCw,
-  Settings as SettingsIcon,
-  X,
-} from "lucide-react";
+import { FolderPlus, House, Settings as SettingsIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { Ai } from "@/components/Ai";
 import { AuthControls } from "@/components/AuthControls";
-import { Docs } from "@/components/Docs";
-import { Fix } from "@/components/Fix";
-import { FloorPlan } from "@/components/FloorPlan";
-import { Gates } from "@/components/Gates";
 import { History } from "@/components/History";
 import { Home } from "@/components/Home";
 import { Now } from "@/components/Now";
 import { Posture } from "@/components/Posture";
 import { Project } from "@/components/Project";
-import { ProfileForm } from "@/components/ProfileForm";
 import { RepoMap } from "@/components/RepoMap";
-import { Scorecard } from "@/components/Scorecard";
 import { Settings } from "@/components/Settings";
 import { Tasks } from "@/components/Tasks";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/lib/errors";
 import { applyTheme } from "@/lib/theme";
 
-type View =
-  | "now"
-  | "posture"
-  | "project"
-  | "history"
-  | "scorecard"
-  | "floorplan"
-  | "profile"
-  | "gates"
-  | "fix"
-  | "ai"
-  | "tasks"
-  | "map"
-  | "docs";
+type View = "now" | "tasks" | "posture" | "project" | "history" | "map";
 
+// Now opens first when a repo is picked, and Tasks, with its board by beat,
+// sits beside it: those two are where a person reads and answers the agents.
 const TABS: { id: View; label: string }[] = [
   { id: "now", label: "Now" },
+  { id: "tasks", label: "Tasks" },
   { id: "posture", label: "Posture" },
   { id: "project", label: "Project" },
   { id: "history", label: "History" },
-  { id: "scorecard", label: "Scorecard" },
-  { id: "floorplan", label: "Floor Plan" },
-  { id: "profile", label: "Profile" },
-  { id: "gates", label: "Gates" },
-  { id: "fix", label: "Fix" },
-  { id: "ai", label: "AI" },
-  { id: "tasks", label: "Tasks" },
   { id: "map", label: "Map" },
-  { id: "docs", label: "Docs" },
 ];
+
+/** The view a repo opens on. */
+const DEFAULT_VIEW: View = "now";
 
 import type {
   NowBadges,
   NowFocus,
   RepoEntry,
-  Scorecard as ScorecardData,
   Theme,
   UpdateInfo,
 } from "../shared/ipc";
@@ -143,35 +113,18 @@ export function App() {
   const bridgeReady = typeof window.rivetari !== "undefined";
   const [repos, setRepos] = useState<RepoEntry[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [scorecard, setScorecard] = useState<ScorecardData | null>(null);
-  const [running, setRunning] = useState(false);
-  // Whether the selected repo's recorded audit (state.json) has been read yet,
-  // so "nothing recorded" isn't shown while it's still loading.
-  const [recordLoaded, setRecordLoaded] = useState(false);
-  // Bumped on every repo pick, so picking the same repo again re-reads it too.
-  const [selectSeq, setSelectSeq] = useState(0);
-  // The deep-audit swarm runs independently of the (instant) scorecard: `running`
-  // above never waits on it. `floorPlanVersion` bumps when a run finishes so the
-  // Floor Plan tab reloads the freshly-persisted model.
-  const [floorPlanRunning, setFloorPlanRunning] = useState(false);
-  const [floorPlanVersion, setFloorPlanVersion] = useState(0);
-  const [floorPlanError, setFloorPlanError] = useState<string | null>(null);
-  const floorPlanRun = useRef(0);
-  // Counts repo picks, so a Run audit that settles after the person has moved
-  // to another repo can't put the old repo's scorecard on the new one.
-  const auditRun = useRef(0);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>("scorecard");
+  const [view, setView] = useState<View>(DEFAULT_VIEW);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // The applied theme setting; drives the OS-preference listener below.
   const [theme, setTheme] = useState<Theme>("dark");
   // Set by the opt-in launch update check when a newer release is available.
   const [updateBanner, setUpdateBanner] = useState<UpdateInfo | null>(null);
   // Views the user has opened for the current repo. A view stays mounted once
-  // opened (just hidden), so switching tabs doesn't reset its state (unsaved
-  // profile edits, expanded gates, the scorecard). Reset when the repo changes.
+  // opened (just hidden), so switching tabs doesn't reset its state (a picked
+  // task, a draft in progress, the map's place). Reset when the repo changes.
   const [opened, setOpened] = useState<Set<View>>(
-    () => new Set<View>(["scorecard"]),
+    () => new Set<View>([DEFAULT_VIEW]),
   );
   // How many items wait on a person in each repo, from main's watchers.
   const [badges, setBadges] = useState<NowBadges>([]);
@@ -254,30 +207,6 @@ export function App() {
     };
   }, [bridgeReady]);
 
-  // Show the audit the CLI last recorded for the selected repo, as soon as it's
-  // picked; Run audit replaces it with a fresh recording.
-  useEffect(() => {
-    if (!selected) return;
-    let active = true;
-    setRecordLoaded(false);
-    window.rivetari.audit.recorded(selected).then(
-      (card) => {
-        if (!active) return;
-        // A Run audit that finished first already holds the newer recording.
-        setScorecard((current) => current ?? card);
-        setRecordLoaded(true);
-      },
-      (err: unknown) => {
-        if (!active) return;
-        setError(errorMessage(err));
-        setRecordLoaded(true);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [selected, selectSeq]);
-
   // Re-apply "system" theme when the OS preference changes while the app is open.
   useEffect(() => {
     applyTheme(theme);
@@ -301,10 +230,7 @@ export function App() {
     setError(null);
     try {
       setRepos(await window.rivetari.repos.remove(path));
-      if (selected === path) {
-        setSelected(null);
-        setScorecard(null);
-      }
+      if (selected === path) setSelected(null);
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -313,59 +239,11 @@ export function App() {
   function handleSelect(path: string): void {
     setSettingsOpen(false);
     setSelected(path);
-    setSelectSeq((n) => n + 1);
-    auditRun.current++;
-    setRunning(false);
-    setScorecard(null);
     setError(null);
-    setView("scorecard");
-    // The previous repo's swarm run, if any, no longer speaks for this one.
-    floorPlanRun.current++;
-    setFloorPlanError(null);
-    setFloorPlanRunning(false);
-    setFloorPlanVersion((v) => v + 1); // make the Floor Plan tab reload for the new repo
-    setOpened(new Set<View>(["scorecard"])); // fresh state for the new repo
+    setView(DEFAULT_VIEW);
+    setOpened(new Set<View>([DEFAULT_VIEW])); // fresh state for the new repo
     setNowFocus(null);
     setTasksFocus(null);
-  }
-
-  /**
-   * Run the deep-audit swarm for a repo. The swarm runs Claude agents and costs
-   * money, so only the Floor Plan tab's refresh and Posture's Deep audit, each
-   * after the person confirms it, call this; nothing else starts it. Non-blocking and independent of the
-   * scorecard; main persists the model, so we just bump the version to reload
-   * it. Errors are shown inside the Floor Plan tab.
-   */
-  function triggerFloorPlan(path: string): void {
-    // Main aborts a superseded run; only the latest one may settle the UI.
-    const run = ++floorPlanRun.current;
-    setFloorPlanRunning(true);
-    setFloorPlanError(null);
-    window.rivetari.floorplan
-      .run(path)
-      .catch((err: unknown) => {
-        if (run === floorPlanRun.current) setFloorPlanError(errorMessage(err));
-      })
-      .finally(() => {
-        if (run !== floorPlanRun.current) return;
-        setFloorPlanRunning(false);
-        setFloorPlanVersion((v) => v + 1);
-      });
-  }
-
-  async function handleAudit(): Promise<void> {
-    if (!selected) return;
-    const run = auditRun.current;
-    setRunning(true);
-    setError(null);
-    try {
-      const card = await window.rivetari.audit.run(selected);
-      if (run === auditRun.current) setScorecard(card);
-    } catch (err) {
-      if (run === auditRun.current) setError(errorMessage(err));
-    } finally {
-      if (run === auditRun.current) setRunning(false);
-    }
   }
 
   const selectedRepo = repos.find((r) => r.path === selected) ?? null;
@@ -403,7 +281,6 @@ export function App() {
             onClick={() => {
               setSettingsOpen(false);
               setSelected(null);
-              setScorecard(null);
             }}
             aria-current={!selected && !settingsOpen ? "page" : undefined}
           >
@@ -476,7 +353,10 @@ export function App() {
         <AuthControls />
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
+      {/* relative makes main the containing block for anything absolutely
+          placed inside it, like the sr-only table captions: otherwise they sit
+          outside its scroll, stretch the window and give it a second scrollbar. */}
+      <main className="relative flex-1 overflow-y-auto">
         {updateBanner && (
           <div className="flex items-center justify-between gap-3 border-b border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-300">
             <span>
@@ -506,32 +386,29 @@ export function App() {
         {settingsOpen ? (
           <Settings onThemeChange={setTheme} />
         ) : selectedRepo ? (
-          // The Floor Plan needs room to breathe; other tabs read best narrower.
+          // The map needs room to breathe; other tabs read best narrower.
           <div
             className={`mx-auto space-y-5 p-6 ${
-              view === "floorplan" || view === "map" ? "max-w-7xl" : "max-w-4xl"
+              view === "map" ? "max-w-7xl" : "max-w-4xl"
             }`}
           >
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <h2 className="truncate text-xl font-semibold">
-                  {selectedRepo.name}
-                </h2>
-                <p className="truncate text-xs text-muted-foreground">
-                  {selectedRepo.path}
-                </p>
-              </div>
-              {view === "scorecard" && (
-                <Button onClick={() => void handleAudit()} disabled={running}>
-                  {running ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                  {running ? "Auditing…" : "Run audit"}
-                </Button>
-              )}
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-semibold">
+                {selectedRepo.name}
+              </h2>
+              <p className="truncate text-xs text-muted-foreground">
+                {selectedRepo.path}
+              </p>
             </div>
+
+            {error && (
+              <p
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-rose-300"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
 
             <TabBar view={view} onSelect={showView} />
 
@@ -558,6 +435,23 @@ export function App() {
               </div>
             )}
 
+            {opened.has("tasks") && (
+              <div
+                id="panel-tasks"
+                role="tabpanel"
+                aria-labelledby="tab-tasks"
+                tabIndex={0}
+                hidden={view !== "tasks"}
+              >
+                {/* key starts a fresh watch (and selection) when the repo changes. */}
+                <Tasks
+                  key={selectedRepo.path}
+                  repoPath={selectedRepo.path}
+                  focus={tasksFocus}
+                />
+              </div>
+            )}
+
             {opened.has("posture") && (
               <div
                 id="panel-posture"
@@ -570,9 +464,6 @@ export function App() {
                 <Posture
                   key={selectedRepo.path}
                   repoPath={selectedRepo.path}
-                  deepAuditRunning={floorPlanRunning}
-                  deepAuditError={floorPlanError}
-                  onDeepAudit={() => triggerFloorPlan(selectedRepo.path)}
                   onOpenTask={(id) => {
                     setTasksFocus({ id, seq: ++focusSeq.current });
                     showView("tasks");
@@ -621,125 +512,6 @@ export function App() {
               </div>
             )}
 
-            <div
-              id="panel-scorecard"
-              role="tabpanel"
-              aria-labelledby="tab-scorecard"
-              tabIndex={0}
-              hidden={view !== "scorecard"}
-            >
-              {error && (
-                <p
-                  className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-rose-300"
-                  role="alert"
-                >
-                  {error}
-                </p>
-              )}
-              {scorecard ? (
-                <Scorecard data={scorecard} />
-              ) : running ? null : !recordLoaded ? (
-                <p className="text-sm text-muted-foreground">
-                  Reading the recorded audit…
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No audit has been recorded for this repository yet
-                  (.rivetari/state.json is missing). Run audit records one the
-                  same way <code>rivetari audit</code> does.
-                </p>
-              )}
-            </div>
-
-            {opened.has("floorplan") && (
-              <div
-                id="panel-floorplan"
-                role="tabpanel"
-                aria-labelledby="tab-floorplan"
-                tabIndex={0}
-                hidden={view !== "floorplan"}
-              >
-                <FloorPlan
-                  key={selectedRepo.path}
-                  repoPath={selectedRepo.path}
-                  running={floorPlanRunning}
-                  version={floorPlanVersion}
-                  runError={floorPlanError}
-                  onRefresh={() => triggerFloorPlan(selectedRepo.path)}
-                />
-              </div>
-            )}
-
-            {opened.has("profile") && (
-              <div
-                id="panel-profile"
-                role="tabpanel"
-                aria-labelledby="tab-profile"
-                tabIndex={0}
-                hidden={view !== "profile"}
-              >
-                <ProfileForm
-                  repoPath={selectedRepo.path}
-                  repoName={selectedRepo.name}
-                />
-              </div>
-            )}
-
-            {opened.has("gates") && (
-              <div
-                id="panel-gates"
-                role="tabpanel"
-                aria-labelledby="tab-gates"
-                tabIndex={0}
-                hidden={view !== "gates"}
-              >
-                <Gates repoPath={selectedRepo.path} />
-              </div>
-            )}
-
-            {opened.has("fix") && (
-              <div
-                id="panel-fix"
-                role="tabpanel"
-                aria-labelledby="tab-fix"
-                tabIndex={0}
-                hidden={view !== "fix"}
-              >
-                {/* key resets the panel's run/PR state when the repo changes. */}
-                <Fix key={selectedRepo.path} repoPath={selectedRepo.path} />
-              </div>
-            )}
-
-            {opened.has("ai") && (
-              <div
-                id="panel-ai"
-                role="tabpanel"
-                aria-labelledby="tab-ai"
-                tabIndex={0}
-                hidden={view !== "ai"}
-              >
-                {/* key resets the panel's draft/run state when the repo changes. */}
-                <Ai key={selectedRepo.path} repoPath={selectedRepo.path} />
-              </div>
-            )}
-
-            {opened.has("tasks") && (
-              <div
-                id="panel-tasks"
-                role="tabpanel"
-                aria-labelledby="tab-tasks"
-                tabIndex={0}
-                hidden={view !== "tasks"}
-              >
-                {/* key starts a fresh watch (and selection) when the repo changes. */}
-                <Tasks
-                  key={selectedRepo.path}
-                  repoPath={selectedRepo.path}
-                  focus={tasksFocus}
-                />
-              </div>
-            )}
-
             {opened.has("map") && (
               <div
                 id="panel-map"
@@ -752,27 +524,10 @@ export function App() {
                 <RepoMap key={selectedRepo.path} repoPath={selectedRepo.path} />
               </div>
             )}
-
-            {opened.has("docs") && (
-              <div
-                id="panel-docs"
-                role="tabpanel"
-                aria-labelledby="tab-docs"
-                tabIndex={0}
-                hidden={view !== "docs"}
-              >
-                <Docs repoPath={selectedRepo.path} />
-              </div>
-            )}
           </div>
         ) : (
-          <Home
-            repos={repos}
-            onOpenRepo={(path) => {
-              handleSelect(path);
-              showView("now");
-            }}
-          />
+          // A repo opens on Now, as picking it from the sidebar does.
+          <Home repos={repos} onOpenRepo={handleSelect} />
         )}
       </main>
     </div>

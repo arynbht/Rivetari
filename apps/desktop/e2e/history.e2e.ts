@@ -67,8 +67,8 @@ test.describe("history", () => {
       .click();
 
     const tabs = page.getByRole("tab");
-    await expect(tabs.nth(2)).toHaveText("Project");
-    await expect(tabs.nth(3)).toHaveText("History");
+    await expect(tabs.nth(3)).toHaveText("Project");
+    await expect(tabs.nth(4)).toHaveText("History");
     await page.getByRole("tab", { name: "History" }).click();
 
     const panel = page.locator("#panel-history");
