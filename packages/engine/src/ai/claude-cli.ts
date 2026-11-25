@@ -123,29 +123,45 @@ export function isTransientFailure(err: unknown): boolean {
   return err instanceof Error && TRANSIENT.test(err.message);
 }
 
+/** An older `claude` that doesn't know `--effort` says so and exits. */
+const NO_EFFORT = /unknown option '--effort'/i;
+
 /** Build a transport backed by the local `claude` CLI (subscription auth). */
 export function claudeCliTransport(
   options: ClaudeCliOptions = {},
 ): AiTransport {
   const run = options.run ?? defaultRunner;
+  // Learned on the first refusal, so only one call pays for the retry.
+  let effortSupported = true;
   return {
     async create(req: TransportRequest, signal) {
-      const args = [
-        "-p",
-        "--output-format",
-        "json",
-        "--model",
-        req.model,
-        ...LOCKED_DOWN_ARGS,
-      ];
-      if (req.effort) args.push("--effort", req.effort);
-      if (req.system) args.push("--append-system-prompt", req.system);
+      const argsFor = (withEffort: boolean) => {
+        const args = [
+          "-p",
+          "--output-format",
+          "json",
+          "--model",
+          req.model,
+          ...LOCKED_DOWN_ARGS,
+        ];
+        if (req.effort && withEffort) args.push("--effort", req.effort);
+        if (req.system) args.push("--append-system-prompt", req.system);
+        return args;
+      };
       // An empty working directory: even a tool that slipped through finds
       // nothing to read.
       const cwd = await mkdtemp(join(tmpdir(), "rivetari-claude-"));
       let stdout: string;
       try {
-        stdout = await run(args, req.prompt, signal, cwd);
+        try {
+          stdout = await run(argsFor(effortSupported), req.prompt, signal, cwd);
+        } catch (err) {
+          // Effort only tunes the call; without it the review still runs.
+          if (!req.effort || !effortSupported || !NO_EFFORT.test(String(err)))
+            throw err;
+          effortSupported = false;
+          stdout = await run(argsFor(false), req.prompt, signal, cwd);
+        }
       } catch (err) {
         // A call past its limit stops the task; it isn't a failure to retry.
         if (err instanceof CallTimeoutError) throw err;

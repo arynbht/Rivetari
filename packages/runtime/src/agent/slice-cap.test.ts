@@ -209,7 +209,7 @@ describe("the plan and build calls", () => {
     const [plan, build] = calls;
     expect(plan?.mode).toBe("plan");
     expect(plan?.maxTurns).toBe(PLAN_TURNS);
-    expect(PLAN_TURNS).toBe(4);
+    expect(PLAN_TURNS).toBe(8);
     expect(build?.maxTurns).toBeUndefined();
     expect(headers(plan?.prompt ?? "")).toEqual(SLICE);
     expect(headers(build?.prompt ?? "")).toEqual(SLICE);
@@ -232,7 +232,7 @@ describe("the plan and build calls", () => {
     const base = { system: "s", prompt: "p", cwd: ".", env: {} };
     const plan = agentArgs({ ...base, mode: "plan", maxTurns: PLAN_TURNS });
     expect(plan).not.toContain("--permission-mode");
-    expect(plan.join(" ")).toContain("--max-turns 4");
+    expect(plan.join(" ")).toContain("--max-turns 8");
     // A subagent's turns don't count toward the limit, so it can't have one.
     expect(plan.join(" ")).toContain("--disallowedTools Agent,Task");
     const build = agentArgs({ ...base, mode: "build" });
@@ -256,7 +256,7 @@ describe("the plan and build calls", () => {
       {
         trigger: "budget_exhausted",
         detail:
-          "the plan call reached its 4-turn limit before it replied with a plan; allow to plan again with 8 turns, or deny to plan again within 4",
+          "the plan call reached its 8-turn limit before it replied with a plan; allow to plan again with 16 turns, or deny to plan again within 8",
       },
     ]);
     // What the call cost is on the ledger, as for any plan call.

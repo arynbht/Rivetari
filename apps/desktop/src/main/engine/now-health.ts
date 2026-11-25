@@ -17,6 +17,7 @@ import {
   readLock,
   readState,
   skillsStatus,
+  type TaskHistoryRow,
   type TaskView,
 } from "@arynbht/rivetari-runtime";
 
@@ -46,6 +47,30 @@ const message = (err: unknown) =>
 /** The history rows' dates are UTC days, as the close beat writes them. */
 const utcDay = (at: Date) => at.toISOString().slice(0, 10);
 
+/**
+ * What closed today and over the last seven days cost, from the history rows,
+ * and what the open tasks have cost so far, from their ledgers.
+ */
+export function spendFrom(
+  rows: TaskHistoryRow[],
+  views: TaskView[],
+  now: Date,
+): { todayUsd: number; weekUsd: number; openUsd: number } {
+  const today = utcDay(now);
+  const weekStart = utcDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
+  return {
+    todayUsd: rows
+      .filter((r) => r.date === today)
+      .reduce((sum, r) => sum + r.cost_usd, 0),
+    weekUsd: rows
+      .filter((r) => r.date >= weekStart && r.date <= today)
+      .reduce((sum, r) => sum + r.cost_usd, 0),
+    openUsd: views
+      .filter((v) => !v.done)
+      .reduce((sum, v) => sum + v.costUsd, 0),
+  };
+}
+
 export async function nowHealth(
   repoPath: string,
   views: TaskView[],
@@ -53,30 +78,16 @@ export async function nowHealth(
 ): Promise<NowHealth> {
   const open = views.filter((v) => !v.done);
   const now = deps.now();
-  const today = utcDay(now);
-  const weekStart = utcDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
 
   const autonomy = deps.loadProfile(repoPath).then(
     (profile) => ({ configured: profile?.autonomy ?? null, error: null }),
     (err: unknown) => ({ configured: null, error: message(err) }),
   );
 
-  const openUsd = open.reduce((sum, v) => sum + v.costUsd, 0);
   const spend = deps.historyRows(repoPath).then(
-    (rows) => ({
-      todayUsd: rows
-        .filter((r) => r.date === today)
-        .reduce((sum, r) => sum + r.cost_usd, 0),
-      weekUsd: rows
-        .filter((r) => r.date >= weekStart && r.date <= today)
-        .reduce((sum, r) => sum + r.cost_usd, 0),
-      openUsd,
-      error: null,
-    }),
+    (rows) => ({ ...spendFrom(rows, views, now), error: null }),
     (err: unknown) => ({
-      todayUsd: 0,
-      weekUsd: 0,
-      openUsd,
+      ...spendFrom([], views, now),
       error: message(err),
     }),
   );

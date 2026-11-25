@@ -28,7 +28,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, join, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 
 import type { AiClient } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
@@ -289,6 +289,15 @@ export async function materializeCase(
     const at = resolve(repoPath, path);
     if (!at.startsWith(resolve(repoPath) + sep))
       throw new Error(`base.json names a path outside the repo: ${path}`);
+    // A file under .git could set a hook or core.fsmonitor that the next git
+    // call runs with our environment. Windows drops trailing dots and spaces
+    // and answers to the 8.3 name, so those spellings are .git too.
+    const top = relative(resolve(repoPath), at)
+      .split(sep)[0]
+      ?.replace(/[. ]+$/, "")
+      .toLowerCase();
+    if (top === ".git" || /^git~\d+$/.test(top ?? ""))
+      throw new Error(`base.json names a path inside .git: ${path}`);
     await mkdir(dirname(at), { recursive: true });
     await writeFile(
       at,

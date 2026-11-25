@@ -1,0 +1,6 @@
+---
+"@arynbht/rivetari-runtime": patch
+"@arynbht/rivetari": patch
+---
+
+The build environment no longer stalls a task on its own leftovers. A person's `--allow` to a stop that names commands in backticks now lets the next build round run exactly those commands (each as an exact `Bash(...)` rule; `npm exec -- x` is granted as `npx x`), and the ledger records what was granted and what wasn't: a chained command or one the build's deny list covers is never granted. The plan call's turn limit is sized by the card, from a floor of 8 (was 4) up to 24, growing with criteria past two, touches past three and high risk; `RIVETARI_PLAN_TURNS` sets it outright. A dev server the build agent or the proof leaves running in the task's worktree is stopped, with its whole process tree, after every build round and proof and when the task is closed or abandoned; a server on the task's port that isn't the task's is reported and left alone. Isolate hands out a port only once nothing is bound to it. When the worktree uses Playwright, isolate (and the proof, for a pin the build added) installs the chromium build the pinned version needs, or says in the ledger why it couldn't. `rivetari task run` ending on a beat that threw (a GitHub 422 from ship, say) prints `failed: <id> failed at <beat>: <why>` and exits 1.

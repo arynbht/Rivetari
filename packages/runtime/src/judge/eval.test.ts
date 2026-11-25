@@ -233,6 +233,30 @@ describe("materializeCase", () => {
     );
   });
 
+  it("refuses a base file inside .git, however it's spelled", async () => {
+    const dir = await tmp();
+    const repo = join(await tmp(), "repo");
+    for (const path of [
+      ".git/config",
+      ".GIT/hooks/pre-commit",
+      ".git./config",
+      "GIT~1/config",
+    ]) {
+      await writeFile(
+        join(dir, "base.json"),
+        JSON.stringify({
+          files: { [path]: { utf8: "[core]\n\tfsmonitor = leak\n" } },
+        }),
+      );
+      await expect(materializeCase({ dir }, repo), path).rejects.toThrow(
+        /inside \.git/,
+      );
+    }
+    const config = await readFile(join(repo, ".git", "config"), "utf8");
+    expect(config).not.toContain("fsmonitor");
+    expect(config).toContain("hooksPath");
+  });
+
   it("makes an empty change from an empty diff", async () => {
     const root = await tmp();
     const dir = await makeCase(root, meta(), BASE, {});

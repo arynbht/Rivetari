@@ -1,5 +1,6 @@
 import {
   FolderPlus,
+  House,
   Play,
   RefreshCw,
   Settings as SettingsIcon,
@@ -13,6 +14,8 @@ import { Docs } from "@/components/Docs";
 import { Fix } from "@/components/Fix";
 import { FloorPlan } from "@/components/FloorPlan";
 import { Gates } from "@/components/Gates";
+import { History } from "@/components/History";
+import { Home } from "@/components/Home";
 import { Now } from "@/components/Now";
 import { Posture } from "@/components/Posture";
 import { Project } from "@/components/Project";
@@ -29,6 +32,7 @@ type View =
   | "now"
   | "posture"
   | "project"
+  | "history"
   | "scorecard"
   | "floorplan"
   | "profile"
@@ -43,6 +47,7 @@ const TABS: { id: View; label: string }[] = [
   { id: "now", label: "Now" },
   { id: "posture", label: "Posture" },
   { id: "project", label: "Project" },
+  { id: "history", label: "History" },
   { id: "scorecard", label: "Scorecard" },
   { id: "floorplan", label: "Floor Plan" },
   { id: "profile", label: "Profile" },
@@ -390,6 +395,22 @@ export function App() {
             Add
           </Button>
         </div>
+        <div className="px-2 pb-1">
+          <Button
+            size="sm"
+            variant={!selected && !settingsOpen ? "secondary" : "ghost"}
+            className="w-full justify-start"
+            onClick={() => {
+              setSettingsOpen(false);
+              setSelected(null);
+              setScorecard(null);
+            }}
+            aria-current={!selected && !settingsOpen ? "page" : undefined}
+          >
+            <House className="h-4 w-4" />
+            Home
+          </Button>
+        </div>
         <nav className="flex-1 overflow-y-auto px-2 pb-2">
           {repos.length === 0 ? (
             <p className="px-2 py-4 text-xs text-muted-foreground">
@@ -580,6 +601,26 @@ export function App() {
               </div>
             )}
 
+            {opened.has("history") && (
+              <div
+                id="panel-history"
+                role="tabpanel"
+                aria-labelledby="tab-history"
+                tabIndex={0}
+                hidden={view !== "history"}
+              >
+                {/* key reads the newly selected repo's history afresh. */}
+                <History
+                  key={selectedRepo.path}
+                  repoPath={selectedRepo.path}
+                  onOpenTask={(id) => {
+                    setTasksFocus({ id, seq: ++focusSeq.current });
+                    showView("tasks");
+                  }}
+                />
+              </div>
+            )}
+
             <div
               id="panel-scorecard"
               role="tabpanel"
@@ -725,12 +766,13 @@ export function App() {
             )}
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center p-6 text-center">
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Select a repository on the left, or add a local folder to get
-              started.
-            </p>
-          </div>
+          <Home
+            repos={repos}
+            onOpenRepo={(path) => {
+              handleSelect(path);
+              showView("now");
+            }}
+          />
         )}
       </main>
     </div>

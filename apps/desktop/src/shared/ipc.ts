@@ -35,6 +35,8 @@ export const IpcChannel = {
   ProjectDraft: "project:draft",
   /** Push channel (main → renderer): a repo's Project view, checked again. */
   ProjectUpdate: "project:update",
+  HistoryGet: "history:get",
+  HistoryOpenPr: "history:openPr",
   FixPlan: "fix:plan",
   FixApply: "fix:apply",
   FixOpenPr: "fix:openPr",
@@ -75,6 +77,8 @@ export const IpcChannel = {
   NowBadgesUpdate: "now:badgesUpdate",
   /** Push channel (main → renderer): a notification was clicked; show its item. */
   NowFocus: "now:focus",
+  /** Home: one line per registered repo, before a repo is picked. */
+  HomeGet: "home:get",
 } as const;
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
@@ -1085,6 +1089,55 @@ export type NowBadges = z.infer<typeof NowBadges>;
 export const NowFocus = z.object({ repoPath: z.string(), id: z.string() });
 export type NowFocus = z.infer<typeof NowFocus>;
 
+// Home — one line per registered repo: what's running and what needs the
+// owner (from the Now watchers), spend this week, the posture gate (declared
+// vs inferred phase) and the configured autonomy level. main's CI is read
+// apart, per repo, through now:ci, so it never holds the rest up.
+export const HomeNeed = z.object({
+  id: z.string(),
+  title: z.string(),
+  kind: z.enum(["intake", "route", "stop", "judge", "merge", "record"]),
+  why: z.string(),
+});
+export type HomeNeed = z.infer<typeof HomeNeed>;
+
+export const HomeRepo = z.object({
+  repoPath: z.string(),
+  name: z.string(),
+  /** The watcher's first read has landed. */
+  ready: z.boolean(),
+  /** Why the watcher couldn't read the tasks, if it couldn't. */
+  error: z.string().nullable(),
+  running: z.array(NowRunning),
+  needsYou: z.array(HomeNeed),
+  spend: z.object({
+    weekUsd: z.number(),
+    openUsd: z.number(),
+    error: z.string().nullable(),
+  }),
+  autonomy: z.object({
+    configured: z.string().nullable(),
+    error: z.string().nullable(),
+  }),
+  /** The phase lens; null with no audit recorded, or when it can't be read. */
+  phase: z
+    .object({
+      declared: z.string().nullable(),
+      inferred: z.string().nullable(),
+      allGreen: z.boolean(),
+      nextPhase: z.string().nullable(),
+      /** How many controls hold the inferred phase's gate shut. */
+      blockers: z.number().int(),
+    })
+    .nullable(),
+  /** Why there's no phase: no audit recorded yet, or the read failed. */
+  phaseNote: z.string().nullable(),
+});
+export type HomeRepo = z.infer<typeof HomeRepo>;
+
+export const HomeView = z.object({ repos: z.array(HomeRepo) });
+export type HomeView = z.infer<typeof HomeView>;
+
 // Task detail — one task in full: the card with each criterion's status from
 // the latest judge round, the route, the plan, the proof, every judge round
 // and the PR's live state on GitHub. Read from the records (the watcher's view,
@@ -1312,6 +1365,124 @@ export type SettingsSaveRequest = z.infer<typeof SettingsSaveRequest>;
 /** Set (non-empty) or clear (empty string) the stored Anthropic key. */
 export const AnthropicKeyRequest = z.object({ key: z.string() });
 export type AnthropicKeyRequest = z.infer<typeof AnthropicKeyRequest>;
+
+// History — closed tasks with what they cost, the judge's findings and the
+// cost flags, read from the same records `rivetari metrics` reads.
+export const HistoryRequest = z.object({ repoPath: z.string().min(1) });
+export type HistoryRequest = z.infer<typeof HistoryRequest>;
+
+export const ClosedTaskItem = z.object({
+  id: z.string(),
+  title: z.string().nullable(),
+  outcome: z.enum(["merged", "closed", "abandoned"]),
+  pr: z.number().int().nullable(),
+  costUsd: z.number(),
+  tokens: z.number(),
+  buildRounds: z.number().int(),
+  judgeRounds: z.number().int(),
+  retryRounds: z.number().int().nullable(),
+  minutes: z.number(),
+  risk: z.string().nullable(),
+  skills: z.array(z.string()),
+  closedAt: z.string(),
+  cardToPrMinutes: z.number().nullable(),
+  judgeCostUsd: z.number().nullable(),
+  ledgerProblem: z.string().nullable(),
+});
+export type ClosedTaskItem = z.infer<typeof ClosedTaskItem>;
+
+export const SpendDay = z.object({
+  date: z.string(),
+  merged: z.number().int(),
+  mergedUsd: z.number(),
+  abandonedUsd: z.number(),
+  closedUsd: z.number(),
+});
+export type SpendDay = z.infer<typeof SpendDay>;
+
+export const TaskMetricsSummary = z.object({
+  tasks: z.number().int(),
+  merged: z.number().int(),
+  abandoned: z.number().int(),
+  closed: z.number().int(),
+  spend: z.object({
+    totalUsd: z.number(),
+    mergedUsd: z.number(),
+    abandonedUsd: z.number(),
+    closedUsd: z.number(),
+    perMergedUsd: z.number().nullable(),
+    mergedMedianUsd: z.number().nullable(),
+    abandonedShare: z.number().nullable(),
+  }),
+  judge: z.object({
+    costUsd: z.number(),
+    share: z.number().nullable(),
+    tasks: z.number().int(),
+  }),
+  rounds: z.object({
+    build: z.number().int(),
+    judge: z.number().int(),
+    retries: z.number().int(),
+    retryShare: z.number().nullable(),
+    multiBuild: z.number().int(),
+  }),
+  cardToPr: z.object({
+    medianMinutes: z.number().nullable(),
+    tasks: z.number().int(),
+  }),
+  trend: z.array(SpendDay),
+});
+export type TaskMetricsSummary = z.infer<typeof TaskMetricsSummary>;
+
+export const HistoryPattern = z.object({
+  pattern: z.string(),
+  kind: z.string(),
+  title: z.string(),
+  prs: z.array(z.string()),
+});
+export type HistoryPattern = z.infer<typeof HistoryPattern>;
+
+export const HistoryFindings = z.object({
+  reviewed: z.number().int(),
+  findings: z.number().int(),
+  blocking: z.number().int(),
+  suggestions: z.number().int(),
+  findingsPerPr: z.number().nullable(),
+  tier1Rules: z.object({
+    catalog: z.number().int(),
+    diff: z.number().int(),
+    total: z.number().int(),
+  }),
+  patterns: z.array(HistoryPattern),
+  candidates: z.array(HistoryPattern),
+});
+export type HistoryFindings = z.infer<typeof HistoryFindings>;
+
+export const HistoryCostFlag = z.object({
+  task: z.string(),
+  costUsd: z.number(),
+  promptTokens: z.number().nullable(),
+});
+export type HistoryCostFlag = z.infer<typeof HistoryCostFlag>;
+
+export const HistoryView = z.object({
+  repoPath: z.string(),
+  summary: TaskMetricsSummary,
+  /** Newest first. */
+  tasks: z.array(ClosedTaskItem),
+  findings: HistoryFindings,
+  /** Low-risk tasks over $1, as `rivetari metrics` flags them. */
+  costFlags: z.array(HistoryCostFlag),
+  /** Why part of the view couldn't be read, if one couldn't. */
+  problems: z.array(z.string()),
+});
+export type HistoryView = z.infer<typeof HistoryView>;
+
+export const HistoryOpenPrRequest = z.object({
+  repoPath: z.string().min(1),
+  id: z.string().min(1),
+});
+export type HistoryOpenPrRequest = z.infer<typeof HistoryOpenPrRequest>;
 
 // Update check — queries the GitHub Releases API with the user's token (ADR-0010
 // private-repo path), so it works for a private release repo electron-updater can't.
