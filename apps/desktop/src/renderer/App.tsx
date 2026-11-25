@@ -113,13 +113,6 @@ export function App() {
   const bridgeReady = typeof window.rivetari !== "undefined";
   const [repos, setRepos] = useState<RepoEntry[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  // The deep-audit swarm runs on its own, started from Posture.
-  // `floorPlanVersion` bumps when a run finishes so the Map tab reloads the
-  // freshly-persisted model.
-  const [floorPlanRunning, setFloorPlanRunning] = useState(false);
-  const [floorPlanVersion, setFloorPlanVersion] = useState(0);
-  const [floorPlanError, setFloorPlanError] = useState<string | null>(null);
-  const floorPlanRun = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>(DEFAULT_VIEW);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -248,37 +241,9 @@ export function App() {
     setSelected(path);
     setError(null);
     setView(DEFAULT_VIEW);
-    // The previous repo's swarm run, if any, no longer speaks for this one.
-    floorPlanRun.current++;
-    setFloorPlanError(null);
-    setFloorPlanRunning(false);
-    setFloorPlanVersion((v) => v + 1); // make the Map tab's floor plan reload for the new repo
     setOpened(new Set<View>([DEFAULT_VIEW])); // fresh state for the new repo
     setNowFocus(null);
     setTasksFocus(null);
-  }
-
-  /**
-   * Run the deep-audit swarm for a repo. The swarm runs Claude agents and costs
-   * money, so only Posture's Deep audit, after the person confirms it, calls
-   * this; nothing else starts it. Non-blocking: main persists the model, so we
-   * just bump the version for the Map tab to reload it. Errors show in Posture.
-   */
-  function triggerFloorPlan(path: string): void {
-    // Main aborts a superseded run; only the latest one may settle the UI.
-    const run = ++floorPlanRun.current;
-    setFloorPlanRunning(true);
-    setFloorPlanError(null);
-    window.rivetari.floorplan
-      .run(path)
-      .catch((err: unknown) => {
-        if (run === floorPlanRun.current) setFloorPlanError(errorMessage(err));
-      })
-      .finally(() => {
-        if (run !== floorPlanRun.current) return;
-        setFloorPlanRunning(false);
-        setFloorPlanVersion((v) => v + 1);
-      });
   }
 
   const selectedRepo = repos.find((r) => r.path === selected) ?? null;
@@ -418,8 +383,7 @@ export function App() {
         {settingsOpen ? (
           <Settings onThemeChange={setTheme} />
         ) : selectedRepo ? (
-          // The map and its floor plan need room to breathe; other tabs read
-          // best narrower.
+          // The map needs room to breathe; other tabs read best narrower.
           <div
             className={`mx-auto space-y-5 p-6 ${
               view === "map" ? "max-w-7xl" : "max-w-4xl"
@@ -497,9 +461,6 @@ export function App() {
                 <Posture
                   key={selectedRepo.path}
                   repoPath={selectedRepo.path}
-                  deepAuditRunning={floorPlanRunning}
-                  deepAuditError={floorPlanError}
-                  onDeepAudit={() => triggerFloorPlan(selectedRepo.path)}
                   onOpenTask={(id) => {
                     setTasksFocus({ id, seq: ++focusSeq.current });
                     showView("tasks");
@@ -557,12 +518,7 @@ export function App() {
                 hidden={view !== "map"}
               >
                 {/* key loads the newly selected repo's map (and fences to it). */}
-                <RepoMap
-                  key={selectedRepo.path}
-                  repoPath={selectedRepo.path}
-                  floorPlanRunning={floorPlanRunning}
-                  floorPlanVersion={floorPlanVersion}
-                />
+                <RepoMap key={selectedRepo.path} repoPath={selectedRepo.path} />
               </div>
             )}
           </div>

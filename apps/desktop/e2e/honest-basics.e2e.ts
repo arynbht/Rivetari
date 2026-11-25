@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { expect, type ElectronApplication, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   closeApp,
@@ -12,35 +12,7 @@ import {
 } from "./helpers";
 
 // The shell's honest basics: Posture shows the audit state.json records, Run
-// audit never starts the paid swarm, the deep audit asks first and says it
-// costs money while the Map's floor plan has nothing that starts it, and the
-// dead org setting is gone.
-
-/**
- * Replace main's floor-plan handlers with ones that report the swarm as
- * available and count runs instead of starting Claude agents.
- */
-async function stubSwarm(app: ElectronApplication, repoPath: string) {
-  const model: unknown = JSON.parse(
-    readFileSync(join(repoPath, ".rivetari", "floorplan.json"), "utf8"),
-  );
-  await app.evaluate(({ ipcMain }, m) => {
-    const g = globalThis as unknown as { swarmRuns: number };
-    g.swarmRuns = 0;
-    const view = { model: m, deepAuditAvailable: true, stale: false };
-    ipcMain.removeHandler("floorplan:get");
-    ipcMain.handle("floorplan:get", () => view);
-    ipcMain.removeHandler("floorplan:run");
-    ipcMain.handle("floorplan:run", () => {
-      g.swarmRuns += 1;
-      return view;
-    });
-  }, model);
-  return () =>
-    app.evaluate(
-      () => (globalThis as unknown as { swarmRuns: number }).swarmRuns,
-    );
-}
+// audit records a fresh one, and the dead org setting is gone.
 
 test.describe("honest basics", () => {
   let launched: LaunchedApp;
@@ -117,8 +89,7 @@ test.describe("honest basics", () => {
     launched = await launchApp({
       repos: [{ path: repoPath, name: "sample-repo" }],
     });
-    const { app, page } = launched;
-    const swarmRuns = await stubSwarm(app, repoPath);
+    const { page } = launched;
 
     await page
       .getByRole("button", { name: /sample-repo/ })
@@ -141,9 +112,6 @@ test.describe("honest basics", () => {
     await expect(
       panel.getByText(new RegExp(`^${state.summary.total} controls · `)),
     ).toBeVisible();
-
-    // And it didn't start the deep-audit swarm on the side.
-    expect(await swarmRuns()).toBe(0);
   });
 
   test("a Run audit that lands after a repo switch stays off the new repo", async () => {
@@ -222,52 +190,6 @@ test.describe("honest basics", () => {
     await page.waitForTimeout(2000);
     await expect(panel.getByText(/^1 controls · recorded /)).toBeVisible();
     await expect(panel.getByText(/^7 controls/)).toHaveCount(0);
-  });
-
-  test("the deep audit says it costs money and asks first, and the Map's floor plan can't start it", async () => {
-    const repoPath = copyFixtureRepo();
-    launched = await launchApp({
-      repos: [{ path: repoPath, name: "sample-repo" }],
-    });
-    const { app, page } = launched;
-    const swarmRuns = await stubSwarm(app, repoPath);
-
-    await page
-      .getByRole("button", { name: /sample-repo/ })
-      .first()
-      .click();
-
-    // The floor plan shows under the Map, with nothing there that runs the swarm.
-    await page.getByRole("tab", { name: "Map" }).click();
-    const map = page.locator("#panel-map");
-    const plan = map.getByRole("region", { name: "Floor plan" });
-    await expect(plan.getByText(/\d+ systems · \d+ nodes/)).toBeVisible();
-    await expect(
-      map.getByRole("button", { name: /refresh|deep audit/i }),
-    ).toHaveCount(0);
-
-    await page.getByRole("tab", { name: "Posture" }).click();
-    const panel = page.locator("#panel-posture");
-    const deep = panel.getByRole("button", { name: "Deep audit" });
-    await expect(deep).toHaveAccessibleDescription(/costs money/);
-
-    // Asking, then cancelling, runs nothing.
-    await deep.click();
-    const confirm = panel.getByRole("group", { name: "Run the deep audit?" });
-    await expect(confirm).toBeVisible();
-    await expect(confirm).toContainText("costs money");
-    expect(await runAxe(page), "deep audit confirm").toEqual([]);
-    await confirm.getByRole("button", { name: "Cancel" }).click();
-    await expect(confirm).toBeHidden();
-    expect(await swarmRuns()).toBe(0);
-
-    // Confirming runs it once.
-    await deep.click();
-    await panel
-      .getByRole("group", { name: "Run the deep audit?" })
-      .getByRole("button", { name: "Run the deep audit" })
-      .click();
-    await expect.poll(swarmRuns).toBe(1);
   });
 
   test("Settings has no Default GitHub org and loads an old file", async () => {

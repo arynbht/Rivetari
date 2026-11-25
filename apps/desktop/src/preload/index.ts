@@ -14,10 +14,6 @@ import {
   DocList,
   DocsListRequest,
   DocsReadRequest,
-  FloorPlanGetRequest,
-  FloorPlanProgress,
-  FloorPlanRunRequest,
-  FloorPlanView,
   IpcChannel,
   PingRequest,
   PingResponse,
@@ -234,39 +230,6 @@ const api = {
         request,
       );
       return DocContent.parse(raw);
-    },
-  },
-
-  floorplan: {
-    /** The last persisted floor plan + whether a deep audit can run + staleness. */
-    async get(repoPath: string) {
-      const request = FloorPlanGetRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.FloorPlanGet,
-        request,
-      );
-      return FloorPlanView.parse(raw);
-    },
-    /** Run the deep-audit swarm (subscription CLI); persists + returns the model. */
-    async run(repoPath: string) {
-      const request = FloorPlanRunRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.FloorPlanRun,
-        request,
-      );
-      return FloorPlanView.parse(raw);
-    },
-    /** Subscribe to swarm progress; returns an unsubscribe fn. */
-    onProgress(callback: (progress: FloorPlanProgress) => void) {
-      const listener = (_event: unknown, payload: unknown): void => {
-        // A malformed push is dropped rather than thrown into the IPC event loop.
-        const parsed = FloorPlanProgress.safeParse(payload);
-        if (parsed.success) callback(parsed.data);
-      };
-      ipcRenderer.on(IpcChannel.FloorPlanProgress, listener);
-      return () => {
-        ipcRenderer.removeListener(IpcChannel.FloorPlanProgress, listener);
-      };
     },
   },
 

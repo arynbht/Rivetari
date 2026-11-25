@@ -1,7 +1,6 @@
 import { ShieldBan } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { FloorPlan } from "@/components/FloorPlan";
 import { Card } from "@/components/ui/card";
 import { errorMessage } from "@/lib/errors";
 
@@ -11,9 +10,7 @@ import { MAP_PARTITION, type MapView } from "../../shared/ipc";
 // floorplan/. It runs in a webview on its own session, which the main process
 // fences to that directory: anything else the page asks for (the waitlist's
 // "Notify me", the Ask bar, a font from the web) is cancelled and listed here.
-// Its server is never started, so the parts that need one stay inert. Under it
-// sits the floor plan the deep audit last drew, which used to have a tab of
-// its own; the two are maps of the same repo, so they share this one.
+// Its server is never started, so the parts that need one stay inert.
 
 /**
  * The map's session, which the main process guards and only lets the map's
@@ -22,17 +19,7 @@ import { MAP_PARTITION, type MapView } from "../../shared/ipc";
  */
 const MAP_GUEST = { partition: MAP_PARTITION };
 
-export function RepoMap({
-  repoPath,
-  floorPlanRunning,
-  floorPlanVersion,
-}: {
-  repoPath: string;
-  /** True while a deep audit started from Posture is in flight. */
-  floorPlanRunning: boolean;
-  /** Bumped by App after a deep audit finishes, to reload the floor plan. */
-  floorPlanVersion: number;
-}) {
+export function RepoMap({ repoPath }: { repoPath: string }) {
   const [view, setView] = useState<MapView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [blocked, setBlocked] = useState<string[]>([]);
@@ -124,12 +111,6 @@ export function RepoMap({
           </section>
         </>
       ) : null}
-
-      <FloorPlan
-        repoPath={repoPath}
-        running={floorPlanRunning}
-        version={floorPlanVersion}
-      />
     </div>
   );
 }

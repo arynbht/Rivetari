@@ -55,12 +55,9 @@ test.describe("accessibility (axe)", () => {
 
     await page.getByRole("tab", { name: "Map" }).click();
     await expect(
-      page
-        .locator("#panel-map")
-        .getByRole("region", { name: "Floor plan" })
-        .getByText(/\d+ systems · \d+ nodes/),
+      page.locator("#panel-map").getByText("No map for this repository yet."),
     ).toBeVisible();
-    expect(await runAxe(page), "map and floor plan").toEqual([]);
+    expect(await runAxe(page), "map").toEqual([]);
 
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
