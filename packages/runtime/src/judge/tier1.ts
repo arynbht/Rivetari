@@ -27,9 +27,10 @@ import {
   templateStacks,
   ToolNotFoundError,
 } from "@arynbht/rivetari-engine";
-import { type SimpleGit, simpleGit } from "simple-git";
+import type { SimpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
+import { judgeGit } from "./git.js";
 import { bannedCheck, loadBanned } from "./banned.js";
 import { diffRules, type Hunk } from "./diff-rules.js";
 import {
@@ -171,7 +172,7 @@ export async function sweepStaleClones(
  */
 export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
   const log = options.log ?? (() => undefined);
-  const repo = simpleGit(options.repoPath);
+  const repo = judgeGit(options.repoPath);
   const base = (await repo.revparse([options.base])).trim();
   const head = (await repo.revparse([options.head ?? "HEAD"])).trim();
   const mergeBase = (await repo.raw(["merge-base", base, head])).trim();
@@ -224,18 +225,18 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
   try {
     if (!workspace) {
       log(`cloning into ${workDir}`);
-      await simpleGit().clone(options.repoPath, workDir, [
-        "--quiet",
-        "--shared",
-        "--no-checkout",
-      ]);
+      await judgeGit(undefined, {}, [options.repoPath, workDir]).clone(
+        options.repoPath,
+        workDir,
+        ["--quiet", "--shared", "--no-checkout"],
+      );
     } else
       log(
         `${workspace.created ? "cloning into" : "reusing"} the judge workspace ${workDir}`,
       );
     // simple-git guards core.hooksPath against hook injection; here it points
     // at an empty directory we just made, which is the opposite of injection.
-    const clone = simpleGit(workDir, {
+    const clone = judgeGit(workDir, {
       unsafe: { allowUnsafeHooksPath: true },
     });
     // The target repo's hooks never run inside the judge.

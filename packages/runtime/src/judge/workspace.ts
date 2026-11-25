@@ -17,8 +17,9 @@ import { dirname, join } from "node:path";
 
 import { type ControlResult, runTool } from "@arynbht/rivetari-engine";
 import picomatch from "picomatch";
-import { type SimpleGit, simpleGit } from "simple-git";
+import type { SimpleGit } from "simple-git";
 import { parse as parseYaml } from "yaml";
+import { judgeGit } from "./git.js";
 
 export function judgeCacheRoot(): string {
   if (process.env.RIVETARI_JUDGE_CACHE) return process.env.RIVETARI_JUDGE_CACHE;
@@ -78,14 +79,14 @@ export async function acquireWorkspace(
     rm(lock, { recursive: true, force: true }).catch(() => undefined);
   try {
     const ready = await stat(join(dir, ".git"))
-      .then(() => simpleGit(dir).revparse(["--git-dir"]))
+      .then(() => judgeGit(dir).revparse(["--git-dir"]))
       .then(
         () => true,
         () => false,
       );
     if (!ready) {
       await rm(dir, { recursive: true, force: true });
-      await simpleGit().clone(repoPath, dir, [
+      await judgeGit(undefined, {}, [repoPath, dir]).clone(repoPath, dir, [
         "--quiet",
         "--shared",
         "--no-checkout",
@@ -93,7 +94,7 @@ export async function acquireWorkspace(
       // The target repo's hooks never run inside the judge.
       const noHooks = join(dir, ".git", "rivetari-no-hooks");
       await mkdir(noHooks, { recursive: true });
-      await simpleGit(dir, {
+      await judgeGit(dir, {
         unsafe: { allowUnsafeHooksPath: true },
       }).addConfig("core.hooksPath", noHooks);
     }
@@ -117,7 +118,7 @@ const LOCKFILES = [
  * platform. Equal keys install the same tree.
  */
 export async function dependencyKey(dir: string): Promise<string> {
-  const git = simpleGit(dir);
+  const git = judgeGit(dir);
   const manifests = (
     await git.raw(["ls-files", "-z", "--", "package.json", "**/package.json"])
   )

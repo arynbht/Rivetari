@@ -2,9 +2,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import picomatch from "picomatch";
-import { simpleGit } from "simple-git";
 import { z } from "zod";
 
+import { judgeGit } from "./git.js";
 import type { CheckOutcome } from "./outcome.js";
 
 export const BANNED_PATH = ".rivetari/banned.json";
@@ -133,7 +133,7 @@ export async function loadBanned(
   rev?: string,
 ): Promise<BannedList> {
   const text = rev
-    ? await simpleGit(repoPath)
+    ? await judgeGit(repoPath)
         .show([`${rev}:${BANNED_PATH}`])
         .catch(() => null)
     : await readFile(join(repoPath, BANNED_PATH), "utf8").catch(() => null);

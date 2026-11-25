@@ -31,7 +31,7 @@ import {
 import { createRequire } from "node:module";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
-import { type AiClient, allowlistedEnv } from "@arynbht/rivetari-engine";
+import type { AiClient } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
@@ -45,6 +45,12 @@ import {
   type RoundDecision,
   reviewRound,
 } from "./decide.js";
+import {
+  judgeGit,
+  scratchEnvFor,
+  scratchGitEnv,
+  useScratchGit,
+} from "./git.js";
 import type { CheckOutcome } from "./outcome.js";
 import { protectedDetail } from "./protected.js";
 import type { reviewLocal } from "./review.js";
@@ -271,37 +277,42 @@ export async function loadEvalCases(
   return cases;
 }
 
-/**
- * The environment every git call in a case's scratch repo runs with: the
- * allowlist, so no token reaches git or anything it starts; no system or
- * global config; and, above any config a case could reach, hooks pointed at
- * an empty directory outside the repo and no fsmonitor.
- */
-export function scratchGitEnv(
-  noHooks: string,
-  emptyConfig: string,
-): NodeJS.ProcessEnv {
-  return {
-    ...allowlistedEnv(),
-    GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: emptyConfig,
-    GIT_TERMINAL_PROMPT: "0",
-    GIT_CONFIG_COUNT: "2",
-    GIT_CONFIG_KEY_0: "core.hooksPath",
-    GIT_CONFIG_VALUE_0: noHooks,
-    GIT_CONFIG_KEY_1: "core.fsmonitor",
-    GIT_CONFIG_VALUE_1: "false",
-  };
-}
+export { scratchGitEnv };
 
 const samePath = (p: string) =>
   process.platform === "win32" ? p.toLowerCase() : p;
+const inside = (p: string, dir: string) =>
+  samePath(p).startsWith(samePath(dir) + sep);
 
 /**
- * Where a case's base file lands, or an error. The nearest directory that
- * already exists is resolved with realpath, so a symlink or junction can't
- * carry the write out of the repo or into its git dir; the segments below it
- * don't exist yet, so none of them is a link.
+ * `target` resolved for a write or delete inside `root`, or an error. The
+ * nearest part of it that exists is resolved with realpath, so a symlink or
+ * junction can't carry the write or delete out of `root`; the segments below
+ * it don't exist yet, so none of them is a link. Every write and delete of a
+ * case's files goes through here.
+ */
+export async function contained(root: string, target: string): Promise<string> {
+  const realRoot = await realpath(root);
+  let existing = resolve(root, target);
+  const below: string[] = [];
+  while (!(await stat(existing).catch(() => null))) {
+    below.unshift(basename(existing));
+    existing = dirname(existing);
+  }
+  const real = join(await realpath(existing), ...below);
+  if (!inside(real, realRoot))
+    throw new Error(`${target} resolves outside ${root}`);
+  return real;
+}
+
+/** Deletes `target`, recursively, only once it resolves inside `root`. */
+async function removeIn(root: string, target: string): Promise<void> {
+  await rm(await contained(root, target), { recursive: true, force: true });
+}
+
+/**
+ * Where a case's base file lands, or an error: inside the repo, by realpath,
+ * and outside its git dir.
  */
 export async function scratchPath(
   repoPath: string,
@@ -309,18 +320,9 @@ export async function scratchPath(
 ): Promise<string> {
   const root = await realpath(repoPath);
   const gitDir = await realpath(join(repoPath, ".git"));
-  let existing = dirname(resolve(repoPath, path));
-  const below = [basename(resolve(repoPath, path))];
-  while (!(await stat(existing).catch(() => null))) {
-    below.unshift(basename(existing));
-    existing = dirname(existing);
-  }
-  const at = join(await realpath(existing), ...below);
-  const real = await realpath(at).catch(() => at);
-  const inside = (p: string, dir: string) =>
-    samePath(p).startsWith(samePath(dir) + sep);
-  if (!inside(real, root))
+  const real = await contained(repoPath, path).catch(() => {
     throw new Error(`base.json names a path outside the repo: ${path}`);
+  });
   // Windows drops trailing dots and spaces and answers to the 8.3 name, so
   // those spellings of .git are refused before they reach the disk.
   const top = relative(root, real)
@@ -338,60 +340,72 @@ export async function scratchPath(
 }
 
 /**
+ * Makes `work` a scratch folder: an empty hooks directory and an empty global
+ * config inside it, beside the repo where no base file can reach them, and
+ * every judge git call inside it runs with the scratch environment until the
+ * returned release runs. A folder that already is one is left as it is.
+ */
+export async function openScratch(work: string): Promise<() => void> {
+  await mkdir(work, { recursive: true });
+  if (scratchEnvFor([work])) return () => undefined;
+  const gitEnv = await contained(work, "git-env");
+  await removeIn(work, gitEnv);
+  const noHooks = await contained(work, join("git-env", "no-hooks"));
+  await mkdir(noHooks, { recursive: true });
+  const emptyConfig = await contained(work, join("git-env", "gitconfig"));
+  await writeFile(emptyConfig, "");
+  return useScratchGit(work, scratchGitEnv(noHooks, emptyConfig));
+}
+
+/**
  * The case as a repo: a commit of its base files, then one of the base plus
- * its diff. Returns both commits.
+ * its diff. Returns both commits. The repo's folder is a scratch folder for
+ * as long as this runs; judgeCase keeps it one for the whole case.
  */
 export async function materializeCase(
   c: Pick<EvalCase, "dir">,
   repoPath: string,
 ): Promise<{ base: string; head: string }> {
-  // The hooks dir and the empty global config sit beside the repo, where no
-  // base file can reach them.
-  const outside = `${resolve(repoPath)}.git-env`;
-  const noHooks = join(outside, "no-hooks");
-  const emptyConfig = join(outside, "gitconfig");
-  await rm(repoPath, { recursive: true, force: true });
-  await rm(outside, { recursive: true, force: true });
-  await mkdir(repoPath, { recursive: true });
-  await mkdir(noHooks, { recursive: true });
-  await writeFile(emptyConfig, "");
-  // simple-git refuses config paths and counts in the environment unless
-  // asked; these are ours, and they're what keep the case's config out.
-  const env = scratchGitEnv(noHooks, emptyConfig);
-  const git = simpleGit(repoPath, {
-    allowEnvironment: Object.keys(env).filter((k) => k.startsWith("GIT_")),
-    unsafe: {
-      allowUnsafeConfigPaths: true,
-      allowUnsafeConfigEnvCount: true,
-      allowUnsafeHooksPath: true,
-      allowUnsafeFsMonitor: true,
-    },
-  }).env(env);
-  await git.init(["--quiet"]);
-  // No line-ending rewrites or signing may change what the repo holds.
-  await git.addConfig("core.autocrlf", "false");
-  await git.addConfig("commit.gpgsign", "false");
-  await git.addConfig("user.name", "rivetari judge eval");
-  await git.addConfig("user.email", "judge-eval@rivetari.invalid");
-  for (const [path, file] of Object.entries(await baseFiles(c.dir))) {
-    const at = await scratchPath(repoPath, path);
-    await mkdir(dirname(at), { recursive: true });
-    await writeFile(
-      at,
-      "base64" in file
-        ? Buffer.from(file.base64, "base64")
-        : Buffer.from(file.utf8, "utf8"),
-    );
+  const work = dirname(resolve(repoPath));
+  const release = await openScratch(work);
+  try {
+    const repo = await contained(work, repoPath);
+    await removeIn(work, repo);
+    await mkdir(repo, { recursive: true });
+    const git = judgeGit(repo);
+    await git.init(["--quiet"]);
+    // No line-ending rewrites or signing may change what the repo holds.
+    await git.addConfig("core.autocrlf", "false");
+    await git.addConfig("commit.gpgsign", "false");
+    await git.addConfig("user.name", "rivetari judge eval");
+    await git.addConfig("user.email", "judge-eval@rivetari.invalid");
+    for (const [path, file] of Object.entries(await baseFiles(c.dir))) {
+      const at = await scratchPath(repo, path);
+      await mkdir(dirname(at), { recursive: true });
+      await writeFile(
+        at,
+        "base64" in file
+          ? Buffer.from(file.base64, "base64")
+          : Buffer.from(file.utf8, "utf8"),
+      );
+    }
+    await git.raw(["add", "-A"]);
+    await git.raw(["commit", "--quiet", "--allow-empty", "-m", "base"]);
+    const base = (await git.revparse(["HEAD"])).trim();
+    const diff = join(c.dir, "change.diff");
+    if ((await stat(diff).catch(() => null))?.size)
+      await git.raw([
+        "apply",
+        "--binary",
+        "--whitespace=nowarn",
+        resolve(diff),
+      ]);
+    await git.raw(["add", "-A"]);
+    await git.raw(["commit", "--quiet", "--allow-empty", "-m", "head"]);
+    return { base, head: (await git.revparse(["HEAD"])).trim() };
+  } finally {
+    release();
   }
-  await git.raw(["add", "-A"]);
-  await git.raw(["commit", "--quiet", "--allow-empty", "-m", "base"]);
-  const base = (await git.revparse(["HEAD"])).trim();
-  const diff = join(c.dir, "change.diff");
-  if ((await stat(diff).catch(() => null))?.size)
-    await git.raw(["apply", "--binary", "--whitespace=nowarn", resolve(diff)]);
-  await git.raw(["add", "-A"]);
-  await git.raw(["commit", "--quiet", "--allow-empty", "-m", "head"]);
-  return { base, head: (await git.revparse(["HEAD"])).trim() };
 }
 
 type BaseFile = { utf8: string } | { base64: string };
@@ -471,9 +485,13 @@ export async function judgeCase(
     durationMs: 0,
   };
   const work = resolve(options.workRoot, meta.id);
+  let release: () => void = () => undefined;
   if (!CASE_ID.test(meta.id) || dirname(work) !== resolve(options.workRoot))
     throw new Error(`case id ${JSON.stringify(meta.id)} isn't a plain name`);
   try {
+    await mkdir(options.workRoot, { recursive: true });
+    await contained(options.workRoot, work);
+    release = await openScratch(work);
     const repoPath = join(work, "repo");
     const { base, head } = await materializeCase(c, repoPath);
     const entries = meta.stops.map((s, i): LedgerEntry => ({
@@ -668,7 +686,12 @@ export async function judgeCase(
     return run;
   } finally {
     run.durationMs = Date.now() - started;
-    await rm(work, { recursive: true, force: true }).catch(() => undefined);
+    release();
+    await removeIn(options.workRoot, work).catch((err: unknown) =>
+      log(
+        `couldn't remove ${work}: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
   }
 }
 

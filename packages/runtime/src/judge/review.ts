@@ -8,8 +8,8 @@ import {
   QUIET_LOG,
   resolveRepoSlug,
 } from "@arynbht/rivetari-engine";
-import { simpleGit } from "simple-git";
 
+import { judgeGit } from "./git.js";
 import type { ReviewProof } from "./tier2.js";
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
@@ -73,7 +73,7 @@ export function roundVerdict(
 
 /** A commit's tree: two commits with the same one hold the same files, byte for byte. */
 export async function treeOf(repoPath: string, rev: string): Promise<string> {
-  return (await simpleGit(repoPath).revparse([`${rev}^{tree}`])).trim();
+  return (await judgeGit(repoPath).revparse([`${rev}^{tree}`])).trim();
 }
 
 /** An earlier verdict on a head with the same tree, which a review can carry. */
@@ -186,7 +186,7 @@ export async function reviewLocal(
     round?: number;
   },
 ): Promise<ReviewOutcome> {
-  const git = simpleGit(options.repoPath);
+  const git = judgeGit(options.repoPath);
   const head = (await git.revparse([options.head ?? "HEAD"])).trim();
   const base = (await git.raw(["merge-base", options.base, head])).trim();
   const result = await runTier2({ ...options, base, head });
@@ -239,7 +239,7 @@ export async function reviewPullRequest(
     .catch(() => null);
   const mine = ownReviews(marked, me);
 
-  const git = simpleGit(options.repoPath);
+  const git = judgeGit(options.repoPath);
   const ref = `refs/rivetari/pr-${options.pr}`;
   await git.raw([
     "fetch",

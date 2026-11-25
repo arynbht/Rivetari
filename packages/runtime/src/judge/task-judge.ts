@@ -14,7 +14,6 @@ import {
   buildContext,
   CallTimeoutError,
 } from "@arynbht/rivetari-engine";
-import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
 import { loadIsolation } from "../agent/isolate.js";
@@ -41,6 +40,7 @@ import {
   TaskError,
   TASKS_DIR,
 } from "../task/tasks.js";
+import { judgeGit } from "./git.js";
 import {
   decideAfterReview,
   decideBeforeReview,
@@ -247,7 +247,7 @@ export async function judgeTask(
   // Judge the commit the last build round made and the proof ran on, nothing
   // added to the branch since.
   const head = (
-    await simpleGit(repoPath).revparse([`refs/heads/${isolation.branch}`])
+    await judgeGit(repoPath).revparse([`refs/heads/${isolation.branch}`])
   ).trim();
   const built = [...task.entries]
     .reverse()
