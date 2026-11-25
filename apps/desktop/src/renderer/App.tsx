@@ -353,7 +353,10 @@ export function App() {
         <AuthControls />
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
+      {/* relative makes main the containing block for anything absolutely
+          placed inside it, like the sr-only table captions: otherwise they sit
+          outside its scroll, stretch the window and give it a second scrollbar. */}
+      <main className="relative flex-1 overflow-y-auto">
         {updateBanner && (
           <div className="flex items-center justify-between gap-3 border-b border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-300">
             <span>
