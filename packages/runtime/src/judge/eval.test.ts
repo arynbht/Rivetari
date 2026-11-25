@@ -326,7 +326,7 @@ describe("materializeCase", () => {
     };
     process.env.HOME = root;
     process.env.USERPROFILE = root;
-    process.env.GH_TOKEN = "ghp_eval_selfcheck";
+    process.env.GH_TOKEN = "a-token-from-the-caller";
     try {
       const dir = await tmp();
       await writeFile(
@@ -350,6 +350,28 @@ describe("materializeCase", () => {
     expect(base).not.toBe(head);
     expect(await simpleGit(repo).raw(["diff", "--name-only", base, head])).toBe(
       "",
+    );
+  });
+});
+
+describe("loadEvalCases", () => {
+  it("skips a directory with no case.json, and fails on one it can't read", async () => {
+    const root = await tmp();
+    await makeCase(root, meta(), BASE, HEAD);
+    await mkdir(join(root, "notes"));
+    expect(await loadEvalCases(root)).toHaveLength(1);
+    await mkdir(join(root, "broken", "case.json"), { recursive: true });
+    await expect(loadEvalCases(root)).rejects.toThrow(
+      /can't read .*case\.json/,
+    );
+  });
+
+  it("fails on a proof.json it can't read rather than judging with no proof", async () => {
+    const root = await tmp();
+    const dir = await makeCase(root, meta(), BASE, HEAD);
+    await mkdir(join(dir, "proof.json"));
+    await expect(loadEvalCases(root)).rejects.toThrow(
+      /can't read .*proof\.json/,
     );
   });
 });

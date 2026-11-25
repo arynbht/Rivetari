@@ -217,6 +217,14 @@ export interface JudgeEvalOptions {
 
 const CHECK_RUNS_TESTS = "quality.tests.pass";
 
+/** A case file's text, or null when it doesn't exist; any other error is thrown. */
+async function readIfThere(path: string): Promise<string | null> {
+  return readFile(path, "utf8").catch((err: NodeJS.ErrnoException) => {
+    if (err.code === "ENOENT") return null;
+    throw new Error(`can't read ${path}: ${err.message}`);
+  });
+}
+
 /** Every case under `root` (each directory with a `case.json`), by id. */
 export async function loadEvalCases(
   root: string,
@@ -229,9 +237,7 @@ export async function loadEvalCases(
   const cases: EvalCase[] = [];
   for (const name of names) {
     const dir = join(root, name);
-    const metaText = await readFile(join(dir, "case.json"), "utf8").catch(
-      () => null,
-    );
+    const metaText = await readIfThere(join(dir, "case.json"));
     if (metaText === null) continue;
     const meta = JSON.parse(metaText) as EvalCaseMeta;
     if (only && only.length > 0 && !only.includes(meta.id)) continue;
@@ -241,9 +247,7 @@ export async function loadEvalCases(
     const assembly = AssemblySchema.parse(
       parse(await readFile(join(dir, "assembly.yml"), "utf8")),
     );
-    const proofText = await readFile(join(dir, "proof.json"), "utf8").catch(
-      () => null,
-    );
+    const proofText = await readIfThere(join(dir, "proof.json"));
     cases.push({
       dir,
       meta,
@@ -320,7 +324,7 @@ export async function scratchPath(
     samePath(real) === samePath(gitDir) ||
     inside(real, gitDir) ||
     top === ".git" ||
-    /^git~d+$/.test(top ?? "")
+    /^git~\d+$/.test(top ?? "")
   )
     throw new Error(`base.json names a path inside .git: ${path}`);
   return real;
@@ -387,12 +391,7 @@ type BaseFile = { utf8: string } | { base64: string };
 
 /** A case's base files; none when it has no `base.json`. */
 async function baseFiles(dir: string): Promise<Record<string, BaseFile>> {
-  const text = await readFile(join(dir, "base.json"), "utf8").catch(
-    (err: NodeJS.ErrnoException) => {
-      if (err.code === "ENOENT") return null;
-      throw err;
-    },
-  );
+  const text = await readIfThere(join(dir, "base.json"));
   if (text === null) return {};
   return (JSON.parse(text) as { files: Record<string, BaseFile> }).files;
 }
