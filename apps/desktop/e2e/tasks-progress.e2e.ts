@@ -77,6 +77,10 @@ test.describe("tasks while they run", () => {
       .click();
     await page.getByRole("tab", { name: "Tasks" }).click();
     const panel = page.locator("#panel-tasks");
+    await panel
+      .getByRole("group", { name: "Show tasks as" })
+      .getByRole("button", { name: "List" })
+      .click();
     const rows = panel
       .getByRole("region", { name: "All tasks" })
       .locator("tbody tr");

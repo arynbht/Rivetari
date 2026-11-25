@@ -38,6 +38,10 @@ test.describe("tasks", () => {
     await expect(
       panel.getByRole("heading", { name: "Tasks", exact: true }),
     ).toBeVisible();
+    await panel
+      .getByRole("group", { name: "Show tasks as" })
+      .getByRole("button", { name: "List" })
+      .click();
 
     // The stopped task is the one waiting on a person, and says why.
     const needsYou = panel.getByRole("region", { name: "Needs you" });

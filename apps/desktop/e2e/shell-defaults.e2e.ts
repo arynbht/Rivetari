@@ -10,8 +10,9 @@ import { emptyRepo } from "./now-fixture";
 import { LEDGER_KEY } from "./tasks-fixture";
 
 // The shell's tabs after the cleanup: a repo opens on Now, Tasks sits next
-// to it with its board by beat one click away, and the old tabs (Scorecard,
-// Floor Plan, Profile, Gates, Fix, AI, Docs) are gone. Picking another repo
+// to it and opens on its board by beat with the list one click away, and the
+// old tabs (Scorecard, Floor Plan, Profile, Gates, Fix, AI, Docs) are gone.
+// Picking another repo
 // opens it on Now again, whatever tab the last one was on. Screenshots go to
 // RIVETARI_SHOTS_DIR when it's set.
 
@@ -94,17 +95,30 @@ test.describe("shell defaults", () => {
     await expect(tasks).toHaveAttribute("aria-selected", "true");
     await expect(tasks).toBeFocused();
 
-    // Its board by beat is one click away.
+    // It opens on its board by beat, with nothing clicked.
     const panel = page.locator("#panel-tasks");
     const toggle = panel.getByRole("group", { name: "Show tasks as" });
-    await toggle.getByRole("button", { name: "Board" }).click();
+    await expect(toggle.getByRole("button", { name: "Board" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     const board = panel.getByRole("region", { name: "Board", exact: true });
     await expect(board).toBeVisible();
     await expect(board.getByRole("heading", { level: 4 }).first()).toHaveText(
       /^intake/,
     );
+    await expect(panel.getByRole("region", { name: "All tasks" })).toHaveCount(
+      0,
+    );
     await shot(page, "after-tasks-board");
     expect(await runAxe(page), "tasks board").toEqual([]);
+
+    // The list is one click away.
+    await toggle.getByRole("button", { name: "List" }).click();
+    await expect(
+      panel.getByRole("region", { name: "All tasks" }).locator("tbody tr"),
+    ).toHaveCount(7);
+    await expect(board).toHaveCount(0);
 
     // Another repo opens on Now too, not on the tab the last one was left on.
     await page

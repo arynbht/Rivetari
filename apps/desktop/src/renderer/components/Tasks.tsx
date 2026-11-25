@@ -385,13 +385,19 @@ function Board({
 type View = "board" | "list";
 const VIEW_KEY = "rivetari.tasks.view";
 
-/** The view this person last picked, kept in this browser only. */
+/**
+ * The board, until this person picks the list: where each task stands by beat
+ * is what the tab is for. Their pick is kept in this browser only.
+ */
+const DEFAULT_VIEW: View = "board";
+
+/** The view this person last picked, or the board. */
 function savedView(): View {
   try {
     const saved = window.localStorage.getItem(VIEW_KEY);
-    return saved === "board" || saved === "list" ? saved : "list";
+    return saved === "board" || saved === "list" ? saved : DEFAULT_VIEW;
   } catch {
-    return "list";
+    return DEFAULT_VIEW;
   }
 }
 
