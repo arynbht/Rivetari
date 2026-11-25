@@ -31,6 +31,14 @@ import { type SimpleGit, simpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
 import { bannedCheck, loadBanned } from "./banned.js";
+import {
+  type BaseTests,
+  changedTests,
+  MUST_PROVE,
+  provedNothing,
+  runOnBase,
+  testRunner,
+} from "./base-tests.js";
 import { diffRules, type Hunk } from "./diff-rules.js";
 import {
   acquireWorkspace,
@@ -69,6 +77,8 @@ export interface Tier1Result {
   workDir: string;
   /** The test suite's run on the change, in full: the test-run proof. */
   testRun?: { command: string; exitCode: number; output: string } | undefined;
+  /** The change's new tests run on the base: whether they prove anything. */
+  baseTests?: BaseTests | undefined;
 }
 
 export interface Tier1Options {
@@ -502,6 +512,28 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       checks.some((c) => c.outcome === "fail") ||
       (headInstall !== null && !headInstall.ok && !(baseInstall?.ok === false));
 
+    // A fix or feature card's new tests have to fail without the change.
+    // Last, since it leaves the clone at the base; not when tier 1 has
+    // decided the round already.
+    const detector = tests?.detect.find((d) => d.type === "command");
+    const baseTests = await testsOnBase({
+      card: options.card,
+      decided: failed || protectedFindings.length > allowedFindings.length,
+      files: changedTests(diff, keep),
+      clone,
+      dir: workDir,
+      mergeBase,
+      head,
+      testRun,
+      green: tests !== undefined && sideOf(headResults) === "green",
+      script: baseScripts["test"],
+      timeoutS:
+        (detector?.type === "command" ? detector.timeout : undefined) ?? 60,
+      env: options.env,
+      log,
+    });
+    if (baseTests.note) notes.push(baseTests.note);
+
     return {
       verdict:
         protectedFindings.length > allowedFindings.length
@@ -518,6 +550,7 @@ export async function runTier1(options: Tier1Options): Promise<Tier1Result> {
       notes,
       workDir,
       testRun,
+      baseTests,
     };
   } finally {
     if (workspace) await workspace.release();
@@ -786,6 +819,78 @@ async function rerunAlone(
     }
   }
   return runs;
+}
+
+/**
+ * The change's new tests run alone on the base, each with the change's
+ * version of the file: for a fix or feature card, one that passes there
+ * proves nothing about the change. A card of another type is exempt, and one
+ * that had to and couldn't is said, so the criteria they back stay
+ * unverified rather than pass.
+ */
+async function testsOnBase(input: {
+  card: Card | undefined;
+  decided: boolean;
+  files: string[];
+  clone: SimpleGit;
+  dir: string;
+  mergeBase: string;
+  head: string;
+  testRun: Tier1Result["testRun"];
+  green: boolean;
+  script: unknown;
+  timeoutS: number;
+  env: readonly string[] | undefined;
+  log: (line: string) => void;
+}): Promise<BaseTests> {
+  const { card, files } = input;
+  const count = `${files.length} new test file(s)`;
+  if (files.length === 0 || !card)
+    return { status: "none", note: "", files: [] };
+  if (!MUST_PROVE.includes(card.type))
+    return {
+      status: "exempt",
+      note: `${count} not run on the base: a ${card.type} card is exempt (only fix and feature cards must show their tests fail without the change)`,
+      files: [],
+    };
+  const notRun = (why: string): BaseTests => ({
+    status: "not run",
+    note: why ? `${count} not run on the base: ${why}` : "",
+    files: files.map((file) => ({ file, onBase: "not run", command: "" })),
+  });
+  if (input.decided) return notRun("");
+  if (!input.testRun) return notRun("the tests check didn't run on the change");
+  if (!input.green) return notRun("the tests aren't green on the change");
+  const runner = testRunner(input.testRun.command, input.script);
+  if (!runner)
+    return notRun(
+      `tier 1 can't run one test file alone with \`${input.testRun.command}\``,
+    );
+  await input.clone.raw([
+    "checkout",
+    "--quiet",
+    "--force",
+    "--detach",
+    input.mergeBase,
+  ]);
+  await input.clone.raw(["clean", "-fdq"]);
+  await input.clone.raw(["checkout", input.head, "--", ...files]);
+  const results = await runOnBase({
+    dir: input.dir,
+    files,
+    command: input.testRun.command,
+    runner,
+    timeoutS: input.timeoutS,
+    env: input.env,
+    log: input.log,
+  });
+  const tests: BaseTests = { status: "ran", note: "", files: results };
+  const nothing = provedNothing(tests);
+  tests.note =
+    nothing.length > 0
+      ? `${nothing.join(", ")} pass${nothing.length === 1 ? "es" : ""} on the base too: ${nothing.length === 1 ? "it proves" : "they prove"} nothing about this change`
+      : `${count} fail on the base and pass on the change`;
+  return tests;
 }
 
 function passedAlone(

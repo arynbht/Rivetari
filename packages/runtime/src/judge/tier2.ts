@@ -29,6 +29,11 @@ import type { Shot } from "../proof/shoot.js";
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
 import { bannedSection, loadBanned } from "./banned.js";
+import {
+  applyBaseTests,
+  type BaseTests,
+  baseTestsSection,
+} from "./base-tests.js";
 import { isTestFile, parseNameStatus } from "./protected.js";
 import {
   type Tier1Checks,
@@ -258,6 +263,8 @@ export interface Tier2Options {
   proof?: ReviewProof | undefined;
   /** Tier 1's checks on the same change, this round: shown, and settling criteria about them. */
   tier1?: Tier1Checks | undefined;
+  /** Tier 1's run of the change's new tests on the base, this round. */
+  baseTests?: BaseTests | undefined;
   /** How hard the reviewer thinks (the CLI's `--effort`); its default when unset. */
   effort?: Effort | undefined;
   /** YYYY-MM-DD for the usage log; no log when omitted. */
@@ -640,6 +647,7 @@ function reviewPrompt(
   decisions?: readonly AllowedDecision[],
   proof?: ReviewProof,
   tier1?: Tier1Checks,
+  baseTests?: BaseTests,
 ): string {
   const parts: string[] = [];
   if (card) {
@@ -670,6 +678,7 @@ function reviewPrompt(
     );
   }
   if (tier1) parts.push(...tier1Section(tier1));
+  parts.push(...baseTestsSection(baseTests));
   if (proof) parts.push(...proofSection(proof, card));
   parts.push(...citedSection(packed.cited ?? []));
   parts.push(`## The diff\n${packed.diff || "(empty)"}`);
@@ -886,6 +895,7 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
           options.decisions,
           options.proof,
           options.tier1,
+          options.baseTests,
         ),
         "judge-review",
       ),
@@ -898,6 +908,9 @@ export async function runTier2(options: Tier2Options): Promise<Tier2Result> {
       : review.acceptance;
   if (card && options.tier1)
     acceptance = applyTier1(acceptance, card, options.tier1);
+  // A test that passes without the change shows nothing is done, whatever
+  // the reviewer read into it.
+  if (card) acceptance = applyBaseTests(acceptance, card, options.baseTests);
 
   // An unmet criterion blocks like any acceptance finding, even when the
   // reviewer only marked it unmet.

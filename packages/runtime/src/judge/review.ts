@@ -13,6 +13,7 @@ import { simpleGit } from "simple-git";
 import type { ReviewProof } from "./tier2.js";
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
+import type { BaseTests } from "./base-tests.js";
 import type { Tier1Checks } from "./tier1-criteria.js";
 import {
   type Finding,
@@ -50,6 +51,8 @@ export interface ReviewOptions {
   proof?: ReviewProof | undefined;
   /** Tier 1's checks on the same change, when the judge ran them this round. */
   tier1?: Tier1Checks | undefined;
+  /** Tier 1's run of the change's new tests on the base, this round. */
+  baseTests?: BaseTests | undefined;
   effort?: Effort | undefined;
   usageDate?: string | undefined;
   log?: ((line: string) => void) | undefined;

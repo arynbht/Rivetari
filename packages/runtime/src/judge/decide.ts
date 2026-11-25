@@ -19,6 +19,7 @@ import {
 } from "./fast-path.js";
 import { MAX_ROUNDS, type ReviewOutcome, reviewLocal } from "./review.js";
 import { changeSize, type ReviewPlan, reviewPlan } from "./review-plan.js";
+import type { BaseTests } from "./base-tests.js";
 import type { Tier1Checks } from "./tier1-criteria.js";
 import type { Tier1Result } from "./tier1.js";
 import {
@@ -46,6 +47,8 @@ export interface ReviewRoundInput {
   proof: ReviewProof;
   decisions: readonly AllowedDecision[];
   tier1: Tier1Checks;
+  /** Tier 1's run of the change's new tests on the base. */
+  baseTests?: BaseTests | undefined;
   /** The profile's judge models, when it names them. */
   models?:
     | {
@@ -96,6 +99,7 @@ export async function reviewRound(
       decisions: input.decisions,
       proof: input.proof,
       tier1: input.tier1,
+      baseTests: input.baseTests,
       base: input.base,
       head: input.head,
       round: input.round,
