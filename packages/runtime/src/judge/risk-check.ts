@@ -3,7 +3,6 @@
 // and existing tests it edited that the card didn't name. The higher of that
 // and the card's risk is the one the rest of the judge and the PR go by.
 import picomatch from "picomatch";
-import { simpleGit } from "simple-git";
 
 import type { Card } from "../task/card.js";
 import {
@@ -13,6 +12,7 @@ import {
   type Risk,
   touchedPaths,
 } from "../task/risk.js";
+import { judgeGit } from "./git.js";
 import { isTestFile, parseNameStatus } from "./protected.js";
 
 export interface JudgedRisk {
@@ -73,7 +73,7 @@ export async function judgeRisk(options: {
   sensitive: readonly string[];
 }): Promise<JudgedRisk> {
   const { card } = options;
-  const git = simpleGit(options.repoPath);
+  const git = judgeGit(options.repoPath);
   const diff = parseNameStatus(
     await git.raw([
       ...PLAIN,

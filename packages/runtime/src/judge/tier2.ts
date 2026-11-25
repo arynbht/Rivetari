@@ -22,12 +22,13 @@ import {
   looksLikeSecret,
 } from "@arynbht/rivetari-engine";
 import picomatch from "picomatch";
-import { type SimpleGit, simpleGit } from "simple-git";
+import type { SimpleGit } from "simple-git";
 import { z } from "zod";
 
 import type { Shot } from "../proof/shoot.js";
 import type { Card } from "../task/card.js";
 import type { AllowedDecision } from "../task/tasks.js";
+import { judgeGit } from "./git.js";
 import { bannedSection, loadBanned } from "./banned.js";
 import { isTestFile, parseNameStatus } from "./protected.js";
 import {
@@ -320,7 +321,7 @@ export async function packChange(
   base: string,
   head: string,
 ): Promise<PackedChange> {
-  const git = simpleGit(repoPath);
+  const git = judgeGit(repoPath);
   const all = parseNameStatus(
     await git.raw(["diff", "--name-status", "-M", base, head]),
   );

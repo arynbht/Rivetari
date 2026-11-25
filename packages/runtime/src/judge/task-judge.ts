@@ -13,10 +13,7 @@ import {
   type AiClient,
   buildContext,
   CallTimeoutError,
-  callTimeoutMinutes,
-  createAiClient,
 } from "@arynbht/rivetari-engine";
-import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
 import { loadIsolation } from "../agent/isolate.js";
@@ -43,24 +40,22 @@ import {
   TaskError,
   TASKS_DIR,
 } from "../task/tasks.js";
+import { judgeGit } from "./git.js";
 import {
-  FAST_REVIEW_MODEL,
-  FAST_REVIEW_TIMEOUT_MS,
-  isFastPath,
-} from "./fast-path.js";
+  decideAfterReview,
+  decideBeforeReview,
+  reviewRound,
+} from "./decide.js";
 import { type ProtectedFinding, protectedDetail } from "./protected.js";
 import {
   type CarriedVerdict,
-  MAX_ROUNDS,
   type ReviewOutcome,
   reviewLocal,
   treeOf,
 } from "./review.js";
-import { changeSize, reviewPlan } from "./review-plan.js";
+import type { ReviewPlan } from "./review-plan.js";
 import { type JudgedRisk, judgeRisk } from "./risk-check.js";
 import { runTier1, type Tier1Options, type Tier1Result } from "./tier1.js";
-import { JUDGE_DEFAULT_MODEL, unverifiedCriteria } from "./tier2.js";
-
 export { unverifiedCriteria } from "./tier2.js";
 
 /** What a judge round decided, as written to its record. */
@@ -252,7 +247,7 @@ export async function judgeTask(
   // Judge the commit the last build round made and the proof ran on, nothing
   // added to the branch since.
   const head = (
-    await simpleGit(repoPath).revparse([`refs/heads/${isolation.branch}`])
+    await judgeGit(repoPath).revparse([`refs/heads/${isolation.branch}`])
   ).trim();
   const built = [...task.entries]
     .reverse()
@@ -355,25 +350,18 @@ export async function judgeTask(
     },
     risk,
   };
-  let why = "";
-  const asks: string[] = [];
-
-  if (tier1.verdict === "needs-human") {
-    // A change to what judges it goes to a person; tier 2 doesn't run.
-    record.verdict = "needs a human";
-    why = `${tier1.protected.filter((p) => !wasAllowed(p)).length} protected change(s)`;
-  } else if (tier1.verdict === "fail") {
-    // Fix the deterministic failures before paying for a review.
-    record.verdict = round > MAX_ROUNDS ? "needs a human" : "failed";
-    why = `tier 1 failed${round > MAX_ROUNDS ? ` in round ${round}` : ""}`;
-  } else if (tier1.changedFiles === 0) {
-    // Nothing was built, so nothing on the card is done. The pilot's T-0010
-    // passed an empty diff with three criteria unmet; no review is paid for.
-    record.verdict = round > MAX_ROUNDS ? "needs a human" : "failed";
-    why = `the change is empty: no file differs from the base, and the card has ${task.card.acceptance.length} acceptance item(s)`;
+  // A change to what judges it goes to a person and tier 2 doesn't run; a
+  // tier 1 failure or an empty change goes back before paying for a review.
+  let decision = decideBeforeReview({
+    tier1,
+    pendingProtected: tier1.protected.filter((p) => !wasAllowed(p)).length,
+    card: task.card,
+    round,
+  });
+  if (decision && tier1.verdict === "pass") {
     for (const a of task.card.acceptance)
       await append("judge", `acceptance ${a.id}: unmet — the change is empty`);
-  } else {
+  } else if (!decision) {
     const profile = await buildContext(repoPath)
       .profile()
       .catch(() => null);
@@ -402,77 +390,33 @@ export async function judgeTask(
         lines: [`no proof record was found at ${proofFile}`],
       };
     }
-    const plan = reviewPlan({
-      risk: risk.effective,
-      size: await changeSize(
+    let outcome: ReviewOutcome;
+    let plan: ReviewPlan;
+    try {
+      ({ outcome, plan } = await reviewRound({
         repoPath,
-        tier1.mergeBase,
-        head,
-        assembly.stop_and_ask.flatMap((s) =>
-          typeof s === "string" ? [] : s.touches,
-        ),
-      ),
-      forced: options.model,
-      strong: profile?.ai?.judge_model,
-      small: profile?.ai?.judge_small_model,
-    });
-    const review = (ai: AiClient, model: string) =>
-      (options.review ?? reviewLocal)({
-        repoPath,
-        ai,
-        model,
-        effort: plan.effort,
         card: task.card,
-        decisions: allowedDecisions(task),
-        proof,
-        tier1: tier1.checks,
+        risk: risk.effective,
         base: tier1.mergeBase,
         head,
         round,
+        sensitive: assembly.stop_and_ask.flatMap((s) =>
+          typeof s === "string" ? [] : s.touches,
+        ),
+        proof,
+        decisions: allowedDecisions(task),
+        tier1: tier1.checks,
+        models: profile?.ai,
+        model: options.model,
+        ai: options.ai,
+        fastAi: options.fastAi,
+        review: options.review,
         usageDate: (options.now ?? new Date()).toISOString().slice(0, 10),
         log,
-      });
-    const full = (model = plan.model) =>
-      review(
-        // The CLI transport's own call limit fires first and stops the task;
-        // this one bounds the API path, a minute later. One retry: a call
-        // that failed for a passing reason is worth exactly one more.
-        options.ai ??
-          createAiClient({
-            timeoutMs: (callTimeoutMinutes() + 1) * 60_000,
-            maxRetries: 1,
-          }),
-        model,
-      );
-    const fastModel = profile?.ai?.judge_small_model ?? FAST_REVIEW_MODEL;
-    let outcome: ReviewOutcome;
-    try {
-      if (isFastPath(task.card, risk.effective)) {
-        try {
-          outcome = await review(
-            options.fastAi ??
-              createAiClient({
-                timeoutMs: FAST_REVIEW_TIMEOUT_MS,
-                maxRetries: 0,
-              }),
-            options.model ?? fastModel,
-          );
-        } catch (err) {
-          // The run's budget ran out: the full review would only be killed too.
-          if (err instanceof CallTimeoutError) throw err;
-          await append(
-            "judge",
-            `fast review (${fastModel}, ${FAST_REVIEW_TIMEOUT_MS / 60_000} min) didn't finish: ${oneLine((err as Error).message, 120)}; escalating to the full review`,
-          );
-          // The smaller model already had its turn.
-          outcome = await full(
-            options.model ?? profile?.ai?.judge_model ?? JUDGE_DEFAULT_MODEL,
-          );
-        }
-      } else {
-        log(`review: ${plan.model} at ${plan.effort} effort (${plan.why})`);
-        outcome = await full();
-      }
+        onEscalate: async (message) => {
+          await append("judge", message);
+        },
+      }));
     } catch (err) {
       // Said in the ledger with what the call said, so a crashed review isn't
       // just "next: judge" with nothing to go on; the round is judged again.
@@ -515,60 +459,25 @@ export async function judgeTask(
         "judge",
         `before proof: ${r.before.shows_defect ? "shows the defect" : "doesn't show the defect"}${r.before.note ? ` — ${oneLine(r.before.note, 200)}` : ""}`,
       );
-    const unverified = unverifiedCriteria(task.card, r.acceptance);
-    for (const u of unverified.filter(
+    decision = await decideAfterReview({
+      card: task.card,
+      round,
+      outcome,
+      allowed,
+      autonomy: () => autonomyFor(repoPath, task.card),
+    });
+    for (const u of decision.unverified.filter(
       (u) => !r.acceptance.some((a) => a.id === u.id),
     ))
       await append("judge", `acceptance ${u.id}: unverified — ${u.note}`);
-    // An unmet criterion blocks whatever the review's verdict says.
-    const unmet = task.card.acceptance.filter((c) =>
-      r.acceptance.some((a) => a.id === c.id && a.status === "unmet"),
-    );
-    // The review leaves a round needing a person when a criterion is
-    // unverified; that's decided below, with the reason, so here it passes.
-    const onlyUnverified =
-      outcome.verdict === "needs-human" &&
-      r.blocking.length === 0 &&
-      r.unreviewed.length === 0;
-    if (outcome.verdict === "request-changes") {
-      record.verdict = "failed";
-      why = `${r.blocking.length} blocking`;
-    } else if (unmet.length > 0) {
-      record.verdict = round > MAX_ROUNDS ? "needs a human" : "failed";
-      why = `${unmet.length} acceptance item(s) unmet: ${unmet.map((c) => c.id).join(", ")}`;
-    } else if (outcome.verdict === "approve" || onlyUnverified)
-      record.verdict = "passed";
-    else {
-      record.verdict = "needs a human";
-      why =
-        r.blocking.length > 0
-          ? `${r.blocking.length} blocking after ${MAX_ROUNDS} rounds`
-          : `the reviewer wasn't shown ${r.unreviewed.join(", ")}`;
-    }
-    // A round sent back to build is judged again; any other never passes an
-    // unverified criterion without a person, at any autonomy level: an
-    // unverified criterion is one nobody showed is done.
-    if (unverified.length > 0 && record.verdict !== "failed") {
-      const detail = unverified
-        .map((u) => `${u.id} (${oneLine(u.note, 200)})`)
-        .join("; ");
-      if (!allowed.has(`unverified_acceptance: ${detail}`)) {
-        const level = await autonomyFor(repoPath, task.card);
-        if (record.verdict === "needs a human")
-          asks.push(`judge: ${why}; look at the change`);
-        asks.push(`unverified_acceptance: ${detail}`);
-        const reason = `${unverified.length} acceptance item(s) unverified at autonomy ${level}`;
-        why = record.verdict === "needs a human" ? `${why}; ${reason}` : reason;
-        record.verdict = "needs a human";
-      }
-    }
   }
+  if (!decision) throw new TaskError("the judge round reached no decision");
+  record.verdict = decision.verdict;
+  const { why, asks } = decision;
 
   const text = `${JSON.stringify(record, null, 2)}\n`;
   await mkdir(join(repoPath, TASKS_DIR, id, "judge"), { recursive: true });
   await writeFile(recordPath(repoPath, id, round), text, "utf8");
-  if (record.verdict === "needs a human" && asks.length === 0)
-    asks.push(`judge: ${why}; look at the change`);
   for (const ask of asks) await append("stop", `asked: ${ask}`);
   await append(
     "timeline",

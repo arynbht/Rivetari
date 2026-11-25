@@ -1,9 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { simpleGit } from "simple-git";
-
 import type { TaskFinding, TaskHistoryRow } from "../ship/close.js";
+import { judgeGit } from "./git.js";
 import { DIFF_RULES } from "./diff-rules.js";
 import { changeChecks } from "./tier1.js";
 
@@ -40,7 +39,7 @@ export async function historyRows(repoPath: string): Promise<TaskHistoryRow[]> {
     join(repoPath, ".rivetari", "history.jsonl"),
     "utf8",
   ).catch(() => "");
-  const branch = await simpleGit(repoPath)
+  const branch = await judgeGit(repoPath)
     .show(["refs/heads/rivetari/tasks:history.jsonl"])
     .catch(() => "");
   const rows = new Map<string, TaskHistoryRow>();

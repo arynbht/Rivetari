@@ -6,9 +6,9 @@
 // about $3.67 each. The six the smaller model reviewed cost $0.03–0.10.
 import { type Effort } from "@arynbht/rivetari-engine";
 import picomatch from "picomatch";
-import { simpleGit } from "simple-git";
 
 import type { Risk } from "../task/risk.js";
+import { judgeGit } from "./git.js";
 import { FAST_REVIEW_MODEL } from "./fast-path.js";
 import { isTestFile, parseNameStatus } from "./protected.js";
 import { generatedPaths, JUDGE_DEFAULT_MODEL } from "./tier2.js";
@@ -44,7 +44,7 @@ export async function changeSize(
   head: string,
   sensitive: readonly string[],
 ): Promise<ChangeSize> {
-  const git = simpleGit(repoPath);
+  const git = judgeGit(repoPath);
   const rows = (
     await git.raw(["diff", "--numstat", "--no-renames", base, head])
   )

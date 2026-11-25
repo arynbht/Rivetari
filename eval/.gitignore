@@ -1,0 +1,8 @@
+# Each case's repo and judge clone, while the eval runs.
+.work/
+
+# The BreathBand pilot corpus holds a private repo's code and this repo is
+# public, so its cases and the results that quote them stay on this machine
+# unless the owner decides to publish them (git add -f).
+cases/bb-*/
+results/
