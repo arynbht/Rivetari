@@ -216,6 +216,7 @@ export interface JudgeEvalOptions {
 }
 
 const CHECK_RUNS_TESTS = "quality.tests.pass";
+const CASE_ID = /^[A-Za-z0-9][\w.-]*$/;
 
 /** A case file's text, or null when it doesn't exist; any other error is thrown. */
 async function readIfThere(path: string): Promise<string | null> {
@@ -240,6 +241,12 @@ export async function loadEvalCases(
     const metaText = await readIfThere(join(dir, "case.json"));
     if (metaText === null) continue;
     const meta = JSON.parse(metaText) as EvalCaseMeta;
+    // The id names the case's work directory, which is deleted after it's
+    // judged, so it can only be a plain name: never "..", a path or empty.
+    if (typeof meta.id !== "string" || !CASE_ID.test(meta.id))
+      throw new Error(
+        `${join(dir, "case.json")}: id must be letters, digits, ".", "_" or "-", starting with a letter or digit`,
+      );
     if (only && only.length > 0 && !only.includes(meta.id)) continue;
     const card = parseCard(
       parse(await readFile(join(dir, "card.yml"), "utf8")),
@@ -463,7 +470,9 @@ export async function judgeCase(
     notes: [],
     durationMs: 0,
   };
-  const work = join(options.workRoot, meta.id);
+  const work = resolve(options.workRoot, meta.id);
+  if (!CASE_ID.test(meta.id) || dirname(work) !== resolve(options.workRoot))
+    throw new Error(`case id ${JSON.stringify(meta.id)} isn't a plain name`);
   try {
     const repoPath = join(work, "repo");
     const { base, head } = await materializeCase(c, repoPath);

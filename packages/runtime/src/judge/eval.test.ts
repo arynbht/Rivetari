@@ -366,6 +366,23 @@ describe("loadEvalCases", () => {
     );
   });
 
+  it("refuses a case id that isn't a plain name, so no delete leaves the work root", async () => {
+    const root = await tmp();
+    const dir = await makeCase(root, meta(), BASE, HEAD);
+    const sentinel = join(root, "keep.txt");
+    await writeFile(sentinel, "still here\n");
+    for (const id of ["..", ".", "", "../x", "a/b", "C:\\x", "/abs"]) {
+      await writeFile(
+        join(dir, "case.json"),
+        JSON.stringify({ ...meta(), id }),
+      );
+      await expect(loadEvalCases(root), JSON.stringify(id)).rejects.toThrow(
+        /id must be/,
+      );
+    }
+    expect(await readFile(sentinel, "utf8")).toBe("still here\n");
+  });
+
   it("fails on a proof.json it can't read rather than judging with no proof", async () => {
     const root = await tmp();
     const dir = await makeCase(root, meta(), BASE, HEAD);
