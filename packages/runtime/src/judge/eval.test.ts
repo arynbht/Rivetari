@@ -1,7 +1,16 @@
 // The judge eval replays a labelled change as a two-commit repo and judges it
 // as the task judge would: tier 1, the review, the same decision, then scores
 // the verdict against the label.
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -15,6 +24,8 @@ import {
   materializeCase,
   runJudgeEval,
   scoreCase,
+  scratchGitEnv,
+  scratchPath,
 } from "./eval.js";
 import type { ReviewOutcome } from "./review.js";
 import type { Tier2Result } from "./tier2.js";
@@ -254,7 +265,81 @@ describe("materializeCase", () => {
     }
     const config = await readFile(join(repo, ".git", "config"), "utf8");
     expect(config).not.toContain("fsmonitor");
-    expect(config).toContain("hooksPath");
+  });
+
+  it("refuses a path that reaches .git or leaves the repo through a link", async () => {
+    const repo = join(await tmp(), "repo");
+    const away = await tmp();
+    await mkdir(repo, { recursive: true });
+    await simpleGit(repo).init(["--quiet"]);
+    // A junction needs no privilege on Windows; elsewhere it's a symlink.
+    await symlink(join(repo, ".git"), join(repo, "into-git"), "junction");
+    await symlink(away, join(repo, "away"), "junction");
+    await expect(scratchPath(repo, "into-git/config")).rejects.toThrow(
+      /inside \.git/,
+    );
+    await expect(
+      scratchPath(repo, "into-git/hooks/new/pre-commit"),
+    ).rejects.toThrow(/inside \.git/);
+    await expect(scratchPath(repo, "away/x.txt")).rejects.toThrow(
+      /outside the repo/,
+    );
+    expect(
+      await stat(join(repo, ".git", "hooks", "new")).catch(() => null),
+    ).toBeNull();
+    await expect(scratchPath(repo, "src/new/a.ts")).resolves.toMatch(/a\.ts$/);
+  });
+
+  it("runs git in the scratch repo with no tokens, no global config and no hooks", async () => {
+    const env = scratchGitEnv("NOHOOKS", "EMPTY");
+    expect(env.GIT_CONFIG_GLOBAL).toBe("EMPTY");
+    expect(env.GIT_CONFIG_NOSYSTEM).toBe("1");
+    expect([env.GIT_CONFIG_KEY_0, env.GIT_CONFIG_VALUE_0]).toEqual([
+      "core.hooksPath",
+      "NOHOOKS",
+    ]);
+
+    // A global config whose hooks would leave a mark if git ran them, and a
+    // token in our environment.
+    const root = await tmp();
+    const hooks = join(root, "hooks");
+    const marker = join(root, "hook-ran");
+    const posix = (p: string) => p.split("\\").join("/");
+    await mkdir(hooks);
+    for (const name of ["pre-commit", "post-commit"]) {
+      await writeFile(
+        join(hooks, name),
+        `#!/bin/sh\nenv > "${posix(marker)}"\n`,
+      );
+      await chmod(join(hooks, name), 0o755);
+    }
+    // HOME passes the allowlist, so git would read this .gitconfig unless
+    // the scratch environment points the global config elsewhere.
+    await writeFile(
+      join(root, ".gitconfig"),
+      `[core]\n\thooksPath = ${posix(hooks)}\n`,
+    );
+    const saved = {
+      HOME: process.env.HOME,
+      USERPROFILE: process.env.USERPROFILE,
+      GH_TOKEN: process.env.GH_TOKEN,
+    };
+    process.env.HOME = root;
+    process.env.USERPROFILE = root;
+    process.env.GH_TOKEN = "ghp_eval_selfcheck";
+    try {
+      const dir = await tmp();
+      await writeFile(
+        join(dir, "base.json"),
+        JSON.stringify({ files: { "a.txt": { utf8: "a\n" } } }),
+      );
+      await materializeCase({ dir }, join(await tmp(), "repo"));
+    } finally {
+      for (const [k, v] of Object.entries(saved))
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+    }
+    expect(await stat(marker).catch(() => null)).toBeNull();
   });
 
   it("makes an empty change from an empty diff", async () => {

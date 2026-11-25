@@ -23,14 +23,15 @@ import {
   mkdir,
   readdir,
   readFile,
+  realpath,
   rm,
   stat,
   writeFile,
 } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
-import type { AiClient } from "@arynbht/rivetari-engine";
+import { type AiClient, allowlistedEnv } from "@arynbht/rivetari-engine";
 import { simpleGit } from "simple-git";
 import { parse } from "yaml";
 
@@ -260,6 +261,72 @@ export async function loadEvalCases(
 }
 
 /**
+ * The environment every git call in a case's scratch repo runs with: the
+ * allowlist, so no token reaches git or anything it starts; no system or
+ * global config; and, above any config a case could reach, hooks pointed at
+ * an empty directory outside the repo and no fsmonitor.
+ */
+export function scratchGitEnv(
+  noHooks: string,
+  emptyConfig: string,
+): NodeJS.ProcessEnv {
+  return {
+    ...allowlistedEnv(),
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: emptyConfig,
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_CONFIG_COUNT: "2",
+    GIT_CONFIG_KEY_0: "core.hooksPath",
+    GIT_CONFIG_VALUE_0: noHooks,
+    GIT_CONFIG_KEY_1: "core.fsmonitor",
+    GIT_CONFIG_VALUE_1: "false",
+  };
+}
+
+const samePath = (p: string) =>
+  process.platform === "win32" ? p.toLowerCase() : p;
+
+/**
+ * Where a case's base file lands, or an error. The nearest directory that
+ * already exists is resolved with realpath, so a symlink or junction can't
+ * carry the write out of the repo or into its git dir; the segments below it
+ * don't exist yet, so none of them is a link.
+ */
+export async function scratchPath(
+  repoPath: string,
+  path: string,
+): Promise<string> {
+  const root = await realpath(repoPath);
+  const gitDir = await realpath(join(repoPath, ".git"));
+  let existing = dirname(resolve(repoPath, path));
+  const below = [basename(resolve(repoPath, path))];
+  while (!(await stat(existing).catch(() => null))) {
+    below.unshift(basename(existing));
+    existing = dirname(existing);
+  }
+  const at = join(await realpath(existing), ...below);
+  const real = await realpath(at).catch(() => at);
+  const inside = (p: string, dir: string) =>
+    samePath(p).startsWith(samePath(dir) + sep);
+  if (!inside(real, root))
+    throw new Error(`base.json names a path outside the repo: ${path}`);
+  // Windows drops trailing dots and spaces and answers to the 8.3 name, so
+  // those spellings of .git are refused before they reach the disk.
+  const top = relative(root, real)
+    .split(sep)[0]
+    ?.replace(/[. ]+$/, "")
+    .toLowerCase();
+  if (
+    samePath(real) === samePath(gitDir) ||
+    inside(real, gitDir) ||
+    top === ".git" ||
+    /^git~d+$/.test(top ?? "")
+  )
+    throw new Error(`base.json names a path inside .git: ${path}`);
+  return real;
+}
+
+/**
  * The case as a repo: a commit of its base files, then one of the base plus
  * its diff. Returns both commits.
  */
@@ -267,34 +334,36 @@ export async function materializeCase(
   c: Pick<EvalCase, "dir">,
   repoPath: string,
 ): Promise<{ base: string; head: string }> {
+  // The hooks dir and the empty global config sit beside the repo, where no
+  // base file can reach them.
+  const outside = `${resolve(repoPath)}.git-env`;
+  const noHooks = join(outside, "no-hooks");
+  const emptyConfig = join(outside, "gitconfig");
   await rm(repoPath, { recursive: true, force: true });
+  await rm(outside, { recursive: true, force: true });
   await mkdir(repoPath, { recursive: true });
-  const git = simpleGit(repoPath);
+  await mkdir(noHooks, { recursive: true });
+  await writeFile(emptyConfig, "");
+  // simple-git refuses config paths and counts in the environment unless
+  // asked; these are ours, and they're what keep the case's config out.
+  const env = scratchGitEnv(noHooks, emptyConfig);
+  const git = simpleGit(repoPath, {
+    allowEnvironment: Object.keys(env).filter((k) => k.startsWith("GIT_")),
+    unsafe: {
+      allowUnsafeConfigPaths: true,
+      allowUnsafeConfigEnvCount: true,
+      allowUnsafeHooksPath: true,
+      allowUnsafeFsMonitor: true,
+    },
+  }).env(env);
   await git.init(["--quiet"]);
-  // A scratch repo the eval made: no line-ending rewrites, signing or hooks
-  // from the user's config may change what it holds.
+  // No line-ending rewrites or signing may change what the repo holds.
   await git.addConfig("core.autocrlf", "false");
   await git.addConfig("commit.gpgsign", "false");
   await git.addConfig("user.name", "rivetari judge eval");
   await git.addConfig("user.email", "judge-eval@rivetari.invalid");
-  const noHooks = join(repoPath, ".git", "rivetari-no-hooks");
-  await mkdir(noHooks, { recursive: true });
-  await simpleGit(repoPath, {
-    unsafe: { allowUnsafeHooksPath: true },
-  }).addConfig("core.hooksPath", noHooks);
   for (const [path, file] of Object.entries(await baseFiles(c.dir))) {
-    const at = resolve(repoPath, path);
-    if (!at.startsWith(resolve(repoPath) + sep))
-      throw new Error(`base.json names a path outside the repo: ${path}`);
-    // A file under .git could set a hook or core.fsmonitor that the next git
-    // call runs with our environment. Windows drops trailing dots and spaces
-    // and answers to the 8.3 name, so those spellings are .git too.
-    const top = relative(resolve(repoPath), at)
-      .split(sep)[0]
-      ?.replace(/[. ]+$/, "")
-      .toLowerCase();
-    if (top === ".git" || /^git~\d+$/.test(top ?? ""))
-      throw new Error(`base.json names a path inside .git: ${path}`);
+    const at = await scratchPath(repoPath, path);
     await mkdir(dirname(at), { recursive: true });
     await writeFile(
       at,
