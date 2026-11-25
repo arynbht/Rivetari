@@ -246,7 +246,7 @@ test.describe("now", () => {
     // What was waiting at launch isn't news.
     expect(await notices(app)).toEqual([]);
 
-    await page.getByRole("tab", { name: "Scorecard" }).click();
+    await page.getByRole("tab", { name: "Posture" }).click();
     fixture.running.append(
       ["build", "stop", "asked: schema: adds a theme column"],
       new Date().toISOString(),

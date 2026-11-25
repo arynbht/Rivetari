@@ -1,6 +1,6 @@
-// The Floor Plan tab: an interactive Cytoscape graph of the repository model the
-// deep-audit swarm produces (systems → subsystems → features → APIs → connectors →
-// datastores, and how they connect). It defaults to a legible "systems only" view
+// The floor plan, shown under the Map: an interactive Cytoscape graph of the
+// repository model the deep-audit swarm produces (systems → subsystems →
+// features → APIs → connectors → datastores, and how they connect). It defaults to a legible "systems only" view
 // (one box per system) and can expand to the full detail graph; system nodes are
 // compound (they visually contain their children). f-CoSE lays the graph out, and
 // zoom/fit controls plus a details overlay keep it navigable even for big repos.
@@ -8,7 +8,7 @@
 // app's strict CSP.
 import cytoscape, { type Core, type ElementDefinition } from "cytoscape";
 import fcose from "cytoscape-fcose";
-import { Boxes, Maximize2, RefreshCw, ZoomIn, ZoomOut } from "lucide-react";
+import { Boxes, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Card } from "@/components/ui/card";
@@ -224,23 +224,14 @@ export function FloorPlan({
   repoPath,
   running,
   version,
-  runError,
-  onRefresh,
 }: {
   repoPath: string;
-  /** True while a swarm run started from this tab is in flight. */
+  /** True while a deep audit started from Posture is in flight. */
   running: boolean;
   /** Bumped by App after a run completes, so we reload the persisted model. */
   version: number;
-  /** Why the latest swarm run failed, if it did. */
-  runError?: string | null;
-  /** Ask App to (re)run the swarm for this repo, once the person has confirmed. */
-  onRefresh: () => void;
 }) {
   const [model, setModel] = useState<RepositoryModel | null>(null);
-  // The swarm costs money, so Refresh first asks; this holds that question open.
-  const [confirming, setConfirming] = useState(false);
-  const [available, setAvailable] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<FloorPlanProgress | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -252,11 +243,7 @@ export function FloorPlan({
   useEffect(() => {
     let active = true;
     window.rivetari.floorplan.get(repoPath).then(
-      (view) => {
-        if (!active) return;
-        setModel(view.model);
-        setAvailable(view.deepAuditAvailable);
-      },
+      (view) => active && setModel(view.model),
       (err: unknown) => active && setError(errorMessage(err)),
     );
     return () => {
@@ -307,89 +294,38 @@ export function FloorPlan({
   };
 
   return (
-    <div className="space-y-3">
+    <section aria-labelledby="floorplan-title" className="space-y-3">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold">Floor Plan</h2>
+          <h3 id="floorplan-title" className="text-sm font-semibold">
+            Floor plan
+          </h3>
           <p className="truncate text-xs text-muted-foreground">
             {model
               ? `${model.summary.systemCount} systems · ${model.summary.nodeCount} nodes · ${model.summary.edgeCount} links${
                   model.summary.partial ? " · partial" : ""
                 }`
-              : "A map of this repository's systems and how they connect."}
+              : "The deep audit's map of this repository's systems and how they connect."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {model && (
-            <Button
-              variant="secondary"
-              onClick={() => setDetailed((d) => !d)}
-              aria-pressed={detailed}
-            >
-              {detailed ? "Systems only" : "Show details"}
-            </Button>
-          )}
+        {model && (
           <Button
-            onClick={() => setConfirming(true)}
-            disabled={running || !available || confirming}
-            aria-describedby="floorplan-cost"
+            variant="secondary"
+            onClick={() => setDetailed((d) => !d)}
+            aria-pressed={detailed}
           >
-            <RefreshCw className={`h-4 w-4 ${running ? "animate-spin" : ""}`} />
-            {running ? "Mapping…" : "Refresh floor plan"}
+            {detailed ? "Systems only" : "Show details"}
           </Button>
-        </div>
+        )}
       </div>
-      <p id="floorplan-cost" className="text-xs text-muted-foreground">
-        Refreshing runs Claude agents over the repository and costs money.
-        You&apos;ll be asked before it starts.
+      <p className="text-xs text-muted-foreground">
+        Drawn by the last deep audit. The deep audit costs money, so it runs
+        only from its own button in Posture.
       </p>
 
-      {confirming && (
-        <div
-          role="group"
-          aria-labelledby="floorplan-confirm-title"
-          className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3"
-        >
-          <p id="floorplan-confirm-title" className="text-sm font-medium">
-            Run the deep audit?
-          </p>
-          <p className="text-sm text-muted-foreground">
-            It starts a swarm of Claude agents, one for each part of the
-            repository (up to 12), to rebuild this map. It uses Claude and costs
-            money: it runs on your Claude Code subscription and counts against
-            its usage. There&apos;s no cost estimate for it yet.
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => {
-                setConfirming(false);
-                onRefresh();
-              }}
-            >
-              Run the deep audit
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setConfirming(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {!available && (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-          Deep audit needs the Claude Code CLI. Sign in with{" "}
-          <code>claude login</code> so the swarm can run on your subscription.
-          The deterministic scorecard still works without it.
-        </p>
-      )}
-      {(error ?? runError) && (
+      {error && (
         <p className="text-sm text-rose-400" role="alert">
-          {error ?? runError}
+          {error}
         </p>
       )}
       {running && progress && (
@@ -450,7 +386,7 @@ export function FloorPlan({
                     {selected.kind}
                   </span>
                 </div>
-                <h3 className="text-sm font-semibold">{selected.title}</h3>
+                <h4 className="text-sm font-semibold">{selected.title}</h4>
                 {selected.summary && (
                   <p className="text-xs text-muted-foreground">
                     {selected.summary}
@@ -493,12 +429,12 @@ export function FloorPlan({
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
             <Boxes className="h-8 w-8 text-muted-foreground" />
             <p className="max-w-sm text-sm text-muted-foreground">
-              No floor plan yet. Refresh the floor plan to let the swarm map
-              this repository.
+              No floor plan yet. Run the deep audit from Posture to let the
+              swarm map this repository.
             </p>
           </div>
         )
       )}
-    </div>
+    </section>
   );
 }

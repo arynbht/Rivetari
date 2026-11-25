@@ -5,10 +5,12 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { readScorecard, runAudit } from "./audit";
+import { runAudit } from "./audit";
+import { readPosture } from "./posture";
 
-// Scorecard shows what state.json records, not a count of its own. The fixture is
-// the e2e sample repo, copied so the audit can write its state into the copy.
+// Posture's scorecard shows what state.json records, not a count of its own. The
+// fixture is the e2e sample repo, copied so the audit can write its state into
+// the copy.
 const FIXTURE = join(
   import.meta.dirname,
   "..",
@@ -29,6 +31,11 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(repo, { recursive: true, force: true });
 });
+
+/** The scorecard Posture shows for a repo, read from its state.json. */
+async function readScorecard(path: string) {
+  return (await readPosture(path)).scorecard;
+}
 
 async function writeState(state: unknown): Promise<void> {
   await mkdir(join(repo, ".rivetari"), { recursive: true });

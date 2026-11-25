@@ -19,7 +19,7 @@ import type { FloorPlanView } from "../../shared/ipc";
 /**
  * Whether the deep-audit swarm can run. It spawns real `claude` processes, so
  * under the E2E seam (deterministic, offline tests) we report it unavailable — the
- * tests drive the Floor Plan from a seeded `.rivetari/floorplan.json` instead.
+ * tests drive the floor plan from a seeded `.rivetari/floorplan.json` instead.
  */
 function deepAuditAvailable(): Promise<boolean> {
   if (process.env.RIVETARI_E2E === "1") return Promise.resolve(false);
@@ -65,7 +65,7 @@ export async function runFloorPlan(
     ...(signal ? { signal } : {}),
   });
   await saveFloorPlan(repoPath, model);
-  // Also emit the human-readable architecture doc so it appears in the Docs tab.
+  // Also emit the human-readable architecture doc so it appears in History's docs.
   await saveArchitectureDoc(repoPath, model);
   return { model, deepAuditAvailable: true, stale: false };
 }

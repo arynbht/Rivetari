@@ -21,8 +21,7 @@ import { LEDGER_KEY } from "./tasks-fixture";
 // listing each change from → to, and profile.yml is never written. The
 // autonomy history, proof settings (sign-in shown only as set), skills with
 // their gaps and the banned patterns render, and axe finds nothing serious.
-// Screenshots of the old Profile tab and of Project go to RIVETARI_SHOTS_DIR
-// when it's set.
+// Screenshots of Project go to RIVETARI_SHOTS_DIR when it's set.
 
 const shotsDir = process.env.RIVETARI_SHOTS_DIR;
 
@@ -62,17 +61,10 @@ test.describe("project", () => {
       .first()
       .click();
 
-    // The old Profile tab, as it is before this view.
-    await page.getByRole("tab", { name: "Profile" }).click();
-    await expect(
-      page.locator("#panel-profile").getByRole("textbox", { name: "Name" }),
-    ).toHaveValue("project-repo");
-    await shot(page, "before-profile");
-
     // Project sits right after Posture.
     const tabs = page.getByRole("tab");
-    await expect(tabs.nth(1)).toHaveText("Posture");
-    await expect(tabs.nth(2)).toHaveText("Project");
+    await expect(tabs.nth(2)).toHaveText("Posture");
+    await expect(tabs.nth(3)).toHaveText("Project");
     await page.getByRole("tab", { name: "Project" }).click();
     const panel = page.locator("#panel-project");
     await expect(

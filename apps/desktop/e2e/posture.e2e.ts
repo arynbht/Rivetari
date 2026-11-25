@@ -21,9 +21,8 @@ import { LEDGER_KEY } from "./tasks-fixture";
 // controls give and what stands before the next, and the expired waiver is
 // flagged. "Start a task for these gaps" and "Start a task to waive" draft
 // cards the runtime records on the tasks branch, and neither writes
-// waivers.yml. axe finds nothing serious. Screenshots of the old Scorecard
-// and Gates tabs (unchanged here) and of Posture go to RIVETARI_SHOTS_DIR
-// when it's set.
+// waivers.yml. axe finds nothing serious. Screenshots of Posture go to
+// RIVETARI_SHOTS_DIR when it's set.
 
 const shotsDir = process.env.RIVETARI_SHOTS_DIR;
 
@@ -63,19 +62,11 @@ test.describe("posture", () => {
       .first()
       .click();
 
-    // The tabs this view joins, as they are before it.
-    await expect(page.locator("#panel-scorecard")).toContainText("8 controls");
-    await shot(page, "before-scorecard");
-    await page.getByRole("tab", { name: "Gates" }).click();
-    await expect(page.locator("#panel-gates")).toContainText(
-      "Current phase: Scaffold (declared in the profile)",
-    );
-    await shot(page, "before-gates");
-
-    // Posture sits right after Now.
+    // Posture sits right after Now and Tasks.
     const tabs = page.getByRole("tab");
     await expect(tabs.nth(0)).toHaveText("Now");
-    await expect(tabs.nth(1)).toHaveText("Posture");
+    await expect(tabs.nth(1)).toHaveText("Tasks");
+    await expect(tabs.nth(2)).toHaveText("Posture");
     await page.getByRole("tab", { name: "Posture" }).click();
     const panel = page.locator("#panel-posture");
     await expect(

@@ -31,25 +31,36 @@ test.describe("accessibility (axe)", () => {
       .getByRole("button", { name: /sample-repo/ })
       .first()
       .click();
-    await page.getByRole("button", { name: "Run audit" }).click();
+    // A repo opens on Now.
     await expect(
       page
-        .locator("#panel-scorecard")
-        .getByRole("heading", { name: "Scorecard" }),
+        .locator("#panel-now")
+        .getByRole("heading", { name: "Now", exact: true }),
     ).toBeVisible();
-    expect(await runAxe(page), "scorecard").toEqual([]);
+    expect(await runAxe(page), "now").toEqual([]);
 
-    await page.getByRole("tab", { name: "Profile" }).click();
-    await expect(
-      page.locator("#panel-profile").getByRole("heading", { name: "Profile" }),
-    ).toBeVisible();
-    expect(await runAxe(page), "profile").toEqual([]);
+    await page.getByRole("tab", { name: "Posture" }).click();
+    const posture = page.locator("#panel-posture");
+    await posture.getByRole("button", { name: "Run audit" }).click();
+    await expect(posture.getByText(/\d+ controls · recorded /)).toBeVisible();
+    expect(await runAxe(page), "posture").toEqual([]);
 
-    await page.getByRole("tab", { name: "Gates" }).click();
+    await page.getByRole("tab", { name: "Project" }).click();
     await expect(
-      page.locator("#panel-gates").getByRole("heading", { name: "Gates" }),
+      page
+        .locator("#panel-project")
+        .getByRole("heading", { name: "Project", exact: true }),
     ).toBeVisible();
-    expect(await runAxe(page), "gates").toEqual([]);
+    expect(await runAxe(page), "project").toEqual([]);
+
+    await page.getByRole("tab", { name: "Map" }).click();
+    await expect(
+      page
+        .locator("#panel-map")
+        .getByRole("region", { name: "Floor plan" })
+        .getByText(/\d+ systems · \d+ nodes/),
+    ).toBeVisible();
+    expect(await runAxe(page), "map and floor plan").toEqual([]);
 
     await page.getByRole("button", { name: "Settings" }).click();
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();

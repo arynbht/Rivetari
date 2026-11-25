@@ -1,10 +1,10 @@
-// The audit adapter. Scorecard shows the audit recorded in `.rivetari/state.json`,
-// read through the engine, so the shell and `rivetari audit` can't disagree: the
-// shell never evaluates a second copy of its own. Run audit evaluates every
-// control and writes state.json through the same engine calls the CLI uses
-// (evaluateControls, then writeAuditState), then shows what was recorded. Each
-// recorded control is joined with the catalog for its title, rationale and
-// references so the UI can show them on expand.
+// The audit adapter. Posture shows the audit recorded in `.rivetari/state.json`,
+// shaped here as the lane scorecard, so the shell and `rivetari audit` can't
+// disagree: the shell never evaluates a second copy of its own. Run audit
+// evaluates every control and writes state.json through the same engine calls
+// the CLI uses (evaluateControls, then writeAuditState), then shows what was
+// recorded. Each recorded control is joined with the catalog for its title,
+// rationale and references so the UI can show them on expand.
 //
 // The CLI also ratchets the coverage baseline in `.rivetari/quality.json` after
 // an audit. That file is committed, so the shell leaves it alone: changing it
@@ -134,15 +134,6 @@ export function toScorecard(
     totals: { ...recorded.summary },
     lanes: [...lanes.values()].filter((lane) => lane.controls.length > 0),
   };
-}
-
-/** The scorecard of the audit recorded in state.json, or null when there's none. */
-export async function readScorecard(
-  repoPath: string,
-): Promise<Scorecard | null> {
-  const recorded = await readRecordedAudit(repoPath);
-  if (!recorded) return null;
-  return toScorecard(repoPath, recorded, await bundledControls());
 }
 
 /**

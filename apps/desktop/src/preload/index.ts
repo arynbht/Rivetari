@@ -2,15 +2,9 @@
 // typed, allow-listed API over contextBridge; the renderer never touches
 // ipcRenderer, fs, git, or the network. Every request is zod-validated before it
 // leaves and every response is zod-validated before the renderer sees it.
-import type { Profile } from "@arynbht/rivetari-catalog";
 import { contextBridge, ipcRenderer } from "electron";
 
 import {
-  AiApplyRequest,
-  AiApplyResult,
-  AiRunRequest,
-  AiRunResult,
-  AiTasks,
   AnthropicKeyRequest,
   AuditRunRequest,
   AuthStatus,
@@ -20,23 +14,13 @@ import {
   DocList,
   DocsListRequest,
   DocsReadRequest,
-  EvidenceRequest,
   FloorPlanGetRequest,
   FloorPlanProgress,
   FloorPlanRunRequest,
   FloorPlanView,
-  FixPlan,
-  FixPlanRequest,
-  FixPrOutcome,
-  GatesReport,
-  GatesStatusRequest,
   IpcChannel,
   PingRequest,
   PingResponse,
-  ProfileLoadRequest,
-  ProfileMeta,
-  ProfileResponse,
-  ProfileSaveRequest,
   RepoList,
   RepoRemoveRequest,
   Scorecard,
@@ -80,7 +64,6 @@ import {
   TasksState,
   TasksWatchRequest,
   UpdateInfo,
-  WaiveRequest,
 } from "../shared/ipc";
 
 const api = {
@@ -112,15 +95,6 @@ const api = {
   },
 
   audit: {
-    /** The audit recorded in .rivetari/state.json, or null when there's none. */
-    async recorded(repoPath: string) {
-      const request = AuditRunRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.AuditRecorded,
-        request,
-      );
-      return Scorecard.nullable().parse(raw);
-    },
     /** Run the audit as `rivetari audit` does, record it, and return it. */
     async run(repoPath: string) {
       const request = AuditRunRequest.parse({ repoPath });
@@ -165,59 +139,6 @@ const api = {
       return () => {
         ipcRenderer.removeListener(IpcChannel.AuthUpdate, listener);
       };
-    },
-  },
-
-  profile: {
-    /** The catalog enum lists that drive the form (types, flags, lanes, …). */
-    async meta() {
-      const raw: unknown = await ipcRenderer.invoke(IpcChannel.ProfileMeta);
-      return ProfileMeta.parse(raw);
-    },
-    /** The repo's profile, or null if it has none. Validated by the engine. */
-    async load(repoPath: string): Promise<Profile | null> {
-      const request = ProfileLoadRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.ProfileLoad,
-        request,
-      );
-      return ProfileResponse.parse(raw) as Profile | null;
-    },
-    /** Write the profile with a minimal diff; returns the saved profile. */
-    async save(repoPath: string, profile: Profile): Promise<Profile> {
-      const request = ProfileSaveRequest.parse({ repoPath, profile });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.ProfileSave,
-        request,
-      );
-      return ProfileResponse.parse(raw) as Profile;
-    },
-  },
-
-  gates: {
-    async status(repoPath: string) {
-      const request = GatesStatusRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.GatesStatus,
-        request,
-      );
-      return GatesReport.parse(raw);
-    },
-    /** Waive a control (reason + expiry); returns the recomputed gates. */
-    async waive(request: WaiveRequest) {
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.GatesWaive,
-        WaiveRequest.parse(request),
-      );
-      return GatesReport.parse(raw);
-    },
-    /** Attach evidence for a needs-evidence control; returns recomputed gates. */
-    async attachEvidence(request: EvidenceRequest) {
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.GatesEvidence,
-        EvidenceRequest.parse(request),
-      );
-      return GatesReport.parse(raw);
     },
   },
 
@@ -294,64 +215,6 @@ const api = {
         HistoryOpenPrRequest.parse({ repoPath, id }),
       );
       return TaskOpenPrResult.parse(raw);
-    },
-  },
-
-  fix: {
-    /** Dry-run: the changes `rivetari fix` would make, grouped per control. */
-    async plan(repoPath: string) {
-      const request = FixPlanRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.FixPlan,
-        request,
-      );
-      return FixPlan.parse(raw);
-    },
-    /** Apply the changes to the working tree; returns the applied results. */
-    async apply(repoPath: string) {
-      const request = FixPlanRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.FixApply,
-        request,
-      );
-      return FixPlan.parse(raw);
-    },
-    /** Open (or reuse) a Rivetari PR with the changes; returns the PR outcome. */
-    async openPr(repoPath: string) {
-      const request = FixPlanRequest.parse({ repoPath });
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.FixOpenPr,
-        request,
-      );
-      return FixPrOutcome.parse(raw);
-    },
-  },
-
-  ai: {
-    /** The Claude-drafted tasks available (from the bundled prompts). */
-    async tasks() {
-      const raw: unknown = await ipcRenderer.invoke(IpcChannel.AiTasks);
-      return AiTasks.parse(raw);
-    },
-    /** Draft the task on the subscription CLI; returns the draft (not written). */
-    async run(repoPath: string, task: string) {
-      const request = AiRunRequest.parse({ repoPath, task });
-      const raw: unknown = await ipcRenderer.invoke(IpcChannel.AiRun, request);
-      return AiRunResult.parse(raw);
-    },
-    async apply(request: AiApplyRequest) {
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.AiApply,
-        AiApplyRequest.parse(request),
-      );
-      return AiApplyResult.parse(raw);
-    },
-    async openPr(request: AiApplyRequest) {
-      const raw: unknown = await ipcRenderer.invoke(
-        IpcChannel.AiOpenPr,
-        AiApplyRequest.parse(request),
-      );
-      return FixPrOutcome.parse(raw);
     },
   },
 

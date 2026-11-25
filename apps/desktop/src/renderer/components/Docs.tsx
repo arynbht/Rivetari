@@ -67,7 +67,10 @@ export function Docs({ repoPath }: { repoPath: string }) {
 
   return (
     <div className="flex gap-4">
-      <nav className="w-60 shrink-0 space-y-0.5 border-r border-border pr-2">
+      <nav
+        aria-label="Repository docs"
+        className="w-60 shrink-0 space-y-0.5 border-r border-border pr-2"
+      >
         {(docs ?? []).length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted-foreground">
             No Markdown docs found under docs/ or .rivetari/.
