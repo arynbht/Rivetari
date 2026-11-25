@@ -133,7 +133,7 @@ export async function runMetrics(
   }
 
   const findings = await findingsMetrics(root);
-  const trust = await ladder(root, { now: options.now });
+  const trust = await ladder(root, { now: options.now, readOnly: true });
   const rows = await historyRows(root);
   const cost = costFlags(rows);
   if (flags.findings) {

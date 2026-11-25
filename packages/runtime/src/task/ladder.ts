@@ -99,6 +99,7 @@ const reason = (err: unknown) =>
 
 async function verifiedEntries(
   repoPath: string,
+  readOnly = false,
 ): Promise<{ entries: AutonomyEntry[]; problems: string[] }> {
   let ledger: Ledger;
   try {
@@ -110,9 +111,14 @@ async function verifiedEntries(
     };
   }
   try {
-    await ledger.rerenderView();
+    if (!readOnly) await ledger.rerenderView();
     const check = await ledger.verify();
-    if (!check.ok) return { entries: [], problems: check.problems };
+    // Only the jsonl is sealed: a stale ledger.md is a view to re-render,
+    // which a read-only caller leaves to the next write.
+    const problems = readOnly
+      ? check.problems.filter((p) => !p.startsWith("ledger.md was"))
+      : check.problems;
+    if (problems.length > 0) return { entries: [], problems };
     return { entries: parseEntries(await ledger.entries()), problems: [] };
   } catch (err) {
     return {
@@ -216,14 +222,26 @@ async function revertedPrs(
 const blocking = (row: TaskHistoryRow) =>
   (row.findings ?? []).filter((f) => f.kind !== "suggestion").length;
 
+/**
+ * Where the repo stands on the autonomy ladder. readOnly verifies and reads
+ * the autonomy ledger without re-rendering ledger.md, for callers that only
+ * report: the session hook and `rivetari metrics` run in a person's checkout.
+ */
 export async function ladder(
   repoPath: string,
-  options: { rows?: TaskHistoryRow[] | undefined; now?: Date | undefined } = {},
+  options: {
+    rows?: TaskHistoryRow[] | undefined;
+    now?: Date | undefined;
+    readOnly?: boolean | undefined;
+  } = {},
 ): Promise<LadderState> {
   const now = options.now ?? new Date();
   const profile = await loadProfile(repoPath).catch(() => null);
   const configured: Autonomy = profile?.autonomy ?? "supervised";
-  const { entries, problems: verification } = await verifiedEntries(repoPath);
+  const { entries, problems: verification } = await verifiedEntries(
+    repoPath,
+    options.readOnly,
+  );
   const entry =
     [...entries].reverse().find((e) => e.level === configured) ?? null;
   const rows = (options.rows ?? (await historyRows(repoPath))).filter(
